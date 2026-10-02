@@ -29,15 +29,37 @@ any wallet or signer to implement.
   also check that the QR code drawn back from a sequence is the seed's
   CompactSeedQR.
 
+## Web tool
+
+`dist/seedcraft-sequences.html`: a single HTML file (about 90 KB, no
+dependencies) to try Sequences with test seeds: seed → objects (with your
+own object names), objects → seed, and the QR code the sequence rebuilds.
+
+- **It cannot connect anywhere.** Its Content-Security-Policy forbids every
+  network request, external script and `eval`; only its own inline script
+  and style run (pinned by their SHA-256). It warns when the computer is
+  online.
+- **Check it with your operating system**, not with the page itself:
+  `shasum -a 256 seedcraft-sequences.html`, against the hash published with
+  the release. The file is reproducible: `node web/build.mjs` prints the
+  hash of the file it builds.
+- **For learning and testing only**: encode real seeds on an air-gapped
+  device.
+
+Build and test (Node.js ≥ 18):
+
+```bash
+node web/build.mjs                       # dist/seedcraft-sequences.html + its SHA-256
+node web/test.mjs                        # the JavaScript against the test vectors
+python3 tests/test_sequences.py          # the Python reference
+```
+
+The QR code generator is Project Nayuki's (MIT): the TypeScript source and the
+JavaScript compiled from it with TypeScript 5.6.3 are in `web/third_party/`.
+
 ## Planned contents
 
 - **Specifications** with test vectors (public test seeds only).
-- **A single-file web tool** (one HTML file, no dependencies) to try the
-  formats offline. It cannot make network connections (Content-Security-
-  Policy), warns when the computer seems online, and is for learning and
-  testing: real seeds are encoded on an air-gapped device. Its SHA-256 is
-  published and the file is reproducible from this repository; check it
-  with your operating system's tools, as a page cannot vouch for itself.
 - **Printable PDFs**: how each format works, how to reconstruct a seed by
   hand (templates and tables), worked examples. Built with Typst,
   reproducibly.

@@ -1,0 +1,38 @@
+# Tests the reference implementation and the web tool against the test
+# vectors, builds the web tool (reproducible: compare the printed SHA-256 with
+# a local build of the same commit) and keeps it as an artifact.
+name: test-and-build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Python reference against the vectors
+        run: python3 tests/test_sequences.py
+      - name: JavaScript against the vectors
+        run: node web/test.mjs
+      - name: Build the web tool
+        run: node web/build.mjs | tee SHA256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: seedcraft-sequences
+          path: |
+            dist/seedcraft-sequences.html
+            SHA256.txt
