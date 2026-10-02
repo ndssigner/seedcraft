@@ -1,9 +1,8 @@
 """Seedcraft Sequences, reference implementation (draft v0, SPEC-sequences.md).
 
 A BIP-39 seed's entropy -> its CompactSeedQR -> the QR code's data modules,
-in the QR code's own placement order (two-column zigzag) -> data bits +
-header -> symbols of k bits (N = 2**k kinds of objects). And back, with the
-QR code's Reed-Solomon error correction.
+row by row -> data bits + header -> symbols of k bits (N = 2**k kinds of
+objects). And back, with the QR code's Reed-Solomon error correction.
 
 Standard library only, plus Project Nayuki's QR Code generator (qrcodegen.py,
 MIT, unmodified), so that every implementation picks the same mask.
@@ -46,12 +45,17 @@ def function_modules(size):
     return {(r, c) for r, c in f if 0 <= r < size and 0 <= c < size}
 
 
+def data_modules_row_major(size):
+    """The data modules in Seedcraft's reading order (SPEC §3.4): row by row,
+    top to bottom, each row left to right, as a person writes."""
+    func = function_modules(size)
+    return [(r, c) for r in range(size) for c in range(size) if (r, c) not in func]
+
+
 def data_modules_qr_order(size):
-    """The data modules in the QR standard's placement order, which is also
-    Seedcraft's reading order (SPEC §3.4): pairs of columns from the right,
-    going up then down alternately, the right column of the pair first;
-    column 6 (timing) is skipped. Consecutive bits belong to the same
-    codeword, so a misread object damages as few codewords as possible."""
+    """The data modules in the QR standard's placement order (pairs of
+    columns from the right, up and down alternately, column 6 skipped),
+    where the codeword bits are."""
     func = function_modules(size)
     order = []
     upward = True
@@ -119,7 +123,7 @@ def encode(entropy, k, pin=None):
     payload = pin_xor(entropy, pin) if pin else entropy
     qr = compact_seedqr(payload)
     size = qr.get_size()
-    bits = [1 if qr.get_module(c, r) else 0 for r, c in data_modules_qr_order(size)]
+    bits = [1 if qr.get_module(c, r) else 0 for r, c in data_modules_row_major(size)]
     header = format(FORMAT_VERSION, "02b") + format(qr.get_mask(), "03b")
     bits += [int(b) for b in header]
     return bits_to_symbols(bits, k)
@@ -145,7 +149,7 @@ def decode(symbols, k, pin=None):
     corrected, header as read: (version, mask))."""
     bits = symbols_to_bits(symbols, k)
     for nbytes, (version, size, ndata, necc) in LAYOUTS.items():
-        nmod = len(data_modules_qr_order(size))
+        nmod = len(data_modules_row_major(size))
         if len(bits) - (-(HEADER_BITS + nmod) % k) == HEADER_BITS + nmod:
             break
     else:
@@ -153,7 +157,7 @@ def decode(symbols, k, pin=None):
                           % (len(symbols), k))
     header = parse_header(bits[nmod:nmod + HEADER_BITS])
     mask = header[1]
-    modules = dict(zip(data_modules_qr_order(size), bits[:nmod]))
+    modules = dict(zip(data_modules_row_major(size), bits[:nmod]))
     # The header has no error correction: if its mask does not give a valid
     # QR code, try the other seven (only the right one decodes).
     error = None

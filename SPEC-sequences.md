@@ -21,13 +21,12 @@ The reference implementation is `reference/python/seedcraft_sequences.py`;
 ## 1. Idea in one paragraph
 
 Take the seed's **CompactSeedQR** (SeedSigner's binary SeedQR format). Read
-its data modules as bits, in the order the QR code itself stores its bytes
-(a two-column zigzag), and add a short header at the end. Group the bits
-into symbols of *k* bits, so there are N = 2ᵏ kinds of objects. String the N
-kinds in symbol order (the **dictionary**), then one object per symbol.
-Reading the sequence back gives the QR code's modules: draw them on a blank
-template following the printed path and scan it, or let software do it. The
-QR code's own error correction repairs misread objects.
+its data modules as bits, row by row, and add a short header at the end.
+Group the bits into symbols of *k* bits, so there are N = 2ᵏ kinds of
+objects. String the N kinds in symbol order (the **dictionary**), then one
+object per symbol. Reading the sequence back gives the QR code's modules:
+fill them in on a blank template, row by row, and scan it, or let software
+do it. The QR code's own error correction repairs a misread object.
 
 ## 2. Parameters
 
@@ -41,17 +40,13 @@ QR code's own error correction repairs misread objects.
 
 Objects needed (symbols + dictionary):
 
-| k | N | 12 words | 24 words | Misread objects always repaired |
-| :---: | :---: | :--- | :--- | :--- |
-| 1 | 2 | 213 + 2 = 215 | 364 + 2 = 366 | 3 / 5 |
-| 2 | 4 | 107 + 4 = 111 | 182 + 4 = 186 | 3 / 5 |
-| 3 | 8 | 71 + 8 = 79 | 122 + 8 = 130 | 1 / 2 |
-| **4** | **16** | 54 + 16 = **70** | 91 + 16 = **107** | **3 / 5** |
-| 5 | 32 | 43 + 32 = 75 | 73 + 32 = 105 | 1 / 2 |
-
-**N = 16 is recommended**: few objects and the best error tolerance, because
-each object is exactly half a QR codeword. With N = 8 or 32 an object can
-straddle two codewords.
+| k | N | 12 words | 24 words |
+| :---: | :---: | :--- | :--- |
+| 1 | 2 | 213 + 2 = 215 | 364 + 2 = 366 |
+| 2 | 4 | 107 + 4 = 111 | 182 + 4 = 186 |
+| 3 | 8 | 71 + 8 = **79** | 122 + 8 = 130 |
+| 4 | 16 | 54 + 16 = **70** | 91 + 16 = **107** |
+| 5 | 32 | 43 + 32 = 75 | 73 + 32 = 105 |
 
 Only powers of two are allowed: each object is a whole number of bits, so the
 conversion can be done by hand with a small table, without arithmetic.
@@ -69,16 +64,12 @@ conversion can be done by hand with a small table, without arithmetic.
    pattern M (0–7) is the one the QR standard's penalty rules choose (as
    Project Nayuki's QR Code generator does, used by the reference
    implementations).
-4. **Data bits, in the QR placement order.** Visit the modules by pairs of
-   columns, starting with the two rightmost columns and moving left; within
-   a pair, go up (bottom row to top) in the first pair, down in the next,
-   and so on, taking the right column's module before the left one's in
-   each row. Column 6 (the vertical timing line) is skipped: the pair after
-   columns 8–7 is columns 5–4. **Skip the function patterns**: the three
-   finder patterns with their separators (8×8 each), the two timing lines,
-   the format information areas, the dark module and, for version 2, the
-   alignment pattern. Dark = 1, light = 0, as drawn (masked). This is the
-   QR standard's own order, so consecutive bits belong to the same codeword.
+4. **Data bits, row by row.** Read the QR code's modules row by row, top to
+   bottom, each row left to right, as a person writes. **Skip the function
+   patterns**: the three finder patterns with their separators (8×8 each),
+   the two timing lines, the format information areas, the dark module and,
+   for version 2, the alignment pattern. Dark = 1, light = 0, as drawn
+   (masked), so they can be drawn or placed back directly.
 5. **Header**, after the data bits, most significant bit first:
    - format version V (2 bits): 0 for this specification. 1 and 2 are
      reserved for future versions; 3 means an extended header follows
@@ -101,9 +92,11 @@ conversion can be done by hand with a small table, without arithmetic.
 3. The number of bits tells the size (213 or 364 bits, plus padding: 21×21
    or 25×25). The bits after the data modules are the header.
 4. **By hand:** take the blank template of that size (fixed patterns
-   already drawn, the reading path printed on it); draw the format
-   information for level L and mask M (table in §7); fill the data modules
-   along the path. Scan the result.
+   already drawn); draw the format information for level L and mask M
+   (table in §7); fill the data modules row by row. Instead of drawing, the
+   modules can be placed on a pegboard (fusible bead boards are usually
+   29×29 pegs) or a Lego baseplate with dark and light pieces. Scan the
+   result.
 5. **By software:** unmask with M, read the codewords, correct errors,
    check that the result is a CompactSeedQR (byte mode, 16 or 32 bytes).
    **The header has no error correction, so software does not trust it:**
@@ -118,16 +111,17 @@ gives a QR code that decodes and has the right length.
 
 ## 5. Errors
 
-The QR code's Reed-Solomon code (level L) has 7 error correction codewords
-in version 1 and 10 in version 2: it can repair up to 3 and 5 wrong
-codewords. (The QR standard lets readers stop at 2 and 4, keeping the rest
-to detect miscorrections; a hand-drawn code read by a phone may get that
-lower margin.) With k = 1, 2 or 4 every object lies inside one codeword, so
-that many misread objects are always repaired; with k = 3 or 5, half as
-many.
+Error correction is not a design goal: a sequence does not wear out like
+print, and a mistake comes from making or reading it, which the person can
+check and repeat. What the QR code brings for free is enough: its
+Reed-Solomon code (level L) repairs up to 3 wrong codewords in version 1
+and 5 in version 2. One object touches at most 3 (version 1) or 5 (version
+2) codewords for any k, so **one misread object is always repaired**.
+(The QR standard lets readers stop at 2 and 4 codewords, so a phone
+scanning a hand-made code may have less margin.)
 
-A missing or extra object shifts everything after it; software can try
-deleting or inserting one object at each position.
+A missing or extra object shifts everything after it: the reading fails,
+and the person checks the sequence against the list, row by row.
 
 ## 6. How many objects of each kind
 
@@ -139,8 +133,9 @@ of each kind, enough for any seed (the number of symbols is a safe amount).
 
 - Symbol → bits for k = 1…5.
 - Format information bits for error correction level L and masks 0–7.
-- Blank templates for 21×21 and 25×25 with the fixed patterns drawn and the
-  reading path printed (arrows and a module number every few cells).
+- Blank templates for 21×21 and 25×25 with the fixed patterns drawn, and
+  the number of data modules in each row (to check each row while
+  filling it in).
 
 ## 8. Security considerations
 
@@ -158,5 +153,4 @@ of each kind, enough for any seed (the number of symbols is a safe amount).
 
 ## 9. Open questions for v1
 
-- Software help for a missing or extra object (§5).
-- More test vectors (other masks, damaged sequences).
+- More test vectors (other masks).

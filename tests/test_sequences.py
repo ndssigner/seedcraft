@@ -32,7 +32,7 @@ def draw_qr(symbols, k):
     patterns, format information for level L and the mask, data modules."""
     bits = sc.symbols_to_bits(symbols, k)
     size = 21 if len(bits) < 300 else 25
-    nmod = len(sc.data_modules_qr_order(size))
+    nmod = len(sc.data_modules_row_major(size))
     mask = sc.parse_header(bits[nmod:nmod + sc.HEADER_BITS])[1]
     ref = sc.compact_seedqr(bytes(16 if size == 21 else 32))  # fixed patterns
     grid = [[ref.get_module(c, r) for c in range(size)] for r in range(size)]
@@ -43,7 +43,7 @@ def draw_qr(symbols, k):
     func = sc.function_modules(size)
     for r, c in func:
         grid[r][c] = fmt.get_module(c, r)
-    for (r, c), b in zip(sc.data_modules_qr_order(size), bits[:nmod]):
+    for (r, c), b in zip(sc.data_modules_row_major(size), bits[:nmod]):
         grid[r][c] = bool(b)
     return grid
 
@@ -79,11 +79,9 @@ def main():
         if pin:
             other, _, _ = sc.decode(v["symbols"], k, "9999")
             check(other != entropy and len(other) == len(entropy), "wrong PIN " + name)
-        # misread objects are corrected (SPEC §5): with k = 1, 2 or 4 every
-        # object lies within one codeword, so 2 misread objects are always
-        # repaired; with k = 3 or 5 an object can straddle two codewords and
-        # only 1 is guaranteed
-        for nerr in ((1, 2) if 8 % k == 0 else (1,)):
+        # a misread object is always corrected (SPEC §5); more are not
+        # guaranteed: the person checks the sequence and reads it again
+        for nerr in (1,):
             sym = list(v["symbols"])
             for pos in rng.sample(range(len(sym)), nerr):
                 sym[pos] = (sym[pos] + rng.randrange(1, 1 << k)) % (1 << k) if k > 0 else sym[pos]
