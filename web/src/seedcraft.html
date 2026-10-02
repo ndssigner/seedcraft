@@ -7,83 +7,21 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src '{{SCRIPT_HASH}}'; style-src '{{STYLE_HASH}}'; img-src data:; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Seedcraft Sequences — test tool</title>
+<title>Seedcraft — seeds as strings of things</title>
 <style>{{STYLE}}</style>
 </head>
-<body>
-<div class="bar warn">Testing and learning tool. Never type the seed of real funds into a computer: real seeds are encoded on an air-gapped device.</div>
-<div class="bar online hidden" id="online">This computer has a network connection. This page cannot send anything, but the computer itself can: use test seeds only.</div>
-
-<header class="top">
-	<h1>Seed<span>craft</span> Sequences</h1>
-	<p>A BIP-39 seed as a sequence of objects: beads, charms, bricks… via its CompactSeedQR. Format draft v{{FORMAT_VERSION}}.</p>
-</header>
-
-<nav class="tabs" id="tabs">
-	<button data-tab="encode" class="active">Seed → objects</button>
-	<button data-tab="decode">Objects → seed</button>
-	<button data-tab="about">About this file</button>
-</nav>
-
-<main>
-<section class="panel" id="encode">
-	<label for="enc-seed">Seed <small>12 or 24 BIP-39 words, test seeds only</small></label>
-	<textarea id="enc-seed" class="mono" spellcheck="false" autocomplete="off" placeholder="height demise useless trap grow lion found off key clown transfer enroll"></textarea>
-	<div class="buttons">
-		<button class="secondary" id="rand12">Random 12-word test seed</button>
-		<button class="secondary" id="rand24">Random 24-word test seed</button>
-	</div>
-	<div class="row">
-		<div>
-			<label for="enc-n">Kinds of objects (N)</label>
-			<select id="enc-n">
-				<option value="1">2</option><option value="2">4</option><option value="3">8</option>
-				<option value="4" selected>16 (recommended)</option><option value="5">32</option>
-			</select>
-		</div>
-		<div>
-			<label for="enc-pin">PIN <small>optional, digits; obfuscation only</small></label>
-			<input id="enc-pin" class="mono" inputmode="numeric" autocomplete="off" placeholder="none">
-		</div>
-	</div>
-	<label for="enc-names">Your objects, in order <small>one per line: line 1 is symbol 0, line 2 symbol 1…</small></label>
-	<textarea id="enc-names" spellcheck="false"></textarea>
-	<div class="buttons"><button class="action" id="encode-btn">Make the sequence</button></div>
-	<div id="enc-error" class="error hidden"></div>
-	<div id="enc-result" class="result hidden"></div>
-</section>
-
-<section class="panel hidden" id="decode">
-	<label for="dec-objects">The sequence <small>one object per line (or separated by commas), from either end</small></label>
-	<textarea id="dec-objects" spellcheck="false" placeholder="Red&#10;Orange&#10;…"></textarea>
-	<label for="dec-pin">PIN <small>only if the sequence was made with one</small></label>
-	<input id="dec-pin" class="mono" inputmode="numeric" autocomplete="off" placeholder="none">
-	<div class="buttons"><button class="action" id="decode-btn">Read the seed</button></div>
-	<div id="dec-error" class="error hidden"></div>
-	<div id="dec-result" class="result hidden"></div>
-</section>
-
-<section class="panel hidden" id="about">
-	<h3>This page cannot connect anywhere</h3>
-	<p>Its Content-Security-Policy forbids every network request: it only runs the
-	script and style inside this one file. It works with the computer offline, and
-	it should be used that way.</p>
-	<h3>Check this file before trusting it</h3>
-	<p>A page cannot vouch for itself: a modified copy could claim anything. Check it
-	with your operating system instead, and compare the result with the SHA-256
-	published with the release at <span class="code">github.com/ndssigner/seedcraft</span>:</p>
-	<pre class="code">macOS / Linux:  shasum -a 256 seedcraft-sequences.html
-Windows:        certutil -hashfile seedcraft-sequences.html SHA256</pre>
-	<p>The file is reproducible: building it from the repository at the same version
-	(<span class="code">node web/build.mjs</span>) gives the same SHA-256.</p>
-	<h3>What it is for</h3>
-	<p>To learn and try the Seedcraft Sequences format (specification
-	<span class="code">SPEC-sequences.md</span>) with test seeds. A seed typed into a
-	computer is exposed to everything that runs on it: encode real seeds on an
-	air-gapped device.</p>
-	<p class="note">Seedcraft — MIT license. QR codes by Project Nayuki's QR Code generator (MIT).</p>
-</section>
-</main>
+<body data-format-version="{{FORMAT_VERSION}}">
+<div class="bar warn" id="warn"></div>
+<div class="bar online hidden" id="online"></div>
+<div class="wrap">
+	<header class="top">
+		<div class="logo" id="logo">🧵 Seed<span>craft</span></div>
+		<div class="tagline" id="tagline"></div>
+		<button class="pill" id="lang"></button>
+	</header>
+	<main id="app"></main>
+	<footer><button id="about"></button></footer>
+</div>
 <script>{{SCRIPT}}</script>
 </body>
 </html>

@@ -31,9 +31,18 @@ any wallet or signer to implement.
 
 ## Web tool
 
-`dist/seedcraft-sequences.html`: a single HTML file (about 90 KB, no
-dependencies) to try Sequences with test seeds: seed → objects (with your
-own object names), objects → seed, and the QR code the sequence rebuilds.
+`dist/seedcraft-sequences.html`: a single HTML file (no dependencies), in
+English and Spanish, made to be understood by a child:
+
+- **Make a sequence**, step by step: the seed, the things (ready-made sets —
+  coloured beads, animal charms, charms, Lego bricks, beads + charms — or
+  your own, each with an emoji, a colour and a name), then the string drawn
+  as beads on a thread, a shopping list, and a *build it step by step* view.
+- **A printable sheet** for whoever makes it: shopping list, simple
+  instructions, the drawing and a checklist, saying nothing about what it is.
+- **Read a sequence** by tapping the things in order (or typing their names),
+  from either end.
+- Nothing is stored: closing the page forgets everything.
 
 - **It cannot connect anywhere.** Its Content-Security-Policy forbids every
   network request, external script and `eval`; only its own inline script
