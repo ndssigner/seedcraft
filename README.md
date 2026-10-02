@@ -16,6 +16,19 @@ any wallet or signer to implement.
 | [Sequences](SPEC-sequences.md): a seed as a sequence of N kinds of objects, via its CompactSeedQR; reconstructible by hand | Draft v0 |
 | Tones: UR parts (PSBTs, seeds, xpubs) over DTMF, with framing and error correction | Planned |
 
+## In this repository
+
+- `SPEC-sequences.md`: the Sequences specification (draft v0).
+- `reference/python/`: reference implementation (standard library only,
+  plus Project Nayuki's QR Code generator, MIT, unmodified).
+- `vectors/sequences-v0.json`: test vectors from public test seeds
+  (`tools/gen_vectors.py` regenerates them; needs `embit`).
+- `tests/test_sequences.py`: encodes and decodes every vector, repairs
+  misread objects, reads sequences from either end. Run it with
+  `python3 tests/test_sequences.py`; give it a quirc `qrdecode` binary to
+  also check that the QR code drawn back from a sequence is the seed's
+  CompactSeedQR.
+
 ## Planned contents
 
 - **Specifications** with test vectors (public test seeds only).
