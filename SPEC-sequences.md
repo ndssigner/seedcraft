@@ -3,10 +3,17 @@
 **Status: draft for discussion.** Nothing here is final until v1, and the
 encoding may still change. Do not store real funds' seeds with a draft.
 
-A way to back up a BIP-39 seed as a **sequence of physical objects** (beads,
-charms, Lego bricks, stamps…) that can be made with craft supplies, read back
-by software, and **reconstructed by hand** with pencil, paper and the tables
-in this document.
+A way to back up a BIP-39 seed as a **sequence of physical objects** that can
+be made with craft supplies, read back by software, and **reconstructed by
+hand** with pencil, paper and the tables in this document.
+
+- **Objects** can be anything, mixed freely: coloured beads, charms, Lego
+  bricks, stickers, stamps… The only requirement is N kinds that are
+  distinct and recognisable. The dictionary (§3.7) gives them their meaning.
+- **The carrier** is anything that keeps the objects in a fixed order: a
+  necklace, a bracelet, a key ring, a stack of bricks, a strip of stamps…
+  Open carriers (a stack, a strip) have two ends; closed ones (a necklace,
+  a bracelet) mark the start with their clasp or a knot.
 
 ## 1. Idea in one paragraph
 
@@ -25,17 +32,17 @@ The QR code's own error correction repairs a few misread objects.
 | Entropy | 16 bytes | 32 bytes |
 | CompactSeedQR | version 1, 21×21 | version 2, 25×25 |
 | QR data modules (data + error correction) | 208 | 359 |
-| Header | 4 bits | 4 bits |
-| **Bits stored** | **212** | **363** |
+| Header | 6 bits | 6 bits |
+| **Bits stored** | **214** | **365** |
 
 Objects needed (stream + dictionary):
 
 | k | N | 12 words | 24 words |
 | :---: | :---: | :--- | :--- |
-| 1 | 2 | 212 + 2 = 214 | 363 + 2 = 365 |
-| 2 | 4 | 106 + 4 = 110 | 182 + 4 = 186 |
-| 3 | 8 | 71 + 8 = **79** | 121 + 8 = 129 |
-| 4 | 16 | 53 + 16 = **69** | 91 + 16 = 107 |
+| 1 | 2 | 214 + 2 = 216 | 365 + 2 = 367 |
+| 2 | 4 | 107 + 4 = 111 | 183 + 4 = 187 |
+| 3 | 8 | 72 + 8 = **80** | 122 + 8 = 130 |
+| 4 | 16 | 54 + 16 = **70** | 92 + 16 = 108 |
 | 5 | 32 | 43 + 32 = 75 | 73 + 32 = 105 |
 
 Only powers of two are allowed: each object is a whole number of bits, so
@@ -57,13 +64,18 @@ the conversion can be done by hand with a small table, without arithmetic.
    format information areas, the dark module and, for version 2, the
    alignment pattern. Dark = 1, light = 0. These are the modules as drawn
    (masked), so they can be drawn back directly.
-5. **Header.** 4 bits, before the data bits: M (3 bits, most significant
-   first), then the PIN flag (1 = obfuscated with a PIN).
+5. **Header.** 6 bits, before the data bits, most significant first:
+   - format version V (2 bits): 0 for this specification. 1 and 2 are
+     reserved for future versions; 3 means an extended header follows
+     (defined by a future version), so the field never runs out;
+   - QR mask pattern M (3 bits);
+   - PIN flag (1 bit): 1 = obfuscated with a PIN.
 6. **Symbols.** Concatenate header and data bits; split into groups of k bits,
    most significant first; pad the last group with zeros.
 7. **Physical sequence.** Choose N distinct objects. The sequence is:
-   **clasp or knot | dictionary (the objects for symbols 0, 1, …, N−1) |
-   the symbols**.
+   **start | dictionary (the objects for symbols 0, 1, …, N−1) | the
+   symbols**, where the start is the clasp or a knot on a closed carrier,
+   or simply the end of an open one.
 
 ## 4. Decoding
 
@@ -72,8 +84,9 @@ the conversion can be done by hand with a small table, without arithmetic.
    which direction.
 2. Map each object to its symbol with the dictionary, then each symbol to k
    bits.
-3. Header: mask M and PIN flag. The number of bits tells the size (212 →
-   21×21, 363 → 25×25, after removing the padding).
+3. Header: version V (only 0 is defined), mask M and PIN flag. The number
+   of symbols tells the size (214 or 365 bits, plus padding: 21×21 or
+   25×25).
 4. Draw: a blank template of that size with its fixed patterns; the format
    information for level L and mask M (table in §7); the data bits in the
    order of §3.4.
@@ -120,8 +133,8 @@ object, enough for any seed (the stream length is a safe amount).
 
 ## 9. Open questions for v1
 
-- A version field in the header (costs pieces in every sequence).
-- Whether to store the mask (3 bits) or fix it, at the cost of QR codes that
-  some readers like less.
-- Hybrid alphabets (colour × size) for N = 32.
+- Mask selection: encoders choose it with the QR standard's penalty rules
+  (as Project Nayuki's QR Code generator, used by the reference
+  implementations); decoders accept any of the 8.
 - Test vectors: the public test seeds of SeedSigner and NDS-Signer.
+- Software help for a missing or extra object (§5).
