@@ -166,8 +166,14 @@ const SEEDCRAFT_TEXT = {
 	},
 };
 
-// Ready-made sets: each thing has an emoji and/or a colour, and a name per
-// language. 32 things per set (the first N are used).
+// Symbols drawn on things that have a colour but no emoji, so that a sheet
+// printed in black and white still tells them apart. Text glyphs (not emoji),
+// the most distinct first.
+const SEEDCRAFT_SYMBOLS = ["●", "▲", "■", "◆", "★", "▼", "✚", "✖", "✿", "♪", "☾", "◉", "⬢", "✦", "❖", "⧗",
+	"⊕", "⊗", "▣", "◈", "✪", "♫", "✸", "❂", "⬟", "◐", "◑", "⊞", "✱", "◒", "◓", "⬣"];
+
+// Ready-made sets: each thing has an emoji and/or a colour (with a symbol),
+// and a name per language. 32 things per set (the first N are used).
 const SEEDCRAFT_SETS = (() => {
 	const C = (en, es, colour) => ({ en, es, colour });
 	const E = (emoji, en, es) => ({ emoji, en, es });
@@ -206,7 +212,8 @@ const SEEDCRAFT_SETS = (() => {
 		E("⚽", "Ball", "Balón"), E("🚀", "Rocket", "Cohete"), E("🏠", "House", "Casa"), E("🌵", "Cactus", "Cactus"),
 		E("🐚", "Shell", "Concha"), E("🌲", "Tree", "Árbol"), E("☂️", "Umbrella", "Paraguas"), E("✏️", "Pencil", "Lápiz"),
 		E("🎁", "Gift", "Regalo"), E("🧸", "Teddy", "Osito"), E("🪐", "Planet", "Planeta"), E("❄️", "Snowflake", "Copo")];
-	const bricks = beads.map((b) => ({
+	beads.forEach((b, i) => { b.symbol = SEEDCRAFT_SYMBOLS[i]; });
+	const bricks = beads.map((b) => ({ symbol: b.symbol,
 		en: b.en.replace("bead", "brick"), es: b.es.replace("Cuenta", "Pieza"), colour: b.colour, brick: true }));
 	const mixed = [];
 	for (let i = 0; i < 16; i++) mixed.push(beads[i], charms[i]);

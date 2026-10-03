@@ -44,11 +44,14 @@
 	// ---- things ------------------------------------------------------
 	const setById = (id) => SETS.find((s) => s.id === id);
 	function presetThings(setId, n) {
-		return setById(setId).things.slice(0, n).map((t) => ({ emoji: t.emoji || "", colour: t.colour || "", brick: !!t.brick, name: t[st.lang] }));
+		return setById(setId).things.slice(0, n).map((t) => ({ emoji: t.emoji || "", symbol: t.symbol || "", colour: t.colour || "", brick: !!t.brick, name: t[st.lang] }));
 	}
 	function ensureThings(part, n) {
 		if (!part.things || (!part.edited && part.things.length !== n)) part.things = presetThings(part.setId, n);
-		while (part.things.length < n) part.things.push({ emoji: "", colour: "#cccccc", name: "" });
+		while (part.things.length < n) {
+			const used = new Set(part.things.map((x) => x.symbol));
+			part.things.push({ emoji: "", symbol: SEEDCRAFT_SYMBOLS.find((s) => !used.has(s)) || "", colour: "#cccccc", name: "" });
+		}
 		if (part.things.length > n) part.things = part.things.slice(0, n);
 	}
 	const lightColour = (hex) => {
@@ -66,9 +69,15 @@
 		} else {
 			const fill = thing.colour || (opts.dark ? "#3a332c" : "#ffffff");
 			g.append(svg("circle", { cx: x, cy: y, r, fill, stroke: opts.legend ? "#f28c28" : "rgba(0,0,0,.3)", "stroke-width": opts.legend ? 3 : 1.2 }));
-			if (thing.colour && !thing.emoji) g.append(svg("circle", { cx: x - r * 0.35, cy: y - r * 0.35, r: r * 0.22, fill: "rgba(255,255,255,.45)" }));
+			if (thing.colour && !thing.emoji && !thing.symbol) g.append(svg("circle", { cx: x - r * 0.35, cy: y - r * 0.35, r: r * 0.22, fill: "rgba(255,255,255,.45)" }));
 		}
 		if (thing.emoji) g.append(svg("text", { x, y: y + r * 0.36, "text-anchor": "middle", "font-size": r * 1.05 }, thing.emoji));
+		else if (thing.symbol) {
+			// a symbol in black or white, whichever stands out on the colour
+			const ink = lightColour(thing.colour) ? "#111111" : "#ffffff";
+			g.append(svg("text", { x, y: y + r * 0.34, "text-anchor": "middle", "font-size": r * 0.95, "font-weight": 700,
+				fill: ink, "font-family": "Menlo, Consolas, 'DejaVu Sans', sans-serif" }, thing.symbol + "\uFE0E"));
+		}
 		if (opts.legend && thing.brick) g.append(svg("rect", { x: x - r - 3, y: y - r, width: 2 * r + 6, height: 2 * r, rx: 6, fill: "none", stroke: "#f28c28", "stroke-width": 3 }));
 		return g;
 	}
@@ -190,8 +199,8 @@
 			editor.append(h("div", { class: "thing" },
 				h("span", { class: "num" }, i),
 				icon,
-				h("input", { class: "emoji", value: thing.emoji, "aria-label": t.thingEmoji, title: t.thingEmoji, maxlength: 8,
-					on: { input: (e) => { thing.emoji = e.target.value.trim(); part.edited = true; redraw(); } } }),
+				h("input", { class: "emoji", value: thing.emoji || thing.symbol, "aria-label": t.thingEmoji, title: t.thingEmoji, maxlength: 8,
+					on: { input: (e) => { const v = e.target.value.trim(); if (thing.colour && !thing.emoji && thing.symbol) thing.symbol = v; else thing.emoji = v; part.edited = true; redraw(); } } }),
 				h("input", { type: "color", value: thing.colour || "#ffffff", "aria-label": t.thingColour, title: t.thingColour,
 					on: { input: (e) => { thing.colour = e.target.value; part.edited = true; redraw(); } } }),
 				h("input", { class: "name", value: thing.name, "aria-label": t.thingName, placeholder: t.thingName,
@@ -438,7 +447,7 @@
 		const counts = new Array(r.n).fill(1);
 		for (const s of r.symbols) counts[s]++;
 		const cm = Math.ceil((sequence.length * 0.8 + 20) / 10) * 10;
-		const list = h("ol", { class: "checklist" }, sequence.map((i) => h("li", {}, "☐ ", beadIcon(r.things[i], 22, true), " ", r.things[i].name)));
+		const list = h("ol", { class: "checklist" }, sequence.map((i) => h("li", {}, "☐ ", beadIcon(r.things[i], 28, true), " ", r.things[i].name)));
 		return h("div", {},
 			h("div", { class: "noprint" },
 				h("div", { class: "error" }, t.printWarn),
@@ -448,7 +457,7 @@
 			h("div", { class: "card sheet" },
 				h("h2", { text: t.sheetTitle }), h("p", { class: "help", text: t.sheetSub }),
 				h("h3", { text: t.sheetShop }),
-				h("div", { class: "legend shop" }, r.things.map((x, i) => h("span", { class: "item" }, beadIcon(x, 30, true), x.name, h("em", {}, `× ${counts[i]}`)))),
+				h("div", { class: "legend shop" }, r.things.map((x, i) => h("span", { class: "item" }, beadIcon(x, 40, true), x.name, h("em", {}, `× ${counts[i]}`)))),
 				h("p", { text: t.sheetString(cm) }),
 				h("h3", { text: t.sheetHow }),
 				h("ol", { class: "how-to" }, [t.sheetStep1, t.sheetStep2, t.sheetStep3, t.sheetStep4].map((s) => h("li", { text: s }))),
