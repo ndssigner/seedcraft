@@ -339,6 +339,6 @@ const SeedcraftSequences = (() => {
 		FORMAT_VERSION, HEADER_BITS, LAYOUTS, DecodeError,
 		sha256, pbkdf2Sha256, normalizePin, pinXor, mnemonicToEntropy, entropyToMnemonic,
 		functionModules, dataModulesRowMajor, compactSeedQR, encode, decode,
-		symbolsToBits, readSequence, decodeObjects, physicalSequence,
+		symbolsToBits, readSequence, decodeObjects, physicalSequence, rsCorrect,
 	};
 })();

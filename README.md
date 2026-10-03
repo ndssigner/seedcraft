@@ -66,7 +66,15 @@ Standard (25 × 25, 29 × 29) or Compact (21 × 21, 25 × 25), from SeedSigner o
 a compatible signer like NDS-Signer, with every fixed part already drawn — one
 per size and mask. Only the white squares are left to copy.
 
-## Web tool
+## Web tools
+
+`dist/seedcraft-tones.html`: Tones for wallets that do not speak them yet.
+Paste a PSBT (from Sparrow: *Copy as Base64*, or open the `.psbt` file), UR
+texts or a test seed, and play them as tones — by cable, or through the air —
+in a loop of UR fountain-coded parts; or save them as a WAV. Listen with the
+microphone (or open a WAV) and get the PSBT back, to paste into Sparrow (*File
+→ Open Transaction → From Text*), with a live view of the tones, frames and
+parts heard. The same safeguards as below.
 
 `dist/seedcraft-sequences.html`: a single HTML file (no dependencies), in
 English and Spanish, made to be understood by a child:
@@ -96,7 +104,7 @@ English and Spanish, made to be understood by a child:
 Build and test (Node.js ≥ 18):
 
 ```bash
-node web/build.mjs                       # dist/seedcraft-sequences.html + its SHA-256
+node web/build.mjs                       # dist/*.html + their SHA-256
 node web/test.mjs                        # the JavaScript against the test vectors
 python3 tests/test_sequences.py          # the Python reference
 ```

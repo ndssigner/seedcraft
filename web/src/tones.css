@@ -1,0 +1,13 @@
+/* Seedcraft Tones: additions to style.css */
+.keys { font-family: var(--mono); font-size: 17px; letter-spacing: 1px; word-break: break-all; line-height: 1.7; margin-top: 10px; }
+.keys span { padding: 1px 2px; border-radius: 4px; }
+.keys span.on { background: var(--accent); color: #fff; }
+.keys.heard { min-height: 1.7em; background: var(--soft); border-radius: 12px; padding: 6px 10px; color: var(--muted); }
+.meter { height: 10px; background: var(--soft); border-radius: 999px; overflow: hidden; }
+.meter div { height: 100%; width: 0; background: var(--accent-2); transition: width .08s; }
+.frames div { font-family: var(--mono); font-size: 13px; padding: 2px 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.frames .ok { color: var(--ok); }
+.frames .bad { color: var(--bad); }
+.card.done { border: 2px solid var(--ok); }
+input.pin { max-width: 300px; font-family: var(--mono); font-size: 20px; letter-spacing: 2px; text-transform: uppercase; }
+textarea.seed[readonly] { font-size: 14px; min-height: 120px; }
