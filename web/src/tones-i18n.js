@@ -49,7 +49,7 @@ const TONES_TEXT = {
 			["⭐ Simplest receiver", "A USB sound adapter with separate headphone and microphone sockets, and a TRS–TRS cable."],
 			["🔉 Volume", "Headphone outputs are much louder than microphone inputs expect: start the sender at 20–30 % and raise it until the tones are heard cleanly, or use an attenuating cable (−20 to −40 dB)."],
 			["🔋 Hum", "Prefer devices on battery: two mains-powered devices joined by a cable can hum."],
-			["🎮 Nintendo DSi", "NDS-Signer will use the DSi's 3.5 mm socket; the wiring and levels are still to be tested."],
+			["🎮 Nintendo DS Lite, DSi, DSi XL", "Their socket is two in one: a standard 3.5 mm headphone socket and, next to it, Nintendo's own microphone slot (two contacts). From the DSi: a TRS–TRS cable from its headphone socket (this also mutes its speakers). Into the DSi: hold or tape one earbud of the sender, at low volume, against the DSi's microphone hole (in the hinge); or build a cable from a DS headset with a −40 dB attenuator and a capacitor (see SPEC-tones.md §5.1). Still to be tested on hardware."],
 		],
 		aboutText: [
 			"This page is a single file. Its Content-Security-Policy forbids every network request: it cannot load or send anything. It stores nothing: closing it forgets everything.",
@@ -105,7 +105,7 @@ const TONES_TEXT = {
 			["⭐ El receptor más sencillo", "Un adaptador de sonido USB con tomas separadas de auriculares y micrófono, y un cable TRS–TRS."],
 			["🔉 Volumen", "Una salida de auriculares suena mucho más fuerte de lo que espera una entrada de micrófono: empieza con el emisor al 20–30 % y súbelo hasta que los tonos se oigan limpios, o usa un cable atenuador (−20 a −40 dB)."],
 			["🔋 Zumbido", "Mejor aparatos con batería: dos aparatos enchufados a la red y unidos por un cable pueden zumbar."],
-			["🎮 Nintendo DSi", "NDS-Signer usará la toma de 3,5 mm de la DSi; el cableado y los niveles están por probar."],
+			["🎮 Nintendo DS Lite, DSi, DSi XL", "Su toma son dos en una: una toma de auriculares de 3,5 mm estándar y, al lado, la ranura de micrófono propia de Nintendo (dos contactos). Desde la DSi: un cable TRS–TRS desde su toma de auriculares (además silencia sus altavoces). Hacia la DSi: sujeta o pega con cinta un auricular del emisor, a volumen bajo, contra el agujero del micrófono de la DSi (en la bisagra); o haz un cable a partir de unos auriculares de DS con un atenuador de −40 dB y un condensador (mira SPEC-tones.md §5.1). Por probar en hardware."],
 		],
 		aboutText: [
 			"Esta página es un único archivo. Su Content-Security-Policy prohíbe cualquier conexión: no puede cargar ni enviar nada. No guarda nada: al cerrarla lo olvida todo.",

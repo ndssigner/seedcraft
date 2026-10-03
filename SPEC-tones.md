@@ -162,8 +162,49 @@ direction.
   −40 dB), sold for recording from line outputs into microphone inputs.
 - **Hum:** prefer devices on battery. Two devices plugged into the mains and
   joined by a cable can hum (a ground loop).
-- **Nintendo DSi** (NDS-Signer): headphone output and microphone through its
-  3.5 mm socket. Which wiring and levels work is to be tested on hardware.
+
+### 5.1 Nintendo DS Lite, DSi and DSi XL
+
+Their audio socket is **two sockets in one** (GBATEK, “DSi mainboard, P4”):
+
+| Pins | What |
+| :--- | :--- |
+| 1–3 | a **standard 3.5 mm stereo headphone socket** (ground, left, right) |
+| 4–5 | a switch: a plug in the headphone socket mutes the speakers |
+| 6–8 | a **proprietary microphone socket**, the small slot with two metal contacts next to the 3.5 mm one: microphone, a switch, ground. A plug in it disconnects the internal microphone |
+
+The microphone input is for an **electret microphone**: the console feeds it a
+bias voltage (MICBIAS, about 2–3.3 V) and expects a few millivolts.
+
+- **From the DSi** (it plays the tones): a standard **TRS–TRS cable** from its
+  headphone socket into the receiver, as above. The plug mutes the DSi's
+  speakers, so nothing goes into the room.
+- **Into the DSi** (it listens): there is no standard plug. Either
+  - **an earphone on the DSi's microphone**: one earbud of the sender's
+    headphones, at low volume, held or taped against the microphone hole (in
+    the hinge, between the screens). Almost nothing leaks into the room. No
+    soldering; the simplest way, and the only one on a 3DS (it has no
+    external microphone socket);
+  - or **a cable made from a DS headset**: Nintendo's DS Lite/DSi headset, or
+    a third-party one, has a double plug (3.5 mm + the microphone prong). Cut
+    its cable, find the microphone wire and its ground (with the console on,
+    the microphone contact shows the bias voltage, 2–3 V, on a multimeter),
+    and join them to the sender's headphone output through an attenuator
+    with a DC-blocking capacitor, so that neither the bias nor the level
+    harms anything:
+
+          sender's headphone tip (left) ──[ 10 kΩ ]──┬──(+ 4.7 µF)── DSi microphone contact
+                                                    [100 Ω]
+          sender's headphone sleeve ─────────────────┴─────────────── DSi ground
+
+    About −40 dB: a headphone output of 0.5–1 V becomes 5–10 mV, an
+    electret microphone's level. The capacitor's + goes towards the DSi.
+
+  NDS-Signer controls the DSi's sound chip, so it can also lower the
+  microphone's gain in software. All of this is still to be tested on
+  hardware.
+
+### 5.2 Through the air
 
 Through the air, the phone's or computer's microphone in front of the
 speaker, in a quiet room: it works, slower (§1.1). **Never send a seed
@@ -185,8 +226,8 @@ laptop — can record it.
 
 ## 7. Open questions for v1
 
-- The DSi's socket: wiring, levels, and whether its microphone input works
-  through the socket.
+- The DSi by cable (§5.1): the headset-cable attenuator and the earphone on
+  the microphone, measured on hardware.
 - Faster modulations (beyond DTMF) as an optional mode, for large PSBTs.
 - Frame length versus error rate through the air: measurements.
 
