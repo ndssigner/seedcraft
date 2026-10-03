@@ -1,7 +1,8 @@
 # Tests the reference implementation and the web tool against the test
 # vectors, builds the web tool (reproducible: compare the printed SHA-256 with
 # a local build of the same commit) and keeps it as an artifact. Rebuilds the
-# by-hand PDFs and fails if they differ from the committed ones.
+# printable PDFs and fails if they differ from the committed ones. Bundles
+# everything in a reproducible zip; on a version tag (v*), drafts a release.
 name: test-and-build
 
 on:
@@ -40,9 +41,32 @@ jobs:
         run: |
           docs/manual/build.sh
           git diff --exit-code -- docs/
+      - name: Bundle (tag name, or dev-<commit> between releases)
+        run: |
+          case "$GITHUB_REF" in refs/tags/v*) v="$GITHUB_REF_NAME" ;; *) v="dev-$(echo "$GITHUB_SHA" | cut -c1-12)" ;; esac
+          python3 tools/bundle.py "$v"
       - uses: actions/upload-artifact@v4
         with:
-          name: seedcraft-sequences
+          name: seedcraft
           path: |
-            dist/seedcraft-sequences.html
-            SHA256.txt
+            dist/seedcraft-*.zip
+            dist/SHA256SUMS
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: test-and-build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: seedcraft
+      - name: Draft release (published by hand after checking the hash)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" seedcraft-*.zip SHA256SUMS \
+            --repo "$GITHUB_REPOSITORY" --draft --prerelease \
+            --title "Seedcraft $GITHUB_REF_NAME" \
+            --notes "Web tool, by-hand guide and SeedQR templates (EN/ES), specification. Drafts: test seeds only. Verify: sha256sum -c SHA256SUMS"

@@ -3,67 +3,11 @@
 // The data (templates, tables, worked example) comes from
 // tools/gen_manual_data.py, i.e. from the reference implementation.
 
-#let lang = sys.inputs.at("lang", default: "en")
-#let tr(en, es) = if lang == "es" { es } else { en }
-#let D = json("data.json")
-#let T21 = D.templates.at("21")
-#let T25 = D.templates.at("25")
-#let EX = D.example
+#import "common.typ": *
+#show: doc.with(
+  title: tr[Seedcraft Sequences by hand][Seedcraft Sequences a mano],
+  footer: [Seedcraft Sequences v0 #tr[(draft)][(borrador)] — #tr[by hand][a mano]])
 
-// 210 × 279 mm: A4 width, US Letter height, so it prints unscaled on both.
-#set page(width: 210mm, height: 279mm, margin: (x: 18mm, top: 16mm, bottom: 18mm),
-  footer: context [
-    #set text(8pt, fill: luma(110))
-    Seedcraft Sequences v0 #tr[(draft)][(borrador)] — #tr[by hand][a mano] #h(1fr) #counter(page).display()
-  ])
-#set document(title: tr[Seedcraft Sequences by hand][Seedcraft Sequences a mano], author: "NDS-Signer")
-#set text(font: "Libertinus Serif", size: 10.5pt, lang: lang)
-#set par(justify: true, leading: 0.6em)
-#set heading(numbering: none)
-#show heading.where(level: 1): set text(17pt)
-#show heading.where(level: 2): set text(12.5pt)
-#show raw: set text(font: "DejaVu Sans Mono", size: 0.9em)
-#let mono(s) = text(font: "DejaVu Sans Mono", size: 0.9em, s)
-#let note(body) = block(fill: luma(240), inset: 9pt, radius: 4pt, width: 100%, body)
-#let step(n) = box(circle(radius: 6.5pt, fill: black, align(center + horizon, text(8pt, fill: white, weight: "bold", str(n)))))
-#let bits(v, k) = { let s = ""; for i in range(k) { s = str(calc.rem(v, 2)) + s; v = calc.quo(v, 2) }; s }
-
-// ---- QR drawing -------------------------------------------------------------
-// rows: strings of "1" (fixed dark), "0" (fixed light), "." (data, empty),
-// "#" (data, dark) and "_" (data, light).
-#let module(ch, cell) = {
-  if ch == "1" { rect(width: cell, height: cell, fill: black, stroke: none) }
-  else if ch == "0" { rect(width: cell, height: cell, fill: luma(232), stroke: none) }
-  else if ch == "#" { rect(width: cell, height: cell, fill: black, stroke: 0.3pt + luma(160)) }
-  else { rect(width: cell, height: cell, fill: white, stroke: 0.3pt + luma(160)) }
-}
-#let qr(rows, cell, labels: true, counts: none, gap: none) = {
-  // gap: white space between the labels and the code (its quiet zone)
-  let gap = if gap == none { cell } else { gap }
-  let n = rows.len()
-  let cols = if labels { (cell * 1.3, gap) } else { () }
-  cols += (cell,) * n
-  if counts != none { cols += (gap, cell * 1.4) }
-  let heights = if labels { (auto, gap) } else { () }
-  heights += (cell,) * n
-  let cells = ()
-  let small(s) = text(calc.min(6.5pt, cell * 0.95), fill: luma(90), s)
-  if labels {
-    cells += ([], [])
-    for c in range(n) { cells.push(align(center + bottom, small(str(c + 1)))) }
-    if counts != none { cells += ([], align(center + bottom, small("#"))) }
-    cells += ([],) * cols.len()
-  }
-  for r in range(n) {
-    if labels { cells += (align(right + horizon, small(str(r + 1))), []) }
-    for ch in rows.at(r).clusters() { cells.push(module(ch, cell)) }
-    if counts != none {
-      let k = counts.at(r)
-      cells += ([], align(center + horizon, small(if k == 0 { "–" } else { str(k) })))
-    }
-  }
-  grid(columns: cols, rows: heights, ..cells)
-}
 // the example QR, with the template's data cells marked
 #let example-rows = {
   let tpl = T21.masks.at(EX.mask)
@@ -165,7 +109,7 @@
 
 == #tr[B. From a SeedQR to a sequence][B. De un SeedQR a una secuencia]
 
-#step(1) #tr[*Show the CompactSeedQR* on your signer: in SeedSigner, Backup Seed → Export as SeedQR → Compact (it shows it zone by zone so you can copy it); NDS-Signer has a SeedQR map. It must be the *Compact* kind: 21 × 21 for 12 words, 25 × 25 for 24.][*Muestra el CompactSeedQR* en tu firmador: en SeedSigner, Backup Seed → Export as SeedQR → Compact (lo enseña por zonas para copiarlo); NDS-Signer tiene un mapa del SeedQR. Debe ser del tipo *compacto*: 21 × 21 para 12 palabras, 25 × 25 para 24.]
+#step(1) #tr[*Show the CompactSeedQR* on your signer: in SeedSigner, Backup Seed → Export as SeedQR → Compact: 21x21 or 25x25 (it shows it zone by zone so you can copy it); NDS-Signer has a SeedQR map. It must be the *Compact* kind: 21 × 21 for 12 words, 25 × 25 for 24.][*Muestra el CompactSeedQR* en tu firmador: en SeedSigner, Backup Seed → Export as SeedQR → Compact: 21x21 o 25x25 (lo enseña por zonas para copiarlo); NDS-Signer tiene un mapa del SeedQR. Debe ser del tipo *compacto*: 21 × 21 para 12 palabras, 25 × 25 para 24.]
 
 #step(2) #tr[*Find its mask.* Compare row 9 and column 9 next to its top-left big square with the drawings of the mask table: one matches. Take the template for that size and mask: its grey and black squares match the code too.][*Averigua su máscara.* Compara la fila 9 y la columna 9 junto a su cuadrado grande de arriba a la izquierda con los dibujos de la tabla de máscaras: uno coincide. Coge la plantilla de ese tamaño y máscara: sus cuadros grises y negros también coinciden con el código.]
 
@@ -254,12 +198,7 @@
   La esquina superior izquierda de un código QR (filas y columnas 1–9). Las 15 casillas de formato —la fila 9 y la columna 9— dicen su máscara; son iguales en 21 × 21 y en 25 × 25. La cabecera lleva la máscara en 3 bits.
 ]
 #v(1mm)
-#grid(columns: 4, column-gutter: 6mm, row-gutter: 5mm,
-  ..range(8).map(m => align(center)[
-    #qr(T21.masks.at(m).slice(0, 9).map(r => r.slice(0, 9)), 3.4mm, labels: false)
-    #v(-1mm)
-    *#tr[mask][máscara] #m* · #mono(bits(m, 3))
-  ]))
+#mask-table()
 
 // ---- worksheet --------------------------------------------------------------
 #pagebreak()
@@ -276,15 +215,5 @@
 #grid(columns: (1fr,) * 10, column-gutter: 1mm, row-gutter: 1mm, ..range(130).map(sym-box))
 
 // ---- templates --------------------------------------------------------------
-#let template(T, m) = {
-  pagebreak()
-  [= #tr[Template][Plantilla] #T.size × #T.size · #tr[mask][máscara] #m]
-  text(9.5pt)[
-    #tr[#T.words words · header][#T.words palabras · cabecera] #mono("00" + bits(m, 3)) ·
-    #tr[fill the white squares row by row, left to right: 1 = dark, 0 = leave white. Right column: white squares in that row.][rellena los cuadros blancos fila a fila, de izquierda a derecha: 1 = oscuro, 0 = en blanco. Columna derecha: cuadros blancos de esa fila.]
-  ]
-  v(4mm)
-  align(center, qr(T.masks.at(m), if T.size == 21 { 7mm } else { 6mm }, counts: T.row_counts))
-}
-#for m in range(8) { template(T21, m) }
-#for m in range(8) { template(T25, m) }
+#for m in range(8) { template(T21, m, [#tr[12 words · header][12 palabras · cabecera] #mono("00" + bits(m, 3))]) }
+#for m in range(8) { template(T25, m, [#tr[24 words · header][24 palabras · cabecera] #mono("00" + bits(m, 3))]) }

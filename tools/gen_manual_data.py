@@ -1,4 +1,4 @@
-"""Data for the by-hand manual (docs/manual/): templates, tables, worked example.
+"""Data for the printable PDFs (docs/manual/): templates, tables, worked example.
 
     python3 tools/gen_manual_data.py > docs/manual/data.json
 
@@ -17,29 +17,57 @@ EXAMPLE = "height demise useless trap grow lion found off key clown transfer enr
 EXAMPLE_K = 4
 
 
-def fixed_patterns(nbytes, mask):
-    """Rows of the template for that size and mask: '1' fixed dark, '0' fixed
-    light (format information included), '.' a data module to fill in."""
-    version, size = sc.LAYOUTS[nbytes][:2]
-    qr = QrCode.encode_segments([QrSegment.make_bytes(bytes(nbytes))], QrCode.Ecc.LOW,
+# Template sizes: QR version -> what uses it. Error correction level L in all
+# of them, as SeedSigner makes them, so they share the format information.
+# Version 3 (29x29) is only for the classic (Standard) SeedQR of 24 words.
+VERSIONS = {1: 21, 2: 25, 3: 29}
+
+
+def function_modules(version):
+    """sc.function_modules() extended to version 3 (alignment at 22, 22)."""
+    size = VERSIONS[version]
+    if version < 3:
+        return sc.function_modules(size)
+    f = set()
+    for r0, c0 in ((0, 0), (0, size - 8), (size - 8, 0)):
+        f.update((r, c) for r in range(r0, r0 + 8) for c in range(c0, c0 + 8))
+    for i in range(size):
+        f.update({(6, i), (i, 6)})
+    f.update((r, c) for r in range(20, 25) for c in range(20, 25))
+    f.add((size - 8, 8))
+    for i in range(9):
+        f.update({(8, i), (i, 8)})
+    for i in range(8):
+        f.update({(8, size - 1 - i), (size - 1 - i, 8)})
+    return {(r, c) for r, c in f if 0 <= r < size and 0 <= c < size}
+
+
+def fixed_patterns(version, mask):
+    """Rows of the template for that version and mask: '1' fixed dark, '0'
+    fixed light (format information included), '.' a data module to fill in."""
+    size = VERSIONS[version]
+    qr = QrCode.encode_segments([QrSegment.make_bytes(bytes(16))], QrCode.Ecc.LOW,
                                 minversion=version, maxversion=version, mask=mask, boostecl=False)
-    func = sc.function_modules(size)
+    func = function_modules(version)
     return ["".join(("1" if qr.get_module(c, r) else "0") if (r, c) in func else "."
                     for c in range(size)) for r in range(size)]
 
 
 def main():
     templates = {}
-    for nbytes, (version, size, ndata, necc) in sc.LAYOUTS.items():
-        masks = [fixed_patterns(nbytes, m) for m in range(8)]
-        ndatamod = len(sc.data_modules_row_major(size))
+    for version, size in VERSIONS.items():
+        masks = [fixed_patterns(version, m) for m in range(8)]
+        ndatamod = sum(r.count(".") for r in masks[0])
+        # data modules = codewords * 8 + remainder bits (ISO/IEC 18004, level L)
+        assert ndatamod == {1: 26 * 8, 2: 44 * 8 + 7, 3: 70 * 8 + 7}[version]
         counts = [row.count(".") for row in masks[0]]
-        assert sum(counts) == ndatamod and all(
-            [r.count(".") for r in m] == counts for m in masks)
+        assert all([r.count(".") for r in m] == counts for m in masks)
+        # the format information is the same in every size
+        assert all(m[8][:9] == masks_v1[8][:9] for m, masks_v1 in zip(masks, templates.get("21", {}).get("masks", masks)))
         templates[str(size)] = {
-            "words": 12 if nbytes == 16 else 24, "version": version, "size": size,
+            "version": version, "size": size,
             "data_modules": ndatamod, "row_counts": counts, "masks": masks,
-            # symbols (without the dictionary) for k = 1..5
+            # sequence symbols (without the dictionary) for k = 1..5
             "symbols": [-(-(ndatamod + sc.HEADER_BITS) // k) for k in range(1, 6)],
         }
 

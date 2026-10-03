@@ -9,6 +9,16 @@ any wallet or signer to implement.
 > ⚠️ **Drafts.** The formats can still change. Do not back up the seed of real
 > funds with a draft format.
 
+## Download
+
+[Releases](https://github.com/ndssigner/seedcraft/releases) have everything in
+one zip: the web tool, the PDFs (English and Spanish) and the specification,
+with a `SHA256SUMS`. The zip is reproducible:
+
+```bash
+node web/build.mjs && docs/manual/build.sh && python3 tools/bundle.py v0.1.0
+```
+
 ## Specifications
 
 | | Status |
@@ -41,7 +51,16 @@ and US Letter.
 
 The tables and templates come from the reference implementation
 (`tools/gen_manual_data.py`); `docs/manual/build.sh` rebuilds the PDFs with
-Typst 0.15.1 and its bundled fonts, byte for byte (CI checks it).
+Typst 0.15.1 and its bundled fonts, byte for byte (CI checks it); also the
+SeedQR templates.
+
+## SeedQR templates
+
+[`docs/seedqr-templates-en.pdf`](docs/seedqr-templates-en.pdf)
+([español](docs/seedqr-templates-es.pdf)): templates to copy a SeedQR,
+Standard (25 × 25, 29 × 29) or Compact (21 × 21, 25 × 25), from SeedSigner or
+a compatible signer like NDS-Signer, with every fixed part already drawn — one
+per size and mask. Only the white squares are left to copy.
 
 ## Web tool
 
