@@ -133,6 +133,19 @@
 
 	// PINs: letters and digits, case-insensitive, shown in upper case
 	const cleanPin = (v) => v.toUpperCase().replace(/[^A-Z0-9]/g, "");
+	// A random PIN for the undecided: 8 characters from 32 that are hard to
+	// mix up on paper (no 0/O, no 1/I), 40 bits. 256 % 32 == 0, so no bias.
+	const PIN_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+	const randomPin = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => PIN_ALPHABET[b & 31]).join("");
+	// "🎲" button next to a PIN input: fills it and asks to write it down apart
+	function randomPinButton(input, set) {
+		const t = T();
+		const note = h("div", { class: "note hidden", text: t.pinWriteDown });
+		const btn = h("button", { class: "btn ghost", on: { click: () => {
+			input.value = randomPin(); set(input.value); note.classList.remove("hidden");
+		} } }, t.pinRandom);
+		return [btn, note];
+	}
 
 	// ---- shell -------------------------------------------------------
 	function shell() {
@@ -266,8 +279,12 @@
 				h("h3", { text: t.yourThings }), editor, dup,
 				h("details", { class: "more" }, h("summary", { text: t.more }),
 					h("h3", { text: t.pinTitle }), h("p", { class: "help", text: t.pinHelp }),
-					h("input", { class: "pin", autocomplete: "off", autocapitalize: "characters", spellcheck: "false", value: m.pin, placeholder: "PIN",
-						on: { input: (e) => { m.pin = cleanPin(e.target.value); e.target.value = m.pin; } } })),
+					(() => {
+						const input = h("input", { class: "pin", autocomplete: "off", autocapitalize: "characters", spellcheck: "false", value: m.pin, placeholder: "PIN",
+							on: { input: (e) => { m.pin = cleanPin(e.target.value); e.target.value = m.pin; } } });
+						const [btn, note] = randomPinButton(input, (v) => { m.pin = v; });
+						return h("div", {}, h("div", { class: "row" }, input, btn), note);
+					})()),
 				err,
 				h("div", { class: "nav" },
 					h("button", { class: "btn ghost", on: { click: () => { m.step = 1; rerender(); } } }, "◀ " + t.back),
@@ -456,6 +473,7 @@
 		const pinInput = h("input", { class: "pin", autocomplete: "off", autocapitalize: "characters", spellcheck: "false", placeholder: "PIN", "aria-label": t.pinTitle,
 			on: { input: (e) => { e.target.value = cleanPin(e.target.value); } } });
 		const pinErr = h("div");
+		const [pinRandomBtn, pinNote] = randomPinButton(pinInput, () => pinErr.replaceChildren());
 		const pinBox = r.pin
 			? h("div", { class: "note" }, t.pinSet(r.pin.length))
 			: h("div", { class: "card pin-advice" }, h("h3", { text: t.pinAdviceTitle }), h("p", { text: t.pinAdvice }),
@@ -466,7 +484,7 @@
 					st.make.pin = pin;
 					st.result = { ...r, pin, symbols: S.encode(entropy, Math.log2(r.n), pin), qr: S.compactSeedQR(S.pinXor(entropy, pin)) };
 					render(); scrollTo(0, 0);
-				} } }, t.pinAdviceBtn)), pinErr);
+				} } }, t.pinAdviceBtn), pinRandomBtn), pinNote, pinErr);
 		return h("div", {},
 			h("div", { class: "noprint" },
 				h("div", { class: "error" }, t.printWarn),
