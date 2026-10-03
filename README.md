@@ -31,6 +31,8 @@ node web/build.mjs && docs/manual/build.sh && python3 tools/bundle.py v0.1.0
 - `SPEC-sequences.md`: the Sequences specification (draft v0).
 - `reference/python/`: reference implementation (standard library only,
   plus Project Nayuki's QR Code generator, MIT, unmodified).
+  `seedcraft_common.py` (PIN, Reed-Solomon, CRC-32) and `seedcraft_tones.py`
+  also run on MicroPython (NDS-Signer freezes them).
 - `vectors/sequences-v0.json`: test vectors from public test seeds
   (`tools/gen_vectors.py` regenerates them; needs `embit`).
 - `SPEC-tones.md`, `reference/python/seedcraft_tones.py`,

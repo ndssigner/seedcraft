@@ -5,18 +5,16 @@ DTMF tones with Reed-Solomon error correction. Keypad mode: a seed <-> its
 Standard SeedQR digits between * and #. And audio: tones <-> samples, with a
 Goertzel receiver (SPEC appendix A).
 
-Standard library only. Reuses the Reed-Solomon decoder and the PIN of
-seedcraft_sequences. The bytewords word list is Blockchain Commons'
+Standard library only, and MicroPython-friendly for the frames and seeds
+(NDS-Signer runs them; its audio is in C). Shares the PIN and Reed-Solomon
+with Sequences (seedcraft_common). The bytewords word list is Blockchain Commons'
 (BCR-2020-012), as in every UR implementation.
 """
 import hashlib
 import math
-import operator
 import struct
-import wave
-import zlib
 
-from seedcraft_sequences import _EXP, _LOG, _mul, DecodeError, pin_xor, rs_correct
+from seedcraft_common import DecodeError, crc32, pin_xor, rs_correct, rs_encode as _rs_encode
 
 FORMAT_VERSION = 0
 KEYS = "0123456789ABCD*#"  # nibble value -> key
@@ -57,7 +55,7 @@ _FROM_MINIMAL = {w: i for i, w in enumerate(_MINIMAL)}
 
 def bytewords_minimal(data):
     """data + its CRC-32, in minimal bytewords (as in a UR's text)."""
-    data = bytes(data) + struct.pack(">I", zlib.crc32(data))
+    data = bytes(data) + struct.pack(">I", crc32(data))
     return "".join(_MINIMAL[b] for b in data)
 
 
@@ -68,31 +66,13 @@ def from_bytewords_minimal(text):
         data = bytes(_FROM_MINIMAL[text[i:i + 2]] for i in range(0, len(text), 2))
     except KeyError:
         raise DecodeError("bytewords: not a word")
-    if len(data) < 5 or struct.pack(">I", zlib.crc32(data[:-4])) != data[-4:]:
+    if len(data) < 5 or struct.pack(">I", crc32(data[:-4])) != data[-4:]:
         raise DecodeError("bytewords: wrong checksum")
     return data[:-4]
 
 
-# ---- Reed-Solomon encoder (the code of rs_correct: QR codes' code) ----------
-
-def _generator(nsym):
-    """Product of (x - alpha^i), i = 0 .. nsym - 1; highest degree first."""
-    g = [1]
-    for i in range(nsym):
-        g = [a ^ _mul(b, _EXP[i]) for a, b in zip(g + [0], [0] + g)]
-    return g
-
-
 def rs_encode(data, nsym=PARITY):
-    """The parity bytes: remainder of data(x) * x^nsym divided by g(x)."""
-    g = _generator(nsym)
-    rem = list(data) + [0] * nsym
-    for i in range(len(data)):
-        coef = rem[i]
-        if coef:
-            for j in range(1, len(g)):
-                rem[i + j] ^= _mul(g[j], coef)
-    return bytes(rem[len(data):])
+    return _rs_encode(data, nsym)
 
 
 # ---- tiny CBOR: just what a multi-part UR's part needs ----------------------
@@ -293,6 +273,7 @@ def render(groups, rate=8000, tone_ms=50, gap_ms=50, pause_ms=400, detune=1.0):
 def detect(samples, rate):
     """One key or None every 5 ms, from a 20 ms window (Goertzel on the eight
     DTMF frequencies)."""
+    import operator  # desktop only: NDS-Signer listens in C
     n, hop = int(rate * 0.020), int(rate * 0.005)
     basis = []
     for f in LOW + HIGH:
@@ -383,6 +364,7 @@ def receive(samples, rate, pin=None):
 # ---- WAV files ---------------------------------------------------------------
 
 def write_wav(path, samples, rate):
+    import wave
     with wave.open(str(path), "wb") as w:
         w.setnchannels(1)
         w.setsampwidth(2)
@@ -393,6 +375,7 @@ def write_wav(path, samples, rate):
 
 def read_wav(path):
     """(samples as floats, rate). 16-bit PCM; stereo is mixed down."""
+    import wave
     with wave.open(str(path), "rb") as w:
         if w.getsampwidth() != 2:
             raise ValueError("16-bit PCM only")
