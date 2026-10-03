@@ -131,13 +131,17 @@ The stream's composition depends on the seed. A shopping list with the
 exact counts would leak a little information about it: buy the same number
 of each kind, enough for any seed (the number of symbols is a safe amount).
 
-## 7. Tables and templates (to be completed)
+## 7. Tables and templates
 
-- Symbol → bits for k = 1…5.
-- Format information bits for error correction level L and masks 0–7.
-- Blank templates for 21×21 and 25×25 with the fixed patterns drawn, and
-  the number of data modules in each row (to check each row while
-  filling it in).
+`docs/seedcraft-by-hand-en.pdf` (and `-es`) has them, generated from the
+reference implementation by `tools/gen_manual_data.py`:
+
+- symbol → bits for k = 1…5;
+- the format information of level L for masks 0–7, drawn;
+- a template for each size (21×21, 25×25) and mask, with every function
+  pattern, the format information included, already drawn, and the number
+  of data modules in each row (to check each row while filling it in);
+- a worksheet and a worked example.
 
 ## 8. Security considerations
 

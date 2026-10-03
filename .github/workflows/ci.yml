@@ -1,6 +1,7 @@
 # Tests the reference implementation and the web tool against the test
 # vectors, builds the web tool (reproducible: compare the printed SHA-256 with
-# a local build of the same commit) and keeps it as an artifact.
+# a local build of the same commit) and keeps it as an artifact. Rebuilds the
+# by-hand PDFs and fails if they differ from the committed ones.
 name: test-and-build
 
 on:
@@ -30,6 +31,15 @@ jobs:
         run: node web/test.mjs
       - name: Build the web tool
         run: node web/build.mjs | tee SHA256.txt
+      - name: Install Typst 0.15.1 (pinned by hash)
+        run: |
+          curl -fsSL -o typst.tar.xz https://github.com/typst/typst/releases/download/v0.15.1/typst-x86_64-unknown-linux-musl.tar.xz
+          echo "a6d077d0a95eed5a2eba715b2dae06be954f624ccbf85758a03f389ded33118c  typst.tar.xz" | sha256sum -c
+          tar xf typst.tar.xz && sudo install typst-x86_64-unknown-linux-musl/typst /usr/local/bin/
+      - name: By-hand PDFs are reproducible and up to date
+        run: |
+          docs/manual/build.sh
+          git diff --exit-code -- docs/
       - uses: actions/upload-artifact@v4
         with:
           name: seedcraft-sequences

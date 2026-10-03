@@ -29,6 +29,20 @@ any wallet or signer to implement.
   also check that the QR code drawn back from a sequence is the seed's
   CompactSeedQR.
 
+## By hand
+
+[`docs/seedcraft-by-hand-en.pdf`](docs/seedcraft-by-hand-en.pdf)
+([español](docs/seedcraft-by-hand-es.pdf)): go from a sequence to its QR code,
+and from a CompactSeedQR to a sequence, with a pencil — no computer, no
+arithmetic. A step-by-step guide, a worked example, the number → bits and
+mask tables, a worksheet, and a template for each size and mask with the
+fixed parts already drawn. Page size 210 × 279 mm prints unscaled on both A4
+and US Letter.
+
+The tables and templates come from the reference implementation
+(`tools/gen_manual_data.py`); `docs/manual/build.sh` rebuilds the PDFs with
+Typst 0.15.1 and its bundled fonts, byte for byte (CI checks it).
+
 ## Web tool
 
 `dist/seedcraft-sequences.html`: a single HTML file (no dependencies), in
@@ -39,7 +53,8 @@ English and Spanish, made to be understood by a child:
   your own, each with an emoji, a colour and a name), then the string drawn
   as beads on a thread, a shopping list, and a *build it step by step* view.
 - **A printable sheet** for whoever makes it: shopping list, simple
-  instructions, the drawing and a checklist, saying nothing about what it is.
+  instructions on one side, the drawing (with boxes to tick) on the other,
+  saying nothing about what it is. It recommends a PIN, and can make one up.
 - **Read a sequence** by tapping the things in order (or typing their names),
   from either end.
 - Nothing is stored: closing the page forgets everything.
@@ -69,9 +84,7 @@ JavaScript compiled from it with TypeScript 5.6.3 are in `web/third_party/`.
 ## Planned contents
 
 - **Specifications** with test vectors (public test seeds only).
-- **Printable PDFs**: how each format works, how to reconstruct a seed by
-  hand (templates and tables), worked examples. Built with Typst,
-  reproducibly.
+- **Printable PDFs** for the Tones format too.
 - **Reference implementations** in JavaScript (web tool) and Python
   (MicroPython, for NDS-Signer), sharing the test vectors.
 
