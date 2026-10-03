@@ -54,8 +54,10 @@ conversion can be done by hand with a small table, without arithmetic.
 ## 3. Encoding
 
 1. **Entropy.** The BIP-39 entropy E (16 or 32 bytes) of the seed.
-2. **Optional PIN obfuscation.** With a PIN (decimal digits), replace E by
-   E ⊕ K, where K = PBKDF2-HMAC-SHA256(password = PIN as ASCII,
+2. **Optional PIN obfuscation.** A PIN is one or more letters (A–Z) and
+   digits (0–9), case-insensitive: it is first converted to upper case (so
+   `abc12` and `ABC12` are the same PIN). With a PIN, replace E by E ⊕ K,
+   where K = PBKDF2-HMAC-SHA256(password = the upper-case PIN as ASCII,
    salt = `"seedcraft/sequences/pin/v0"`, iterations = 10 000,
    length = len(E)). Whether a PIN was used is **not recorded**: the person
    who made the sequence knows. See §8.
@@ -141,9 +143,12 @@ of each kind, enough for any seed (the number of symbols is a safe amount).
 
 - **Whoever has the sequence and knows this method has the seed**, like a
   paper backup or a SeedQR. Keep it as safe as one.
-- **The PIN is obfuscation.** Four digits are 10 000 tries; with the seed's
-  checksum or an address lookup an attacker checks them in seconds. It
-  stops someone who does not know what they hold, not someone who does.
+- **A short PIN is obfuscation.** Four digits are 10 000 tries; with the
+  seed's checksum or an address lookup an attacker checks them in seconds.
+  It stops someone who does not know what they hold, not someone who does.
+  Each try costs 10 000 HMAC-SHA256 iterations, so length matters: 8 letters
+  and digits are 36⁸ ≈ 2.8 × 10¹² tries. A sequence kept on paper (§7's
+  sheet) should have a PIN of 8 characters or more.
   Every PIN gives a valid seed, so a wrong or forgotten PIN silently gives a
   different (empty) wallet. For real protection use a BIP-39 passphrase.
 - **Encode on an air-gapped device only** (e.g. NDS-Signer). The web tool is

@@ -92,9 +92,15 @@ const SeedcraftSequences = (() => {
 
 	const ascii = (s) => new Uint8Array([...s].map((ch) => ch.charCodeAt(0)));
 
+	// A PIN is letters A-Z and digits 0-9, case-insensitive (SPEC §3.2).
+	function normalizePin(pin) {
+		pin = pin.toUpperCase();
+		if (!/^[A-Z0-9]+$/.test(pin)) throw new Error("a PIN is letters A-Z and digits 0-9");
+		return pin;
+	}
+
 	function pinXor(entropy, pin) {
-		if (!/^[0-9]+$/.test(pin)) throw new Error("the PIN is decimal digits");
-		const key = pbkdf2Sha256(ascii(pin), ascii(PIN_SALT), PIN_ITERATIONS, entropy.length);
+		const key = pbkdf2Sha256(ascii(normalizePin(pin)), ascii(PIN_SALT), PIN_ITERATIONS, entropy.length);
 		return entropy.map((b, i) => b ^ key[i]);
 	}
 
@@ -331,7 +337,7 @@ const SeedcraftSequences = (() => {
 
 	return {
 		FORMAT_VERSION, HEADER_BITS, LAYOUTS, DecodeError,
-		sha256, pbkdf2Sha256, pinXor, mnemonicToEntropy, entropyToMnemonic,
+		sha256, pbkdf2Sha256, normalizePin, pinXor, mnemonicToEntropy, entropyToMnemonic,
 		functionModules, dataModulesRowMajor, compactSeedQR, encode, decode,
 		symbolsToBits, readSequence, decodeObjects, physicalSequence,
 	};

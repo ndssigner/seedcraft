@@ -131,6 +131,9 @@
 		return root;
 	}
 
+	// PINs: letters and digits, case-insensitive, shown in upper case
+	const cleanPin = (v) => v.toUpperCase().replace(/[^A-Z0-9]/g, "");
+
 	// ---- shell -------------------------------------------------------
 	function shell() {
 		const t = T();
@@ -263,8 +266,8 @@
 				h("h3", { text: t.yourThings }), editor, dup,
 				h("details", { class: "more" }, h("summary", { text: t.more }),
 					h("h3", { text: t.pinTitle }), h("p", { class: "help", text: t.pinHelp }),
-					h("input", { inputmode: "numeric", autocomplete: "off", value: m.pin, placeholder: "1234",
-						on: { input: (e) => { m.pin = e.target.value.replace(/\D/g, ""); e.target.value = m.pin; } } })),
+					h("input", { class: "pin", autocomplete: "off", autocapitalize: "characters", spellcheck: "false", value: m.pin, placeholder: "PIN",
+						on: { input: (e) => { m.pin = cleanPin(e.target.value); e.target.value = m.pin; } } })),
 				err,
 				h("div", { class: "nav" },
 					h("button", { class: "btn ghost", on: { click: () => { m.step = 1; rerender(); } } }, "◀ " + t.back),
@@ -418,7 +421,7 @@
 			}
 			card.append(h("details", { class: "more", open: rd.pin ? "" : undefined }, h("summary", { text: t.pinTitle }),
 				h("p", { class: "help", text: t.pinRead }),
-				h("input", { inputmode: "numeric", autocomplete: "off", value: rd.pin, on: { input: (e) => { rd.pin = e.target.value.replace(/\D/g, ""); e.target.value = rd.pin; } } })),
+				h("input", { class: "pin", autocomplete: "off", autocapitalize: "characters", spellcheck: "false", value: rd.pin, on: { input: (e) => { rd.pin = cleanPin(e.target.value); e.target.value = rd.pin; } } })),
 				err,
 				h("div", { class: "nav" },
 					h("button", { class: "btn ghost", on: { click: () => { rd.step = 1; rerender(); } } }, "◀ " + t.back),
@@ -449,9 +452,25 @@
 		const counts = new Array(r.n).fill(1);
 		for (const s of r.symbols) counts[s]++;
 		const cm = Math.ceil((sequence.length * 0.8 + 20) / 10) * 10;
+		// a sheet of paper can be lost: recommend a PIN, settable right here
+		const pinInput = h("input", { class: "pin", autocomplete: "off", autocapitalize: "characters", spellcheck: "false", placeholder: "PIN", "aria-label": t.pinTitle,
+			on: { input: (e) => { e.target.value = cleanPin(e.target.value); } } });
+		const pinErr = h("div");
+		const pinBox = r.pin
+			? h("div", { class: "note" }, t.pinSet(r.pin.length))
+			: h("div", { class: "card pin-advice" }, h("h3", { text: t.pinAdviceTitle }), h("p", { text: t.pinAdvice }),
+				h("div", { class: "row" }, pinInput, h("button", { class: "btn", on: { click: () => {
+					const pin = pinInput.value;
+					if (pin.length < 8) { pinErr.replaceChildren(errorBox(t.pinShort)); return; }
+					const entropy = S.mnemonicToEntropy(st.make.seed);
+					st.make.pin = pin;
+					st.result = { ...r, pin, symbols: S.encode(entropy, Math.log2(r.n), pin), qr: S.compactSeedQR(S.pinXor(entropy, pin)) };
+					render(); scrollTo(0, 0);
+				} } }, t.pinAdviceBtn)), pinErr);
 		return h("div", {},
 			h("div", { class: "noprint" },
 				h("div", { class: "error" }, t.printWarn),
+				pinBox,
 				h("div", { class: "nav" },
 					h("button", { class: "btn ghost", on: { click: () => go("make") } }, t.printBack),
 					h("button", { class: "btn", on: { click: () => print() } }, t.printBtn))),
@@ -462,10 +481,11 @@
 				h("p", { text: t.sheetString(cm) }),
 				h("h3", { text: t.sheetHow }),
 				h("ol", { class: "how-to" }, [t.sheetStep1, t.sheetStep2, t.sheetStep3, t.sheetStep4].map((s) => h("li", { text: s }))),
-				h("h3", { text: t.sheetDrawing }),
-				// more things per row on paper, so the whole sheet fits on one page
-				stringSvg(r.things, sequence, 0, { paper: true, perRow: sequence.length > 80 ? 16 : 12 }),
-				h("div", { class: "magic" }, h("div", { class: "magic-title", text: t.sheetMagicTitle }), h("p", { text: t.sheetMagic }))));
+				h("div", { class: "magic" }, h("div", { class: "magic-title", text: t.sheetMagicTitle }), h("p", { text: t.sheetMagic })),
+				// the other side of the sheet: the drawing alone, as big as fits
+				h("div", { class: "drawing-page" },
+					h("h3", { text: t.sheetDrawing }),
+					stringSvg(r.things, sequence, 0, { paper: true, perRow: sequence.length > 80 ? 10 : 8 }))));
 	}
 
 	// ---- about -------------------------------------------------------

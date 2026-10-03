@@ -128,24 +128,20 @@ pre.code { font-family: var(--mono); font-size: 14px; background: var(--soft); p
 	background: #ffffff; color: #2b2622; }
 .sheet .item { background: var(--soft); }
 ol.how-to li { margin: 4px 0; }
+.pin-advice { border: 2px solid var(--accent); background: var(--accent-soft); }
+input.pin { max-width: 300px; font-family: var(--mono); font-size: 20px; letter-spacing: 2px; text-transform: uppercase; }
 .magic { border: 3px dashed #c9a227; border-radius: 20px; background: #fff8e1; padding: 16px 20px; margin: 18px 0 6px; text-align: center; }
 .magic-title { font-size: 26px; font-weight: 800; color: #8a5a00; }
 .magic p { font-size: 18px; margin: 6px 0 0; }
 @media print {
-	.magic { break-inside: avoid; padding: 8px 14px; margin: 10px 0 0; border-width: 2px; }
-	.magic-title { font-size: 18px; }
-	.magic p { font-size: 13px; }
-	.sheet h2 { font-size: 20px; }
-	.sheet h3 { font-size: 15px; margin: 10px 0 4px; }
-	.sheet p.help { margin: 0 0 4px; }
-	.sheet .legend.shop { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
-	.sheet .legend.shop .item { font-size: 12px; padding: 2px 8px 2px 2px; }
-	ol.how-to { margin: 0; }
-	ol.how-to li { margin: 1px 0; }
+	.magic { break-inside: avoid; }
+	.sheet .legend.shop { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+	.drawing-page { break-before: page; }
+	.drawing-page h3 { margin-top: 0; }
 }
 @media print {
 	@page { margin: 10mm; }
-	body { background: #fff; color: #000; font-size: 13px; }
+	body { background: #fff; color: #000; font-size: 15px; }
 	.bar, header.top, footer, .noprint, .steps { display: none !important; }
 	.wrap { max-width: none; padding: 0; }
 	.card.sheet { border: 0; padding: 0; margin: 0; }

@@ -87,12 +87,18 @@ MASKS = [
 
 # ---- PIN obfuscation (SPEC §3.2) --------------------------------------
 
+def normalize_pin(pin):
+    """A PIN is letters A-Z and digits 0-9, case-insensitive (SPEC §3.2)."""
+    pin = pin.upper()
+    if not pin or any(ch not in "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" for ch in pin):
+        raise ValueError("a PIN is letters A-Z and digits 0-9")
+    return pin
+
+
 def pin_xor(entropy, pin):
     """Entropy XOR PBKDF2-HMAC-SHA256(PIN). Its own inverse."""
-    if not pin.isdigit():
-        raise ValueError("the PIN is decimal digits")
-    key = hashlib.pbkdf2_hmac("sha256", pin.encode("ascii"), PIN_SALT, PIN_ITERATIONS,
-                              len(entropy))
+    key = hashlib.pbkdf2_hmac("sha256", normalize_pin(pin).encode("ascii"), PIN_SALT,
+                              PIN_ITERATIONS, len(entropy))
     return bytes(a ^ b for a, b in zip(entropy, key))
 
 
