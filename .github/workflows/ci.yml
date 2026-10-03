@@ -28,6 +28,8 @@ jobs:
           node-version: "22"
       - name: Python reference against the vectors
         run: python3 tests/test_sequences.py
+      - name: Tones reference against the vectors (and audio)
+        run: python3 tests/test_tones.py
       - name: JavaScript against the vectors
         run: node web/test.mjs
       - name: Build the web tool

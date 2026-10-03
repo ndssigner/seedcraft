@@ -1,0 +1,172 @@
+{
+ "format": "seedcraft-tones",
+ "version": 0,
+ "note": "Public test seeds and testnet PSBTs only. Never put a real seed here.",
+ "vectors": [
+  {
+   "name": "NDS-Signer test seed",
+   "mnemonic": "height demise useless trap grow lion found off key clown transfer enroll",
+   "entropy": "6aa74bc073a67104570cca7a05839ca5",
+   "pin": null,
+   "keypad": "*085304661920185008241041073712260976035218490601#",
+   "ur": "ur:crypto-seed/oyadgdimosgrrtjkoljsaahgbnsgknahlsnsonpmcldpat",
+   "frames": [
+    "AD000313A101506AA74BC073A67104570CCA7A05839CA554DA471#*A1D2B2B6#1C"
+   ]
+  },
+  {
+   "name": "NDS-Signer test seed",
+   "mnemonic": "height demise useless trap grow lion found off key clown transfer enroll",
+   "entropy": "6aa74bc073a67104570cca7a05839ca5",
+   "pin": "1234",
+   "keypad": "*038805871660109512780623133704590240151318960436#",
+   "ur": "ur:crypto-seed/oyadgddylddlfmfykkztndwlsosbckchosqzcwectdtslp",
+   "frames": [
+    "AD000313A1015030892#3*4479#C9B*9C9CB1*17A7B41B1*5A3#9*A4DD410B240A"
+   ]
+  },
+  {
+   "name": "SeedSigner SeedQR test vector 4",
+   "mnemonic": "forum undo fragile fade shy sign arrest garment culture tube off merit",
+   "entropy": "5bbd9d71a8ec7990831aff359d426545",
+   "pin": null,
+   "keypad": "*073318950739065415961602009907670428187212261116#",
+   "ur": "ur:crypto-seed/oyadgdhpryntjspdwpkkmhlscyzmecntfwihfewsssvleo",
+   "frames": [
+    "AD000313A101505BBD9D71A8*C7990831A##359D426545A38613927683A0623048"
+   ]
+  },
+  {
+   "name": "SeedSigner SeedQR test vector 4",
+   "mnemonic": "forum undo fragile fade shy sign arrest garment culture tube off merit",
+   "entropy": "5bbd9d71a8ec7990831aff359d426545",
+   "pin": "1234",
+   "keypad": "*001212780799049905060060197920460652098511791973#",
+   "ur": "ur:crypto-seed/oyadgdadmuytmyneeowkbsfsurzegymyiygtzoktemcfpa",
+   "frames": [
+    "AD000313A101500193#98#9#33#40#3DD##*518#664D#B*9066B133843CA427B5*"
+   ]
+  },
+  {
+   "name": "SeedSigner SeedQR test vector 5",
+   "mnemonic": "good battle boil exact add seed angle hurry success glad carbon whisper",
+   "entropy": "6462686427203385c2337dd84c5089fd",
+   "pin": null,
+   "keypad": "*080301540200062600251559007008931730078802752004#",
+   "ur": "ur:crypto-seed/oyadgdieidisiedicxeolpsaeokitpgsgdldzccebtsopa",
+   "frames": [
+    "AD000313A101506462686427203385C2337DD84C5089#D1C8D3530AD*ACA00700*"
+   ]
+  },
+  {
+   "name": "SeedSigner SeedQR test vector 5",
+   "mnemonic": "good battle boil exact add seed angle hurry success glad carbon whisper",
+   "entropy": "6462686427203385c2337dd84c5089fd",
+   "pin": "1234",
+   "keypad": "*049807710308027120150105195016601506194903221075#",
+   "ur": "ur:crypto-seed/oyadgdfmgsbnnybezmrncykeynkerfhyjyoyfxlrzeeoeo",
+   "frames": [
+    "AD000313A101503*4C0C9A10##B*1A7C#67CBC5*74A143560D4DB1*32AA0203B18"
+   ]
+  },
+  {
+   "name": "SeedSigner SeedQR test vector 1",
+   "mnemonic": "attack pizza motion avocado network gather crop fresh patrol unusual wild holiday candy pony ranch winter theme error hybrid van cereal salon goddess expire",
+   "entropy": "0e74b64107f94cc0ccfae6a13dcbec3662154fec67e0e00999c07892597d190a",
+   "pin": null,
+   "keypad": "*011513251154012711900771041507421289190620080870026613431420201617920614089619290300152408010643#",
+   "ur": "ur:crypto-seed/oyadhdcxbajyrpfpatytgsrtsfzsvaoyfssbwpenidbzgwwpiovtvtasnlrtksmohkkicfbkhyhtckti",
+   "frames": [
+    "AD000324A10158200*74B64107#94CC0CC#A*6A13DCB*C3662154#*C67*0*00999C07892597D190A92#1*C9*1749#4920#45"
+   ]
+  },
+  {
+   "name": "SeedSigner SeedQR test vector 1",
+   "mnemonic": "attack pizza motion avocado network gather crop fresh patrol unusual wild holiday candy pony ranch winter theme error hybrid van cereal salon goddess expire",
+   "entropy": "0e74b64107f94cc0ccfae6a13dcbec3662154fec67e0e00999c07892597d190a",
+   "pin": "1234",
+   "keypad": "*067417161406077008641405160720231577101919290138039608780481150313110184040918291459074312650464#",
+   "ur": "ur:crypto-seed/oyadhdcxghhttdrsdydssehejpfhvdskdlwssslootcsuymybturotvovtsfwzhpiyrhvdldsknlrleo",
+   "frames": [
+    "AD000324A1015820545AD2B#3026C15#723#*7C52#*#C488A318DB8#0DD#A3*2*0CC#25B66B9*7894D5*16565B89*CB#3855"
+   ]
+  },
+  {
+   "name": "SeedSigner SeedQR test vector 3",
+   "mnemonic": "sound federal bonus bleak light raise false engage round stock update render quote truck quality fringe palace foot recipe labor glow tortoise potato still",
+   "entropy": "cfca8c658bc81962549252bc7ac3ba5b0b01d26bcae89f2b5ecebe263dcb2a36",
+   "pin": null,
+   "keypad": "*166206750203018810361417065805941507171219081456140818651401074412730727143709940798183613501710#",
+   "ur": "ur:crypto-seed/oyadhdcxtksglkihluspcfidghmogmrfknsrrdhpbdadtdjesgvsnednhytorndsfssbdrenhptblggo",
+   "frames": [
+    "AD000324A1015820C#CA8C658BC81962549252BC7AC3BA5B0B01D26BCA*89#2B5*C*B*263DCB2A36##2D*7B913AB248B9C9B"
+   ]
+  },
+  {
+   "name": "SeedSigner SeedQR test vector 3",
+   "mnemonic": "sound federal bonus bleak light raise false engage round stock update render quote truck quality fringe palace foot recipe labor glow tortoise potato still",
+   "entropy": "cfca8c658bc81962549252bc7ac3ba5b0b01d26bcae89f2b5ecebe263dcb2a36",
+   "pin": "1234",
+   "keypad": "*119903140311096109701015135418751731056918291628128602800276021517660009192408461921006306621399#",
+   "ur": "ur:crypto-seed/oyadhdcxmdvevsndrfchmwzcwdhggutpisvdmovwsgbnfgaynbtsuortdisaeewsaobstyrertbzdkrp",
+   "frames": [
+    "AD000324A101582095*4*89BBC1794#D*A5753D868*792*5CA0C4608A0D7DCC027C234*#020#D4B520821D715#6B3CA6AB8B"
+   ]
+  },
+  {
+   "name": "SeedSigner test PSBT, single-sig",
+   "psbt_base64": "cHNidP8BAHICAAAAAQDo5ey+2HIrNUkExsFhsImv1OK1cYA9x/bRjYQD+0UaAQAAAAD9////Apg6AAAAAAAAF6kUVuVZEcdpQ2zgABa9dRUNYHD4VuaHgSYAAAAAAAAWABQaLE4t0JbDRg4pNnmcf+cAWIcyawAAAAAAAQEfqGEAAAAAAAAWABRyuw9od6yuS0yiZljV0X12wG9e5CIGA/ZlEZvQubb6PmcnK+vlnd8aftYnrQ8wHYSxsD8tDp61GIshjoFUAACAAQAAgAAAAIAAAAAAAAAAAAAAAA==",
+   "fragment": 100,
+   "urs": [
+    "ur:crypto-psbt/1-3/lpadaxcsuecypmlopsnlhdgehduojojkidjyzmadaejpaoaeaeaeadaevsvwwprntpjpdnecgaaaswsehspfldpetyvorejslafsstynttlglraxzofecyadaeaeaeaezczmzmzmaomkftaeaeaeaeaeaechptbbhfvwhkbystinnbkewlao",
+    "ur:crypto-psbt/2-3/lpaoaxcsuecypmlopsnlhdgefxjzvtaecmrykpbzbthnjoyahfvaltlydsaeaeaeaeaeaecmaebbcydwgldptimtsrfgbadtenkknslbvdaehdlteyjeaeaeaeaeaeadadctpdhsaeaeaeaeaeaecmaebbjprkbsisktpsplgrgsrtjlbesr",
+    "ur:crypto-psbt/3-3/lpaxaxcsuecypmlopsnlhdgeoeiyhdtlttkikortjlhyvecpamaxynihbyndtirhrpzsfmiodidnwmvwnturcykbtbdipmbsdycalrpapffhdpbannrecsluclmnlyghaeaelaadaeaelaaeaeaelaaeaeaeaeaeaeaeaeaeaeaefxsaonrl",
+    "ur:crypto-psbt/4-3/lpaaaxcsuecypmlopsnlhdgehduojojkidjyzmadaejpaoaeaeaeadaevsvwwprntpjpdnecgaaaswsehspfldpetyvorejslafsstynttlglraxzofecyadaeaeaeaezczmzmzmaomkftaeaeaeaeaeaechptbbhfvwhkbystinlpzsfllt",
+    "ur:crypto-psbt/5-3/lpahaxcsuecypmlopsnlhdgerhtbspolonqzzttyidgsmttngdvwjoveurkbfnatjtlobzfyjtfremayprfwfxflselscmhglnhkuretlnprwnlehgndaoleclmnlygoztvttsneaomkrdaeaeaemtaebbihbgcwfmmoykrslkdaamhgwzwf",
+    "ur:crypto-psbt/6-3/lpamaxcsuecypmlopsnlhdgefxjzvtaecmrykpbzbthnjoyahfvaltlydsaeaeaeaeaeaecmaebbcydwgldptimtsrfgbadtenkknslbvdaehdlteyjeaeaeaeaeaeadadctpdhsaeaeaeaeaeaecmaebbjprkbsisktpsplgrgswyisidst"
+   ],
+   "frames": [
+    "AD01015685010318D*1AAD88AC99584A58DC70736274##010072020000000100*8*5*CB*D8722B354904C6C161B089A#D4*2B571803DC7#6D18D8403#B451A0100000000#D######02983A00000000000017A91456*55911C769495780*6**DB2D482C1*",
+    "AD01015685020318D*1AAD88AC99584A436C*00016BD75150D6070#856*68781260000000000001600141A2C4*2DD096C3460*2936799C7#*7005887326B000000000001011#A86100000000000016001472BB0#6877ACA*4B4C4C78C520#6376345360B",
+    "AD01015685030318D*1AAD88AC99584AA26658D5D17D76C06#5**4220603#665119BD0B9B6#A3*67272B*B*59DD#1A7*D627AD0#301D84B1B03#2D0*9*B5188B218*815400008001000080000000800000000000000000000000955525AA03C081A8967A",
+    "AD01015685040318D*1AAD88AC99584A58DC70736274##010072020000000100*8*5*CB*D8722B354904C6C161B089A#D4*2B571803DC7#6D18D8403#B451A0100000000#D######02983A00000000000017A91456*55911C76983#8A#B75A*47A#8*#A#",
+    "AD01015685050318D*1AAD88AC99584AB9D6C8A6A5B4#CD4624C96DA50*570*4D#7*3C076*8815446*3B3708B2424347C18316578659D#3886B2#18A579B028A218*8155#C*0D79#0298BA00000096001465121B3*92#5B#8C255AD54#3DA#1398154#D*",
+    "AD01015685060318D*1AAD88AC99584A436C*00016BD75150D6070#856*68781260000000000001600141A2C4*2DD096C3460*2936799C7#*7005887326B000000000001011#A86100000000000016001472BB0#6877ACA*4B4C4##4B0C666#07677CA9#"
+   ]
+  },
+  {
+   "name": "SeedSigner test PSBT, multisig",
+   "psbt_base64": "cHNidP8BAH4CAAAAAXfY5crHl+bXtTvKvdo2MaFQeIXw+P+3kzZwBRgw84lFAQAAAAD9////AhjaAAAAAAAAF6kUSop8lEmO4FB1AyV1GJe2bygA7ASHSGsBAAAAAAAiACCHttDIHkeECumMJgZ2643Hhd8rXFnv0ZbDSYM8esN9UIouEwBPAQQ1h88Dv3UWAIAAAACfHgAYuw3ODwXCSP0valI9edAB1t3EInR2TXkbOd+F+AJgmJs8XUkZD5zQAgd3+/ijOqVphlWUMzxDnRorBQYEgxDHUdwHMQAAgAEAAIAAAACAAAEBIBFGAgAAAAAAF6kU7ijES3iWT8u0+44/blPlLfh9WkyHAQMEAQAAAAEEFgAUX7JspW1r0gC+WkUHwGABJ8DU9f8iBgO1/adRC+r8XJ/bjnfdwk3740n0m8gE3+xN8GHsNrxDUxjHUdwHMQAAgAEAAIAAAACAAQAAAAAAAAAAAQAWABT8V9vY29XR8niVYdVSF9H4zRTAbiICArH6DjPShnzXiaAnc2BR1f61QQliH0BOhqAvksByf3e9GMdR3AcxAACAAQAAgAAAAIABAAAAAQAAAAAA",
+   "fragment": 100,
+   "urs": [
+    "ur:crypto-psbt/1-5/lpadahcfadsacymdtlgaiyhdhthkadrsjojkidjyzmadaekbaoaeaeaeadkttpvwsgstmsvatsrefrsgrytnenehoygdkslpwtyazmrlmuenjoahcsdywfldfeadaeaeaeaezczmzmzmaocstnaeaeaeaeaeaechptbbgelekemwgamnvtgdkpaxdakpcsmsrpjldeaewpaalteynlhekn",
+    "ur:crypto-psbt/2-5/lpaoahcfadsacymdtlgaiyhdhtfdjeadaeaeaeaeaecpaecxltrptispckfllrbkwllkdsamkowmlgstlpurdnhhhkwsttmtsrgalsfnknsrkigdledmbwaegwadaaeclttkaxrskpcmaelaaeaeaeneckaecsrkbttobsahsafdzcdlimgmfskktiadtbutsscpjykogtkkcwwzgdeofh",
+    "ur:crypto-psbt/3-5/lpaxahcfadsacymdtlgaiyhdhtesurlpyaaohnmkndfnhlgacfbsnstiaoatktzoyaotftoninlngomweofnfxntcydnahamaalsbestgyuoatehaeaelaadaeaelaaeaeaelaaeadadcxbyfgaoaeaeaeaeaechptbbwydessgrksmtgwsbqzzomnfhjtguvwdpyakihtgsltlbpmtytt",
+    "ur:crypto-psbt/4-5/lpaaahcfadsacymdtlgaiyhdhtadaxaaadaeaeaeadaacmaebbheprjzonjnjetdaernhtfeatrthnaddirttyykzmcpamaxrezcosgybdwdzthhneuymnktutsagtzovlgawkndspaaurwpgtwthswpenrffxgucsstgyuoatehaeaelaadaeaelaaeaeaelaadaeaeaeaeaefslnclvy",
+    "ur:crypto-psbt/5-5/lpahahcfadsacymdtlgaiyhdhtaeaeaeadaecmaebbzthguytpuytlttwzksmdhstlgmchttyasnbbrtjtcpaoaopazsbaeotdlnketsldnbdijkhngytlzerefpasidctfzgllnnbdlmortjplbktrycsstgyuoatehaeaelaadaeaelaaeaeaelaadaeaeaeadaeaeaeaeaewfrfuocw",
+    "ur:crypto-psbt/6-5/lpamahcfadsacymdtlgaiyhdhtesurlpytaokomkmyrtbkmosetygaadwtlbvonydpwndpjymegrfpghhlckfpnepyttbdectbahjzbetpkecxfwhngygozmrefpldidctfztolnoydmprtteekiktrycsstgysbpldawydefygeksmttksbqzzobafmjtguvwdwyakihtgsltsebtktjy",
+    "ur:crypto-psbt/7-5/lpatahcfadsacymdtlgaiyhdhthkadrsjsjkjyjywmzchgontnuytlttwfbsgtlrctmdlaemdlksdlbkteyaeeeobepkkorpcpkblshncymthgkokshsdsktwtfzasidctfzqdkkhetimhtppdlbktrycsstgysbpldageleztmdgamnhngdkpaxonjycsmsrpjtdeaewpaaltlkjstiga",
+    "ur:crypto-psbt/8-5/lpayahcfadsacymdtlgaiyhdhthsutfmlojsbbwpjsskcewptsluzojnghihgypmvdlovttsfpfmcynestaaothpykotkpqdmuaeeeynfznbpscwvdrddeaddplfssnlztasstvomttljldaotlgcmgydmkgbgmyctynykkbfhwsehcspenyseyapygrkosstefwtikirpfdaekkgeaatb"
+   ],
+   "frames": [
+    "AD0101678501051901C21A95D54966585A5901B#70736274##01007*020000000177D8*5CAC797*6D7B53BCABDDA3631A1507885#0#8##B7933670051830#389450100000000#D######0218DA00000000000017A9144A8A7C94498**050750325751897B66#2800*C0487D7D6#C4A9#A04#43B140",
+    "AD0101678502051901C21A95D54966585A486B01000000000022002087B6D0C81*47840A*98C260676*B8DC785D#2B5C59*#D196C349833C7AC37D508A2*13004#01043587C#03B#751600800000009#1*0018BB0DC*0#05C248#D2#6A523D79D001D6DDC42274764D791B44C12BB85#5AC3009038",
+    "AD0101678503051901C21A95D54966585A39D#85#80260989B3C5D49190#9CD0020777#B#8A33AA569865594333C439D1A2B0506048310C751DC0731000080010000800000008000010120114602000000000017A914**28C44B78964#CBB4#B8*3#6*53*52D#87D5A4C874B1D7D*66D128#7#4DC7",
+    "AD0101678504051901C21A95D54966585A0103040100000001041600145#B26CA56D6BD200B*5A4507C0600127C0D4#5##220603B5#DA7510B*A#C5C9#DB8*77DDC24D#B*349#49BC804D#*C4D#061*C36BC435318C751DC0731000080010000800000008001000000000082D9#44685162497D524",
+    "AD0101678505051901C21A95D54966585A0000000100160014#C57DBD8DBD5D1#2789561D55217D1#8CD14C06*220202B1#A0*33D2867CD789A027736051D5#*B54109621#404*86A02#92C0727#77BD18C751DC07310000800100008000000080010000000100000000004D95D80D42*C54D50193",
+    "AD0101678506051901C21A95D54966585A39D#85#90276988#C00A92C1D44901#07#*29A2D#12D74914B41545D1*419#ABD10B35D6056C10D87C2042605155##B54189621#40C*86A12*B2D1347D77BD18C751CBA*25**28444A7896C#CBB4#B0*3*6*53*52C#87D5A4C87388#5C1510B5736B7B0A",
+    "AD0101678507051901C21A95D54966585A5901B#71737474*B#D57A5DADBD5D1#30#4D841#9580372#782#0AD3#8343310AA76B6227*83601A96577678612677#04009621#40B3795#D090D8A87#77BD18C751CBA*254A8A#C95498*60507503A5741897B66*2800*C0487173755899A58*#3CADCC",
+    "AD0101678508051901C21A95D54966585A61DD3*887114*C71C51C*CD78B#B6D546551AD*788*0D7413*1A9#C704A35B#5A375B3930034#640A0AC1B*7BA28012D82C499#C09C7*296D56#25A38D16512*7B128#1##6#57*3#*#3118A#9AC1#8AB4B76C4D342D07DB648007A6D3BA92#*9#90A0*CA"
+   ]
+  },
+  {
+   "name": "named UR type",
+   "urs": [
+    "ur:x-seedcraft-test/gajkihihieiajphsiyjypdmdlnfy"
+   ],
+   "frames": [
+    "AD00000A10782D7365656463726166742D746573744973656564637261667445C348#357#16*92*5B#"
+   ]
+  }
+ ]
+}

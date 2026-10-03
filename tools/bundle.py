@@ -21,6 +21,7 @@ FILES = [  # (path in the repository, name in the bundle)
     ("docs/seedqr-templates-en.pdf", "seedqr-templates-en.pdf"),
     ("docs/seedqr-templates-es.pdf", "seedqr-templates-es.pdf"),
     ("SPEC-sequences.md", "SPEC-sequences.md"),
+    ("SPEC-tones.md", "SPEC-tones.md"),
     ("LICENSE", "LICENSE"),
 ]
 
@@ -38,7 +39,7 @@ seedcraft-by-hand-*.pdf       From a sequence to its QR code and back, with a
 seedqr-templates-*.pdf        Templates to copy a SeedQR (Standard or Compact)
                               from SeedSigner or a compatible signer, like
                               NDS-Signer, with the fixed parts already drawn.
-SPEC-sequences.md             The specification.
+SPEC-*.md                     The specifications (sequences, tones).
 SHA256SUMS                    Check the files: sha256sum -c SHA256SUMS
 
 Borradores: no guardes con un formato en borrador la semilla de fondos reales.
@@ -53,7 +54,7 @@ seedqr-templates-*.pdf        Plantillas para copiar un SeedQR (estándar o
                               compacto) de SeedSigner o un firmador
                               compatible, como NDS-Signer, con las partes
                               fijas ya dibujadas.
-SPEC-sequences.md             La especificación.
+SPEC-*.md                     Las especificaciones (secuencias, tonos).
 SHA256SUMS                    Comprueba los ficheros: sha256sum -c SHA256SUMS
 """
 

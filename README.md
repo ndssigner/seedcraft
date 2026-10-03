@@ -24,7 +24,7 @@ node web/build.mjs && docs/manual/build.sh && python3 tools/bundle.py v0.1.0
 | | Status |
 | :--- | :--- |
 | [Sequences](SPEC-sequences.md): a seed as a sequence of N kinds of objects, via its CompactSeedQR; reconstructible by hand | Draft v0 |
-| Tones: UR parts (PSBTs, seeds, xpubs) over DTMF, with framing and error correction | Planned |
+| [Tones](SPEC-tones.md): UR parts (PSBTs, seeds, xpubs) as DTMF tones, by cable or through the air, with Reed-Solomon; seeds keyed by hand on any phone | Draft v0 |
 
 ## In this repository
 
@@ -33,6 +33,10 @@ node web/build.mjs && docs/manual/build.sh && python3 tools/bundle.py v0.1.0
   plus Project Nayuki's QR Code generator, MIT, unmodified).
 - `vectors/sequences-v0.json`: test vectors from public test seeds
   (`tools/gen_vectors.py` regenerates them; needs `embit`).
+- `SPEC-tones.md`, `reference/python/seedcraft_tones.py`,
+  `vectors/tones-v0.json` (`tools/gen_tones_vectors.py`, cross-checked with
+  the UR library SeedSigner bundles), `tests/test_tones.py`: the same for
+  Tones, audio included (rendered, noisy, detuned, keyed at a person's pace).
 - `tests/test_sequences.py`: encodes and decodes every vector, repairs
   misread objects, reads sequences from either end. Run it with
   `python3 tests/test_sequences.py`; give it a quirc `qrdecode` binary to
