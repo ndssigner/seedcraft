@@ -73,10 +73,9 @@ const SEEDCRAFT_TEXT = {
 		sheetHow: "🪡 How to make it",
 		sheetStep1: "Tie a knot or put the clasp at the start of the string (where the 🔒 is).",
 		sheetStep2: "Thread the beads one by one, in the order of the numbers: 1, 2, 3… Follow the drawing.",
-		sheetStep3: "Cross out each number when it's on the string, so you never lose your place ✔️",
+		sheetStep3: "Each time you put one on, tick its number on the drawing, so you never lose your place ✔️",
 		sheetStep4: "When you reach the last one, close the necklace. Done! 🎉",
 		sheetDrawing: "🎨 The drawing",
-		sheetList: "✅ Number by number",
 		aboutTitle: "About this file",
 		aboutNet: "This page can't connect anywhere: its security rules (Content-Security-Policy) block every connection. It works offline, and it's best used offline.",
 		aboutCheck: "A page can't vouch for itself. Check this file with your computer instead and compare with the hash published at github.com/ndssigner/seedcraft:",
@@ -154,10 +153,9 @@ const SEEDCRAFT_TEXT = {
 		sheetHow: "🪡 Cómo hacerlo",
 		sheetStep1: "Haz un nudo o pon el cierre al principio del hilo (donde está el 🔒).",
 		sheetStep2: "Mete las cuentas una a una, en el orden de los números: 1, 2, 3… Sigue el dibujo.",
-		sheetStep3: "Tacha cada número cuando lo hayas puesto, así nunca te pierdes ✔️",
+		sheetStep3: "Cada vez que pongas una, marca su número en el dibujo, así nunca te pierdes ✔️",
 		sheetStep4: "Cuando llegues a la última, cierra el collar. ¡Listo! 🎉",
 		sheetDrawing: "🎨 El dibujo",
-		sheetList: "✅ Número a número",
 		aboutTitle: "Sobre este archivo",
 		aboutNet: "Esta página no puede conectarse a ningún sitio: sus reglas de seguridad (Content-Security-Policy) bloquean toda conexión. Funciona sin internet, y es mejor usarla así.",
 		aboutCheck: "Una página no puede garantizarse a sí misma. Comprueba este archivo con tu ordenador y compáralo con la huella publicada en github.com/ndssigner/seedcraft:",
@@ -167,10 +165,12 @@ const SEEDCRAFT_TEXT = {
 };
 
 // Symbols drawn on things that have a colour but no emoji, so that a sheet
-// printed in black and white still tells them apart. Text glyphs (not emoji),
-// the most distinct first.
-const SEEDCRAFT_SYMBOLS = ["●", "▲", "■", "◆", "★", "▼", "✚", "✖", "✿", "♪", "☾", "◉", "⬢", "✦", "❖", "⧗",
-	"⊕", "⊗", "▣", "◈", "✪", "♫", "✸", "❂", "⬟", "◐", "◑", "⊞", "✱", "◒", "◓", "⬣"];
+// printed in black and white still tells them apart. Plain geometric glyphs
+// (not emoji), the most distinct first, and none that looks like a charm of
+// the ready-made sets (no stars, moons or notes: they would be confused with
+// ⭐ 🌙 🎵 in black and white).
+const SEEDCRAFT_SYMBOLS = ["●", "▲", "■", "◆", "▼", "✚", "✖", "✿", "◉", "⬢", "❖", "⧗", "◐", "⊕", "▣", "✱",
+	"◈", "⊗", "◒", "◓", "◧", "◨", "▤", "▥", "◩", "◪", "⊞", "⬣", "◑", "⊡", "◫", "⊟"];
 
 // Ready-made sets: each thing has an emoji and/or a colour (with a symbol),
 // and a name per language. 32 things per set (the first N are used).

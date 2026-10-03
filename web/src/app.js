@@ -124,6 +124,8 @@
 			const [x, y] = pos(i);
 			const g = bead(things[idx], x, y, r, { legend: i < nLegend, dark });
 			g.append(svg("title", {}, `${i + 1}: ${things[idx].name}`));
+			// on paper, each number sits in a little box to tick off
+			if (opts.paper) root.append(svg("rect", { class: "tick", x: x - 13, y: y + r + 3, width: 26, height: 16, rx: 4 }));
 			root.append(g, svg("text", { class: "n" + (i < nLegend ? " leg" : ""), x, y: y + r + 15, "text-anchor": "middle" }, i + 1));
 		});
 		return root;
@@ -447,7 +449,6 @@
 		const counts = new Array(r.n).fill(1);
 		for (const s of r.symbols) counts[s]++;
 		const cm = Math.ceil((sequence.length * 0.8 + 20) / 10) * 10;
-		const list = h("ol", { class: "checklist" }, sequence.map((i) => h("li", {}, "☐ ", beadIcon(r.things[i], 28, true), " ", r.things[i].name)));
 		return h("div", {},
 			h("div", { class: "noprint" },
 				h("div", { class: "error" }, t.printWarn),
@@ -462,8 +463,7 @@
 				h("h3", { text: t.sheetHow }),
 				h("ol", { class: "how-to" }, [t.sheetStep1, t.sheetStep2, t.sheetStep3, t.sheetStep4].map((s) => h("li", { text: s }))),
 				h("h3", { text: t.sheetDrawing }),
-				stringSvg(r.things, sequence, 0, { paper: true }),
-				h("h3", { class: "page-break", text: t.sheetList }), list));
+				stringSvg(r.things, sequence, 0, { paper: true })));
 	}
 
 	// ---- about -------------------------------------------------------

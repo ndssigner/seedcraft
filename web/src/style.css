@@ -102,6 +102,7 @@ details.more input { max-width: 220px; font-family: var(--mono); }
 .string text.tag { font-size: 13px; fill: var(--muted); font-weight: 750; }
 .string path.thread { fill: none; stroke: var(--thread); stroke-width: 3; stroke-linecap: round; }
 .string circle.knot { fill: var(--thread); }
+.string rect.tick { fill: #ffffff; stroke: #9a8f84; stroke-width: 1.2; }
 
 .overlay { position: fixed; inset: 0; background: rgba(20, 16, 12, .6); display: flex; align-items: center; justify-content: center; padding: 18px; z-index: 10; }
 .build { background: var(--card); border-radius: 26px; padding: 26px; width: min(460px, 100%); text-align: center; }
@@ -127,10 +128,6 @@ pre.code { font-family: var(--mono); font-size: 14px; background: var(--soft); p
 	background: #ffffff; color: #2b2622; }
 .sheet .item { background: var(--soft); }
 ol.how-to li { margin: 4px 0; }
-ol.checklist { columns: 3 200px; padding-left: 0; list-style: none; font-size: 15px; }
-ol.checklist li { break-inside: avoid; display: flex; align-items: center; gap: 4px; margin: 2px 0; counter-increment: c; }
-ol.checklist li::after { content: ""; }
-ol.checklist li::before { content: counter(c) "."; width: 30px; text-align: right; color: #6f655c; font-weight: 700; }
 @media print {
 	@page { margin: 14mm; }
 	body { background: #fff; color: #000; font-size: 13px; }
@@ -139,7 +136,6 @@ ol.checklist li::before { content: counter(c) "."; width: 30px; text-align: righ
 	.card.sheet { border: 0; padding: 0; margin: 0; }
 	.sheet h3 { break-after: avoid; }
 	.string { break-inside: avoid; }
-	h3.page-break { break-before: page; }
 }
 footer { color: var(--muted); font-size: 14px; text-align: center; padding: 10px 0 40px; }
 footer button { background: none; border: 0; color: var(--accent); cursor: pointer; text-decoration: underline; }
