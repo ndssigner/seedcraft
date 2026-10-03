@@ -463,7 +463,8 @@
 				h("h3", { text: t.sheetHow }),
 				h("ol", { class: "how-to" }, [t.sheetStep1, t.sheetStep2, t.sheetStep3, t.sheetStep4].map((s) => h("li", { text: s }))),
 				h("h3", { text: t.sheetDrawing }),
-				stringSvg(r.things, sequence, 0, { paper: true })));
+				stringSvg(r.things, sequence, 0, { paper: true }),
+				h("div", { class: "magic" }, h("div", { class: "magic-title", text: t.sheetMagicTitle }), h("p", { text: t.sheetMagic }))));
 	}
 
 	// ---- about -------------------------------------------------------

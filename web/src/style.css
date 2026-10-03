@@ -128,6 +128,10 @@ pre.code { font-family: var(--mono); font-size: 14px; background: var(--soft); p
 	background: #ffffff; color: #2b2622; }
 .sheet .item { background: var(--soft); }
 ol.how-to li { margin: 4px 0; }
+.magic { border: 3px dashed #c9a227; border-radius: 20px; background: #fff8e1; padding: 16px 20px; margin: 18px 0 6px; text-align: center; }
+.magic-title { font-size: 26px; font-weight: 800; color: #8a5a00; }
+.magic p { font-size: 18px; margin: 6px 0 0; }
+@media print { .magic { break-inside: avoid; } }
 @media print {
 	@page { margin: 14mm; }
 	body { background: #fff; color: #000; font-size: 13px; }
