@@ -90,9 +90,9 @@
 
 	// The whole string: beads on a thread that snakes row by row.
 	function stringSvg(things, sequence, nLegend, opts = {}) {
-		const perRow = opts.perRow || 8, cell = 58, r = 21, rowH = 74, pad = 66;
+		const perRow = opts.perRow || 8, cell = 58, r = 21, rowH = opts.paper ? 66 : 74, pad = 66;
 		const n = sequence.length, rows = Math.max(1, Math.ceil(n / perRow));
-		const W = pad * 2 + (perRow - 1) * cell, H = 40 + (rows - 1) * rowH + 60;
+		const W = pad * 2 + (perRow - 1) * cell, H = 40 + (rows - 1) * rowH + (opts.paper ? 44 : 60);
 		const pos = (i) => {
 			const row = Math.floor(i / perRow), col = i % perRow;
 			return [pad + (row % 2 ? perRow - 1 - col : col) * cell, 34 + row * rowH];
@@ -458,12 +458,13 @@
 			h("div", { class: "card sheet" },
 				h("h2", { text: t.sheetTitle }), h("p", { class: "help", text: t.sheetSub }),
 				h("h3", { text: t.sheetShop }),
-				h("div", { class: "legend shop" }, r.things.map((x, i) => h("span", { class: "item" }, beadIcon(x, 40, true), x.name, h("em", {}, `× ${counts[i]}`)))),
+				h("div", { class: "legend shop" }, r.things.map((x, i) => h("span", { class: "item" }, beadIcon(x, 34, true), x.name, h("em", {}, `× ${counts[i]}`)))),
 				h("p", { text: t.sheetString(cm) }),
 				h("h3", { text: t.sheetHow }),
 				h("ol", { class: "how-to" }, [t.sheetStep1, t.sheetStep2, t.sheetStep3, t.sheetStep4].map((s) => h("li", { text: s }))),
 				h("h3", { text: t.sheetDrawing }),
-				stringSvg(r.things, sequence, 0, { paper: true }),
+				// more things per row on paper, so the whole sheet fits on one page
+				stringSvg(r.things, sequence, 0, { paper: true, perRow: sequence.length > 80 ? 16 : 12 }),
 				h("div", { class: "magic" }, h("div", { class: "magic-title", text: t.sheetMagicTitle }), h("p", { text: t.sheetMagic }))));
 	}
 
