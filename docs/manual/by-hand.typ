@@ -139,6 +139,12 @@
 
 #step(5) #tr[*Read the header.* Count #T21.data_modules bits (12 words) or #T25.data_modules bits (24 words) from the start; the next five should be `00` followed by the mask's three bits (0–7). Take the template page for that size and mask.][*Lee la cabecera.* Cuenta #T21.data_modules bits (12 palabras) o #T25.data_modules (24 palabras) desde el principio; los cinco siguientes deben ser `00` seguido de los tres bits de la máscara (0–7). Coge la página de plantilla de ese tamaño y máscara.]
 
+#tr[
+  The mask comes after the data, so it is in the *last objects* of the sequence — the last two with 8, 16 or 32 kinds of object, up to five with fewer. To draw while you read, read those last objects first, take the right page, then start from the beginning. A wrong page is not lost work: the data squares are in the same places on all eight pages of a size; only the format squares change.
+][
+  La máscara va detrás de los datos, así que está en los *últimos objetos* de la secuencia: los dos últimos con 8, 16 o 32 clases de objeto, hasta cinco con menos. Para dibujar mientras lees, lee primero esos últimos objetos, coge la página buena y empieza luego desde el principio. Una página equivocada no es trabajo perdido: las casillas de datos están en el mismo sitio en las ocho páginas de un tamaño; solo cambian las de formato.
+]
+
 #step(6) #tr[*Fill the white squares* row by row, left to right: 1 = colour it dark (a black felt-tip works best), 0 = leave it. The number at the right of each row says how many white squares it has: tick each row off as you finish it.][*Rellena los cuadros blancos* fila a fila, de izquierda a derecha: 1 = píntalo oscuro (mejor con rotulador negro), 0 = déjalo. El número a la derecha de cada fila dice cuántos cuadros blancos tiene: márcala al terminarla.]
 
 #step(7) #tr[*Scan it* with SeedSigner or NDS-Signer (“Scan a SeedQR”). One misread object is repaired by the QR code itself.][*Escanéalo* con SeedSigner o NDS-Signer («Escanear SeedQR»). El propio QR corrige un objeto mal leído.]

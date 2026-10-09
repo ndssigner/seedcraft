@@ -50,5 +50,21 @@ for (const v of vectors) {
 	const buy = S.piecesToBuy(v.symbols, 1 << v.k);
 	check(buy % 5 === 0 && dict.every((_, s) => v.symbols.filter((x) => x === s).length < buy), "pieces to buy " + name);
 }
+// the template's fixed squares, without a QR code, match qrcodegen's for every
+// size and mask (the format squares, which depend on the mask, are null)
+const masks = new Set();
+for (let i = 0; i < 400 && masks.size < 16; i++) {
+	const entropy = Uint8Array.from(createHash("sha256").update("template " + i).digest()).slice(0, i % 2 ? 32 : 16);
+	const qr = S.compactSeedQR(entropy);
+	masks.add(qr.size + "/" + qr.mask);
+	let format = 0;
+	for (const key of S.functionModules(qr.size)) {
+		const r = Math.floor(key / qr.size), c = key % qr.size, v = S.templateModule(qr.size, r, c);
+		if (v === null) format++;
+		else check(v === qr.getModule(c, r), `template module ${r},${c} of ${qr.size} mask ${qr.mask}`);
+	}
+	check(format === 30, "30 format squares in " + qr.size);
+}
+check(masks.size === 16, "both sizes, all 8 masks: " + masks.size);
 console.log(`${failures ? "FAIL" : "ok"}: ${vectors.length} vectors, ${failures} failures`);
 process.exit(failures ? 1 : 0);

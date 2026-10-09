@@ -99,6 +99,24 @@ const SeedcraftSequences = (() => {
 		return f;
 	}
 
+	// The colour of a function module that does not depend on the mask: finders,
+	// separators, timing, the alignment pattern (25 x 25) and the dark module.
+	// null: a format module, which does (it can only be drawn once the mask is known).
+	function templateModule(size, r, c) {
+		for (const [r0, c0] of [[0, 0], [0, size - 7], [size - 7, 0]]) {
+			if (r >= r0 - 1 && r <= r0 + 7 && c >= c0 - 1 && c <= c0 + 7) {
+				const dr = r - r0, dc = c - c0;
+				if (dr < 0 || dr > 6 || dc < 0 || dc > 6) return false;  // separator
+				return Math.max(Math.abs(dr - 3), Math.abs(dc - 3)) !== 2;
+			}
+		}
+		if (r === 6) return c % 2 === 0;
+		if (c === 6) return r % 2 === 0;
+		if (size === 25 && r >= 16 && r <= 20 && c >= 16 && c <= 20) return Math.max(Math.abs(r - 18), Math.abs(c - 18)) !== 1;
+		if (r === size - 8 && c === 8) return true;
+		return null;
+	}
+
 	function dataModulesRowMajor(size) {
 		const f = functionModules(size), out = [];
 		for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) if (!f.has(r * size + c)) out.push([r, c]);
@@ -304,7 +322,7 @@ const SeedcraftSequences = (() => {
 	return {
 		FORMAT_VERSION, HEADER_BITS, LAYOUTS, DecodeError,
 		sha256, mnemonicToEntropy, entropyToMnemonic,
-		functionModules, dataModulesRowMajor, compactSeedQR, encode, decode,
+		functionModules, templateModule, dataModulesRowMajor, compactSeedQR, encode, decode,
 		symbolsToBits, readSequence, decodeObjects, physicalSequence, piecesToBuy, rsCorrect,
 	};
 })();

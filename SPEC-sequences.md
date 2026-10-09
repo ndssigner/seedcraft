@@ -112,6 +112,11 @@ enough to make and check easily.
    data modules row by row. Instead of drawing, the modules can be placed
    on a pegboard (fusible bead boards are usually 29×29 pegs) or a Lego
    baseplate with dark and light pieces. Scan the result.
+   The header comes after the data, so the mask is only known from the
+   last things of the sequence (the last 2 for N = 8, 16, 32; up to 5 for
+   smaller N): to pick the template before drawing, read those first. The
+   data modules are in the same places in all eight templates of a size;
+   the mask changes only the format information.
 4. **By software:** unmask with M, read the codewords, correct errors,
    check that the result is a CompactSeedQR (byte mode, 16 or 32 bytes).
    **The header has no error correction, so software does not trust it:**

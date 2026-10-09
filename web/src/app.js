@@ -10,6 +10,9 @@
 	const NS = "http://www.w3.org/2000/svg";
 	const $ = (id) => document.getElementById(id);
 	const SIZES = [2, 4, 8, 16, 32];
+	// the colours offered for a piece: the first 16 example beads' (their names without "bead")
+	const BEAD_COLOURS = SETS.find((set) => set.id === "beads").things.slice(0, 16).map((b) => ({ colour: b.colour,
+		name: { en: b.en.replace(/ bead$/, ""), es: b.es.replace(/^Cuenta /, "") } }));
 	// pieces of each kind that cover 99.9 % of seeds, plus one spare, in
 	// packs of 5 (SPEC §6; simulated with the reference implementation)
 	const BUY = { 12: { 2: 130, 4: 45, 8: 25, 16: 15, 32: 10 }, 24: { 2: 215, 4: 70, 8: 35, 16: 20, 32: 15 } };
@@ -76,21 +79,23 @@
 	// its emoji, else its symbol on its colour, else its initials.
 	function bead(thing, x, y, r, opts = {}) {
 		const g = svg("g");
-		const ring = opts.current ? "#f28c28" : "rgba(0,0,0,.3)", width = opts.current ? 4 : 1.2;
+		// the current piece's ring takes the page's accent (class ring-cur, in the CSS)
+		const ring = opts.current ? "#2f45a8" : thing.photo && thing.colour ? thing.colour : "rgba(0,0,0,.3)", width = opts.current ? 4 : thing.photo && thing.colour ? 3 : 1.2;
+		const cur = opts.current ? "ring-cur" : undefined;
 		if (thing.photo) {
 			const id = "clip" + (++clipId);
 			g.append(svg("clipPath", { id }, svg("circle", { cx: x, cy: y, r })),
 				svg("image", { href: thing.photo, x: x - r, y: y - r, width: 2 * r, height: 2 * r, "clip-path": `url(#${id})`, preserveAspectRatio: "xMidYMid slice" }),
-				svg("circle", { cx: x, cy: y, r, fill: "none", stroke: ring, "stroke-width": width }));
+				svg("circle", { cx: x, cy: y, r, fill: "none", stroke: ring, "stroke-width": width, class: cur }));
 			return g;
 		}
 		if (thing.brick) {
 			const w = r * 2, hgt = r * 1.5;
-			g.append(svg("rect", { x: x - r, y: y - hgt / 2, width: w, height: hgt, rx: 4, fill: thing.colour || "#ddd", stroke: ring, "stroke-width": width }));
+			g.append(svg("rect", { x: x - r, y: y - hgt / 2, width: w, height: hgt, rx: 4, fill: thing.colour || "#ddd", stroke: ring, "stroke-width": width, class: cur }));
 			for (const dx of [-r / 2, r / 2]) g.append(svg("rect", { x: x + dx - r / 4, y: y - hgt / 2 - r / 3, width: r / 2, height: r / 3, rx: 2, fill: thing.colour || "#ddd", stroke: "rgba(0,0,0,.35)" }));
 		} else {
-			const fill = thing.colour || (opts.dark ? "#3a332c" : "#ffffff");
-			g.append(svg("circle", { cx: x, cy: y, r, fill, stroke: ring, "stroke-width": width }));
+			const fill = thing.colour || (opts.dark ? "#222c2b" : "#ffffff");
+			g.append(svg("circle", { cx: x, cy: y, r, fill, stroke: ring, "stroke-width": width, class: cur }));
 		}
 		if (thing.emoji) g.append(svg("text", { x, y: y + r * 0.36, "text-anchor": "middle", "font-size": r * 1.05 }, thing.emoji));
 		else if (thing.symbol) {
@@ -100,8 +105,8 @@
 		} else if (thing.name) {
 			const initials = thing.name.trim().split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 			g.append(svg("text", { x, y: y + r * 0.3, "text-anchor": "middle", "font-size": r * 0.8, "font-weight": 700,
-				fill: opts.dark ? "#f3ece4" : "#2b2622" }, initials));
-		} else g.append(svg("text", { x, y: y + r * 0.3, "text-anchor": "middle", "font-size": r * 0.9, fill: "#9a8f84" }, "?"));
+				fill: thing.colour ? (lightColour(thing.colour) ? "#111111" : "#ffffff") : opts.dark ? "#e2eae7" : "#1c2826" }, initials));
+		} else g.append(svg("text", { x, y: y + r * 0.3, "text-anchor": "middle", "font-size": r * 0.9, fill: "#8e9693" }, "?"));
 		return g;
 	}
 	function icon(thing, size = 34, paper = false, current = false) {
@@ -183,7 +188,7 @@
 		$("tagline").textContent = t.subtitle;
 		$("lang").textContent = t.langName;
 		$("about").textContent = t.aboutTitle;
-		$("donate").textContent = "💛 " + t.donateTitle;
+		$("donate").textContent = t.donateTitle;
 		$("tabs").replaceChildren(...TABS.map(([name, label]) => h("button", { class: TAB_OF[st.screen] === name ? "on" : "", on: { click: () => go(name) } },
 			t[label], name === "dict" && st.dict ? h("span", { class: "count-badge", text: st.dict.things.length + (st.dict.checked ? " ✓" : "") }) : null)));
 	}
@@ -232,6 +237,8 @@
 	// segmented control: [value, label, mark]
 	const seg = (items, value, set) => h("div", { class: "seg" }, items.map(([v, label, mark]) =>
 		h("button", { class: v === value ? "on" : "", on: { click: () => set(v) } }, label, mark ? h("small", { text: mark }) : null)));
+	// an element edged in a piece's colour (CSS var --c)
+	const tint = (e, colour) => { if (colour) e.style.setProperty("--c", colour); return e; };
 	const dictLine = () => {
 		const t = T(), d = st.dict;
 		if (!d) return h("div", { class: "note" }, t.noDict, " ", h("button", { class: "btn small", on: { click: () => go("dict") } }, t.dictCard));
@@ -250,7 +257,7 @@
 			panel(h("div", { class: "big-total", text: t.buyEach(each, b.n) }),
 				h("p", { text: t.buyWhy(count, Math.ceil((count * 0.8 + 20) / 10) * 10) }),
 				hint(t.buyExact),
-				h("div", { class: "row" }, h("button", { class: "btn push", on: { click: () => go("dict") } }, t.tabDict + " ▶"))));
+				h("div", { class: "row" }, h("button", { class: "btn push", on: { click: () => go("dict") } }, t.tabDict))));
 	}
 
 	// ---- dictionary ----------------------------------------------------
@@ -258,10 +265,11 @@
 		if (/\.json$/i.test(name) || text.trim().startsWith("{")) {
 			const j = JSON.parse(text);
 			const things = (j.things || []).map((x) => ({ name: String(x.name || "").trim(), emoji: x.emoji || "",
+				colour: /^#[0-9a-f]{6}$/i.test(x.colour || "") ? x.colour.toLowerCase() : "",
 				photo: typeof x.photo === "string" && x.photo.startsWith("data:image/") ? x.photo : "" }));
 			return things;
 		}
-		return text.split(/\r?\n/).map((s) => s.trim()).filter(Boolean).map((name) => ({ name, emoji: "", photo: "" }));
+		return text.split(/\r?\n/).map((s) => s.trim()).filter(Boolean).map((name) => ({ name, emoji: "", colour: "", photo: "" }));
 	}
 	const dictProblem = (things) => {
 		const t = T();
@@ -296,14 +304,14 @@
 				panel(title(t.dictCard),
 					field(t.howMany, sizes, hint("★ " + t.recommended)),
 					h("div", { class: "row" },
-						h("button", { class: "btn", on: { click: () => { st.edit = { things: Array.from({ length: n }, () => ({ name: "", emoji: "", photo: "" })), i: 0 }; go("name"); } } }, t.dictName),
+						h("button", { class: "btn", on: { click: () => { st.edit = { things: Array.from({ length: n }, () => ({ name: "", emoji: "", colour: "", photo: "" })), i: 0 }; go("name"); } } }, t.dictName),
 						h("button", { class: "btn ghost", on: { click: () => open.click() } }, t.dictOpen), open),
 					err,
 					h("details", { class: "more" }, h("summary", { text: t.dictExample }), hint(t.dictExampleHelp), example)),
 				panel(h("p", { text: t.dictIntro }), h("ol", { class: "how-to" }, t.dictChecks.map((x) => h("li", { text: x })))));
 		}
 		const json = () => JSON.stringify({ format: "seedcraft-dictionary", version: 0,
-			things: d.things.map((x) => Object.fromEntries(Object.entries({ name: x.name, emoji: x.emoji, photo: x.photo }).filter(([, v]) => v))) }, null, 1);
+			things: d.things.map((x) => Object.fromEntries(Object.entries({ name: x.name, emoji: x.emoji, colour: x.colour, photo: x.photo }).filter(([, v]) => v))) }, null, 1);
 		return tool(
 			panel(title(t.dictHave(d.things.length)),
 				h("div", { class: "dict-grid" }, d.things.map((x, i) => h("div", { class: "piece" }, h("span", { class: "num", text: String(i) }), icon(x, 34), h("span", { text: x.name }))))),
@@ -318,7 +326,7 @@
 						h("button", { class: "btn ghost small", on: { click: () => download(d.things.map((x) => x.name).join("\n") + "\n", "dictionary.txt", "text/plain") } }, t.dictSaveTxt))),
 				h("div", { class: "row" },
 					h("button", { class: "btn ghost small", on: { click: () => { if (confirm(t.dictForgetAsk)) { setDict(null); render(); } } } }, t.dictForget),
-					h("button", { class: "btn push", on: { click: () => go("make") } }, t.tabMake + " ▶"))));
+					h("button", { class: "btn push", on: { click: () => go("make") } }, t.tabMake))));
 	}
 
 	// naming the pieces one by one
@@ -335,6 +343,22 @@
 			if (!f) return;
 			try { x.photo = await photoOf(f); render(); } catch (z) { err.replaceChildren(errorBox(t.errPhoto)); }
 		} } });
+		// its colour: one of the beads' colours, any other, or none
+		const colours = h("div", { class: "swatches", role: "group", "aria-label": t.thingColour });
+		const setColour = (c) => { x.colour = c; drawColours(); drawStrip(); preview.replaceChildren(icon(x, 96)); };
+		function drawColours() {
+			const swatch = (c, label) => {
+				const b = h("button", { class: "swatch" + (c ? "" : " none") + (x.colour === c ? " on" : ""), title: label, "aria-label": label,
+					"aria-pressed": String(x.colour === c), on: { click: () => setColour(c) } });
+				if (c) b.style.setProperty("--c", c);
+				return b;
+			};
+			const other = x.colour && !BEAD_COLOURS.some((b) => b.colour === x.colour);
+			colours.replaceChildren(swatch("", t.colourNone), ...BEAD_COLOURS.map((b) => swatch(b.colour, b.name[st.lang])),
+				h("label", { class: "swatch-any" + (other ? " on" : "") }, h("input", { type: "color", value: x.colour || "#7f7f7f",
+					on: { input: (e) => setColour(e.target.value.toLowerCase()) } }), t.colourOther));
+		}
+		drawColours();
 		const strip = h("div", { class: "strip" });
 		function drawStrip() {
 			strip.replaceChildren(...ed.things.map((y, j) => h("button", { class: "mini" + (j === ed.i ? " on" : ""), title: y.name || "?",
@@ -366,9 +390,10 @@
 				hint(t.nameHelp),
 				h("div", { class: "wizard" }, side(ed.i - 1), h("div", { class: "centre" }, preview), side(ed.i + 1)),
 				field(t.thingName, nameIn),
-				h("div", { class: "row" },
+				field(t.thingColour, colours),
+				h("div", { class: "row end" },
 					h("label", { class: "field" }, h("span", { class: "label", text: t.thingEmoji }), emojiIn),
-					h("button", { class: "btn ghost small", on: { click: () => photoIn.click() } }, x.photo ? "📷 " + t.photoAgain : "📷 " + t.photoTake),
+					h("button", { class: "btn ghost small", on: { click: () => photoIn.click() } }, x.photo ? t.photoAgain : t.photoTake),
 					x.photo ? h("button", { class: "btn ghost small", on: { click: () => { x.photo = ""; render(); } } }, t.photoRemove) : null, photoIn),
 				err,
 				h("div", { class: "row" },
@@ -408,9 +433,10 @@
 	// Each piece → its number → k bits → the next k white squares of the
 	// template, row by row (SPEC §3); the last bits are the header (version,
 	// mask) and padding, which go on no square.
-	function handGrid(qr, cells, upto, current, onPick) {
-		const size = qr.size, cs = 14, m = 30, w = 2 * m + size * cs;
-		const done = upto >= cells.length;
+	// The template drawn as squares. dark(r, c): a square's colour (the QR code's,
+	// or the bits read so far); fixedDark(r, c): a fixed square's (null: not known yet).
+	function handGrid(size, dark, fixedDark, cells, upto, current, onPick, done) {
+		const cs = 14, m = 30, w = 2 * m + size * cs;
 		const fn = S.functionModules(size);
 		const owner = new Map(cells.map(([r, c], i) => [r * size + c, i]));
 		// when everything is filled in, the template's grey turns white: a QR code to scan
@@ -422,30 +448,33 @@
 			if (i % 2 === 0 || current.cols.has(i)) g.append(svg("text", { x: m + i * cs + cs / 2, y: m - 5, "text-anchor": "middle", class: "rc" + (current.cols.has(i) ? " on" : "") }, String(i + 1)));
 		}
 		for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) {
-			const key = r * size + c, dark = qr.getModule(c, r);
+			const key = r * size + c;
 			let cls;
-			if (fn.has(key)) cls = dark ? "fn-dark" : "fn-light";
+			if (fn.has(key)) { const f = fixedDark(r, c); cls = f === null ? "pending" : f ? "fn-dark" : "fn-light"; }
 			else {
-				const bit = owner.get(key);
-				if (current.bits.has(bit)) cls = dark ? "cur-dark" : "cur-light";
-				else if (bit < upto) cls = dark ? "dark" : "light";
+				const bit = owner.get(key), on = dark(r, c, bit);
+				if (current.bits.has(bit)) cls = on ? "cur-dark" : "cur-light";
+				else if (bit < upto) cls = on ? "dark" : "light";
 				else cls = "empty";
 			}
 			const rect = svg("rect", { x: m + c * cs, y: m + r * cs, width: cs, height: cs, class: "cell " + cls });
-			if (!fn.has(key)) rect.addEventListener("click", () => onPick(owner.get(key)));
+			if (!fn.has(key) && onPick) rect.addEventListener("click", () => onPick(owner.get(key)));
 			g.append(rect);
 		}
 		return g;
 	}
-	function handView(d, m) {
-		const t = T(), n = d.things.length, k = Math.log2(n), L = m.symbols.length;
-		const qr = S.compactSeedQR(m.entropy), size = qr.size;
+	// The QR code by hand, for a sequence of symbols: step by step (at: the piece
+	// being drawn; at = L: all of it), or live while reading (no qr yet, no move).
+	// qr: the seed's CompactSeedQR once known; without it, the template's size
+	// comes from the number of pieces and the squares from the bits themselves.
+	function handView(d, symbols, qr, at, move) {
+		const t = T(), n = d.things.length, k = Math.log2(n), L = symbols.length;
+		const size = qr ? qr.size : L > symbolsFor(12, n) ? 25 : 21;
 		const cells = S.dataModulesRowMajor(size), ndata = cells.length;
-		if (m.hand === undefined) m.hand = 0;
-		const i = Math.max(0, Math.min(L, m.hand));                 // L: everything filled in
-		const move = (to) => { m.hand = Math.max(0, Math.min(L, to)); render(); };
-		const bits = S.symbolsToBits(m.symbols, k);
-		const first = i * k, own = i < L ? [...Array(k).keys()].map((j) => first + j) : [];
+		const i = Math.max(-1, Math.min(L, at));
+		const bits = S.symbolsToBits(symbols, k);
+		const mask = qr ? qr.mask : bits.length >= ndata + 5 ? parseInt(bits.slice(ndata + 2, ndata + 5).join(""), 2) : "?";
+		const first = i * k, own = i >= 0 && i < L ? [...Array(k).keys()].map((j) => first + j) : [];
 		const current = { bits: new Set(own.filter((b) => b < ndata)), rows: new Set(), cols: new Set() };
 		const byRow = new Map();
 		for (const b of current.bits) {
@@ -454,33 +483,39 @@
 			if (!byRow.has(r)) byRow.set(r, []);
 			byRow.get(r).push(c + 1);
 		}
-		const upto = i < L ? first : ndata;
-		const grid = handGrid(qr, cells, upto, current, (bit) => move(Math.floor(bit / k)));
+		const done = !!qr && i >= L;
+		const upto = done ? ndata : Math.max(0, first);
+		const dark = qr ? (r, c) => qr.getModule(c, r) : (r, c, bit) => bits[bit] === 1;
+		const fixedDark = qr ? (r, c) => qr.getModule(c, r) : (r, c) => S.templateModule(size, r, c);
+		const grid = handGrid(size, dark, fixedDark, cells, upto, current, move ? (bit) => move(Math.floor(bit / k)) : null, done);
 		const info = [];
-		if (i < L) {
-			const s = m.symbols[i], thing = d.things[s];
+		if (i >= 0 && i < L) {
+			const s = symbols[i], thing = d.things[s];
 			const bitSpans = own.map((b) => h("span", { class: "bit" + (b >= ndata ? " hdr" : ""), text: String(bits[b]) }));
 			info.push(h("div", { class: "hand-piece" }, icon(thing, 48),
 				h("div", {}, h("b", { text: thing.name }), h("div", { class: "hint", text: t.handNumber(s, k) }), h("div", { class: "bits" }, bitSpans))));
 			if (current.bits.size) info.push(hint(t.handCells([...byRow].map(([r, cs]) => [r + 1, cs]))));
-			if (own.some((b) => b >= ndata && b < ndata + 5)) info.push(h("div", { class: "note" }, t.handHeader, " ", h("b", { text: t.handTemplate(size, qr.mask) })));
+			if (own.some((b) => b >= ndata && b < ndata + 5)) info.push(h("div", { class: "note" }, t.handHeader, " ", h("b", { text: t.handTemplate(size, mask) })));
 			else if (own.some((b) => b >= ndata + 5)) info.push(h("div", { class: "note", text: t.handPadding }));
-		} else {
+		} else if (done) {
 			info.push(h("div", { class: "note ok", text: "✓ " + t.handDone }), hint(t.handTemplate(size, qr.mask)));
 		}
 		const legend = h("details", { class: "more" }, h("summary", { text: t.handLegend }),
 			h("div", { class: "hand-legend" }, d.things.map((x, s) => h("div", {}, icon(x, 22), h("span", { class: "num", text: String(s) }),
 				h("code", { text: s.toString(2).padStart(k, "0") })))));
+		// the mask is in the header, after the data: in the last pieces of the string
+		const expected = qr ? L : size === 25 ? symbolsFor(24, n) : symbolsFor(12, n);
 		return [
-			i === 0 ? hint(t.handIntro) : null,
-			h("div", { class: "row between" }, h("span", { class: "label", text: i < L ? t.handStep(i + 1, L) : t.handStep(L, L) }),
-				h("span", { class: "meta", text: t.handTemplate(size, qr.mask) })),
+			i <= 0 ? hint(move ? t.handIntro : t.handLiveIntro) : null,
+			(i <= 0 || !move) && !done ? h("div", { class: "note" }, qr ? t.handMaskKnown(expected - Math.floor(ndata / k), size, qr.mask) : t.handMaskWhere(expected - Math.floor(ndata / k), size)) : null,
+			h("div", { class: "row between" }, h("span", { class: "label", text: i < 0 ? t.handNone : i < L ? t.handStep(i + 1, qr ? L : expected) : t.handStep(L, L) }),
+				h("span", { class: "meta", text: t.handTemplate(size, mask) })),
 			...info,
-			h("div", { class: "row" },
-				h("button", { class: "btn ghost", disabled: i === 0 ? "" : undefined, on: { click: () => move(i - 1) } }, "◀"),
+			move ? h("div", { class: "row" },
+				h("button", { class: "btn ghost", disabled: i === 0 ? "" : undefined, "aria-label": t.prevPiece, on: { click: () => move(i - 1) } }, "◀"),
 				h("button", { class: "btn", disabled: i >= L ? "" : undefined, on: { click: () => move(i + 1) } }, t.nextPiece + " ▶"),
-				h("button", { class: "btn ghost small push", on: { click: () => move(i >= L ? 0 : L) } }, i >= L ? t.handRestart : t.handAll)),
-			grid, hint(t.handClick), legend];
+				h("button", { class: "btn ghost small push", on: { click: () => move(i >= L ? 0 : L) } }, i >= L ? t.handRestart : t.handAll)) : null,
+			grid, move ? hint(t.handClick) : null, legend];
 	}
 
 	function makeScreen() {
@@ -513,7 +548,7 @@
 						m.symbols = S.encode(m.entropy, k);
 						m.pos = 0; m.hand = 0; m.tab = "walk";
 						render();
-					} } }, t.makeIt + " ▶"))),
+					} } }, t.makeIt))),
 				panel(field(t.tabDict, dictLine())));
 		}
 		const L = m.symbols.length, each = S.piecesToBuy(m.symbols, n), cm = Math.ceil((L * 0.8 + 20) / 10) * 10;
@@ -538,7 +573,11 @@
 			view.append(hint(t.listHelp), h("pre", { class: "code", text }),
 				h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => download(text + "\n", "sequence.txt", "text/plain") } }, t.saveList)));
 		}
-		if (m.tab === "hand") view.append(...handView(d, m).filter(Boolean));
+		if (m.tab === "hand") {
+			if (m.hand === undefined) m.hand = 0;
+			const move = (to) => { m.hand = Math.max(0, Math.min(L, to)); render(); };
+			view.append(...handView(d, m.symbols, S.compactSeedQR(m.entropy), m.hand, move).filter(Boolean));
+		}
 		if (m.tab === "qr") view.append(h("div", { class: "qrbox" }, qrSvg(S.compactSeedQR(m.entropy)), hint(t.qrHelp)));
 		return tool(
 			panel(title(t.makeCard), dictLine(),
@@ -554,7 +593,15 @@
 
 	// keyboard for the step-by-step view
 	addEventListener("keydown", (e) => {
-		if (st.screen !== "make" || !st.make.symbols || /input|textarea/i.test(e.target.tagName)) return;
+		if (/input|textarea/i.test(e.target.tagName)) return;
+		const rd = st.read;
+		if (st.screen === "read" && rd.out && rd.view === "hand") {
+			const L = rd.symbols.length, at = rd.hand || 0;
+			if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); rd.hand = Math.min(L, at + 1); render(); }
+			if (e.key === "ArrowLeft") { rd.hand = Math.max(0, at - 1); render(); }
+			return;
+		}
+		if (st.screen !== "make" || !st.make.symbols) return;
 		if (st.make.tab === "hand") {
 			const L = st.make.symbols.length, at = st.make.hand || 0;
 			if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); st.make.hand = Math.min(L, at + 1); render(); }
@@ -578,7 +625,15 @@
 			rd.error = "";
 			if (!objects.length) rd.error = t.errEmpty;
 			else {
-				try { rd.out = S.decodeObjects(objects, d.things.map((x) => x.name.toLowerCase())); }
+				try {
+					const names = d.things.map((x) => x.name.toLowerCase());
+					rd.out = S.decodeObjects(objects, names);
+					// the symbols to draw by hand: as read (from the clasp), or, if a
+					// misread piece was repaired, the seed's own
+					const read = objects.map((o) => names.indexOf(o));
+					rd.symbols = rd.out.fixed ? S.encode(rd.out.entropy, Math.log2(n)) : rd.out.reversed ? read.reverse() : read;
+					rd.hand = 0;
+				}
 				catch (e) { rd.error = /not in the dictionary/.test(e.message) ? t.errUnknown(e.message.match(/"(.*)"/)?.[1] || "") : t.errRead(objects.length, len12, len24); }
 			}
 			render();
@@ -587,13 +642,13 @@
 		if (!rd.typing) {
 			input = [hint(t.tapHelp),
 				h("div", { class: "keypad" }, d.things.map((x, i) =>
-					h("button", { class: "key", "aria-label": x.name, on: { click: () => {
+					tint(h("button", { class: "key" + (x.colour ? " tinted" : ""), "aria-label": x.name, on: { click: () => {
 						rd.taps.push(i);
 						if (rd.taps.length === len12 || rd.taps.length === len24) {
 							try { S.decodeObjects(rd.taps.map((j) => d.things[j].name), d.things.map((y) => y.name)); readIt(); return; } catch (e) { /* not yet */ }
 						}
 						render();
-					} } }, icon(x, 36), x.name))),
+					} } }, icon(x, 36), x.name), x.colour))),
 				h("div", { class: "row" },
 					h("button", { class: "btn ghost small", on: { click: () => { rd.taps.pop(); render(); } } }, t.undo),
 					h("button", { class: "btn ghost small", on: { click: () => { if (confirm(t.clearAsk)) { rd.taps = []; render(); } } } }, t.clear),
@@ -606,21 +661,31 @@
 		}
 		const last = rd.taps.slice(-5);
 		const right = [];
-		if (rd.out) {
+		// what was read: the string (then the seed), or the QR code by hand —
+		// live while tapping, to draw it as you go, and step by step once read
+		const view = rd.view || "string";
+		if (!rd.typing || rd.out)
+			right.push(seg([["string", rd.out ? t.seedFound : t.readViewString], ["hand", t.tabHand]], view, (v) => { rd.view = v; render(); }));
+		if (view === "hand" && (rd.out || !rd.typing)) {
+			if (rd.out) {
+				const L = rd.symbols.length;
+				const move = (to) => { rd.hand = Math.max(0, Math.min(L, to)); render(); };
+				right.push(...handView(d, rd.symbols, S.compactSeedQR(rd.out.entropy), rd.hand || 0, move).filter(Boolean));
+			} else right.push(h("div", { class: "big-total", text: t.tapped(rd.taps.length, len12, len24) }),
+				...handView(d, rd.taps, null, rd.taps.length - 1, null).filter(Boolean));
+		} else if (rd.out) {
 			const words = S.entropyToMnemonic(rd.out.entropy).split(" ");
 			right.push(h("div", { class: "result" }, h("div", { class: "result-title", text: "✓ " + t.seedFound }), seedAlert(),
 				h("div", { class: "words" }, words.map((w, i) => h("div", {}, h("span", {}, i + 1), w))),
 				rd.out.fixed ? h("div", { class: "note" }, t.repaired(rd.out.fixed)) : null,
 				rd.out.reversed ? h("div", { class: "note" }, t.reversed) : null,
 				h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => { st.read = { taps: [], typing: false, text: "", out: null, error: "" }; render(); } } }, t.clear))));
-		} else {
-			if (!rd.typing) right.push(
-				h("div", { class: "big-total", text: t.tapped(rd.taps.length, len12, len24) }),
-				h("div", { class: "lasttaps" }, last.map((i, j) => h("span", { class: j === last.length - 1 ? "newest" : "" },
-					icon(d.things[i], j === last.length - 1 ? 48 : 32), h("small", { text: `${rd.taps.length - last.length + j + 1}` })))),
-				stringSvg(d.things, rd.taps));
-			right.push(errorBox(rd.error), h("div", { class: "row" }, h("button", { class: "btn push", on: { click: readIt } }, t.readIt)));
-		}
+		} else if (!rd.typing) right.push(
+			h("div", { class: "big-total", text: t.tapped(rd.taps.length, len12, len24) }),
+			h("div", { class: "lasttaps" }, last.map((i, j) => h("span", { class: j === last.length - 1 ? "newest" : "" },
+				icon(d.things[i], j === last.length - 1 ? 48 : 32), h("small", { text: `${rd.taps.length - last.length + j + 1}` })))),
+			stringSvg(d.things, rd.taps));
+		if (!rd.out) right.push(errorBox(rd.error), h("div", { class: "row" }, h("button", { class: "btn push", on: { click: readIt } }, t.readIt)));
 		return tool(panel(title(t.readCard), dictLine(), ...input), panel(...right));
 	}
 
@@ -658,7 +723,7 @@
 		const t = T();
 		return h("div", { class: "page" },
 			h("h2", { text: t.howTitle }),
-			h("ol", { class: "how-to" }, [[t.how1, t.how1b], [t.how2, t.how2b], [t.how3, t.how3b], [t.how4, t.how4b]].map(([a, b]) => h("li", {}, h("b", { text: a }), " — " + b))),
+			h("ol", { class: "how-to" }, [[t.how1, t.how1b], [t.how2, t.how2b], [t.how3, t.how3b], [t.how4, t.how4b]].map(([a, b]) => h("li", {}, h("b", { text: a }), h("span", { text: b })))),
 			h("p", { class: "hint", text: t.carriers }),
 			h("h2", { text: t.honestTitle }), h("p", { text: t.honest }),
 			h("h2", { text: t.aboutTitle }),
@@ -669,6 +734,19 @@
 			h("p", { class: "hint", text: t.aboutSpec(FORMAT_VERSION) }));
 	}
 
+	// The start page's picture: the first pieces of the pretend seed "abandon … about"
+	// with the example beads, threaded once from the clasp (CSS, unless reduced motion)
+	function heroString() {
+		const things = SETS[0].things.slice(0, 16).map((x) => ({ name: x[st.lang], emoji: x.emoji || "", colour: x.colour || "", symbol: x.symbol || "", brick: !!x.brick }));
+		const test = S.mnemonicToEntropy("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about");
+		const drawing = stringSvg(things, S.encode(test, 4, 0).slice(0, 16), { perRow: 8 });
+		drawing.setAttribute("aria-hidden", "true");
+		[...drawing.children].filter((e) => e.tagName === "g").forEach((g, i) => {
+			g.classList.add("bead-in");
+			g.style.setProperty("animation-delay", `${120 + i * 55}ms`);
+		});
+		return h("figure", { class: "hero-string" }, drawing, h("figcaption", { text: T().heroCaption }));
+	}
 	// ---- start: what Seedcraft is, how it goes, what protects what, offline use, the sister projects ----
 	function intro() {
 		const t = T();
@@ -680,23 +758,25 @@
 			go("make");
 		};
 		return h("div", { class: "intro" },
-			h("section", { class: "hero" }, h("h1", { text: t.introTitle }), h("p", { class: "lead", text: t.introLead }),
-				h("div", { class: "row" },
-					h("button", { class: "btn big", on: { click: () => go("dict") } }, t.startDict + " ▶"),
-					h("button", { class: "btn ghost big", on: { click: tryExample } }, t.startTry),
-					h("button", { class: "btn ghost", on: { click: () => go("buy") } }, t.startBuy))),
+			h("section", { class: "hero" },
+				h("div", { class: "hero-text" }, h("h1", { text: t.introTitle }), h("p", { class: "lead", text: t.introLead }),
+					h("div", { class: "row" },
+						h("button", { class: "btn big", on: { click: () => go("dict") } }, t.startDict),
+						h("button", { class: "btn ghost big", on: { click: tryExample } }, t.startTry),
+						h("button", { class: "btn ghost", on: { click: () => go("buy") } }, t.startBuy))),
+				heroString()),
 			h("section", { class: "panel" }, h("h2", { class: "panel-title", text: t.stepsTitle }),
 				h("ol", { class: "steps" }, t.steps.map(([a, b], i) => h("li", {}, h("b", { text: `${i + 1}. ${a}` }), h("span", { text: b }))))),
 			h("div", { class: "tool" },
-				panel(h("h2", { class: "panel-title", text: "🔐 " + t.expectTitle }),
+				panel(h("h2", { class: "panel-title", text: t.expectTitle }),
 					h("ul", { class: "list" }, t.expect.map((x) => h("li", { text: x })))),
-				panel(h("h2", { class: "panel-title", text: "🔌 " + t.safeTitle }),
+				panel(h("h2", { class: "panel-title", text: t.safeTitle }),
 					h("ul", { class: "list" }, t.safe.map((x) => h("li", { text: x }))),
 					h("div", { class: "row" }, link(REPO_URL + "/releases", t.releases),
 						link(REPO_URL + "/blob/main/docs/seedcraft-by-hand-" + st.lang + ".pdf", t.manual)))),
 			h("section", { class: "panel" }, h("h2", { class: "panel-title", text: t.siblingsTitle }),
 				h("div", { class: "sib-cards" }, SIBLINGS.map(([name, url, key]) => card(name, url, t[key])))),
-			h("section", { class: "panel" }, h("h2", { class: "panel-title", text: "💛 " + t.supportTitle }), donateBody()));
+			h("section", { class: "panel" }, h("h2", { class: "panel-title", text: t.supportTitle }), donateBody()));
 	}
 
 	// ---- donate ------------------------------------------------------
@@ -707,8 +787,8 @@
 		const b = h("button", { class: "btn ghost small", on: { click: async () => {
 			try { await navigator.clipboard.writeText(text); }
 			catch (e) { const ta = h("textarea", {}); ta.value = text; document.body.append(ta); ta.select(); document.execCommand("copy"); ta.remove(); }
-			b.textContent = "✓ " + t.copied; setTimeout(() => { b.textContent = "📋 " + t.copy; }, 1500);
-		} } }, "📋 " + t.copy);
+			b.textContent = "✓ " + t.copied; setTimeout(() => { b.textContent = t.copy; }, 1500);
+		} } }, t.copy);
 		return b;
 	}
 	function donate() {
