@@ -2,7 +2,8 @@
 # vectors, builds the web tool (reproducible: compare the printed SHA-256 with
 # a local build of the same commit) and keeps it as an artifact. Rebuilds the
 # printable PDFs and fails if they differ from the committed ones. Bundles
-# everything in a reproducible zip; on a version tag (v*), drafts a release.
+# everything in a reproducible zip. On main, publishes the web tool and the
+# PDFs on GitHub Pages; on a version tag (v*), drafts a release.
 name: test-and-build
 
 on:
@@ -28,8 +29,6 @@ jobs:
           node-version: "22"
       - name: Python reference against the vectors
         run: python3 tests/test_sequences.py
-      - name: Tones reference against the vectors (and audio)
-        run: python3 tests/test_tones.py
       - name: JavaScript against the vectors
         run: node web/test.mjs
       - name: Build the web tool
@@ -53,6 +52,25 @@ jobs:
           path: |
             dist/seedcraft-*.zip
             dist/SHA256SUMS
+      - name: The site for GitHub Pages
+        run: mkdir site && cp dist/seedcraft-sequences.html site/index.html && cp docs/*.pdf site/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  pages:
+    if: github.ref == 'refs/heads/main'
+    needs: test-and-build
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')

@@ -68,17 +68,16 @@ def main():
     rng = random.Random(1)
     for v in VECTORS:
         entropy = bytes.fromhex(v["entropy"])
-        k, pin = v["k"], v["pin"]
-        name = "%s k=%d pin=%s" % (v["name"], k, pin)
-        # encoding matches the vector
-        check(sc.encode(entropy, k, pin) == v["symbols"], "encode " + name)
+        k = v["k"]
+        name = "%s k=%d" % (v["name"], k)
+        # encoding matches the vector (padding 0); with random padding only
+        # the last symbol may differ, and it decodes all the same
+        check(sc.encode(entropy, k, padding=0) == v["symbols"], "encode " + name)
+        rnd = sc.encode(entropy, k)
+        check(rnd[:-1] == v["symbols"][:-1] and sc.decode(rnd, k)[0] == entropy, "random padding " + name)
         # decoding gives the entropy back
-        got, fixed, header = sc.decode(v["symbols"], k, pin)
+        got, fixed, header = sc.decode(v["symbols"], k)
         check(got == entropy and fixed == 0 and header == (0, v["mask"]), "decode " + name)
-        # a wrong PIN gives a different, valid-length entropy (no error)
-        if pin:
-            other, _, _ = sc.decode(v["symbols"], k, "9999")
-            check(other != entropy and len(other) == len(entropy), "wrong PIN " + name)
         # a misread object is always corrected (SPEC §5); more are not
         # guaranteed: the person checks the sequence and reads it again
         for nerr in (1,):
@@ -86,23 +85,36 @@ def main():
             for pos in rng.sample(range(len(sym)), nerr):
                 sym[pos] = (sym[pos] + rng.randrange(1, 1 << k)) % (1 << k) if k > 0 else sym[pos]
             try:
-                got, fixed, _ = sc.decode(sym, k, pin)
+                got, fixed, _ = sc.decode(sym, k)
                 ok = got == entropy
             except sc.DecodeError:
                 ok = False
             check(ok, "%d misread object(s) %s" % (nerr, name))
-        # the physical sequence reads back from either end, in either direction
+        # the physical sequence, with its dictionary kept apart, reads back
+        # from either end
         objects = ["obj%02d" % i for i in range(1 << k)]
         rng.shuffle(objects)
         seq = sc.physical_sequence(v["symbols"], objects)
         for reading in (seq, seq[::-1]):
-            got, _, _ = sc.decode_objects(reading, pin)
+            got, _, _ = sc.decode_objects(reading, objects)
             check(got == entropy, "objects %s" % name)
+        # pieces to buy: enough of every kind, in whole packs
+        buy = sc.pieces_to_buy(v["symbols"], 1 << k)
+        check(buy % 5 == 0 and all(v["symbols"].count(s) < buy for s in range(1 << k)), "pieces to buy " + name)
         # drawn back by hand, the QR code is the CompactSeedQR another reader sees
-        if qrdecode and pin is None:
+        if qrdecode:
             out = subprocess.run([qrdecode], input=to_pgm(draw_qr(v["symbols"], k)),
                                  capture_output=True).stdout
             check(out == entropy + b"\n", "redrawn QR read by quirc " + name)
+    # SPEC §8 says the dictionary is no secret against someone who knows this
+    # method: keep that true (tools/dictionary_attack.py)
+    sys.path.insert(0, str(ROOT / "tools"))
+    import dictionary_attack
+    for v in VECTORS:
+        if v["k"] == 4:
+            objects = ["object %d" % ((s * 7 + 3) % 16) for s in v["symbols"]]
+            got, _ = dictionary_attack.attack(objects, 4, len(v["entropy"]) // 2)
+            check(got == bytes.fromhex(v["entropy"]), "seed recovered without the dictionary " + v["name"])
     print("%s: %d vectors, %d failures" % ("ok" if not failures else "FAIL", len(VECTORS), failures))
     sys.exit(1 if failures else 0)
 

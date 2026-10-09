@@ -6,14 +6,12 @@
 const SeedcraftSequences = (() => {
 	const FORMAT_VERSION = 0;
 	const HEADER_BITS = 5; // format version (2) + QR mask (3)
-	const PIN_SALT = "seedcraft/sequences/pin/v0";
-	const PIN_ITERATIONS = 10000;
 	// entropy bytes -> [QR version, size, data codewords, error correction codewords]
 	const LAYOUTS = { 16: [1, 21, 19, 7], 32: [2, 25, 34, 10] };
 
 	class DecodeError extends Error {}
 
-	// ---- SHA-256, HMAC, PBKDF2 (no dependency on WebCrypto) ----------
+	// ---- SHA-256 (for BIP-39's checksum; no dependency on WebCrypto) -----
 
 	const K = new Uint32Array([
 		0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -57,51 +55,6 @@ const SeedcraftSequences = (() => {
 		const ov = new DataView(out.buffer);
 		for (let i = 0; i < 8; i++) ov.setUint32(4 * i, h[i]);
 		return out;
-	}
-
-	function concat(a, b) {
-		const out = new Uint8Array(a.length + b.length);
-		out.set(a);
-		out.set(b, a.length);
-		return out;
-	}
-
-	function hmacSha256(key, msg) {
-		if (key.length > 64) key = sha256(key);
-		const k = new Uint8Array(64);
-		k.set(key);
-		const ipad = k.map((x) => x ^ 0x36), opad = k.map((x) => x ^ 0x5c);
-		return sha256(concat(opad, sha256(concat(ipad, msg))));
-	}
-
-	function pbkdf2Sha256(password, salt, iterations, length) {
-		const out = new Uint8Array(length);
-		for (let block = 1, pos = 0; pos < length; block++) {
-			const index = new Uint8Array([block >>> 24, block >>> 16 & 255, block >>> 8 & 255, block & 255]);
-			let u = hmacSha256(password, concat(salt, index));
-			const t = u.slice();
-			for (let i = 1; i < iterations; i++) {
-				u = hmacSha256(password, u);
-				for (let j = 0; j < 32; j++) t[j] ^= u[j];
-			}
-			out.set(t.subarray(0, Math.min(32, length - pos)), pos);
-			pos += 32;
-		}
-		return out;
-	}
-
-	const ascii = (s) => new Uint8Array([...s].map((ch) => ch.charCodeAt(0)));
-
-	// A PIN is letters A-Z and digits 0-9, case-insensitive (SPEC §3.2).
-	function normalizePin(pin) {
-		pin = pin.toUpperCase();
-		if (!/^[A-Z0-9]+$/.test(pin)) throw new Error("a PIN is letters A-Z and digits 0-9");
-		return pin;
-	}
-
-	function pinXor(entropy, pin) {
-		const key = pbkdf2Sha256(ascii(normalizePin(pin)), ascii(PIN_SALT), PIN_ITERATIONS, entropy.length);
-		return entropy.map((b, i) => b ^ key[i]);
 	}
 
 	// ---- BIP-39 ------------------------------------------------------
@@ -196,14 +149,19 @@ const SeedcraftSequences = (() => {
 		return symbols.flatMap((s) => s.toString(2).padStart(k, "0").split("").map(Number));
 	}
 
-	function encode(entropy, k, pin) {
+	// the bits that complete the last symbol are random (SPEC §3.5); pass
+	// padding (a number) to choose them, as the test vectors do
+	function encode(entropy, k, padding) {
 		if (!LAYOUTS[entropy.length]) throw new Error("entropy is 16 bytes (12 words) or 32 bytes (24 words)");
 		if (!(k >= 1 && k <= 5)) throw new Error("k is 1 to 5 (N = 2 to 32 kinds of objects)");
-		const payload = pin ? pinXor(entropy, pin) : entropy;
-		const qr = compactSeedQR(payload);
+		const qr = compactSeedQR(entropy);
 		const bits = dataModulesRowMajor(qr.size).map(([r, c]) => qr.getModule(c, r) ? 1 : 0);
 		const header = FORMAT_VERSION.toString(2).padStart(2, "0") + qr.mask.toString(2).padStart(3, "0");
-		return bitsToSymbols(bits.concat(header.split("").map(Number)), k);
+		const all = bits.concat(header.split("").map(Number));
+		const spare = (k - all.length % k) % k;
+		if (padding === undefined) padding = crypto.getRandomValues(new Uint8Array(1))[0];
+		for (let i = spare - 1; i >= 0; i--) all.push((padding >> i) & 1);
+		return bitsToSymbols(all, k);
 	}
 
 	// ---- decoding ----------------------------------------------------
@@ -233,7 +191,7 @@ const SeedcraftSequences = (() => {
 		return [payload, nfixed];
 	}
 
-	function decode(symbols, k, pin) {
+	function decode(symbols, k) {
 		const bits = symbolsToBits(symbols, k);
 		let layout = null;
 		for (const [nbytes, [, size, ndata, necc]] of Object.entries(LAYOUTS)) {
@@ -253,35 +211,43 @@ const SeedcraftSequences = (() => {
 			catch (e) { if (!(e instanceof DecodeError)) throw e; error = error || e; }
 		}
 		if (!result) throw error;
-		let [payload, nfixed] = result;
-		if (pin) payload = pinXor(payload, pin);
+		const [payload, nfixed] = result;
 		return { entropy: payload, fixed: nfixed, header };
 	}
 
-	function readSequence(objects, n) {
-		const dictionary = objects.slice(0, n);
-		if (new Set(dictionary).size !== n) throw new DecodeError("the first " + n + " objects are not all different");
+	// the symbols of objects read in one direction, with the dictionary (the
+	// N objects in symbol order, kept apart)
+	function readSequence(objects, dictionary) {
+		if (new Set(dictionary).size !== dictionary.length) throw new DecodeError("the dictionary has repeated objects");
 		const index = new Map(dictionary.map((o, i) => [o, i]));
-		return objects.slice(n).map((o) => {
+		return objects.map((o) => {
 			if (!index.has(o)) throw new DecodeError("object \"" + o + "\" is not in the dictionary");
 			return index.get(o);
 		});
 	}
 
-	function decodeObjects(objects, pin) {
-		const n = new Set(objects).size;
-		const k = Math.log2(n);
-		if (!Number.isInteger(k) || k < 1 || k > 5) throw new DecodeError(n + " kinds of objects: N must be 2, 4, 8, 16 or 32");
+	// decode objects read from either end: tries both directions
+	function decodeObjects(objects, dictionary) {
+		const n = dictionary.length, k = Math.log2(n);
+		if (!Number.isInteger(k) || k < 1 || k > 5) throw new DecodeError(n + " objects in the dictionary: N must be 2, 4, 8, 16 or 32");
 		const errors = [];
 		for (const reading of [objects, [...objects].reverse()]) {
-			try { return Object.assign(decode(readSequence(reading, n), k, pin), { reversed: reading !== objects, k }); }
+			try { return Object.assign(decode(readSequence(reading, dictionary), k), { reversed: reading !== objects, k }); }
 			catch (e) { if (!(e instanceof DecodeError)) throw e; errors.push(e.message); }
 		}
 		throw new DecodeError(errors.join("; "));
 	}
 
 	function physicalSequence(symbols, dictionary) {
-		return dictionary.concat(symbols.map((s) => dictionary[s]));
+		return symbols.map((s) => dictionary[s]);
+	}
+
+	// how many of each kind to buy, the same for every kind: the most any
+	// kind is used, plus spare, in whole packs
+	function piecesToBuy(symbols, n, pack = 5, spare = 1) {
+		let most = 0;
+		for (let s = 0; s < n; s++) most = Math.max(most, symbols.filter((x) => x === s).length);
+		return Math.ceil((most + spare) / pack) * pack;
 	}
 
 	// ---- Reed-Solomon over GF(256), as in QR codes -------------------
@@ -337,8 +303,8 @@ const SeedcraftSequences = (() => {
 
 	return {
 		FORMAT_VERSION, HEADER_BITS, LAYOUTS, DecodeError,
-		sha256, pbkdf2Sha256, normalizePin, pinXor, mnemonicToEntropy, entropyToMnemonic,
+		sha256, mnemonicToEntropy, entropyToMnemonic,
 		functionModules, dataModulesRowMajor, compactSeedQR, encode, decode,
-		symbolsToBits, readSequence, decodeObjects, physicalSequence, rsCorrect,
+		symbolsToBits, readSequence, decodeObjects, physicalSequence, piecesToBuy, rsCorrect,
 	};
 })();

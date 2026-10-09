@@ -25,25 +25,24 @@ SEEDS = [
     ("SeedSigner SeedQR test vector 3", "sound federal bonus bleak light raise false engage round stock update "
      "render quote truck quality fringe palace foot recipe labor glow tortoise potato still"),
 ]
-PINS = [None, "0000", "1234"]
 
 
 def main():
     vectors = []
     for name, mnemonic in SEEDS:
         entropy = bip39.mnemonic_to_bytes(mnemonic)
-        for pin in PINS:
-            for k in range(1, 6):
-                symbols = sc.encode(entropy, k, pin)
-                vectors.append({
-                    "name": name, "mnemonic": mnemonic, "entropy": entropy.hex(),
-                    "pin": pin, "k": k, "n": 1 << k,
-                    "mask": sc.compact_seedqr(sc.pin_xor(entropy, pin) if pin else entropy).get_mask(),
-                    "symbols": symbols,
-                })
+        for k in range(1, 6):
+            # padding 0: the bits that complete the last symbol are random in
+            # use (SPEC §3.5), fixed here so that the vectors are reproducible
+            symbols = sc.encode(entropy, k, padding=0)
+            vectors.append({
+                "name": name, "mnemonic": mnemonic, "entropy": entropy.hex(),
+                "k": k, "n": 1 << k, "mask": sc.compact_seedqr(entropy).get_mask(),
+                "symbols": symbols,
+            })
     json.dump({"format": "seedcraft-sequences", "version": sc.FORMAT_VERSION,
-               "note": "Public test seeds only. Symbols = data + header, in reading order, "
-                       "without the dictionary.",
+               "note": "Public test seeds only. Symbols = data + header + padding (0 here, "
+                       "random in use), in reading order. The dictionary is kept apart.",
                "vectors": vectors}, sys.stdout, indent=1)
     sys.stdout.write("\n")
 

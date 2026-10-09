@@ -16,13 +16,11 @@ import zipfile
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 FILES = [  # (path in the repository, name in the bundle)
     ("dist/seedcraft-sequences.html", "seedcraft-sequences.html"),
-    ("dist/seedcraft-tones.html", "seedcraft-tones.html"),
     ("docs/seedcraft-by-hand-en.pdf", "seedcraft-by-hand-en.pdf"),
     ("docs/seedcraft-by-hand-es.pdf", "seedcraft-by-hand-es.pdf"),
     ("docs/seedqr-templates-en.pdf", "seedqr-templates-en.pdf"),
     ("docs/seedqr-templates-es.pdf", "seedqr-templates-es.pdf"),
     ("SPEC-sequences.md", "SPEC-sequences.md"),
-    ("SPEC-tones.md", "SPEC-tones.md"),
     ("LICENSE", "LICENSE"),
 ]
 
@@ -35,16 +33,12 @@ seedcraft-sequences.html      Web tool. Open it in a browser, offline: make a
                               sequence of things from a test seed, print a
                               sheet for whoever makes it, read one back. It
                               cannot connect anywhere.
-seedcraft-tones.html          Web tool. Paste a PSBT (from Sparrow, say) and
-                              play it as tones; listen to tones and get the
-                              PSBT, a UR or a test seed back. Microphone or
-                              WAV file. It cannot connect anywhere.
 seedcraft-by-hand-*.pdf       From a sequence to its QR code and back, with a
                               pencil: guide, example, tables, templates.
 seedqr-templates-*.pdf        Templates to copy a SeedQR (Standard or Compact)
                               from SeedSigner or a compatible signer, like
                               NDS-Signer, with the fixed parts already drawn.
-SPEC-*.md                     The specifications (sequences, tones).
+SPEC-sequences.md             The specification.
 SHA256SUMS                    Check the files: sha256sum -c SHA256SUMS
 
 Borradores: no guardes con un formato en borrador la semilla de fondos reales.
@@ -53,17 +47,13 @@ seedcraft-sequences.html      Herramienta web. Ábrela en un navegador, sin
                               conexión: haz una secuencia de cosas con una
                               semilla de prueba, imprime una hoja para quien
                               la monte, léela. No puede conectarse a nada.
-seedcraft-tones.html          Herramienta web. Pega una PSBT (de Sparrow, por
-                              ejemplo) y reprodúcela en tonos; escucha tonos y
-                              recupera la PSBT, un UR o una semilla de prueba.
-                              Micrófono o archivo WAV. No puede conectarse.
 seedcraft-by-hand-*.pdf       De una secuencia a su QR y al revés, con un
                               lápiz: guía, ejemplo, tablas, plantillas.
 seedqr-templates-*.pdf        Plantillas para copiar un SeedQR (estándar o
                               compacto) de SeedSigner o un firmador
                               compatible, como NDS-Signer, con las partes
                               fijas ya dibujadas.
-SPEC-*.md                     Las especificaciones (secuencias, tonos).
+SPEC-sequences.md             La especificación.
 SHA256SUMS                    Comprueba los ficheros: sha256sum -c SHA256SUMS
 """
 

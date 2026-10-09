@@ -73,11 +73,11 @@ def main():
 
     with open(os.path.join(os.path.dirname(__file__), "..", "vectors", "sequences-v0.json")) as f:
         vector = next(v for v in json.load(f)["vectors"]
-                      if v["mnemonic"] == EXAMPLE and v["k"] == EXAMPLE_K and v["pin"] is None)
+                      if v["mnemonic"] == EXAMPLE and v["k"] == EXAMPLE_K)
     entropy = bytes.fromhex(vector["entropy"])
     qr = sc.compact_seedqr(entropy)
     size = qr.get_size()
-    symbols = sc.encode(entropy, EXAMPLE_K)
+    symbols = sc.encode(entropy, EXAMPLE_K, padding=0)  # as the vector
     bits = sc.symbols_to_bits(symbols, EXAMPLE_K)
     ndatamod = len(sc.data_modules_row_major(size))
     assert symbols == vector["symbols"] and sc.decode(symbols, EXAMPLE_K)[0] == entropy

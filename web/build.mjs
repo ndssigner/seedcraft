@@ -1,5 +1,4 @@
-// Builds the single-file web tools: dist/seedcraft-sequences.html and
-// dist/seedcraft-tones.html.
+// Builds the single-file web tool: dist/seedcraft-sequences.html.
 //     node web/build.mjs
 // Deterministic (no dates, no random): the same sources give the same file,
 // so anyone can rebuild it and compare its SHA-256 with the published one.
@@ -15,18 +14,20 @@ const cspHash = (text) => "sha256-" + createHash("sha256").update(text, "utf8").
 // qrcodegen.js is compiled from third_party/qrcodegen.ts (Project Nayuki,
 // commit 3c6d0b3) with TypeScript 5.6.3:
 //   npx -p typescript@5.6.3 tsc --target es2017 --module none qrcodegen.ts
+// The donation QR codes (the same images as NDS-Signer's README), inlined:
+// data: URLs are the only images the page may show.
+const png = (f) => "data:image/png;base64," + readFileSync(new URL("../docs/images/" + f, here)).toString("base64");
+const donate = `// ---- donation images ----\nconst DONATE_IMAGES = { bitcoin: "${png("donate-bitcoin.png")}", lightning: "${png("donate-lightning.png")}" };\n`;
+
 const PAGES = [
 	{ out: "seedcraft-sequences.html", template: "src/seedcraft.html", styles: ["src/style.css"],
 		scripts: ["third_party/qrcodegen.js", "src/bip39-english.js", "src/seedcraft-sequences.js", "src/i18n.js", "src/app.js"],
 		version: "src/seedcraft-sequences.js" },
-	{ out: "seedcraft-tones.html", template: "src/tones.html", styles: ["src/style.css", "src/tones.css"],
-		scripts: ["src/bip39-english.js", "src/seedcraft-sequences.js", "src/seedcraft-tones.js", "src/tones-i18n.js", "src/tones-app.js"],
-		version: "src/seedcraft-tones.js" },
 ];
 
 mkdirSync(new URL("../dist/", here), { recursive: true });
 for (const page of PAGES) {
-	const script = page.scripts.map((f) => `// ---- ${f} ----\n${read(f)}`).join("\n");
+	const script = donate + page.scripts.map((f) => `// ---- ${f} ----\n${read(f)}`).join("\n");
 	const style = page.styles.map(read).join("\n");
 	const formatVersion = /const FORMAT_VERSION = (\d+);/.exec(read(page.version))[1];
 	const html = read(page.template)
