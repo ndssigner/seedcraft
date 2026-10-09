@@ -281,7 +281,8 @@ def rs_correct(codewords, nsym):
             continue
         coef = _div(d, b)
         shifted = [0] * m + [_mul(coef, c) for c in prev]
-        new = [x ^ y for x, y in zip(lam + [0] * len(shifted), shifted + [0] * len(lam))]
+        size = max(len(lam), len(shifted))
+        new = [(lam[j] if j < len(lam) else 0) ^ (shifted[j] if j < len(shifted) else 0) for j in range(size)]
         if 2 * L <= i:
             prev, L, b, m = lam, i + 1 - L, d, 1
         else:
