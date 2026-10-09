@@ -209,3 +209,20 @@ pre.code { font-family: var(--mono); font-size: 13px; background: var(--soft); p
 	.drawing-page { break-before: page; }
 	.drawing-page h3 { margin-top: 0; }
 }
+
+/* start page */
+.intro { display: flex; flex-direction: column; gap: 16px; }
+.hero { padding: 8px 4px 4px; display: flex; flex-direction: column; gap: 10px; }
+.hero h1 { margin: 0; font-size: 26px; letter-spacing: -0.4px; }
+.hero .lead { margin: 0; font-size: 16px; max-width: 760px; }
+ul.list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+ol.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+ol.steps li { display: flex; flex-direction: column; gap: 4px; background: var(--soft); border-radius: 8px; padding: 10px 12px; }
+ol.steps span { font-size: 13px; color: var(--muted); }
+.sib-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.sib-card { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px;
+	text-decoration: none; color: var(--fg); background: var(--bg); }
+.sib-card:hover { border-color: var(--accent); }
+.sib-card b { color: var(--accent); }
+.sib-card span { font-size: 13px; color: var(--muted); }
+.panel a { color: var(--accent); }

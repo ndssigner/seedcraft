@@ -18,7 +18,7 @@
 	// ---- state -------------------------------------------------------
 	const st = {
 		lang: (navigator.language || "en").toLowerCase().startsWith("es") ? "es" : "en",
-		screen: "dict",
+		screen: "intro",
 		buy: { n: 16, words: 12 },
 		dict: null,  // { things: [{ name, emoji, photo, colour, symbol }], checked }
 		edit: null,  // naming in progress: { things, i } or checking: { i }
@@ -173,8 +173,8 @@
 	}
 
 	// ---- shell -------------------------------------------------------
-	const TABS = [["buy", "tabBuy"], ["dict", "tabDict"], ["make", "tabMake"], ["read", "tabRead"]];
-	const TAB_OF = { buy: "buy", dict: "dict", name: "dict", check: "dict", make: "make", print: "make", read: "read" };
+	const TABS = [["intro", "tabIntro"], ["buy", "tabBuy"], ["dict", "tabDict"], ["make", "tabMake"], ["read", "tabRead"]];
+	const TAB_OF = { intro: "intro", buy: "buy", dict: "dict", name: "dict", check: "dict", make: "make", print: "make", read: "read" };
 	function shell() {
 		const t = T();
 		document.documentElement.lang = st.lang;
@@ -198,7 +198,7 @@
 	addEventListener("online", online);
 	addEventListener("offline", online);
 	$("lang").addEventListener("click", () => { st.lang = T().langSwitch; render(); });
-	$("logo").addEventListener("click", () => go(st.dict ? "make" : "dict"));
+	$("logo").addEventListener("click", () => go("intro"));
 	$("about").addEventListener("click", () => go("about"));
 	$("donate").addEventListener("click", () => go("donate"));
 	// the explanation of the connection: on hover (CSS), or on a tap, for touch screens
@@ -214,12 +214,11 @@
 		$("repo").href = $("gh").href = REPO_URL;
 		$("gh").title = t.repo;
 		$("repo").textContent = t.repo;
-		$("siblings").replaceChildren(h("span", { text: t.siblings }),
-			...SIBLINGS.map(([name, url, key]) => h("span", { class: "sib" }, link(url, name, t[key]), h("span", { class: "sib-desc", text: " — " + t[key] }))));
+
 	}
 	function render() {
 		shell(); online(); links();
-		$("app").replaceChildren(({ buy, dict: dictScreen, name: nameScreen, check: checkScreen, make: makeScreen,
+		$("app").replaceChildren(({ intro, buy, dict: dictScreen, name: nameScreen, check: checkScreen, make: makeScreen,
 			read: readScreen, print: printSheet, about, donate })[st.screen]());
 	}
 
@@ -583,6 +582,36 @@
 			h("p", { class: "hint", text: t.aboutSpec(FORMAT_VERSION) }));
 	}
 
+	// ---- start: what Seedcraft is, how it goes, what protects what, offline use, the sister projects ----
+	function intro() {
+		const t = T();
+		const card = (name, url, desc) => h("a", { class: "sib-card", href: url, target: "_blank", rel: "noopener noreferrer" },
+			h("b", { text: name + " ↗" }), h("span", { text: desc }));
+		const tryExample = () => {
+			const set = SETS[0];
+			setDict({ things: set.things.slice(0, 16).map((x) => ({ name: x[st.lang], emoji: x.emoji || "", colour: x.colour || "", symbol: x.symbol || "", brick: !!x.brick, photo: "" })), checked: false });
+			go("make");
+		};
+		return h("div", { class: "intro" },
+			h("section", { class: "hero" }, h("h1", { text: t.introTitle }), h("p", { class: "lead", text: t.introLead }),
+				h("div", { class: "row" },
+					h("button", { class: "btn big", on: { click: () => go("dict") } }, t.startDict + " ▶"),
+					h("button", { class: "btn ghost big", on: { click: tryExample } }, t.startTry),
+					h("button", { class: "btn ghost", on: { click: () => go("buy") } }, t.startBuy))),
+			h("section", { class: "panel" }, h("h2", { class: "panel-title", text: t.stepsTitle }),
+				h("ol", { class: "steps" }, t.steps.map(([a, b], i) => h("li", {}, h("b", { text: `${i + 1}. ${a}` }), h("span", { text: b }))))),
+			h("div", { class: "tool" },
+				panel(h("h2", { class: "panel-title", text: "🔐 " + t.expectTitle }),
+					h("ul", { class: "list" }, t.expect.map((x) => h("li", { text: x })))),
+				panel(h("h2", { class: "panel-title", text: "🔌 " + t.safeTitle }),
+					h("ul", { class: "list" }, t.safe.map((x) => h("li", { text: x }))),
+					h("div", { class: "row" }, link(REPO_URL + "/releases", t.releases),
+						link(REPO_URL + "/blob/main/docs/seedcraft-by-hand-" + st.lang + ".pdf", t.manual)))),
+			h("section", { class: "panel" }, h("h2", { class: "panel-title", text: t.siblingsTitle }),
+				h("div", { class: "sib-cards" }, SIBLINGS.map(([name, url, key]) => card(name, url, t[key])))),
+			h("section", { class: "panel" }, h("h2", { class: "panel-title", text: "💛 " + t.supportTitle }), donateBody()));
+	}
+
 	// ---- donate ------------------------------------------------------
 	const DONATE = { bitcoin: "bc1qx5snc0wlc8cg9gwxhyx27y6pkru8rnngyq7uja", lightning: "ndssigner@coinos.io",
 		lnurl: "LNURL1DP68GURN8GHJ7CM0D9HX7UEWD9HJ7TNHV4KXCTTTDEHHWM30D3H82UNVWQHKUERNWD5KWMN9WGQ8XE42" };
@@ -597,11 +626,14 @@
 	}
 	function donate() {
 		const t = T();
+		return h("div", { class: "page" }, h("h2", { text: t.donateTitle }), donateBody());
+	}
+	function donateBody() {
+		const t = T();
 		const box = (img, title, address, extra) => h("div", { class: "donate-box" },
-			h("img", { src: img, alt: title, width: 180, height: 180 }), h("b", { text: title }),
+			h("img", { src: img, alt: title, width: 160, height: 160 }), h("b", { text: title }),
 			h("code", { text: address }), copyButton(address), extra || null);
-		return h("div", { class: "page" },
-			h("h2", { text: t.donateTitle }), h("p", { text: t.donateText }),
+		return h("div", {}, h("p", { text: t.donateText }),
 			h("div", { class: "donate" },
 				box(DONATE_IMAGES.bitcoin, "Bitcoin", DONATE.bitcoin),
 				box(DONATE_IMAGES.lightning, "Lightning", DONATE.lightning,
