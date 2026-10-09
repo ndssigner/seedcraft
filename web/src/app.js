@@ -404,6 +404,85 @@
 		for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (qr.getModule(x, y)) d += `M${x + b},${y + b}h1v1h-1z`;
 		return svg("svg", { class: "qr", viewBox: `0 0 ${n + 2 * b} ${n + 2 * b}`, "shape-rendering": "crispEdges" }, svg("path", { d, fill: "#000" }));
 	}
+	// ---- the QR code by hand: an interactive version of the by-hand manual ----
+	// Each piece → its number → k bits → the next k white squares of the
+	// template, row by row (SPEC §3); the last bits are the header (version,
+	// mask) and padding, which go on no square.
+	function handGrid(qr, cells, upto, current, onPick) {
+		const size = qr.size, cs = 14, m = 30, w = 2 * m + size * cs;
+		const done = upto >= cells.length;
+		const fn = S.functionModules(size);
+		const owner = new Map(cells.map(([r, c], i) => [r * size + c, i]));
+		// when everything is filled in, the template's grey turns white: a QR code to scan
+		const g = svg("svg", { class: "hand-qr" + (done ? " done" : ""), viewBox: `0 0 ${w} ${w}` });
+		// finished: a white quiet zone of 2 modules and no numbers, so that it scans
+		if (done) g.append(svg("rect", { x: m - 2 * cs, y: m - 2 * cs, width: (size + 4) * cs, height: (size + 4) * cs, fill: "#ffffff" }));
+		for (let i = 0; i < size && !done; i++) {
+			g.append(svg("text", { x: m - 4, y: m + i * cs + cs * 0.72, "text-anchor": "end", class: "rc" + (current.rows.has(i) ? " on" : "") }, String(i + 1)));
+			if (i % 2 === 0 || current.cols.has(i)) g.append(svg("text", { x: m + i * cs + cs / 2, y: m - 5, "text-anchor": "middle", class: "rc" + (current.cols.has(i) ? " on" : "") }, String(i + 1)));
+		}
+		for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) {
+			const key = r * size + c, dark = qr.getModule(c, r);
+			let cls;
+			if (fn.has(key)) cls = dark ? "fn-dark" : "fn-light";
+			else {
+				const bit = owner.get(key);
+				if (current.bits.has(bit)) cls = dark ? "cur-dark" : "cur-light";
+				else if (bit < upto) cls = dark ? "dark" : "light";
+				else cls = "empty";
+			}
+			const rect = svg("rect", { x: m + c * cs, y: m + r * cs, width: cs, height: cs, class: "cell " + cls });
+			if (!fn.has(key)) rect.addEventListener("click", () => onPick(owner.get(key)));
+			g.append(rect);
+		}
+		return g;
+	}
+	function handView(d, m) {
+		const t = T(), n = d.things.length, k = Math.log2(n), L = m.symbols.length;
+		const qr = S.compactSeedQR(m.entropy), size = qr.size;
+		const cells = S.dataModulesRowMajor(size), ndata = cells.length;
+		if (m.hand === undefined) m.hand = 0;
+		const i = Math.max(0, Math.min(L, m.hand));                 // L: everything filled in
+		const move = (to) => { m.hand = Math.max(0, Math.min(L, to)); render(); };
+		const bits = S.symbolsToBits(m.symbols, k);
+		const first = i * k, own = i < L ? [...Array(k).keys()].map((j) => first + j) : [];
+		const current = { bits: new Set(own.filter((b) => b < ndata)), rows: new Set(), cols: new Set() };
+		const byRow = new Map();
+		for (const b of current.bits) {
+			const [r, c] = cells[b];
+			current.rows.add(r); current.cols.add(c);
+			if (!byRow.has(r)) byRow.set(r, []);
+			byRow.get(r).push(c + 1);
+		}
+		const upto = i < L ? first : ndata;
+		const grid = handGrid(qr, cells, upto, current, (bit) => move(Math.floor(bit / k)));
+		const info = [];
+		if (i < L) {
+			const s = m.symbols[i], thing = d.things[s];
+			const bitSpans = own.map((b) => h("span", { class: "bit" + (b >= ndata ? " hdr" : ""), text: String(bits[b]) }));
+			info.push(h("div", { class: "hand-piece" }, icon(thing, 48),
+				h("div", {}, h("b", { text: thing.name }), h("div", { class: "hint", text: t.handNumber(s, k) }), h("div", { class: "bits" }, bitSpans))));
+			if (current.bits.size) info.push(hint(t.handCells([...byRow].map(([r, cs]) => [r + 1, cs]))));
+			if (own.some((b) => b >= ndata && b < ndata + 5)) info.push(h("div", { class: "note" }, t.handHeader, " ", h("b", { text: t.handTemplate(size, qr.mask) })));
+			else if (own.some((b) => b >= ndata + 5)) info.push(h("div", { class: "note", text: t.handPadding }));
+		} else {
+			info.push(h("div", { class: "note ok", text: "✓ " + t.handDone }), hint(t.handTemplate(size, qr.mask)));
+		}
+		const legend = h("details", { class: "more" }, h("summary", { text: t.handLegend }),
+			h("div", { class: "hand-legend" }, d.things.map((x, s) => h("div", {}, icon(x, 22), h("span", { class: "num", text: String(s) }),
+				h("code", { text: s.toString(2).padStart(k, "0") })))));
+		return [
+			i === 0 ? hint(t.handIntro) : null,
+			h("div", { class: "row between" }, h("span", { class: "label", text: i < L ? t.handStep(i + 1, L) : t.handStep(L, L) }),
+				h("span", { class: "meta", text: t.handTemplate(size, qr.mask) })),
+			...info,
+			h("div", { class: "row" },
+				h("button", { class: "btn ghost", disabled: i === 0 ? "" : undefined, on: { click: () => move(i - 1) } }, "◀"),
+				h("button", { class: "btn", disabled: i >= L ? "" : undefined, on: { click: () => move(i + 1) } }, t.nextPiece + " ▶"),
+				h("button", { class: "btn ghost small push", on: { click: () => move(i >= L ? 0 : L) } }, i >= L ? t.handRestart : t.handAll)),
+			grid, hint(t.handClick), legend];
+	}
+
 	function makeScreen() {
 		const t = T(), m = st.make, d = st.dict;
 		if (!d) return h("div", { class: "narrow" }, panel(title(t.makeCard), dictLine()));
@@ -432,13 +511,13 @@
 						if (!check()) { err.replaceChildren(errorBox(t.errWords)); return; }
 						m.entropy = S.mnemonicToEntropy(m.seed);
 						m.symbols = S.encode(m.entropy, k);
-						m.pos = 0; m.tab = "walk";
+						m.pos = 0; m.hand = 0; m.tab = "walk";
 						render();
 					} } }, t.makeIt + " ▶"))),
 				panel(field(t.tabDict, dictLine())));
 		}
 		const L = m.symbols.length, each = S.piecesToBuy(m.symbols, n), cm = Math.ceil((L * 0.8 + 20) / 10) * 10;
-		const views = [["walk", t.tabWalk], ["drawing", t.tabDrawing], ["list", t.tabList], ["qr", t.tabQr]];
+		const views = [["walk", t.tabWalk], ["hand", t.tabHand], ["drawing", t.tabDrawing], ["list", t.tabList], ["qr", t.tabQr]];
 		const view = h("div", { class: "stack" });
 		if (m.tab === "walk") {
 			const thing = (i) => d.things[m.symbols[i]];
@@ -459,6 +538,7 @@
 			view.append(hint(t.listHelp), h("pre", { class: "code", text }),
 				h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => download(text + "\n", "sequence.txt", "text/plain") } }, t.saveList)));
 		}
+		if (m.tab === "hand") view.append(...handView(d, m).filter(Boolean));
 		if (m.tab === "qr") view.append(h("div", { class: "qrbox" }, qrSvg(S.compactSeedQR(m.entropy)), hint(t.qrHelp)));
 		return tool(
 			panel(title(t.makeCard), dictLine(),
@@ -474,7 +554,14 @@
 
 	// keyboard for the step-by-step view
 	addEventListener("keydown", (e) => {
-		if (st.screen !== "make" || st.make.tab !== "walk" || !st.make.symbols || /input|textarea/i.test(e.target.tagName)) return;
+		if (st.screen !== "make" || !st.make.symbols || /input|textarea/i.test(e.target.tagName)) return;
+		if (st.make.tab === "hand") {
+			const L = st.make.symbols.length, at = st.make.hand || 0;
+			if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); st.make.hand = Math.min(L, at + 1); render(); }
+			if (e.key === "ArrowLeft") { st.make.hand = Math.max(0, at - 1); render(); }
+			return;
+		}
+		if (st.make.tab !== "walk") return;
 		if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); st.make.pos = Math.min(st.make.symbols.length - 1, st.make.pos + 1); render(); }
 		if (e.key === "ArrowLeft") { st.make.pos = Math.max(0, st.make.pos - 1); render(); }
 	});

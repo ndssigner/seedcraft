@@ -226,3 +226,27 @@ ol.steps span { font-size: 13px; color: var(--muted); }
 .sib-card b { color: var(--accent); }
 .sib-card span { font-size: 13px; color: var(--muted); }
 .panel a { color: var(--accent); }
+
+/* the QR code by hand */
+.hand-qr { width: 100%; max-width: 420px; height: auto; align-self: center; }
+.hand-qr .cell { stroke: #c9c4b8; stroke-width: .5; cursor: pointer; }
+.hand-qr .fn-dark { fill: #1d1c1a; cursor: default; }
+.hand-qr .fn-light { fill: #bdb8ad; cursor: default; }
+.hand-qr .empty { fill: #ffffff; }
+.hand-qr .dark { fill: #1d1c1a; }
+.hand-qr .light { fill: #f1ece0; }
+.hand-qr .cur-dark { fill: var(--accent); stroke: var(--accent); stroke-width: 1.5; }
+.hand-qr .cur-light { fill: #fde6cc; stroke: var(--accent); stroke-width: 1.5; }
+.hand-qr text.rc { font-size: 7px; fill: var(--muted); font-family: var(--mono); }
+.hand-qr text.rc.on { fill: var(--accent); font-weight: 700; }
+.hand-piece { display: flex; align-items: center; gap: 12px; }
+.bits { display: flex; gap: 4px; margin-top: 4px; }
+.bits .bit { font-family: var(--mono); font-size: 18px; font-weight: 700; width: 24px; text-align: center; border-radius: 4px; background: var(--accent-soft); color: var(--accent); }
+.bits .bit.hdr { background: var(--soft); color: var(--muted); }
+.hand-legend { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 4px 10px; }
+.hand-legend div { display: flex; align-items: center; gap: 6px; }
+.hand-legend code { font-family: var(--mono); font-size: 13px; }
+.seg { flex-wrap: wrap; }
+.seg button { white-space: nowrap; }
+.hand-qr.done .fn-light, .hand-qr.done .light { fill: #ffffff; }
+.hand-qr.done .cell { stroke: none; }
