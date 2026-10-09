@@ -11,17 +11,18 @@
 <style>{{STYLE}}</style>
 </head>
 <body data-format-version="{{FORMAT_VERSION}}">
-<div class="bar warn" id="warn"></div>
-<div class="bar online hidden" id="online"></div>
-<div class="wrap">
-	<header class="top">
-		<div class="logo" id="logo">🧵 Seed<span>craft</span></div>
-		<div class="tagline" id="tagline"></div>
-		<button class="pill" id="lang"></button>
-	</header>
-	<main id="app"></main>
-	<footer><button id="about"></button> · <button id="donate"></button></footer>
-</div>
+<header class="top">
+	<div class="brand" id="logo"><b>Seed<span>craft</span></b><span class="badge" id="draft"></span><small id="tagline"></small></div>
+	<nav class="tabs" id="tabs"></nav>
+	<div class="net-wrap"><button class="net" id="net" aria-describedby="net-why"></button><div class="net-why" id="net-why" role="tooltip"></div></div>
+	<a class="pill" id="gh" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+	<button class="pill" id="lang"></button>
+</header>
+<main class="wrap" id="app"></main>
+<footer>
+	<div><a id="repo" target="_blank" rel="noopener noreferrer"></a> · <button id="about"></button> · <button id="donate"></button></div>
+	<div class="siblings" id="siblings"></div>
+</footer>
 <script>{{SCRIPT}}</script>
 </body>
 </html>

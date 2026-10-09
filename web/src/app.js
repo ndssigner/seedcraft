@@ -18,7 +18,7 @@
 	// ---- state -------------------------------------------------------
 	const st = {
 		lang: (navigator.language || "en").toLowerCase().startsWith("es") ? "es" : "en",
-		screen: "home",
+		screen: "dict",
 		buy: { n: 16, words: 12 },
 		dict: null,  // { things: [{ name, emoji, photo, colour, symbol }], checked }
 		edit: null,  // naming in progress: { things, i } or checking: { i }
@@ -173,73 +173,85 @@
 	}
 
 	// ---- shell -------------------------------------------------------
+	const TABS = [["buy", "tabBuy"], ["dict", "tabDict"], ["make", "tabMake"], ["read", "tabRead"]];
+	const TAB_OF = { buy: "buy", dict: "dict", name: "dict", check: "dict", make: "make", print: "make", read: "read" };
 	function shell() {
 		const t = T();
 		document.documentElement.lang = st.lang;
-		$("warn").textContent = t.warnTest;
-		$("online").textContent = t.warnOnline;
+		$("draft").textContent = t.draft;
+		$("draft").title = t.warnTest;
 		$("tagline").textContent = t.subtitle;
-		$("lang").textContent = "🌐 " + t.langName;
+		$("lang").textContent = t.langName;
 		$("about").textContent = t.aboutTitle;
 		$("donate").textContent = "💛 " + t.donateTitle;
+		$("tabs").replaceChildren(...TABS.map(([name, label]) => h("button", { class: TAB_OF[st.screen] === name ? "on" : "", on: { click: () => go(name) } },
+			t[label], name === "dict" && st.dict ? h("span", { class: "count-badge", text: st.dict.things.length + (st.dict.checked ? " ✓" : "") }) : null)));
 	}
-	const online = () => $("online").classList.toggle("hidden", !navigator.onLine);
+	// the connection, always in sight; the warnings themselves appear next to a seed (seedAlert)
+	const online = () => {
+		const t = T(), on = navigator.onLine;
+		$("net").className = "net " + (on ? "on" : "off");
+		$("net").textContent = on ? t.netOn : t.netOff;
+		$("net-why").replaceChildren(h("b", { text: on ? t.netOnTitle : t.netOffTitle }), h("div", { text: on ? t.netOnWhy : t.netOffWhy }));
+	};
+	const seedAlert = () => h("div", { class: "alert" }, navigator.onLine ? T().seedOnline : T().seedTest);
 	addEventListener("online", online);
 	addEventListener("offline", online);
 	$("lang").addEventListener("click", () => { st.lang = T().langSwitch; render(); });
-	$("logo").addEventListener("click", () => go("home"));
+	$("logo").addEventListener("click", () => go(st.dict ? "make" : "dict"));
 	$("about").addEventListener("click", () => go("about"));
 	$("donate").addEventListener("click", () => go("donate"));
+	// the explanation of the connection: on hover (CSS), or on a tap, for touch screens
+	$("net").addEventListener("click", (e) => { e.stopPropagation(); $("net-why").classList.toggle("open"); });
+	document.addEventListener("click", () => $("net-why").classList.remove("open"));
 	function go(screen) { st.screen = screen; render(); scrollTo(0, 0); }
+	// the repository, and the sister projects (plain links: the page itself still connects nowhere)
+	const REPO_URL = "https://github.com/ndssigner/seedcraft";
+	const SIBLINGS = [["NDS-Signer", "https://github.com/ndssigner/nds-signer", "sibNds"], ["ur-tones", "https://github.com/ndssigner/ur-tones", "sibUrTones"]];
+	const link = (href, text, tip) => h("a", { href, target: "_blank", rel: "noopener noreferrer", title: tip || null }, text);
+	function links() {
+		const t = T();
+		$("repo").href = $("gh").href = REPO_URL;
+		$("gh").title = t.repo;
+		$("repo").textContent = t.repo;
+		$("siblings").replaceChildren(h("span", { text: t.siblings }),
+			...SIBLINGS.map(([name, url, key]) => h("span", { class: "sib" }, link(url, name, t[key]), h("span", { class: "sib-desc", text: " — " + t[key] }))));
+	}
 	function render() {
-		shell(); online();
-		$("app").replaceChildren(({ home, buy, dict: dictScreen, name: nameScreen, check: checkScreen, make: makeScreen,
+		shell(); online(); links();
+		$("app").replaceChildren(({ buy, dict: dictScreen, name: nameScreen, check: checkScreen, make: makeScreen,
 			read: readScreen, print: printSheet, about, donate })[st.screen]());
 	}
-	const backHome = () => h("button", { class: "btn ghost", on: { click: () => go("home") } }, "◀ " + T().home);
+
+	// ---- small building blocks ----------------------------------------
+	const field = (label, ...children) => h("div", { class: "field" }, h("div", { class: "label", text: label }), ...children);
+	const panel = (...children) => h("section", { class: "panel" }, ...children);
+	const tool = (...panels) => h("div", { class: "tool" }, ...panels);
+	const title = (text) => h("h2", { class: "panel-title", text });
+	const hint = (text) => h("div", { class: "hint", text });
+	const bar = (fraction) => { const b = h("div"); b.style.width = `${Math.round(100 * fraction)}%`; return h("div", { class: "bar-track" }, b); };
+	// segmented control: [value, label, mark]
+	const seg = (items, value, set) => h("div", { class: "seg" }, items.map(([v, label, mark]) =>
+		h("button", { class: v === value ? "on" : "", on: { click: () => set(v) } }, label, mark ? h("small", { text: mark }) : null)));
 	const dictLine = () => {
 		const t = T(), d = st.dict;
-		if (!d) return h("div", { class: "note" }, "📖 " + t.noDict, " ", h("button", { class: "btn small", on: { click: () => go("dict") } }, t.dictCard));
-		return h("div", { class: "dictline" }, h("span", { class: "minis" }, d.things.map((x) => icon(x, 26))),
+		if (!d) return h("div", { class: "note" }, t.noDict, " ", h("button", { class: "btn small", on: { click: () => go("dict") } }, t.dictCard));
+		return h("div", { class: "dictline" }, h("span", { class: "minis" }, d.things.map((x) => icon(x, 22))),
 			h("span", {}, t.dictSummary(d.things.length, d.checked)));
 	};
-
-	// ---- home --------------------------------------------------------
-	function home() {
-		const t = T();
-		const choice = (big, title, help, screen, sub) => h("button", { class: "choice", on: { click: () => go(screen) } },
-			h("div", { class: "big", text: big }), h("b", { text: title }), h("span", { text: help }), sub || null);
-		return h("div", {},
-			h("div", { class: "card" },
-				h("h2", { text: t.howTitle }),
-				h("div", { class: "how" },
-					h("div", {}, h("div", { class: "big", text: "🛒" }), h("b", { text: t.how1 }), h("span", { text: t.how1b })),
-					h("div", {}, h("div", { class: "big", text: "📖" }), h("b", { text: t.how2 }), h("span", { text: t.how2b })),
-					h("div", {}, h("div", { class: "big", text: "✍️" }), h("b", { text: t.how3 }), h("span", { text: t.how3b })),
-					h("div", {}, h("div", { class: "big", text: "🧵" }), h("b", { text: t.how4 }), h("span", { text: t.how4b }))),
-				h("p", { class: "carriers", text: t.carriers })),
-			h("div", { class: "choices" },
-				choice("🛒", t.buyCard, t.buyCardB, "buy"),
-				choice("📖", t.dictCard, t.dictCardB, "dict", st.dict ? h("small", { class: "ok-tag", text: t.dictSummary(st.dict.things.length, st.dict.checked) }) : null),
-				choice("🧵", t.makeCard, t.makeCardB, "make"),
-				choice("🔍", t.readCard, t.readCardB, "read")),
-			h("div", { class: "card honest" }, h("h3", { text: t.honestTitle }), h("p", { text: t.honest })));
-	}
 
 	// ---- what to buy -------------------------------------------------
 	function buy() {
 		const t = T(), b = st.buy;
-		const seg = (items, value, set) => h("div", { class: "seg" }, items.map(([v, label, small]) =>
-			h("button", { class: v === value ? "on" : "", on: { click: () => { set(v); render(); } } }, label, small ? h("small", { text: small }) : null)));
 		const count = symbolsFor(b.words, b.n), each = BUY[b.words][b.n];
-		return h("div", { class: "card" },
-			h("h2", { text: "🛒 " + t.buyCard }), h("p", { class: "help", text: t.buyHelp }),
-			h("h3", { text: t.seedWords }), seg([[12, "12"], [24, "24"]], b.words, (v) => { b.words = v; }),
-			h("h3", { text: t.howMany }), seg(SIZES.map((n) => [n, String(n), n === 16 ? "⭐ " + t.recommended : ""]), b.n, (v) => { b.n = v; }),
-			h("div", { class: "big-total", text: t.buyEach(each, b.n) }),
-			h("p", { text: t.buyWhy(count, Math.ceil((count * 0.8 + 20) / 10) * 10) }),
-			h("p", { class: "help", text: t.buyExact }),
-			h("div", { class: "nav" }, backHome(), h("button", { class: "btn", on: { click: () => go("dict") } }, t.next + " ▶")));
+		return tool(
+			panel(title(t.buyCard), hint(t.buyHelp),
+				field(t.seedWords, seg([[12, "12"], [24, "24"]], b.words, (v) => { b.words = v; render(); })),
+				field(t.howMany, seg(SIZES.map((n) => [n, String(n), n === 16 ? "★" : ""]), b.n, (v) => { b.n = v; render(); }), hint("★ " + t.recommended))),
+			panel(h("div", { class: "big-total", text: t.buyEach(each, b.n) }),
+				h("p", { text: t.buyWhy(count, Math.ceil((count * 0.8 + 20) / 10) * 10) }),
+				hint(t.buyExact),
+				h("div", { class: "row" }, h("button", { class: "btn push", on: { click: () => go("dict") } }, t.tabDict + " ▶"))));
 	}
 
 	// ---- dictionary ----------------------------------------------------
@@ -272,45 +284,42 @@
 				render();
 			} catch (x) { err.replaceChildren(errorBox(t.errDictFile)); }
 		} } });
-		const card = h("div", { class: "card" }, h("h2", { text: "📖 " + t.dictCard }));
 		if (!d) {
 			let n = st.buy.n;
-			const sizes = h("div", { class: "seg" });
-			const drawSizes = () => sizes.replaceChildren(...SIZES.map((v) => h("button", { class: v === n ? "on" : "", on: { click: () => { n = v; drawSizes(); } } },
-				String(v), v === 16 ? h("small", { text: "⭐ " + t.recommended }) : null)));
+			const sizes = h("div");
+			const drawSizes = () => sizes.replaceChildren(seg(SIZES.map((v) => [v, String(v), v === 16 ? "★" : ""]), n, (v) => { n = v; drawSizes(); }));
 			drawSizes();
 			const example = h("div", { class: "row" }, SETS.map((set) => h("button", { class: "btn ghost small", on: { click: () => {
 				setDict({ things: set.things.slice(0, n).map((x) => ({ name: x[st.lang], emoji: x.emoji || "", colour: x.colour || "", symbol: x.symbol || "", brick: !!x.brick, photo: "" })), checked: false });
 				render();
 			} } }, set.icon + " " + set[st.lang])));
-			card.append(h("p", { text: t.dictIntro }),
-				h("ol", { class: "how-to" }, t.dictChecks.map((x) => h("li", { text: x }))),
-				h("h3", { text: t.howMany }), sizes,
-				h("div", { class: "row" },
-					h("button", { class: "btn", on: { click: () => { st.edit = { things: Array.from({ length: n }, () => ({ name: "", emoji: "", photo: "" })), i: 0 }; go("name"); } } }, "✍️ " + t.dictName),
-					h("button", { class: "btn ghost", on: { click: () => open.click() } }, "📂 " + t.dictOpen), open),
-				err,
-				h("details", { class: "more" }, h("summary", { text: "🎲 " + t.dictExample }), h("p", { class: "help", text: t.dictExampleHelp }), example),
-				h("div", { class: "nav" }, backHome()));
-			return card;
+			return tool(
+				panel(title(t.dictCard),
+					field(t.howMany, sizes, hint("★ " + t.recommended)),
+					h("div", { class: "row" },
+						h("button", { class: "btn", on: { click: () => { st.edit = { things: Array.from({ length: n }, () => ({ name: "", emoji: "", photo: "" })), i: 0 }; go("name"); } } }, t.dictName),
+						h("button", { class: "btn ghost", on: { click: () => open.click() } }, t.dictOpen), open),
+					err,
+					h("details", { class: "more" }, h("summary", { text: t.dictExample }), hint(t.dictExampleHelp), example)),
+				panel(h("p", { text: t.dictIntro }), h("ol", { class: "how-to" }, t.dictChecks.map((x) => h("li", { text: x })))));
 		}
 		const json = () => JSON.stringify({ format: "seedcraft-dictionary", version: 0,
 			things: d.things.map((x) => Object.fromEntries(Object.entries({ name: x.name, emoji: x.emoji, photo: x.photo }).filter(([, v]) => v))) }, null, 1);
-		card.append(
-			h("p", { class: "help", text: t.dictHave(d.things.length) }),
-			h("div", { class: "dict-grid" }, d.things.map((x, i) => h("div", { class: "piece" }, h("span", { class: "num", text: String(i) }), icon(x, 46), h("span", { text: x.name })))),
-			d.checked ? h("div", { class: "note", text: "✅ " + t.dictChecked }) : h("div", { class: "note warn", text: "👀 " + t.dictNotChecked }),
-			h("div", { class: "row" },
-				h("button", { class: d.checked ? "btn ghost" : "btn", on: { click: () => { st.edit = { i: 0 }; go("check"); } } }, "🔎 " + t.dictCheck),
-				h("button", { class: "btn ghost", on: { click: () => { st.edit = { things: d.things.map((x) => ({ ...x })), i: 0 }; go("name"); } } }, "✏️ " + t.dictEdit)),
-			h("h3", { text: "💾 " + t.dictSave }), h("p", { class: "help", text: t.dictSaveHelp }),
-			h("div", { class: "row" },
-				h("button", { class: "btn ghost", on: { click: () => download(json(), "dictionary.json", "application/json") } }, t.dictSaveJson),
-				h("button", { class: "btn ghost", on: { click: () => download(d.things.map((x) => x.name).join("\n") + "\n", "dictionary.txt", "text/plain") } }, t.dictSaveTxt)),
-			h("div", { class: "nav" }, backHome(),
-				h("button", { class: "btn ghost", on: { click: () => { if (confirm(t.dictForgetAsk)) { setDict(null); render(); } } } }, "🗑️ " + t.dictForget),
-				h("button", { class: "btn", on: { click: () => go("make") } }, "🧵 " + t.makeCard + " ▶")));
-		return card;
+		return tool(
+			panel(title(t.dictHave(d.things.length)),
+				h("div", { class: "dict-grid" }, d.things.map((x, i) => h("div", { class: "piece" }, h("span", { class: "num", text: String(i) }), icon(x, 34), h("span", { text: x.name }))))),
+			panel(
+				d.checked ? h("div", { class: "note ok" }, "✓ " + t.dictChecked) : h("div", { class: "note warn", text: t.dictNotChecked }),
+				h("div", { class: "row" },
+					h("button", { class: d.checked ? "btn ghost" : "btn", on: { click: () => { st.edit = { i: 0 }; go("check"); } } }, t.dictCheck),
+					h("button", { class: "btn ghost", on: { click: () => { st.edit = { things: d.things.map((x) => ({ ...x })), i: 0 }; go("name"); } } }, t.dictEdit)),
+				field(t.dictSave, hint(t.dictSaveHelp),
+					h("div", { class: "row" },
+						h("button", { class: "btn ghost small", on: { click: () => download(json(), "dictionary.json", "application/json") } }, t.dictSaveJson),
+						h("button", { class: "btn ghost small", on: { click: () => download(d.things.map((x) => x.name).join("\n") + "\n", "dictionary.txt", "text/plain") } }, t.dictSaveTxt))),
+				h("div", { class: "row" },
+					h("button", { class: "btn ghost small", on: { click: () => { if (confirm(t.dictForgetAsk)) { setDict(null); render(); } } } }, t.dictForget),
+					h("button", { class: "btn push", on: { click: () => go("make") } }, t.tabMake + " ▶"))));
 	}
 
 	// naming the pieces one by one
@@ -318,10 +327,10 @@
 		const t = T(), ed = st.edit, n = ed.things.length, x = ed.things[ed.i];
 		const err = h("div");
 		const nameIn = h("input", { type: "text", class: "big-input", value: x.name, placeholder: t.dictNamePh, autocomplete: "off", "aria-label": t.thingName,
-			on: { input: (e) => { x.name = e.target.value; drawStrip(); preview.replaceChildren(icon(x, 120)); }, keydown: (e) => { if (e.key === "Enter") next(); } } });
+			on: { input: (e) => { x.name = e.target.value; drawStrip(); preview.replaceChildren(icon(x, 96)); }, keydown: (e) => { if (e.key === "Enter") next(); } } });
 		const emojiIn = h("input", { type: "text", class: "emoji", value: x.emoji, placeholder: "🙂", "aria-label": t.thingEmoji, maxlength: 8,
-			on: { input: (e) => { x.emoji = e.target.value.trim(); drawStrip(); preview.replaceChildren(icon(x, 120)); } } });
-		const preview = h("div", { class: "preview" }, icon(x, 120));
+			on: { input: (e) => { x.emoji = e.target.value.trim(); drawStrip(); preview.replaceChildren(icon(x, 96)); } } });
+		const preview = h("div", { class: "preview" }, icon(x, 96));
 		const photoIn = h("input", { type: "file", accept: "image/*", capture: "environment", class: "hidden", on: { change: async (e) => {
 			const f = e.target.files[0];
 			if (!f) return;
@@ -330,7 +339,7 @@
 		const strip = h("div", { class: "strip" });
 		function drawStrip() {
 			strip.replaceChildren(...ed.things.map((y, j) => h("button", { class: "mini" + (j === ed.i ? " on" : ""), title: y.name || "?",
-				on: { click: () => { ed.i = j; render(); } } }, h("span", { class: "num", text: String(j) }), icon(y, 30, false, j === ed.i))));
+				on: { click: () => { ed.i = j; render(); } } }, h("span", { class: "num", text: String(j) }), icon(y, 28, false, j === ed.i))));
 		}
 		drawStrip();
 		const valid = () => {
@@ -349,46 +358,44 @@
 			go("check");
 		}
 		const side = (j) => j >= 0 && j < n
-			? h("div", { class: "side" }, h("div", { class: "help", text: j < ed.i ? t.prevPiece : t.nextPiece }), icon(ed.things[j], 56), h("div", { class: "num", text: `${j} · ${ed.things[j].name || "?"}` }))
+			? h("div", { class: "side" }, hint(j < ed.i ? t.prevPiece : t.nextPiece), icon(ed.things[j], 44), h("div", { class: "num", text: `${j} · ${ed.things[j].name || "?"}` }))
 			: h("div", { class: "side" });
-		const card = h("div", { class: "card" },
-			h("h2", { text: "✍️ " + t.dictName }),
-			h("p", { class: "help", text: t.nameHelp }),
-			h("div", { class: "count", text: t.pieceOf(ed.i, n) }),
-			h("div", { class: "wizard" }, side(ed.i - 1), h("div", { class: "centre" }, preview), side(ed.i + 1)),
-			h("label", { class: "field" }, h("span", { text: t.thingName }), nameIn),
-			h("div", { class: "row" },
-				h("label", { class: "field small" }, h("span", { text: t.thingEmoji }), emojiIn),
-				h("button", { class: "btn ghost small", on: { click: () => photoIn.click() } }, x.photo ? "📷 " + t.photoAgain : "📷 " + t.photoTake),
-				x.photo ? h("button", { class: "btn ghost small", on: { click: () => { x.photo = ""; render(); } } }, t.photoRemove) : null, photoIn),
-			err,
-			h("h3", { text: t.wholeDict }), strip,
-			h("div", { class: "nav" },
-				h("button", { class: "btn ghost", on: { click: () => { if (ed.i > 0) { ed.i--; render(); } else go("dict"); } } }, "◀ " + (ed.i > 0 ? t.back : t.dictCard)),
-				h("button", { class: "btn", on: { click: next } }, ed.i < n - 1 ? t.next + " ▶" : "✅ " + t.dictDone)));
 		setTimeout(() => nameIn.focus(), 0);
-		return card;
+		return tool(
+			panel(
+				h("div", { class: "row between" }, title(t.dictName), h("span", { class: "meta", text: t.pieceOf(ed.i, n) })),
+				hint(t.nameHelp),
+				h("div", { class: "wizard" }, side(ed.i - 1), h("div", { class: "centre" }, preview), side(ed.i + 1)),
+				field(t.thingName, nameIn),
+				h("div", { class: "row" },
+					h("label", { class: "field" }, h("span", { class: "label", text: t.thingEmoji }), emojiIn),
+					h("button", { class: "btn ghost small", on: { click: () => photoIn.click() } }, x.photo ? "📷 " + t.photoAgain : "📷 " + t.photoTake),
+					x.photo ? h("button", { class: "btn ghost small", on: { click: () => { x.photo = ""; render(); } } }, t.photoRemove) : null, photoIn),
+				err,
+				h("div", { class: "row" },
+					h("button", { class: "btn ghost", on: { click: () => { if (ed.i > 0) { ed.i--; render(); } else go("dict"); } } }, "◀ " + (ed.i > 0 ? t.back : t.tabDict)),
+					h("button", { class: "btn push", on: { click: next } }, ed.i < n - 1 ? t.next + " ▶" : "✓ " + t.dictDone))),
+			panel(field(t.wholeDict, strip)));
 	}
 
 	// a round of checking against the real thing
 	function checkScreen() {
 		const t = T(), d = st.dict, ed = st.edit, n = d.things.length, x = d.things[ed.i];
-		return h("div", { class: "card" },
-			h("h2", { text: "🔎 " + t.dictCheck }),
-			h("p", { class: "help", text: t.checkHelp }),
-			h("div", { class: "count", text: t.pieceOf(ed.i, n) }),
+		return h("div", { class: "narrow" }, panel(
+			h("div", { class: "row between" }, title(t.dictCheck), h("span", { class: "meta", text: t.pieceOf(ed.i, n) })),
+			hint(t.checkHelp),
 			h("div", { class: "wizard" },
-				h("div", { class: "side" }, ed.i > 0 ? [h("div", { class: "help", text: t.prevPiece }), icon(d.things[ed.i - 1], 56)] : null),
-				h("div", { class: "centre" }, icon(x, 120), h("div", { class: "name", text: x.name })),
-				h("div", { class: "side" }, ed.i < n - 1 ? [h("div", { class: "help", text: t.nextPiece }), icon(d.things[ed.i + 1], 56)] : null)),
+				h("div", { class: "side" }, ed.i > 0 ? [hint(t.prevPiece), icon(d.things[ed.i - 1], 44)] : null),
+				h("div", { class: "centre" }, icon(x, 96), h("div", { class: "name", text: x.name })),
+				h("div", { class: "side" }, ed.i < n - 1 ? [hint(t.nextPiece), icon(d.things[ed.i + 1], 44)] : null)),
 			h("p", { class: "question", text: t.checkAsk(ed.i) }),
-			h("div", { class: "progress" }, (() => { const bar = h("div"); bar.style.width = `${(100 * (ed.i + 1)) / n}%`; return bar; })()),
-			h("div", { class: "nav" },
+			bar((ed.i + 1) / n),
+			h("div", { class: "row" },
 				h("button", { class: "btn ghost", on: { click: () => { st.edit = { things: d.things.map((y) => ({ ...y })), i: ed.i }; go("name"); } } }, "✗ " + t.checkNo),
-				h("button", { class: "btn", on: { click: () => {
+				h("button", { class: "btn push", on: { click: () => {
 					if (ed.i < n - 1) { ed.i++; render(); return; }
 					d.checked = true; go("dict");
-				} } }, "✔ " + t.checkYes)));
+				} } }, "✓ " + t.checkYes))));
 	}
 
 	// ---- make --------------------------------------------------------
@@ -400,11 +407,10 @@
 	}
 	function makeScreen() {
 		const t = T(), m = st.make, d = st.dict;
-		const card = h("div", { class: "card" }, h("h2", { text: "🧵 " + t.makeCard }), dictLine());
-		if (!d) { card.append(h("div", { class: "nav" }, backHome())); return card; }
+		if (!d) return h("div", { class: "narrow" }, panel(title(t.makeCard), dictLine()));
 		const n = d.things.length, k = Math.log2(n);
 		if (!m.symbols) {
-			const area = h("textarea", { class: "seed", spellcheck: "false", autocomplete: "off", placeholder: "height demise useless trap grow lion found off key clown transfer enroll" });
+			const area = h("textarea", { class: "input mono", rows: 3, spellcheck: "false", autocomplete: "off", placeholder: "height demise useless trap grow lion found off key clown transfer enroll" });
 			area.value = m.seed;
 			const status = h("div", { class: "status" }), err = h("div");
 			const check = () => {
@@ -416,52 +422,55 @@
 			area.addEventListener("input", check);
 			const test = (bytes) => { const e = new Uint8Array(bytes); crypto.getRandomValues(e); area.value = S.entropyToMnemonic(e); check(); };
 			check();
-			card.append(h("h3", { text: t.seedTitle }), h("p", { class: "help", text: t.seedHelp }),
-				h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => test(16) } }, t.seedTest12),
-					h("button", { class: "btn ghost small", on: { click: () => test(32) } }, t.seedTest24)),
-				area, status, err,
-				h("div", { class: "nav" }, backHome(), h("button", { class: "btn", on: { click: () => {
-					if (!check()) { err.replaceChildren(errorBox(t.errWords)); return; }
-					m.entropy = S.mnemonicToEntropy(m.seed);
-					m.symbols = S.encode(m.entropy, k);
-					m.pos = 0; m.tab = "walk";
-					render();
-				} } }, "🧵 " + t.makeIt)));
-			return card;
+			return tool(
+				panel(title(t.makeCard), seedAlert(),
+					field(t.seedTitle, hint(t.seedHelp),
+						h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => test(16) } }, t.seedTest12),
+							h("button", { class: "btn ghost small", on: { click: () => test(32) } }, t.seedTest24)),
+						area, status),
+					err,
+					h("div", { class: "row" }, h("button", { class: "btn push", on: { click: () => {
+						if (!check()) { err.replaceChildren(errorBox(t.errWords)); return; }
+						m.entropy = S.mnemonicToEntropy(m.seed);
+						m.symbols = S.encode(m.entropy, k);
+						m.pos = 0; m.tab = "walk";
+						render();
+					} } }, t.makeIt + " ▶"))),
+				panel(field(t.tabDict, dictLine())));
 		}
 		const L = m.symbols.length, each = S.piecesToBuy(m.symbols, n), cm = Math.ceil((L * 0.8 + 20) / 10) * 10;
-		const tabs = [["walk", "▶️ " + t.tabWalk], ["drawing", "🎨 " + t.tabDrawing], ["list", "📋 " + t.tabList], ["qr", "🔳 " + t.tabQr]];
-		card.append(
-			h("div", { class: "big-total", text: t.total(L) }),
-			h("p", { text: t.shop(each, n, cm) }),
-			h("div", { class: "error", text: t.makeWarn }),
-			h("div", { class: "tabs" }, tabs.map(([id, label]) => h("button", { class: id === m.tab ? "on" : "", on: { click: () => { m.tab = id; render(); } } }, label))));
+		const views = [["walk", t.tabWalk], ["drawing", t.tabDrawing], ["list", t.tabList], ["qr", t.tabQr]];
+		const view = h("div", { class: "stack" });
 		if (m.tab === "walk") {
 			const thing = (i) => d.things[m.symbols[i]];
 			const move = (to) => { m.pos = Math.max(0, Math.min(L - 1, to)); render(); };
-			const side = (i, label) => h("div", { class: "side" }, i >= 0 && i < L ? [h("div", { class: "help", text: `${label} · ${i + 1}` }), icon(thing(i), 56), h("div", { class: "small-name", text: thing(i).name })] : null);
-			card.append(
-				h("div", { class: "count", text: t.walkOf(m.pos + 1, L) }),
-				h("div", { class: "wizard" }, side(m.pos - 1, t.prevPiece), h("div", { class: "centre" }, icon(thing(m.pos), 130), h("div", { class: "name", text: thing(m.pos).name })), side(m.pos + 1, t.nextPiece)),
-				h("div", { class: "progress" }, (() => { const bar = h("div"); bar.style.width = `${(100 * (m.pos + 1)) / L}%`; return bar; })()),
-				h("div", { class: "nav" },
+			const side = (i, label) => h("div", { class: "side" }, i >= 0 && i < L ? [hint(`${label} · ${i + 1}`), icon(thing(i), 44), h("div", { class: "small-name", text: thing(i).name })] : null);
+			view.append(
+				h("div", { class: "row between" }, h("span", { class: "label", text: t.walkOf(m.pos + 1, L) }), hint(t.walkHelp)),
+				h("div", { class: "wizard" }, side(m.pos - 1, t.prevPiece), h("div", { class: "centre" }, icon(thing(m.pos), 104), h("div", { class: "name", text: thing(m.pos).name })), side(m.pos + 1, t.nextPiece)),
+				bar((m.pos + 1) / L),
+				h("div", { class: "row" },
 					h("button", { class: "btn ghost", disabled: m.pos === 0 ? "" : undefined, on: { click: () => move(m.pos - 1) } }, "◀ " + t.prevPiece),
-					h("button", { class: "btn", on: { click: () => m.pos < L - 1 ? move(m.pos + 1) : null } }, m.pos < L - 1 ? t.nextPiece + " ▶" : "🎉 " + t.done)),
-				h("p", { class: "help", text: t.walkHelp }),
+					h("button", { class: "btn push", on: { click: () => m.pos < L - 1 ? move(m.pos + 1) : null } }, m.pos < L - 1 ? t.nextPiece + " ▶" : "✓ " + t.done)),
 				stringSvg(d.things, m.symbols, { current: m.pos, onPick: (i) => move(i) }));
 		}
-		if (m.tab === "drawing") card.append(h("p", { class: "help", text: t.stringHelp }), stringSvg(d.things, m.symbols));
+		if (m.tab === "drawing") view.append(hint(t.stringHelp), stringSvg(d.things, m.symbols));
 		if (m.tab === "list") {
 			const text = m.symbols.map((s, i) => `${i + 1}. ${d.things[s].name}`).join("\n");
-			card.append(h("p", { class: "help", text: t.listHelp }), h("pre", { class: "code", text }),
-				h("button", { class: "btn ghost small", on: { click: () => download(text + "\n", "sequence.txt", "text/plain") } }, "💾 " + t.saveList));
+			view.append(hint(t.listHelp), h("pre", { class: "code", text }),
+				h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => download(text + "\n", "sequence.txt", "text/plain") } }, t.saveList)));
 		}
-		if (m.tab === "qr") card.append(h("div", { class: "qrbox" }, qrSvg(S.compactSeedQR(m.entropy)), h("p", { class: "help", text: t.qrHelp })));
-		card.append(h("div", { class: "nav" },
-			h("button", { class: "btn ghost", on: { click: () => { m.symbols = null; m.entropy = null; render(); } } }, "◀ " + t.otherSeed),
-			h("button", { class: "btn ghost", on: { click: () => go("print") } }, "🖨️ " + t.printIt),
-			h("button", { class: "btn ghost", on: { click: () => { st.read = { taps: [], typing: false, text: "", out: null, error: "" }; go("read"); } } }, "🔍 " + t.readCheck)));
-		return card;
+		if (m.tab === "qr") view.append(h("div", { class: "qrbox" }, qrSvg(S.compactSeedQR(m.entropy)), hint(t.qrHelp)));
+		return tool(
+			panel(title(t.makeCard), dictLine(),
+				h("div", { class: "big-total", text: t.total(L) }),
+				h("p", { text: t.shop(each, n, cm) }),
+				h("div", { class: "alert", text: t.makeWarn }),
+				h("div", { class: "row" },
+					h("button", { class: "btn ghost small", on: { click: () => { m.symbols = null; m.entropy = null; render(); } } }, "◀ " + t.otherSeed),
+					h("button", { class: "btn ghost small", on: { click: () => go("print") } }, t.printIt),
+					h("button", { class: "btn ghost small", on: { click: () => { st.read = { taps: [], typing: false, text: "", out: null, error: "" }; go("read"); } } }, t.readCheck))),
+			panel(seg(views, m.tab, (v) => { m.tab = v; render(); }), view));
 	}
 
 	// keyboard for the step-by-step view
@@ -474,21 +483,8 @@
 	// ---- read --------------------------------------------------------
 	function readScreen() {
 		const t = T(), rd = st.read, d = st.dict;
-		const card = h("div", { class: "card" }, h("h2", { text: "🔍 " + t.readCard }), dictLine());
-		if (!d) { card.append(h("div", { class: "nav" }, backHome())); return card; }
+		if (!d) return h("div", { class: "narrow" }, panel(title(t.readCard), dictLine()));
 		const n = d.things.length, len12 = symbolsFor(12, n), len24 = symbolsFor(24, n);
-		const err = h("div", {}, errorBox(rd.error));
-		if (rd.out) {
-			const words = S.entropyToMnemonic(rd.out.entropy).split(" ");
-			card.append(h("h3", { text: "🌱 " + t.seedFound }),
-				h("div", { class: "words" }, words.map((w, i) => h("div", {}, h("span", {}, i + 1), w))),
-				rd.out.fixed ? h("div", { class: "note" }, t.repaired(rd.out.fixed)) : null,
-				rd.out.reversed ? h("div", { class: "note" }, "↔️ " + t.reversed) : null,
-				h("div", { class: "nav" },
-					h("button", { class: "btn ghost", on: { click: () => { rd.out = null; render(); } } }, "◀ " + t.back),
-					h("button", { class: "btn ghost", on: { click: () => { st.read = { taps: [], typing: false, text: "", out: null, error: "" }; go("home"); } } }, "🏠 " + t.home)));
-			return card;
-		}
 		const readIt = () => {
 			const objects = rd.typing
 				? rd.text.split(/[\n,]/).map((s) => s.replace(/^\s*\d+\.\s*/, "").trim().toLowerCase()).filter(Boolean)
@@ -501,10 +497,9 @@
 			}
 			render();
 		};
-		const counter = h("div", { class: "big-total", text: t.tapped(rd.taps.length, len12, len24) });
+		let input;
 		if (!rd.typing) {
-			const last = rd.taps.slice(-4);
-			card.append(h("p", { class: "help", text: t.tapHelp }),
+			input = [hint(t.tapHelp),
 				h("div", { class: "keypad" }, d.things.map((x, i) =>
 					h("button", { class: "key", "aria-label": x.name, on: { click: () => {
 						rd.taps.push(i);
@@ -512,23 +507,35 @@
 							try { S.decodeObjects(rd.taps.map((j) => d.things[j].name), d.things.map((y) => y.name)); readIt(); return; } catch (e) { /* not yet */ }
 						}
 						render();
-					} } }, icon(x, 46), x.name))),
-				counter,
-				h("div", { class: "lasttaps" }, last.map((i, j) => h("span", { class: j === last.length - 1 ? "newest" : "" },
-					icon(d.things[i], j === last.length - 1 ? 52 : 36), h("small", { text: `${rd.taps.length - last.length + j + 1}` })))),
-				stringSvg(d.things, rd.taps),
+					} } }, icon(x, 36), x.name))),
 				h("div", { class: "row" },
 					h("button", { class: "btn ghost small", on: { click: () => { rd.taps.pop(); render(); } } }, t.undo),
 					h("button", { class: "btn ghost small", on: { click: () => { if (confirm(t.clearAsk)) { rd.taps = []; render(); } } } }, t.clear),
-					h("button", { class: "btn ghost small", on: { click: () => { rd.typing = true; render(); } } }, t.typeInstead)));
+					h("button", { class: "btn ghost small push", on: { click: () => { rd.typing = true; render(); } } }, t.typeInstead))];
 		} else {
-			const area = h("textarea", { spellcheck: "false", rows: 8, on: { input: (e) => { rd.text = e.target.value; } } });
+			const area = h("textarea", { class: "input", spellcheck: "false", rows: 10, on: { input: (e) => { rd.text = e.target.value; } } });
 			area.value = rd.text;
-			card.append(h("p", { class: "help", text: t.typeHelp }), area,
-				h("button", { class: "btn ghost small", on: { click: () => { rd.typing = false; render(); } } }, "👆 " + t.tapInstead));
+			input = [hint(t.typeHelp), area,
+				h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => { rd.typing = false; render(); } } }, t.tapInstead))];
 		}
-		card.append(err, h("div", { class: "nav" }, backHome(), h("button", { class: "btn", on: { click: readIt } }, "🔓 " + t.readIt)));
-		return card;
+		const last = rd.taps.slice(-5);
+		const right = [];
+		if (rd.out) {
+			const words = S.entropyToMnemonic(rd.out.entropy).split(" ");
+			right.push(h("div", { class: "result" }, h("div", { class: "result-title", text: "✓ " + t.seedFound }), seedAlert(),
+				h("div", { class: "words" }, words.map((w, i) => h("div", {}, h("span", {}, i + 1), w))),
+				rd.out.fixed ? h("div", { class: "note" }, t.repaired(rd.out.fixed)) : null,
+				rd.out.reversed ? h("div", { class: "note" }, t.reversed) : null,
+				h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => { st.read = { taps: [], typing: false, text: "", out: null, error: "" }; render(); } } }, t.clear))));
+		} else {
+			if (!rd.typing) right.push(
+				h("div", { class: "big-total", text: t.tapped(rd.taps.length, len12, len24) }),
+				h("div", { class: "lasttaps" }, last.map((i, j) => h("span", { class: j === last.length - 1 ? "newest" : "" },
+					icon(d.things[i], j === last.length - 1 ? 48 : 32), h("small", { text: `${rd.taps.length - last.length + j + 1}` })))),
+				stringSvg(d.things, rd.taps));
+			right.push(errorBox(rd.error), h("div", { class: "row" }, h("button", { class: "btn push", on: { click: readIt } }, t.readIt)));
+		}
+		return tool(panel(title(t.readCard), dictLine(), ...input), panel(...right));
 	}
 
 	// ---- printable sheet ----------------------------------------------
@@ -537,15 +544,15 @@
 	// shopping list is in alphabetical order, without numbers).
 	function printSheet() {
 		const t = T(), m = st.make, d = st.dict;
-		if (!d || !m.symbols) { st.screen = "home"; return home(); }
+		if (!d || !m.symbols) { st.screen = "make"; return makeScreen(); }
 		const n = d.things.length, each = S.piecesToBuy(m.symbols, n), cm = Math.ceil((m.symbols.length * 0.8 + 20) / 10) * 10;
 		const shop = [...d.things].sort((a, b) => a.name.localeCompare(b.name, st.lang));
 		return h("div", {},
-			h("div", { class: "noprint" },
-				h("div", { class: "error" }, t.printWarn),
-				h("div", { class: "nav" },
+			h("div", { class: "noprint panel print-bar" },
+				h("div", { class: "alert" }, t.printWarn),
+				h("div", { class: "row" },
 					h("button", { class: "btn ghost", on: { click: () => go("make") } }, "◀ " + t.back),
-					h("button", { class: "btn", on: { click: () => print() } }, "🖨️ " + t.printBtn))),
+					h("button", { class: "btn push", on: { click: () => print() } }, t.printBtn))),
 			h("div", { class: "card sheet" },
 				h("h2", { text: t.sheetTitle }), h("p", { class: "help", text: t.sheetSub }),
 				h("h3", { text: t.sheetShop }),
@@ -563,14 +570,17 @@
 	// ---- about -------------------------------------------------------
 	function about() {
 		const t = T();
-		return h("div", { class: "card" },
+		return h("div", { class: "page" },
+			h("h2", { text: t.howTitle }),
+			h("ol", { class: "how-to" }, [[t.how1, t.how1b], [t.how2, t.how2b], [t.how3, t.how3b], [t.how4, t.how4b]].map(([a, b]) => h("li", {}, h("b", { text: a }), " — " + b))),
+			h("p", { class: "hint", text: t.carriers }),
+			h("h2", { text: t.honestTitle }), h("p", { text: t.honest }),
 			h("h2", { text: t.aboutTitle }),
-			h("p", { text: "🔒 " + t.aboutNet }),
-			h("p", { text: "🧾 " + t.aboutCheck }),
+			h("p", { text: t.aboutNet }),
+			h("p", { text: t.aboutCheck }),
 			h("pre", { class: "code" }, "macOS / Linux:  shasum -a 256 seedcraft-sequences.html\nWindows:        certutil -hashfile seedcraft-sequences.html SHA256"),
-			h("p", { text: "🫙 " + t.aboutStore }),
-			h("p", { class: "help", text: t.aboutSpec(FORMAT_VERSION) }),
-			h("div", { class: "nav" }, backHome()));
+			h("p", { text: t.aboutStore }),
+			h("p", { class: "hint", text: t.aboutSpec(FORMAT_VERSION) }));
 	}
 
 	// ---- donate ------------------------------------------------------
@@ -590,14 +600,13 @@
 		const box = (img, title, address, extra) => h("div", { class: "donate-box" },
 			h("img", { src: img, alt: title, width: 180, height: 180 }), h("b", { text: title }),
 			h("code", { text: address }), copyButton(address), extra || null);
-		return h("div", { class: "card" },
-			h("h2", { text: "💛 " + t.donateTitle }), h("p", { text: t.donateText }),
+		return h("div", { class: "page" },
+			h("h2", { text: t.donateTitle }), h("p", { text: t.donateText }),
 			h("div", { class: "donate" },
 				box(DONATE_IMAGES.bitcoin, "Bitcoin", DONATE.bitcoin),
 				box(DONATE_IMAGES.lightning, "Lightning", DONATE.lightning,
 					h("details", { class: "more" }, h("summary", { text: t.donateLnurl }), h("code", { class: "wrap", text: DONATE.lnurl }), copyButton(DONATE.lnurl)))),
-			h("p", { class: "help", text: t.donateMore }),
-			h("div", { class: "nav" }, backHome()));
+			h("p", { class: "hint", text: t.donateMore }));
 	}
 
 	render();
