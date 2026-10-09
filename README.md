@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/hero-dark.png">
+  <img src="docs/images/hero-light.png" alt="Seedcraft — a seed kept as a string of things: 16 coloured beads on a thread">
+</picture>
+
 # seedcraft
 
 Keep a Bitcoin seed as **a sequence of things** — beads on a necklace, bricks,
@@ -111,7 +116,8 @@ python3 tests/test_sequences.py          # the Python reference
 node web/test.mjs                        # the JavaScript (Node.js ≥ 18)
 node web/build.mjs                       # dist/seedcraft-sequences.html + its SHA-256
 docs/manual/build.sh                     # the PDFs (Typst 0.15.1)
-python3 tools/bundle.py v0.2.0           # the release zip
+python3 tools/bundle.py v0.3.0           # the release zip
+python3 tools/readme_hero.py             # this README's picture (needs Chrome)
 ```
 
 ## Donate
