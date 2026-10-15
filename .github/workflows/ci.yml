@@ -1,7 +1,7 @@
-# Tests the reference implementation and the web tool against the test
-# vectors, builds the web tool (reproducible: compare the printed SHA-256 with
-# a local build of the same commit) and keeps it as an artifact. Rebuilds the
-# printable PDFs and fails if they differ from the committed ones. Bundles
+# Tests the reference implementation (both modes) and the web tool against the
+# test vectors, builds the web tool (reproducible: compare the printed SHA-256
+# with a local build of the same commit) and keeps it as an artifact. Rebuilds
+# the printable PDFs and fails if they differ from the committed ones. Bundles
 # everything in a reproducible zip. On main, publishes the web tool and the
 # PDFs on GitHub Pages; on a version tag (v*), drafts a release.
 name: test-and-build
@@ -29,6 +29,16 @@ jobs:
           node-version: "22"
       - name: Python reference against the vectors
         run: python3 tests/test_sequences.py
+      - name: Pad mode against its vectors, and the risk audit's evidence
+        run: python3 tests/test_pad.py
+      - name: Pad mode vectors are up to date
+        run: |
+          python3 tools/gen_pad_vectors.py > vectors/sequences-pad.json
+          git diff --exit-code -- vectors/
+      - name: Tools of the risk audit run (pad reuse, pieces tables in short)
+        run: |
+          python3 tools/pad_reuse.py
+          python3 tools/pieces_tables.py 2000
       - name: JavaScript against the vectors
         run: node web/test.mjs
       - name: Build the web tool

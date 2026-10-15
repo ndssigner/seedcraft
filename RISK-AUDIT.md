@@ -5,10 +5,10 @@ what it does not, and the evidence for each claim, so that anyone can check
 it rather than take it on trust. It follows the specification: a draft, not
 yet for real funds.
 
-**Status of the evidence.** Each claim below points to its evidence (§6). Some
-of it is in the repository and runs in CI; some was checked while writing
-this document and is still to be turned into tests. The table in §6 says
-which.
+**Status of the evidence.** Each claim below points to its evidence (§6),
+in the repository: tests and tools that anyone can run, and that run in CI.
+Pad mode is in the reference implementation (`seedcraft_pad.py`) and its test
+vectors; the web tool and the PDFs do not have it yet.
 
 ## 1. Scope and assumptions
 
@@ -189,8 +189,10 @@ $$\Pr[K_d + K_h = x] = \sum_{y} \Pr[K_h = y] \, \Pr[K_d = x - y] = N^{-L} \sum_{
   ($d \mapsto 2d$ if $2d < N$, else $2d - N + 1$) and leaves it as it is
   (Luhn mod $N$). It catches every wrong symbol, and every swap of two
   neighbours except $0 \leftrightarrow N - 1$, and says in which row (for
-  $N = 2$ it is a parity bit and catches no swaps). It is a function of the
-  pad only. Evidence: E6.
+  $N = 2$ it is a parity bit and catches no swaps). This holds for every
+  even $N$, so for every $N$ of the format; for odd $N$ the doubling is not
+  one-to-one and it would not. It is a function of the pad only.
+  Evidence: E6.
 - **Direction and roles**: software tries both directions and both roles
   (SPEC §10.5); only the right one decodes.
 
@@ -221,13 +223,13 @@ open question (§8).
 | | Claim | Evidence | Status |
 | :--- | :--- | :--- | :--- |
 | E1 | A basic sequence gives up its dictionary in $\le 8$ tries for $N \le 16$ | `tools/dictionary_attack.py`; `tests/test_sequences.py` | In the repository, runs in CI |
-| E2 | The same attack finds nothing on a pad-mode sequence: its equations are inconsistent for all 8 masks | Checked while writing this document with the five $N = 16$ vectors; to be a test | Pending |
-| E3 | One wrong pad symbol is repaired | Checked as E2, one wrong symbol in each vector; to be a test | Pending |
-| E4 | $C$ is uniform whatever the seed | Proof in §4.1; a $\chi^2$ test over many encodings of one seed | Pending |
-| E5 | A reused pad gives away the other seed once one is known | A demonstration in `tools/` | Pending |
-| E6 | Check characters: every single error, every adjacent swap but $0 \leftrightarrow N - 1$ | Checked while writing, exhaustively over 3 000 random rows for $N = 2, \dots, 32$; to be a test | Pending |
-| E7 | Every one of the 8 masks gives a valid CompactSeedQR | Checked while writing, for the NDS-Signer test seed | Pending as a test |
-| E8 | How many pieces to buy (SPEC §6, §10.6) | Simulated, 100 000 random sequences or pads per row | To be added to `tools/` |
+| E2 | The same attack finds nothing on a pad-mode sequence: its equations are inconsistent for all 8 masks | `tests/test_pad.py`, every pad-mode vector with $N \le 16$ | In the repository, runs in CI |
+| E3 | One wrong pad symbol is repaired | `tests/test_pad.py`: every position of every vector, in the pad and in the sequence | In the repository, runs in CI |
+| E4 | $C$ is uniform whatever the seed | Proof in §4.1; `tests/test_pad.py`: $\chi^2$ over many encodings of one seed, each position, all together and neighbouring pairs, for every $N$ (and a check that a slightly biased pad is caught) | In the repository, runs in CI |
+| E5 | A reused pad gives away the other seed once one is known | `tools/pad_reuse.py`; `tests/test_pad.py` for every $N$, 12 and 24 words | In the repository, runs in CI |
+| E6 | Check characters: every single error, every adjacent swap but $0 \leftrightarrow N - 1$ | `tests/test_pad.py`: exhaustively over the symbol values for every even $N$ from 2 to 32, over random rows, and every wrong symbol in a pad file | In the repository, runs in CI |
+| E7 | Every one of the 8 masks gives a valid CompactSeedQR | `tests/test_pad.py`: every test seed, every $N$, both modes | In the repository, runs in CI |
+| E8 | How many pieces to buy (SPEC §6, §10.6) | `tools/pieces_tables.py`, 100 000 random seeds and pads per row; CI runs it in short | In the repository; with 100 000 samples it gives the tables of SPEC §6 and §10.6 exactly. CI runs it in short, without checking the figures |
 
 ## 7. Designs considered and rejected
 

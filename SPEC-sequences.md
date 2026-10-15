@@ -2,8 +2,8 @@
 
 **Status: draft for discussion.** Nothing here is final until v1, and the
 encoding may still change. Do not store real funds' seeds with a draft.
-The pad mode (§10) is specified here but not yet implemented in the
-reference implementation, the test vectors or the web tool.
+The pad mode (§10) is in the reference implementation and its test
+vectors, not yet in the web tool or the PDFs.
 
 A way to back up a BIP-39 seed as a **sequence of physical things** that can
 be made with craft supplies, read back by software, and **reconstructed by
@@ -50,8 +50,10 @@ Which mode and which form suit which situation: §11. `RISK-AUDIT.md` sets
 out what each mode protects against and what it does not, with the
 evidence, so that anyone can check it.
 
-The reference implementation is `reference/python/seedcraft_sequences.py`;
-`vectors/sequences-v0.json` has test vectors (public test seeds only).
+The reference implementation is `reference/python/seedcraft_sequences.py`,
+and `seedcraft_pad.py` for pad mode; `vectors/sequences-v0.json` and
+`vectors/sequences-pad.json` have test vectors (public test seeds and pads
+only).
 
 ## 1. Idea in one paragraph
 
@@ -172,7 +174,7 @@ each kind would tell something about the seed, and its order should not
 follow the dictionary's.
 
 Enough for 99.9 % of seeds, with one spare (simulated with the reference
-implementation), in packs of 5:
+implementation, `tools/pieces_tables.py`), in packs of 5:
 
 | N | 2 | 4 | 8 | 16 | 32 |
 | :--- | ---: | ---: | ---: | ---: | ---: |
@@ -425,7 +427,8 @@ it, is the seed. `RISK-AUDIT.md` goes through the cases.
   check is (N − (sum mod N)) mod N. It catches every single wrong symbol
   and every swap of two neighbours except 0 and N − 1; for N = 2 it is a
   parity bit and catches no swaps.
-- **Pieces to buy**: simulated over 100 000 random pads per entry.
+- **Pieces to buy**: simulated over 100 000 random pads per entry
+  (`tools/pieces_tables.py`).
 
 ## 11. Choosing a mode and a form
 
@@ -544,8 +547,8 @@ anyone find it odd where it is?**
 
 ## 12. Open questions for v1
 
-- More test vectors (other masks), and vectors for pad mode.
-- Pad mode in the reference implementation, the web tool and the PDFs.
+- More test vectors (other masks).
+- Pad mode in the web tool and the PDFs.
 - Free decorative pieces outside the dictionary, to break the signature of
   a fixed length and N kinds (`RISK-AUDIT.md` §5).
 - Illustrated instructions with real beads.

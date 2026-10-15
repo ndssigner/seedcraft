@@ -46,6 +46,15 @@ kinds; [SPEC §9](SPEC-sequences.md#9-security-considerations),
 `tools/dictionary_attack.py`). Keep the sequence as safe as the words, and
 use a BIP-39 passphrase for real protection.
 
+**Pad mode**, for places you do not control: a random pad is added to the
+sequence, number by number, and kept apart, as a second string or a text
+file. Then the sequence alone, or the pad alone, says nothing about the
+seed; only both together give it
+([SPEC §10](SPEC-sequences.md#10-pad-mode)). It is in the reference
+implementation; the web tool and the PDFs do not have it yet.
+[RISK-AUDIT.md](RISK-AUDIT.md) sets out what each mode protects against and
+what it does not, with the evidence.
+
 ## Web tool
 
 [**ndssigner.github.io/seedcraft**](https://ndssigner.github.io/seedcraft/) —
@@ -92,27 +101,38 @@ reproducibly with Typst from the reference implementation
 ## Download
 
 [Releases](https://github.com/ndssigner/seedcraft/releases) have everything in
-one reproducible zip: the web tool, the PDFs and the specification, with a
-`SHA256SUMS`.
+one reproducible zip: the web tool, the PDFs, the specification and the risk
+audit, with a `SHA256SUMS`.
 
 ## In this repository
 
-- `SPEC-sequences.md`: the specification (draft v0).
+- `SPEC-sequences.md`: the specification (draft): the basic mode and the
+  pad mode.
+- `RISK-AUDIT.md`: what each mode protects against, and the evidence.
 - `reference/python/seedcraft_sequences.py`: reference implementation
   (standard library only, plus Project Nayuki's QR Code generator, MIT,
-  unmodified).
+  unmodified); `seedcraft_pad.py`: pad mode, on top of it.
 - `vectors/sequences-v0.json`: test vectors from public test seeds
-  (`tools/gen_vectors.py`, needs `embit`).
+  (`tools/gen_vectors.py`, needs `embit`); `vectors/sequences-pad.json`:
+  the same seeds in pad mode, with fixed public pads
+  (`tools/gen_pad_vectors.py`).
 - `tests/test_sequences.py`: every vector, a misread thing repaired, either
   end, random padding, and the dictionary attack; give it a quirc
   `qrdecode` binary to also check that the QR code drawn back is the seed's
   CompactSeedQR.
+- `tests/test_pad.py`: pad mode against its vectors, and the evidence of
+  `RISK-AUDIT.md` §6 (the attack finds nothing, errors repaired, uniformity,
+  check characters, every mask).
 - `tools/dictionary_attack.py`: reads a seed from its sequence without the
   dictionary (SPEC §9).
+- `tools/pad_reuse.py`: why one pad is for one seed only.
+- `tools/pieces_tables.py`: how many pieces to buy (SPEC §6, §10.6), by
+  simulation.
 - `web/`: the web tool (`web/test.mjs` checks it against the same vectors).
 
 ```bash
 python3 tests/test_sequences.py          # the Python reference
+python3 tests/test_pad.py                # pad mode and the audit's evidence
 node web/test.mjs                        # the JavaScript (Node.js ≥ 18)
 node web/build.mjs                       # dist/seedcraft-sequences.html + its SHA-256
 docs/manual/build.sh                     # the PDFs (Typst 0.15.1)
