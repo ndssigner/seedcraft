@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """How much does keeping the dictionary apart protect a sequence? This
 recovers the seed from the sequence ALONE, without the dictionary, as anyone
-who knows this specification could (SPEC §8).
+who knows this specification could (SPEC §9).
 
     python3 tools/dictionary_attack.py
 

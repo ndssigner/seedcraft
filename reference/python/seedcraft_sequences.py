@@ -85,11 +85,13 @@ MASKS = [
 
 # ---- encoding ----------------------------------------------------------
 
-def compact_seedqr(entropy):
-    """The CompactSeedQR of the entropy (byte mode, level L, fixed version)."""
+def compact_seedqr(entropy, mask=-1):
+    """The CompactSeedQR of the entropy (byte mode, level L, fixed version),
+    with the mask the penalty rules choose, or the one given (0-7)."""
     version = LAYOUTS[len(entropy)][0]
     return QrCode.encode_segments([QrSegment.make_bytes(entropy)], QrCode.Ecc.LOW,
-                                  minversion=version, maxversion=version, boostecl=False)
+                                  minversion=version, maxversion=version, mask=mask,
+                                  boostecl=False)
 
 
 def bits_to_symbols(bits, k):
@@ -101,15 +103,16 @@ def symbols_to_bits(symbols, k):
     return [int(b) for s in symbols for b in format(s, "0%db" % k)]
 
 
-def encode(entropy, k, padding=None):
+def encode(entropy, k, padding=None, mask=-1):
     """The symbols (data + header) for a 16- or 32-byte entropy. The bits
     that complete the last symbol are random (SPEC §3.5): pass padding (an
-    int) to choose them, as the test vectors do."""
+    int) to choose them, as the test vectors do. The mask is the one the QR
+    standard chooses unless one is given (any of the 8 gives a valid code)."""
     if len(entropy) not in LAYOUTS:
         raise ValueError("entropy is 16 bytes (12 words) or 32 bytes (24 words)")
     if not 1 <= k <= 5:
         raise ValueError("k is 1 to 5 (N = 2 to 32 kinds of objects)")
-    qr = compact_seedqr(entropy)
+    qr = compact_seedqr(entropy, mask)
     size = qr.get_size()
     bits = [1 if qr.get_module(c, r) else 0 for r, c in data_modules_row_major(size)]
     header = format(FORMAT_VERSION, "02b") + format(qr.get_mask(), "03b")
