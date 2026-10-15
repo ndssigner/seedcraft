@@ -216,17 +216,6 @@ pre.code { font-family: var(--mono); font-size: var(--fs-s); background: var(--s
 .swatch.on { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--fg); }
 .swatch-any { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-s); color: var(--muted); cursor: pointer; }
 .swatch-any input { width: 32px; height: 28px; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--r-s); background: none; cursor: pointer; }
-/* the reading keypad: each key edged in its piece's colour, to find it at a glance */
-.keypad { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
-.key { position: relative; border: 1px solid var(--line); background: var(--surface); border-radius: var(--r-m); padding: 8px 4px 9px; cursor: pointer;
-	display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: var(--fs-xs); font-weight: 600; overflow: hidden; }
-.key.tinted { border-bottom: 5px solid var(--c); padding-bottom: 5px; }
-.key:hover { border-color: var(--line-strong); }
-.key.tinted:hover { border-bottom-color: var(--c); }
-.key:active { transform: scale(.96); background: var(--accent-soft); }
-.lasttaps { display: flex; align-items: flex-end; gap: 8px; min-height: 56px; }
-.lasttaps span { display: flex; flex-direction: column; align-items: center; color: var(--muted); }
-.lasttaps span.newest small { color: var(--accent); font-weight: 800; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px; }
 .legend .item { display: flex; align-items: center; gap: 6px; background: var(--sunk); border-radius: 99px; padding: 2px 10px 2px 2px; font-size: var(--fs-s); }
 .string { width: 100%; height: auto; display: block; }
@@ -286,13 +275,6 @@ ul.list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; 
 .hand-qr .cur-light { fill: #dfe4fb; stroke: #2f45a8; stroke-width: 1.5; }
 .hand-qr text.rc { font-size: 7px; fill: var(--muted); font-family: var(--mono); }
 .hand-qr text.rc.on { fill: var(--accent); font-weight: 700; }
-.hand-piece { display: flex; align-items: center; gap: 12px; }
-.bits { display: flex; gap: 4px; margin-top: 4px; }
-.bits .bit { font-family: var(--mono); font-size: var(--fs-l); font-weight: 700; width: 24px; text-align: center; border-radius: 4px; background: var(--accent-soft); color: var(--accent-ink); }
-.bits .bit.hdr { background: var(--soft); color: var(--muted); }
-.hand-legend { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 4px 10px; }
-.hand-legend div { display: flex; align-items: center; gap: 6px; }
-.hand-legend code { font-family: var(--mono); font-size: var(--fs-s); }
 .hand-qr.done .fn-light, .hand-qr.done .light { fill: #ffffff; }
 .hand-qr.done .cell { stroke: none; }
 
@@ -321,11 +303,11 @@ ul.list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; 
 }
 @media (prefers-reduced-motion: reduce) {
 	.net.on, .hero-string .bead-in { animation: none; }
-	.btn:active, .key:active { transform: none; }
+	.btn:active, .crow:active { transform: none; }
 }
 .row.end { align-items: flex-end; }
 .swatch-any.on { color: var(--fg); font-weight: 650; }
-.string .ring-cur, .hand-piece .ring-cur { stroke: var(--current); }
+.string .ring-cur { stroke: var(--current); }
 @media print { body { background-image: none; } }
 /* phones: the repository is in the footer; the tabs share the width */
 @media (max-width: 640px) {
@@ -473,7 +455,6 @@ ul.avoid li::marker { content: "✗  "; color: var(--bad); }
 .fingerprint > span:first-child { font-weight: 650; }
 .fingerprint code { font-family: var(--mono); font-size: var(--fs-m); font-weight: 700; letter-spacing: .06em; padding: 1px 8px; border-radius: var(--r-s); background: var(--accent-soft); color: var(--accent-ink); }
 .fingerprint .hint { flex-basis: 100%; }
-details.mask-why summary { font-size: var(--fs-s); color: var(--fg); }
 
 /* ---- the journeys' frame ----
    On a phone: an ordinary page, the bar of back and on stuck to the bottom.
@@ -547,19 +528,11 @@ h3.avoid-title { margin: 6px 0 0; font-size: var(--fs-l); color: var(--bad); }
 .meta + .row, .way .meta { margin: 0; }
 p.meta { margin: 0; }
 /* reading: how many so far and the button to read, side by side at the top */
-.count-row { align-items: flex-start; flex-wrap: nowrap; }
-.count-row .btn { flex: none; }
 /* the key's dictionary when reading: one line, the alternatives behind it */
-details.pad-dict summary { cursor: pointer; list-style: none; }
-details.pad-dict summary::-webkit-details-marker { display: none; }
-details.pad-dict summary u { color: var(--accent-ink); text-underline-offset: 2px; font-size: var(--fs-s); }
-details.pad-dict > * + * { margin-top: var(--sp-2); }
 .row.forget { margin-top: var(--sp-2); }
 /* the header's and the journey's short forms, for phones */
-.tabs .short, .flow-nav .short, .journey-now, .phone-only { display: none; }
+.tabs .short, .flow-nav .short, .journey-now { display: none; }
 .step-head .btn { flex: none; white-space: nowrap; }
-@media (max-width: 879px) { .lasttaps.phone-only { display: flex; } }
-.lasttaps b { align-self: center; margin-right: auto; font-size: var(--fs-s); }
 @media (max-width: 640px) {
 	.tabs .long, .badge .long, .flow-nav .long { display: none; }
 	.tabs .short, .flow-nav .short { display: inline; }
@@ -570,10 +543,6 @@ details.pad-dict > * + * { margin-top: var(--sp-2); }
 	.journey-now small { color: var(--muted); font-weight: 600; }
 	/* forms in one column, so that their names fit */
 	.forms.two { grid-template-columns: 1fr; }
-	/* a keypad that fits on one screen: four small keys a row */
-	.keypad { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-1); }
-	.key { padding: 6px 2px 7px; font-size: var(--fs-xs); }
-	.key .icon { width: 28px; height: 28px; }
 }
 
 /* the key, piece by piece: who draws it, the die, the faces to mark, the throws so far */
@@ -655,3 +624,11 @@ pre.pad-file span.on { background: var(--pad-soft); }
 	.howto-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 	.howto-box + .howto-box::before { content: none; }
 }
+/* reading a sequence back turn by turn: the collection is the palette to tap, the key's on its own thread colour */
+.collection.pick .crow { font: inherit; color: inherit; background: var(--surface); border-color: var(--line); cursor: pointer; padding: 2px 4px; }
+.collection.pick .crow:hover { border-color: var(--line-strong); }
+.collection.pick .crow:active { transform: scale(.97); }
+.collection.pick .crow.on { border-color: var(--accent); background: var(--accent-soft); }
+.turn-keypick .collection.pick .crow:hover { border-color: var(--pad); }
+.turn-keypick .collection.pick .crow.on { border-color: var(--pad); background: var(--pad-soft); }
+.turn-last { display: flex; flex-direction: column; gap: 6px; border-top: 1px dashed var(--line); padding-top: 8px; }
