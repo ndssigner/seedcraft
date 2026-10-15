@@ -56,8 +56,8 @@ random pad is added to the sequence, number by number, and kept somewhere
 else, as a second string or a text file. Then the sequence alone, or the
 pad alone, says nothing about the seed, whoever has it; only both together
 give it ([SPEC §10](SPEC-sequences.md#10-pad-mode)). The price: **losing
-either half loses the seed.** It is in the reference implementation; the
-web tool and the PDFs do not have it yet.
+either half loses the seed.** It is in the reference implementation and
+the web tool; the PDFs do not have it yet.
 
 [SPEC §11](SPEC-sequences.md#11-choosing-a-mode-and-a-form) helps choose a
 mode and a form, and says what not to do. [RISK-AUDIT.md](RISK-AUDIT.md)
@@ -82,6 +82,12 @@ use offline. English and Spanish.
   method: only for someone you trust completely.
 - **Read a sequence**: tap the pieces in order from a selector (or type
   their names), from either end; the seed appears as soon as it is complete.
+- **Pad mode**: chosen at the start, with what each mode protects. The page
+  draws a pad (for learning only), adds one made by hand if you like, guides
+  the pad's string as it does the sequence's, and saves the pad as a text
+  file; the printable sheet shows only the sequence. Reading, the pad can be
+  tapped as a second string (with its own dictionary if it has one), typed,
+  pasted or opened as a file.
 
 It is a single file that cannot connect anywhere: its Content-Security-Policy
 forbids every network request, external script and `eval`; only its own

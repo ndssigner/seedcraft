@@ -258,6 +258,17 @@ ol.steps span { font-size: 13px; color: var(--muted); }
 .sib-card b { color: var(--accent-ink); }
 .sib-card span { font-size: 13px; color: var(--muted); }
 
+/* the two modes, side by side: what each one keeps safe, and what it doesn't */
+.modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+.mode { display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 12px 14px; border: 1px solid var(--line-strong); border-radius: var(--r-m);
+	background: var(--sunk); cursor: pointer; }
+.mode:hover { border-color: var(--accent); }
+.mode.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); background: var(--accent-soft); }
+.mode b { font-family: var(--book); font-size: 17px; font-weight: 600; color: var(--accent-ink); }
+.mode .points { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.mode .points span { padding-left: 14px; text-indent: -14px; }
+.mode .points span::before { content: "• "; color: var(--muted); }
+
 /* the QR code by hand: the manual's template, on squared paper */
 .hand-qr { width: 100%; max-width: 440px; height: auto; align-self: center; }
 .hand-qr .cell { stroke: #c4cac7; stroke-width: .5; cursor: pointer; }

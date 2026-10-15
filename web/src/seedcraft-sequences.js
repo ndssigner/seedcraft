@@ -1,6 +1,6 @@
 // Seedcraft Sequences (draft v0), JavaScript implementation: a port of
-// reference/python/seedcraft_sequences.py, checked against the same test
-// vectors (web/test.mjs). Needs qrcodegen (Project Nayuki) and BIP39_ENGLISH.
+// reference/python/seedcraft_sequences.py and seedcraft_pad.py, checked
+// against the same test vectors (web/test.mjs). Needs qrcodegen (Project Nayuki) and BIP39_ENGLISH.
 "use strict";
 
 const SeedcraftSequences = (() => {
@@ -319,10 +319,162 @@ const SeedcraftSequences = (() => {
 		return [fixed, positions.length];
 	}
 
+	// ---- pad mode (SPEC §10): a port of reference/python/seedcraft_pad.py ----
+	// The basic sequence P plus a random pad K, symbol by symbol, mod N:
+	// C = P + K. C is made as a string of things; K is kept apart, as a
+	// second string or as a text file. Alone, either says nothing.
+
+	const PAD_DIGITS = "0123456789ABCDEFGHIJKLMNOPQRSTUV"; // symbol -> character, N <= 32
+	const PAD_ROW = 16, PAD_GROUP = 4; // symbols per row of a pad file, characters per group
+
+	function checkN(n) {
+		if (![2, 4, 8, 16, 32].includes(n)) throw new Error("N must be 2, 4, 8, 16 or 32");
+	}
+
+	// a pad of length symbols, each uniform in 0..N-1 and independent, from the
+	// browser's cryptographic generator: N divides 256, so taking the low bits
+	// of each byte has no bias
+	function newPad(length, n) {
+		checkN(n);
+		return Array.from(crypto.getRandomValues(new Uint8Array(length)), (b) => b % n);
+	}
+
+	// two pads made independently, added mod N (§10.2): the result is uniform
+	// if either one is (the device's pad and one made by hand)
+	function addPads(a, b, n) {
+		if (a.length !== b.length) throw new Error(`the two pads have different lengths (${a.length}, ${b.length})`);
+		return a.map((x, i) => (x + b[i]) % n);
+	}
+
+	const encrypt = addPads; // C = (P + K) mod N, over the whole basic sequence
+
+	// P = (C - K) mod N
+	function decrypt(cipher, pad, n) {
+		if (cipher.length !== pad.length) throw new Error(`the sequence has ${cipher.length} symbols and the pad ${pad.length}`);
+		return cipher.map((c, i) => (c - pad[i] + n) % n);
+	}
+
+	// { sequence, pad }: the pad-mode sequence and its pad. A new pad is drawn
+	// unless one is given (the test vectors fix it, and padding)
+	function encodePad(entropy, k, pad, padding) {
+		const n = 1 << k, plain = encode(entropy, k, padding);
+		if (!pad) pad = newPad(plain.length, n);
+		else if (pad.length !== plain.length) throw new Error(`the pad has ${pad.length} symbols; this sequence needs ${plain.length}`);
+		return { sequence: encrypt(plain, pad, n), pad: pad.slice() };
+	}
+
+	// The seed from a pad-mode sequence and its pad: tries the sequence in both
+	// directions against the pad, and both roles (C - K and K - C, in case the
+	// two were swapped), and decodes each result in both directions (SPEC §4,
+	// §10.9); only the right one decodes. Returns decode()'s result plus
+	// swapped (what was given as the pad is the sequence; with N = 2 the two
+	// roles give the same result, and swapped is false) and plain, the basic
+	// sequence as decoded.
+	function decodePad(cipher, pad, k) {
+		const n = 1 << k;
+		if (cipher.length !== pad.length) throw new DecodeError(`the sequence has ${cipher.length} things and the pad ${pad.length}: they must be equal`);
+		const errors = [];
+		for (const swapped of [false, true]) {
+			for (const seq of [cipher, [...cipher].reverse()]) {
+				const plain = swapped ? decrypt(pad, seq, n) : decrypt(seq, pad, n);
+				for (const reading of [plain, [...plain].reverse()]) {
+					try { return Object.assign(decode(reading, k), { swapped, plain: reading }); }
+					catch (e) { if (!(e instanceof DecodeError)) throw e; errors.push(e.message); }
+				}
+			}
+		}
+		throw new DecodeError("no direction or role decodes: " + errors[0]);
+	}
+
+	// a pad-mode sequence and a pad kept as a second string, each read from
+	// either end with its dictionary (the same one unless the pad has its own)
+	function decodePadObjects(objects, padObjects, dictionary, padDictionary) {
+		const n = dictionary.length, k = Math.log2(n);
+		if (!Number.isInteger(k) || k < 1 || k > 5) throw new DecodeError(n + " objects in the dictionary: N must be 2, 4, 8, 16 or 32");
+		padDictionary = padDictionary || dictionary;
+		if (padDictionary.length !== n) throw new DecodeError("the two dictionaries have different sizes");
+		return decodePad(readSequence(objects, dictionary), readSequence(padObjects, padDictionary), k);
+	}
+
+	// A pad file that cannot be read. code says what is wrong (for the
+	// interface's texts), line is its line number (from 1) or null, and
+	// detail the character or the numbers involved.
+	class PadFileError extends Error {
+		constructor(code, message, line = null, detail = null) {
+			super(line === null ? message : `line ${line}: ${message}`);
+			Object.assign(this, { code, line, detail });
+		}
+	}
+
+	// Luhn mod N (§10.9): from the last symbol leftwards, weights 2, 1, 2, 1...;
+	// doubling d gives 2d if 2d < N, else 2d - N + 1. The check is
+	// (N - (sum mod N)) mod N. It is a function of the pad only.
+	function checkCharacter(symbols, n) {
+		let total = 0;
+		[...symbols].reverse().forEach((d, i) => {
+			if (i % 2 === 0) d = 2 * d < n ? 2 * d : 2 * d - n + 1;
+			total += d;
+		});
+		return (n - total % n) % n;
+	}
+
+	// the pad as text: "L N", then rows of 16 symbols in groups of 4, each row
+	// ending in its check character. No header says what it is.
+	function writePadFile(pad, n) {
+		checkN(n);
+		if (pad.some((s) => !(s >= 0 && s < n))) throw new Error("pad symbols are 0 to N - 1");
+		const lines = [`${pad.length} ${n}`];
+		for (let i = 0; i < pad.length; i += PAD_ROW) {
+			const row = pad.slice(i, i + PAD_ROW), chars = row.map((s) => PAD_DIGITS[s]).join("");
+			const groups = [];
+			for (let j = 0; j < chars.length; j += PAD_GROUP) groups.push(chars.slice(j, j + PAD_GROUP));
+			lines.push(groups.concat(PAD_DIGITS[checkCharacter(row, n)]).join(" "));
+		}
+		return lines.join("\n") + "\n";
+	}
+
+	// { pad, n } from a pad file. Throws PadFileError, with the line, for a
+	// wrong check character, a character out of range, a row of the wrong
+	// length or a count that does not match.
+	function readPadFile(text) {
+		const rows = [];
+		text.split(/\r?\n/).forEach((line, i) => {
+			line = line.split("#")[0].trim();
+			if (line) rows.push([i + 1, line]);
+		});
+		if (!rows.length) throw new PadFileError("empty", "empty pad file");
+		const [first, head] = rows[0];
+		const m = /^(\d+)\s+(\d+)$/.exec(head);
+		if (!m) throw new PadFileError("first", "the first line is the number of symbols and N, e.g. '54 16'", first);
+		const length = Number(m[1]), n = Number(m[2]);
+		if (![2, 4, 8, 16, 32].includes(n)) throw new PadFileError("n", `N must be 2, 4, 8, 16 or 32, not ${n}`, first, n);
+		const pad = [];
+		rows.slice(1).forEach(([number, line], i) => {
+			const groups = line.toUpperCase().split(/\s+/);
+			if (groups.length < 2 || groups[groups.length - 1].length !== 1)
+				throw new PadFileError("nocheck", "a row ends in a space and its check character", number);
+			const values = [...groups.join("")].map((ch) => {
+				const v = PAD_DIGITS.indexOf(ch);
+				if (!(v >= 0 && v < n)) throw new PadFileError("char", `'${ch}' is not a symbol for N = ${n}`, number, ch);
+				return v;
+			});
+			const row = values.slice(0, -1), check = values[values.length - 1], last = i === rows.length - 2;
+			if (row.length > PAD_ROW || (!last && row.length !== PAD_ROW))
+				throw new PadFileError("row", `${row.length} symbols in this row; every row but the last has ${PAD_ROW}`, number, row.length);
+			if (checkCharacter(row, n) !== check)
+				throw new PadFileError("check", "the check character does not match: a symbol in this row is copied wrong", number);
+			pad.push(...row);
+		});
+		if (pad.length !== length) throw new PadFileError("count", `the first line says ${length} symbols, the rows have ${pad.length}`, null, [length, pad.length]);
+		return { pad, n };
+	}
+
 	return {
 		FORMAT_VERSION, HEADER_BITS, LAYOUTS, DecodeError,
 		sha256, mnemonicToEntropy, entropyToMnemonic,
 		functionModules, templateModule, dataModulesRowMajor, compactSeedQR, encode, decode,
 		symbolsToBits, readSequence, decodeObjects, physicalSequence, piecesToBuy, rsCorrect,
+		PAD_DIGITS, PadFileError, newPad, addPads, encrypt, decrypt, encodePad, decodePad, decodePadObjects,
+		checkCharacter, writePadFile, readPadFile,
 	};
 })();
