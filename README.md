@@ -75,21 +75,24 @@ Two journeys, each a sequence of steps along a thread:
 - **Back up a seed**: plan, one question at a time, with drawings (the
   mode, with what each one protects; the form, from those of [SPEC
   §11.2](SPEC-sequences.md#112-which-form) that keep their order, the
-  others shown only as what to avoid; the number of words and of kinds), get the pieces (how many
-  of each kind, and what else the form needs), the dictionary (name the
-  pieces one by one, with a photo if you like, check it against the real
-  thing, save it as a file; or a ready-made one, or the address book's
-  conventional order), the sequence (step by step, a drawing in the form's
-  shape, a list, the QR code it keeps, and a printable sheet for whoever
-  makes it), the pad (pad mode only), check (read it all back: it must give
-  the same seed) and store (what goes where).
-- **Recover a seed**: what you have (mode, form, dictionary), the sequence
-  (tap the pieces in order from either end, or type their names), the pad
-  (pad mode only) and the seed.
+  others shown only as what to avoid; the number of words and of kinds),
+  get the pieces (how many of each kind, and what else the form needs),
+  the dictionary (name the pieces one by one, with a photo if you like,
+  check it against the real thing, save it as a file; or a ready-made one,
+  or the address book's conventional order), the key (pad mode only: made
+  first, piece by piece, by chance), the sequence (turn by turn, each piece
+  from the QR code's squares; a drawing in the form's shape, a list, the QR
+  code it keeps, and a printable sheet for whoever makes it), check (read
+  it all back: it must give the same seed) and store (what goes where).
+- **Recover a seed**: what you have (mode, form, dictionary and, in pad
+  mode, how the key is kept: a sequence with its collection, or a file),
+  recover (turn by turn: tap each piece in order from either end, or type
+  its name, with the key's piece taken off on the clock; each one paints
+  its squares of the QR code) and the seed.
 
 In pad mode, which the page calls "with a key" (a lock and its key: plainer
-than "pad"), the page makes the key first, piece by piece, by chance: from your own
-bag, coins or dice, or from the device (for learning only). Then it shows the
+than "pad"), the page makes the key first, piece by piece, by chance: from your own bag,
+coins or dice, or from the device (for learning only). Then it shows the
 way turn by turn: each piece of the sequence comes from the QR code's squares,
 plus the key's piece on the clock of N; recovering and checking read it back
 the same way. The key is kept as a second sequence of things (the same
