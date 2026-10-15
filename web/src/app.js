@@ -25,9 +25,16 @@
 		buy: { n: 16, words: 12 },
 		dict: null,  // { things: [{ name, emoji, photo, colour, symbol }], checked }
 		edit: null,  // naming in progress: { things, i } or checking: { i }
+		mode: null,  // "basic" or "pad" (SPEC §10), chosen before making or reading
 		make: { seed: "", entropy: null, symbols: null, pos: 0, tab: "walk" },
-		read: { taps: [], typing: false, text: "", out: null, error: "" },
+		read: freshRead(),
 	};
+	// what is being read: the sequence (taps, typing, text, as before) and, in
+	// pad mode, the pad (padIn: as a string of things, or as a file's text)
+	function freshRead() {
+		return { taps: [], typing: false, text: "", out: null, error: "", which: "seq",
+			padIn: { source: "string", taps: [], typing: false, text: "", file: "", dict: null } };
+	}
 	const T = () => SEEDCRAFT_TEXT[st.lang];
 	// a dictionary of another size: what was made or read with the old one
 	// goes (a renamed piece changes nothing: the sequence is numbers)
@@ -36,7 +43,7 @@
 		st.dict = d;
 		if (!same) {
 			st.make = { seed: st.make.seed, entropy: null, symbols: null, pos: 0, tab: "walk" };
-			st.read = { taps: [], typing: false, text: "", out: null, error: "" };
+			st.read = freshRead();
 		}
 	}
 
@@ -245,6 +252,23 @@
 		return h("div", { class: "dictline" }, h("span", { class: "minis" }, d.things.map((x) => icon(x, 22))),
 			h("span", {}, t.dictSummary(d.things.length, d.checked)));
 	};
+	// the two modes (SPEC §10, §11.1), chosen before making or reading: what
+	// each one keeps safe, and what it doesn't. Changing it starts over.
+	function setMode(mode) {
+		st.mode = mode;
+		st.make = { seed: st.make.seed, entropy: null, symbols: null, pos: 0, tab: "walk" };
+		st.read = freshRead();
+		render();
+	}
+	function modeChoice() {
+		const t = T();
+		const option = (mode, name, points) => h("button", { class: "mode" + (st.mode === mode ? " on" : ""), "aria-pressed": String(st.mode === mode),
+			on: { click: () => setMode(mode) } }, h("b", { text: name }), h("span", { class: "points" }, points.map((x) => h("span", { text: x }))));
+		return panel(title(t.modeTitle), hint(t.modeHelp),
+			h("div", { class: "modes" }, option("basic", t.modeBasic, t.modeBasicPoints), option("pad", t.modePad, t.modePadPoints)), hint(t.modeMore));
+	}
+	const modeLine = () => h("div", { class: "row between" }, h("span", { class: "meta", text: T().modeNow(st.mode) }),
+		h("button", { class: "btn ghost small", on: { click: () => setMode(null) } }, T().modeChange));
 
 	// ---- what to buy -------------------------------------------------
 	function buy() {
@@ -521,7 +545,8 @@
 	function makeScreen() {
 		const t = T(), m = st.make, d = st.dict;
 		if (!d) return h("div", { class: "narrow" }, panel(title(t.makeCard), dictLine()));
-		const n = d.things.length, k = Math.log2(n);
+		if (!st.mode) return tool(modeChoice(), panel(title(t.makeCard), dictLine()));
+		const n = d.things.length, k = Math.log2(n), padMode = st.mode === "pad";
 		if (!m.symbols) {
 			const area = h("textarea", { class: "input mono", rows: 3, spellcheck: "false", autocomplete: "off", placeholder: "height demise useless trap grow lion found off key clown transfer enroll" });
 			area.value = m.seed;
@@ -536,7 +561,7 @@
 			const test = (bytes) => { const e = new Uint8Array(bytes); crypto.getRandomValues(e); area.value = S.entropyToMnemonic(e); check(); };
 			check();
 			return tool(
-				panel(title(t.makeCard), seedAlert(),
+				panel(title(t.makeCard), modeLine(), seedAlert(),
 					field(t.seedTitle, hint(t.seedHelp),
 						h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => test(16) } }, t.seedTest12),
 							h("button", { class: "btn ghost small", on: { click: () => test(32) } }, t.seedTest24)),
@@ -545,50 +570,109 @@
 					h("div", { class: "row" }, h("button", { class: "btn push", on: { click: () => {
 						if (!check()) { err.replaceChildren(errorBox(t.errWords)); return; }
 						m.entropy = S.mnemonicToEntropy(m.seed);
-						m.symbols = S.encode(m.entropy, k);
-						m.pos = 0; m.hand = 0; m.tab = "walk";
+						if (padMode) {
+							// the basic sequence plus a pad drawn here (SPEC §10.9)
+							m.basic = S.encode(m.entropy, k);
+							m.devicePad = S.newPad(m.basic.length, n);
+							m.handPad = null; m.handText = "";
+							m.pad = m.devicePad;
+							m.symbols = S.encrypt(m.basic, m.pad, n);
+						} else m.symbols = S.encode(m.entropy, k);
+						m.pos = 0; m.padPos = 0; m.which = "seq"; m.hand = 0; m.tab = "walk";
 						render();
 					} } }, t.makeIt))),
 				panel(field(t.tabDict, dictLine())));
 		}
-		const L = m.symbols.length, each = S.piecesToBuy(m.symbols, n), cm = Math.ceil((L * 0.8 + 20) / 10) * 10;
-		const views = [["walk", t.tabWalk], ["hand", t.tabHand], ["drawing", t.tabDrawing], ["list", t.tabList], ["qr", t.tabQr]];
+		const L = m.symbols.length;
+		// in pad mode, two strings to make: the sequence and the pad
+		const onPad = padMode && m.which === "pad", string = onPad ? m.pad : m.symbols, posKey = onPad ? "padPos" : "pos";
+		const each = S.piecesToBuy(padMode ? m.symbols.concat(m.pad) : m.symbols, n), cm = Math.ceil((L * 0.8 + 20) / 10) * 10;
+		// the QR code by hand starts from the basic sequence: in pad mode, only after subtracting the pad
+		if (padMode && m.tab === "hand") m.tab = "walk";
+		const views = [["walk", t.tabWalk], padMode ? null : ["hand", t.tabHand], ["drawing", t.tabDrawing], ["list", t.tabList], ["qr", t.tabQr]].filter(Boolean);
 		const view = h("div", { class: "stack" });
+		if (padMode && m.tab !== "qr") view.append(h("div", { class: "note", text: onPad ? t.padStringHelp : t.seqStringHelp }));
 		if (m.tab === "walk") {
-			const thing = (i) => d.things[m.symbols[i]];
-			const move = (to) => { m.pos = Math.max(0, Math.min(L - 1, to)); render(); };
+			const thing = (i) => d.things[string[i]];
+			const pos = m[posKey];
+			const move = (to) => { m[posKey] = Math.max(0, Math.min(L - 1, to)); render(); };
 			const side = (i, label) => h("div", { class: "side" }, i >= 0 && i < L ? [hint(`${label} · ${i + 1}`), icon(thing(i), 44), h("div", { class: "small-name", text: thing(i).name })] : null);
 			view.append(
-				h("div", { class: "row between" }, h("span", { class: "label", text: t.walkOf(m.pos + 1, L) }), hint(t.walkHelp)),
-				h("div", { class: "wizard" }, side(m.pos - 1, t.prevPiece), h("div", { class: "centre" }, icon(thing(m.pos), 104), h("div", { class: "name", text: thing(m.pos).name })), side(m.pos + 1, t.nextPiece)),
-				bar((m.pos + 1) / L),
+				h("div", { class: "row between" }, h("span", { class: "label", text: t.walkOf(pos + 1, L) }), hint(t.walkHelp)),
+				h("div", { class: "wizard" }, side(pos - 1, t.prevPiece), h("div", { class: "centre" }, icon(thing(pos), 104), h("div", { class: "name", text: thing(pos).name })), side(pos + 1, t.nextPiece)),
+				bar((pos + 1) / L),
 				h("div", { class: "row" },
-					h("button", { class: "btn ghost", disabled: m.pos === 0 ? "" : undefined, on: { click: () => move(m.pos - 1) } }, "◀ " + t.prevPiece),
-					h("button", { class: "btn push", on: { click: () => m.pos < L - 1 ? move(m.pos + 1) : null } }, m.pos < L - 1 ? t.nextPiece + " ▶" : "✓ " + t.done)),
-				stringSvg(d.things, m.symbols, { current: m.pos, onPick: (i) => move(i) }));
+					h("button", { class: "btn ghost", disabled: pos === 0 ? "" : undefined, on: { click: () => move(pos - 1) } }, "◀ " + t.prevPiece),
+					h("button", { class: "btn push", on: { click: () => pos < L - 1 ? move(pos + 1) : null } }, pos < L - 1 ? t.nextPiece + " ▶" : "✓ " + t.done)),
+				stringSvg(d.things, string, { current: pos, onPick: (i) => move(i) }));
 		}
-		if (m.tab === "drawing") view.append(hint(t.stringHelp), stringSvg(d.things, m.symbols));
+		if (m.tab === "drawing") view.append(hint(t.stringHelp), stringSvg(d.things, string));
 		if (m.tab === "list") {
-			const text = m.symbols.map((s, i) => `${i + 1}. ${d.things[s].name}`).join("\n");
+			const text = string.map((s, i) => `${i + 1}. ${d.things[s].name}`).join("\n");
+			// in pad mode, file names that say nothing about which is which
+			const name = padMode ? (onPad ? "list-b.txt" : "list-a.txt") : "sequence.txt";
 			view.append(hint(t.listHelp), h("pre", { class: "code", text }),
-				h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => download(text + "\n", "sequence.txt", "text/plain") } }, t.saveList)));
+				h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => download(text + "\n", name, "text/plain") } }, t.saveList)));
 		}
 		if (m.tab === "hand") {
 			if (m.hand === undefined) m.hand = 0;
 			const move = (to) => { m.hand = Math.max(0, Math.min(L, to)); render(); };
 			view.append(...handView(d, m.symbols, S.compactSeedQR(m.entropy), m.hand, move).filter(Boolean));
 		}
-		if (m.tab === "qr") view.append(h("div", { class: "qrbox" }, qrSvg(S.compactSeedQR(m.entropy)), hint(t.qrHelp)));
+		if (m.tab === "qr") view.append(h("div", { class: "qrbox" }, qrSvg(S.compactSeedQR(m.entropy)), hint(padMode ? t.qrHelpPad : t.qrHelp)));
 		return tool(
-			panel(title(t.makeCard), dictLine(),
-				h("div", { class: "big-total", text: t.total(L) }),
-				h("p", { text: t.shop(each, n, cm) }),
-				h("div", { class: "alert", text: t.makeWarn }),
+			panel(title(t.makeCard), dictLine(), modeLine(),
+				h("div", { class: "big-total", text: padMode ? t.padTotal(L) : t.total(L) }),
+				h("p", { text: padMode ? t.padShop(each, n, cm) : t.shop(each, n, cm) }),
+				h("div", { class: "alert", text: padMode ? t.padMakeWarn : t.makeWarn }),
+				padMode ? padTools() : null,
 				h("div", { class: "row" },
 					h("button", { class: "btn ghost small", on: { click: () => { m.symbols = null; m.entropy = null; render(); } } }, "◀ " + t.otherSeed),
 					h("button", { class: "btn ghost small", on: { click: () => go("print") } }, t.printIt),
-					h("button", { class: "btn ghost small", on: { click: () => { st.read = { taps: [], typing: false, text: "", out: null, error: "" }; go("read"); } } }, t.readCheck))),
-			panel(seg(views, m.tab, (v) => { m.tab = v; render(); }), view));
+					h("button", { class: "btn ghost small", on: { click: () => { st.read = freshRead(); go("read"); } } }, t.readCheck))),
+			panel(padMode ? seg([["seq", t.stringSeq], ["pad", t.stringPad]], m.which, (v) => { m.which = v; render(); }) : null,
+				seg(views, m.tab, (v) => { m.tab = v; render(); }), view));
+	}
+
+	// Pad mode, making: the pad drawn here (for learning only), a pad made by
+	// hand added to it if you like (SPEC §10.2), and the pad saved as a file (§10.7).
+	function padTools() {
+		const t = T(), m = st.make, n = st.dict.things.length, L = m.symbols.length;
+		const remake = () => {
+			m.pad = m.handPad ? S.addPads(m.devicePad, m.handPad, n) : m.devicePad;
+			m.symbols = S.encrypt(m.basic, m.pad, n);
+			m.pos = 0; m.padPos = 0;
+			render();
+		};
+		let hand;
+		if (m.handPad) hand = h("div", { class: "note ok" }, "✓ " + t.padHandAdded, " ",
+			h("button", { class: "btn ghost small", on: { click: () => { m.handPad = null; remake(); } } }, t.padHandRemove));
+		else {
+			const area = h("textarea", { class: "input", rows: 4, spellcheck: "false", autocomplete: "off", placeholder: "3A37 DFE7 0239…",
+				on: { input: (e) => { m.handText = e.target.value; } } });
+			area.value = m.handText || "";
+			const err = h("div");
+			const add = () => {
+				// one character per number, as in the pad file; spaces, line breaks and notes after # are ignored
+				const chars = [...(m.handText || "").replace(/#.*$/gm, "").replace(/\s+/g, "").toUpperCase()];
+				const value = (ch) => { const v = S.PAD_DIGITS.indexOf(ch); return v < n ? v : -1; };
+				const bad = chars.find((ch) => value(ch) < 0);
+				if (bad !== undefined) { err.replaceChildren(errorBox(t.errHandChar(bad, n))); return; }
+				if (chars.length !== L) { err.replaceChildren(errorBox(t.errHandLength(chars.length, L))); return; }
+				m.handPad = chars.map(value);
+				m.handText = "";
+				remake();
+			};
+			hand = h("details", { class: "more" }, h("summary", { text: t.padHandTitle }), hint(t.padHandHelp(n, L)), area, err,
+				h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: add } }, t.padHandAdd)));
+		}
+		const file = S.writePadFile(m.pad, n);
+		return field(t.padTitle,
+			h("div", { class: "note warn", text: t.padLearnOnly }),
+			hand,
+			hint(t.padFileHelp),
+			h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => download(file, "numbers.txt", "text/plain") } }, t.padFileSave)),
+			h("details", { class: "more" }, h("summary", { text: t.padFileSee }), h("pre", { class: "code", text: file })));
 	}
 
 	// keyboard for the step-by-step view
@@ -609,62 +693,154 @@
 			return;
 		}
 		if (st.make.tab !== "walk") return;
-		if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); st.make.pos = Math.min(st.make.symbols.length - 1, st.make.pos + 1); render(); }
-		if (e.key === "ArrowLeft") { st.make.pos = Math.max(0, st.make.pos - 1); render(); }
+		const key = st.mode === "pad" && st.make.which === "pad" ? "padPos" : "pos";
+		if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); st.make[key] = Math.min(st.make.symbols.length - 1, st.make[key] + 1); render(); }
+		if (e.key === "ArrowLeft") { st.make[key] = Math.max(0, st.make[key] - 1); render(); }
 	});
 
 	// ---- read --------------------------------------------------------
+	// In pad mode there are two things to read: the sequence, tapped or typed
+	// as in the basic mode, and the pad, as a second string of things (with
+	// the same dictionary or its own) or as a pad file, typed, pasted or opened.
 	function readScreen() {
 		const t = T(), rd = st.read, d = st.dict;
 		if (!d) return h("div", { class: "narrow" }, panel(title(t.readCard), dictLine()));
-		const n = d.things.length, len12 = symbolsFor(12, n), len24 = symbolsFor(24, n);
+		if (!st.mode) return tool(modeChoice(), panel(title(t.readCard), dictLine()));
+		const n = d.things.length, k = Math.log2(n), len12 = symbolsFor(12, n), len24 = symbolsFor(24, n);
+		const padMode = st.mode === "pad", pin = rd.padIn, padThings = pin.dict || d.things;
+		// what is tapped or typed now: the sequence, or the pad's string
+		const onPad = padMode && rd.which === "pad", slot = onPad ? pin : rd, things = onPad ? padThings : d.things;
+		const namesOf = (th) => th.map((x) => x.name.toLowerCase());
+		const objectsOf = (sl, th) => sl.typing
+			? sl.text.split(/[\n,]/).map((s) => s.replace(/^\s*\d+\.\s*/, "").trim().toLowerCase()).filter(Boolean)
+			: sl.taps.map((i) => th[i].name.toLowerCase());
+		// the pad's numbers, from its file or its string
+		const padSymbols = () => {
+			if (pin.source === "string") return S.readSequence(objectsOf(pin, padThings), namesOf(padThings));
+			const f = S.readPadFile(pin.file);
+			if (f.n !== n) throw new S.PadFileError("dictn", "N does not match the dictionary", null, [f.n, n]);
+			return f.pad;
+		};
+		const padFileState = () => { try { return { pad: S.readPadFile(pin.file).pad }; } catch (e) { return { error: e }; } };
+		const decodeNow = () => padMode
+			? S.decodePad(S.readSequence(objectsOf(rd, d.things), namesOf(d.things)), padSymbols(), k)
+			: S.decodeObjects(objectsOf(rd, d.things), namesOf(d.things));
 		const readIt = () => {
-			const objects = rd.typing
-				? rd.text.split(/[\n,]/).map((s) => s.replace(/^\s*\d+\.\s*/, "").trim().toLowerCase()).filter(Boolean)
-				: rd.taps.map((i) => d.things[i].name.toLowerCase());
+			const objects = objectsOf(rd, d.things);
 			rd.error = "";
 			if (!objects.length) rd.error = t.errEmpty;
+			else if (padMode && (pin.source === "file" ? !pin.file.trim() : !objectsOf(pin, padThings).length)) rd.error = t.errPadEmpty;
 			else {
 				try {
-					const names = d.things.map((x) => x.name.toLowerCase());
-					rd.out = S.decodeObjects(objects, names);
-					// the symbols to draw by hand: as read (from the clasp), or, if a
-					// misread piece was repaired, the seed's own
-					const read = objects.map((o) => names.indexOf(o));
-					rd.symbols = rd.out.fixed ? S.encode(rd.out.entropy, Math.log2(n)) : rd.out.reversed ? read.reverse() : read;
-					rd.hand = 0;
+					if (padMode) {
+						const c = S.readSequence(objects, namesOf(d.things)), p = padSymbols();
+						if (c.length !== p.length) rd.error = t.errPadLength(c.length, p.length);
+						else {
+							try { rd.out = S.decodePad(c, p, k); }
+							catch (e) { if (!(e instanceof S.DecodeError)) throw e; rd.error = t.errPadRead(c.length, len12, len24); }
+						}
+					} else {
+						const names = namesOf(d.things);
+						rd.out = S.decodeObjects(objects, names);
+						// the symbols to draw by hand: as read (from the clasp), or, if a
+						// misread piece was repaired, the seed's own
+						const read = objects.map((o) => names.indexOf(o));
+						rd.symbols = rd.out.fixed ? S.encode(rd.out.entropy, k) : rd.out.reversed ? read.reverse() : read;
+						rd.hand = 0;
+					}
 				}
-				catch (e) { rd.error = /not in the dictionary/.test(e.message) ? t.errUnknown(e.message.match(/"(.*)"/)?.[1] || "") : t.errRead(objects.length, len12, len24); }
+				catch (e) {
+					if (e instanceof S.PadFileError) rd.error = t.errPadFile(e.code, e.line, e.detail);
+					else if (/not in the dictionary/.test(e.message)) rd.error = t.errUnknown(e.message.match(/"(.*)"/)?.[1] || "");
+					else rd.error = t.errRead(objects.length, len12, len24);
+				}
 			}
 			render();
 		};
-		let input;
-		if (!rd.typing) {
-			input = [hint(t.tapHelp),
-				h("div", { class: "keypad" }, d.things.map((x, i) =>
+		// pieces tapped (or typed) for the sequence, or for the pad's string
+		const piecesInput = () => {
+			if (slot.typing) {
+				const area = h("textarea", { class: "input", spellcheck: "false", rows: 10, on: { input: (e) => { slot.text = e.target.value; } } });
+				area.value = slot.text;
+				return [hint(t.typeHelp), area,
+					h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => { slot.typing = false; render(); } } }, t.tapInstead))];
+			}
+			return [hint(onPad ? t.tapPadHelp : t.tapHelp),
+				h("div", { class: "keypad" }, things.map((x, i) =>
 					tint(h("button", { class: "key" + (x.colour ? " tinted" : ""), "aria-label": x.name, on: { click: () => {
-						rd.taps.push(i);
-						if (rd.taps.length === len12 || rd.taps.length === len24) {
-							try { S.decodeObjects(rd.taps.map((j) => d.things[j].name), d.things.map((y) => y.name)); readIt(); return; } catch (e) { /* not yet */ }
+						slot.taps.push(i);
+						// a whole string: read the seed as soon as it gives one
+						if (slot.taps.length === len12 || slot.taps.length === len24) {
+							try { decodeNow(); readIt(); return; } catch (e) { /* not yet */ }
 						}
 						render();
 					} } }, icon(x, 36), x.name), x.colour))),
 				h("div", { class: "row" },
-					h("button", { class: "btn ghost small", on: { click: () => { rd.taps.pop(); render(); } } }, t.undo),
-					h("button", { class: "btn ghost small", on: { click: () => { if (confirm(t.clearAsk)) { rd.taps = []; render(); } } } }, t.clear),
-					h("button", { class: "btn ghost small push", on: { click: () => { rd.typing = true; render(); } } }, t.typeInstead))];
-		} else {
-			const area = h("textarea", { class: "input", spellcheck: "false", rows: 10, on: { input: (e) => { rd.text = e.target.value; } } });
-			area.value = rd.text;
-			input = [hint(t.typeHelp), area,
-				h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => { rd.typing = false; render(); } } }, t.tapInstead))];
-		}
-		const last = rd.taps.slice(-5);
+					h("button", { class: "btn ghost small", on: { click: () => { slot.taps.pop(); render(); } } }, t.undo),
+					h("button", { class: "btn ghost small", on: { click: () => { if (confirm(t.clearAsk)) { slot.taps = []; render(); } } } }, t.clear),
+					h("button", { class: "btn ghost small push", on: { click: () => { slot.typing = true; render(); } } }, t.typeInstead))];
+		};
+		// the pad as a file: typed, pasted or opened (it stays on this computer)
+		const padFileInput = () => {
+			const status = h("div", { class: "status" });
+			const showState = () => {
+				if (!pin.file.trim()) { status.className = "status"; status.textContent = ""; return; }
+				const f = padFileState();
+				status.className = "status " + (f.pad ? "ok" : "bad");
+				status.textContent = f.pad ? t.padFileOk(f.pad.length) : t.errPadFile(f.error.code, f.error.line, f.error.detail);
+			};
+			const area = h("textarea", { class: "input", spellcheck: "false", rows: 8, placeholder: "54 16\n3A37 DFE7 0239 3E0F 6\n…",
+				on: { input: (e) => { pin.file = e.target.value; showState(); } } });
+			area.value = pin.file;
+			showState();
+			const open = h("input", { type: "file", accept: ".txt,text/plain", class: "hidden", on: { change: async (e) => {
+				const f = e.target.files[0];
+				if (!f) return;
+				pin.file = await f.text();
+				render();
+			} } });
+			return [hint(t.padFileReadHelp), area, status,
+				h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => open.click() } }, t.padFileOpen), open)];
+		};
+		// the pad's string can have its own dictionary (SPEC §11.4)
+		const padDictInput = () => {
+			const err = h("div");
+			const open = h("input", { type: "file", accept: ".json,.txt,application/json,text/plain", class: "hidden", on: { change: async (e) => {
+				const f = e.target.files[0];
+				if (!f) return;
+				try {
+					const own = dictFromFile(await f.text(), f.name), problem = dictProblem(own);
+					if (problem) { err.replaceChildren(errorBox(problem)); return; }
+					if (own.length !== n) { err.replaceChildren(errorBox(t.errPadDictSize(own.length, n))); return; }
+					pin.dict = own; pin.taps = [];
+					render();
+				} catch (x) { err.replaceChildren(errorBox(t.errDictFile)); }
+			} } });
+			return h("div", { class: "stack" },
+				h("div", { class: "row between" }, h("span", { class: "meta", text: pin.dict ? t.padDictOwn(n) : t.padDictSame }),
+					pin.dict ? h("button", { class: "btn ghost small", on: { click: () => { pin.dict = null; pin.taps = []; render(); } } }, t.padDictForget)
+						: h("button", { class: "btn ghost small", on: { click: () => open.click() } }, t.padDictOpen), open),
+				err);
+		};
+		const left = [title(t.readCard), dictLine()];
+		if (padMode) {
+			const padCount = pin.source === "file" ? (padFileState().pad || []).length : objectsOf(pin, padThings).length;
+			left.push(modeLine(), hint(t.readPadHelp),
+				seg([["seq", `${t.stringSeq} · ${objectsOf(rd, d.things).length}`], ["pad", `${t.stringPad} · ${padCount}`]], rd.which, (v) => { rd.which = v; render(); }));
+			if (onPad) {
+				left.push(seg([["string", t.padAsString], ["file", t.padAsFile]], pin.source, (v) => { pin.source = v; render(); }));
+				if (pin.source === "file") left.push(...padFileInput());
+				else left.push(padDictInput(), ...piecesInput());
+			} else left.push(...piecesInput());
+		} else left.push(modeLine(), ...piecesInput());
+
+		const last = slot.taps.slice(-5);
 		const right = [];
 		// what was read: the string (then the seed), or the QR code by hand —
-		// live while tapping, to draw it as you go, and step by step once read
-		const view = rd.view || "string";
-		if (!rd.typing || rd.out)
+		// live while tapping, to draw it as you go, and step by step once read.
+		// In pad mode the strings are not the QR code: only the seed is shown.
+		const view = padMode ? "string" : rd.view || "string";
+		if (!padMode && (!rd.typing || rd.out))
 			right.push(seg([["string", rd.out ? t.seedFound : t.readViewString], ["hand", t.tabHand]], view, (v) => { rd.view = v; render(); }));
 		if (view === "hand" && (rd.out || !rd.typing)) {
 			if (rd.out) {
@@ -679,14 +855,16 @@
 				h("div", { class: "words" }, words.map((w, i) => h("div", {}, h("span", {}, i + 1), w))),
 				rd.out.fixed ? h("div", { class: "note" }, t.repaired(rd.out.fixed)) : null,
 				rd.out.reversed ? h("div", { class: "note" }, t.reversed) : null,
-				h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => { st.read = { taps: [], typing: false, text: "", out: null, error: "" }; render(); } } }, t.clear))));
-		} else if (!rd.typing) right.push(
-			h("div", { class: "big-total", text: t.tapped(rd.taps.length, len12, len24) }),
+				rd.out.swapped ? h("div", { class: "note" }, t.padSwapped) : null,
+				h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => { st.read = freshRead(); render(); } } }, t.clear))));
+		} else if (!slot.typing && !(onPad && pin.source === "file")) right.push(
+			onPad ? h("div", { class: "label", text: t.stringPad }) : padMode ? h("div", { class: "label", text: t.stringSeq }) : null,
+			h("div", { class: "big-total", text: t.tapped(slot.taps.length, len12, len24) }),
 			h("div", { class: "lasttaps" }, last.map((i, j) => h("span", { class: j === last.length - 1 ? "newest" : "" },
-				icon(d.things[i], j === last.length - 1 ? 48 : 32), h("small", { text: `${rd.taps.length - last.length + j + 1}` })))),
-			stringSvg(d.things, rd.taps));
+				icon(things[i], j === last.length - 1 ? 48 : 32), h("small", { text: `${slot.taps.length - last.length + j + 1}` })))),
+			stringSvg(things, slot.taps));
 		if (!rd.out) right.push(errorBox(rd.error), h("div", { class: "row" }, h("button", { class: "btn push", on: { click: readIt } }, t.readIt)));
-		return tool(panel(title(t.readCard), dictLine(), ...input), panel(...right));
+		return tool(panel(...left), panel(...right));
 	}
 
 	// ---- printable sheet ----------------------------------------------
@@ -700,7 +878,7 @@
 		const shop = [...d.things].sort((a, b) => a.name.localeCompare(b.name, st.lang));
 		return h("div", {},
 			h("div", { class: "noprint panel print-bar" },
-				h("div", { class: "alert" }, t.printWarn),
+				h("div", { class: "alert" }, st.mode === "pad" ? t.printWarnPad : t.printWarn),
 				h("div", { class: "row" },
 					h("button", { class: "btn ghost", on: { click: () => go("make") } }, "◀ " + t.back),
 					h("button", { class: "btn push", on: { click: () => print() } }, t.printBtn))),

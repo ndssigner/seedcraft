@@ -7,8 +7,9 @@ yet for real funds.
 
 **Status of the evidence.** Each claim below points to its evidence (§6),
 in the repository: tests and tools that anyone can run, and that run in CI.
-Pad mode is in the reference implementation (`seedcraft_pad.py`) and its test
-vectors; the web tool and the PDFs do not have it yet.
+Pad mode is in the reference implementation (`seedcraft_pad.py`), its test
+vectors and the web tool (`web/test.mjs` checks it against the same vectors);
+the PDFs do not have it yet.
 
 ## 1. Scope and assumptions
 
@@ -233,10 +234,10 @@ open question (§8).
 | :--- | :--- | :--- | :--- |
 | E1 | A basic sequence gives up its dictionary in $\le 8$ tries for $N \le 16$ | `tools/dictionary_attack.py`; `tests/test_sequences.py` | In the repository, runs in CI |
 | E2 | The same attack finds nothing on a pad-mode sequence: its equations are inconsistent for all 8 masks | `tests/test_pad.py`, every pad-mode vector with $N \le 16$ | In the repository, runs in CI |
-| E3 | One wrong pad symbol is repaired | `tests/test_pad.py`: every position of every vector, in the pad and in the sequence | In the repository, runs in CI |
+| E3 | One wrong pad symbol is repaired | `tests/test_pad.py`: every position of every vector, in the pad and in the sequence; `web/test.mjs`: a random position of each, in the web tool | In the repository, runs in CI |
 | E4 | $C$ is uniform whatever the seed | Proof in §4.1; `tests/test_pad.py`: $\chi^2$ over many encodings of one seed, each position, all together and neighbouring pairs, for every $N$ (and a check that a slightly biased pad is caught) | In the repository, runs in CI |
 | E5 | A reused pad gives away the other seed once one is known | `tools/pad_reuse.py`; `tests/test_pad.py` for every $N$, 12 and 24 words | In the repository, runs in CI |
-| E6 | Check characters: every single error, every adjacent swap but $0 \leftrightarrow N - 1$ | `tests/test_pad.py`: exhaustively over the symbol values for every even $N$ from 2 to 32, over random rows, and every wrong symbol in a pad file | In the repository, runs in CI |
+| E6 | Check characters: every single error, every adjacent swap but $0 \leftrightarrow N - 1$ | `tests/test_pad.py`: exhaustively over the symbol values for every even $N$ from 2 to 32, over random rows, and every wrong symbol in a pad file; `web/test.mjs`: every neighbour swap for $N$ from 4 to 32, and a wrong character in each vector's pad file, in the web tool | In the repository, runs in CI |
 | E7 | Every one of the 8 masks gives a valid CompactSeedQR | `tests/test_pad.py`: every test seed, every $N$, both modes | In the repository, runs in CI |
 | E8 | How many pieces to buy (SPEC §6, §10.6) | `tools/pieces_tables.py`, 100 000 random seeds and pads per row; CI runs it in short | In the repository; with 100 000 samples it gives the tables of SPEC §6 and §10.6 exactly. CI runs it in short, without checking the figures |
 

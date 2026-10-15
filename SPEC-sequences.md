@@ -2,8 +2,8 @@
 
 **Status: draft for discussion.** Nothing here is final until v1, and the
 encoding may still change. Do not store real funds' seeds with a draft.
-The pad mode (§10) is in the reference implementation and its test
-vectors, not yet in the web tool or the PDFs.
+The pad mode (§10) is in the reference implementation, its test vectors
+and the web tool, not yet in the PDFs.
 
 A way to back up a BIP-39 seed as a **sequence of physical things** that can
 be made with craft supplies, read back by software, and **reconstructed by
@@ -550,7 +550,7 @@ anyone find it odd where it is?**
 ## 12. Open questions for v1
 
 - More test vectors (other masks).
-- Pad mode in the web tool and the PDFs.
+- Pad mode in the PDFs.
 - Free decorative pieces outside the dictionary, to break the signature of
   a fixed length and N kinds (`RISK-AUDIT.md` §5).
 - Illustrated instructions with real beads.
