@@ -414,6 +414,54 @@ const SeedcraftSequences = (() => {
 		throw new DecodeError("no direction or role decodes: " + errors[0]);
 	}
 
+	// ---- turns: one piece of the sequence at a time --------------------
+
+	// the QR size (21 or 25) of a sequence of L symbols of k bits; the length
+	// rule of decode()
+	function sizeFor(L, k) {
+		for (const [, [, size]] of Object.entries(LAYOUTS)) {
+			const total = HEADER_BITS + dataModulesRowMajor(size).length;
+			if (L * k === total + (k - total % k) % k) return size;
+		}
+		throw new Error(L + " symbols of " + k + " bits is not a sequence of this format");
+	}
+
+	// the k bits of turn i: { bit (global index), role, cell } where role is
+	// "data", "header" or "padding", and cell is [r, c] only for data
+	function turnBits(size, i, k) {
+		const modules = dataModulesRowMajor(size), nmod = modules.length;
+		const out = [];
+		for (let j = i * k; j < (i + 1) * k; j++) {
+			if (j < nmod) out.push({ bit: j, role: "data", cell: modules[j] });
+			else out.push({ bit: j, role: j < nmod + HEADER_BITS ? "header" : "padding", cell: null });
+		}
+		return out;
+	}
+
+	// (from +/- by) mod n; sign is +1 (making the copy) or -1 (recovering)
+	function clockStep(from, by, n, sign) {
+		const raw = from + sign * by;
+		return { value: ((raw % n) + n) % n, wrapped: sign > 0 ? raw > n - 1 : raw < 0 };
+	}
+
+	// decode() or decodePad() of what was read, in either direction; adds
+	// reversed (the good reading is the sequence backwards), swapped and plain
+	function decodeTurns(symbols, keySymbols, k) {
+		if (keySymbols === null) {
+			const errors = [];
+			for (const reversed of [false, true]) {
+				const reading = reversed ? [...symbols].reverse() : symbols;
+				try { return Object.assign(decode(reading, k), { reversed, swapped: false, plain: reading }); }
+				catch (e) { if (!(e instanceof DecodeError)) throw e; errors.push(e.message); }
+			}
+			throw new DecodeError("neither direction decodes: " + errors[0]);
+		}
+		const result = decodePad(symbols, keySymbols, k), n = 1 << k;
+		const asGiven = result.swapped ? decrypt(keySymbols, symbols, n) : decrypt(symbols, keySymbols, n);
+		const same = asGiven.length === result.plain.length && asGiven.every((x, i) => x === result.plain[i]);
+		return Object.assign(result, { reversed: !same });
+	}
+
 	// a pad-mode sequence and a pad kept as a second string, each read from
 	// either end with its dictionary (the same one unless the pad has its own)
 	function decodePadObjects(objects, padObjects, dictionary, padDictionary) {
@@ -690,5 +738,6 @@ const SeedcraftSequences = (() => {
 		symbolsToBits, readSequence, decodeObjects, physicalSequence, piecesToBuy, rsCorrect,
 		PAD_DIGITS, PadFileError, newPad, DICE, diceBits, throwsToNumber, addPads, encrypt, decrypt, encodePad, decodePad, decodePadObjects,
 		checkCharacter, writePadFile, readPadFile,
+		sizeFor, turnBits, clockStep, decodeTurns,
 	};
 })();
