@@ -383,17 +383,26 @@ const SeedcraftSequences = (() => {
 		k.pos = Math.max(0, Math.min(to, k.pieces.length, L - 1));
 		return k;
 	}
-	// a number drawn: the next piece, or the one being corrected
-	function keyAddPiece(key, value, by, throws = []) {
+	// a number drawn: the next piece, or the one being corrected; a key of L
+	// pieces already full takes no more (only a correction)
+	function keyAddPiece(key, value, by, throws = [], L = Infinity) {
 		const k = keyOf(key), piece = { value, by, throws: throws.slice() };
 		if (k.fix) { k.pieces[k.fix.at] = piece; k.draft = k.fix.held; k.fix = null; }
-		else { k.pieces.push(piece); k.draft = []; }
+		else if (k.pieces.length < L) { k.pieces.push(piece); k.draft = []; }
 		return k;
 	}
 	// one throw of a coin or a die (face from 0): the piece closes once it gives k bits
-	function keyAddThrow(key, face, sides, k) {
+	function keyAddThrow(key, face, sides, k, L = Infinity) {
+		if (!key.fix && key.pieces.length >= L) return keyOf(key);
 		const draft = key.draft.concat(face), r = throwsToNumber(draft, sides, k);
-		return r ? keyAddPiece(key, r.value, key.by, draft) : { ...keyOf(key), draft };
+		return r ? keyAddPiece(key, r.value, key.by, draft, L) : { ...keyOf(key), draft };
+	}
+	// the places where two sequences differ (a longer one's extra places too):
+	// the pieces of a sequence that changed when its key did
+	function changedPieces(a, b) {
+		const out = [];
+		for (let i = 0; i < Math.max(a.length, b.length); i++) if (a[i] !== b[i]) out.push(i);
+		return out;
 	}
 	// mark the piece at pos again: only one set by hand
 	function keyFix(key) {
@@ -773,7 +782,7 @@ const SeedcraftSequences = (() => {
 		sha256, mnemonicToEntropy, entropyToMnemonic,
 		functionModules, templateModule, dataModulesRowMajor, compactSeedQR, encode, decode,
 		symbolsToBits, readSequence, decodeObjects, physicalSequence, piecesToBuy, rsCorrect,
-		PAD_DIGITS, PadFileError, newPad, DICE, diceBits, throwsToNumber, keyMove, keyAddPiece, keyAddThrow, keyFix, addPads, encrypt, decrypt, encodePad, decodePad, decodePadObjects,
+		PAD_DIGITS, PadFileError, newPad, DICE, diceBits, throwsToNumber, keyMove, keyAddPiece, keyAddThrow, keyFix, changedPieces, addPads, encrypt, decrypt, encodePad, decodePad, decodePadObjects,
 		checkCharacter, writePadFile, readPadFile,
 		sizeFor, turnBits, clockStep, decodeTurns,
 	};

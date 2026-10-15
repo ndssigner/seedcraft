@@ -207,6 +207,11 @@ for (const v of padVectors) {
 	check(hex(S.decodeTurns(v.sequence, v.pad, k).entropy) === v.entropy, "decodeTurns pad " + v.name);
 	check(S.decodeTurns([...v.sequence].reverse(), v.pad, k).reversed === true, "decodeTurns pad reversed " + v.name);
 }
+// the two strings given in swapped roles: read, and said so (with N = 2 the roles give the same, and swapped is false)
+for (const v of padVectors.filter((x) => x.n > 2)) {
+	const r = S.decodeTurns(v.pad, v.sequence, v.k);
+	check(r.swapped === true && r.reversed === false && hex(r.entropy) === v.entropy, "decodeTurns pad swapped " + v.name + " k=" + v.k);
+}
 // reading turn by turn, piece by piece: sequence − key on the clock of N gives the basic sequence, and the seed
 for (const v of padVectors) {
 	const plain = v.sequence.map((c, i) => S.clockStep(c, v.pad[i], v.n, -1).value);
@@ -260,6 +265,24 @@ try {
 	const before = JSON.stringify(key);
 	S.keyAddThrow(key, 0, 6, 4); S.keyMove(key, 0, 54); S.keyFix(key);
 	check(JSON.stringify(key) === before, "key functions return a new key");
+	// a full key of L pieces takes no more, by the device, the bag or the throws; a correction still goes in its place
+	const full = S.keyMove(dev, 2, 3);
+	check(S.keyAddPiece(full, 9, "device", [], 3).pieces.length === 3 && S.keyAddPiece(full, 9, "bag", [], 3).pieces.map((p) => p.value).join() === "5,0,15",
+		"keyAddPiece on a full key does not grow it");
+	let full6 = { by: "d6", pieces: [], pos: 0, draft: [] };
+	for (const f of [0, 1]) full6 = S.keyAddThrow(full6, f, 6, 2, 1);
+	full6 = S.keyAddThrow(S.keyAddThrow(full6, 3, 6, 2, 1), 2, 6, 2, 1);
+	check(full6.pieces.length === 1 && full6.pieces[0].value === 0 && full6.draft.length === 0, "keyAddThrow on a full key does not grow it nor start a draft");
+	const bagFull = S.keyAddPiece(S.keyFix(S.keyAddPiece({ by: "bag", pieces: [], pos: 0, draft: [] }, 3, "bag", [], 1)), 6, "bag", [], 1);
+	check(bagFull.pieces.length === 1 && bagFull.pieces[0].value === 6 && !bagFull.fix, "a full key's piece is still corrected in place");
+	check(S.keyAddPiece(dev, 1, "device").pieces.length === 4, "with no L, keyAddPiece adds as before");
 } catch (e) { check(false, "key state functions: " + e); }
+// the pieces of a sequence a corrected key changed
+check(S.changedPieces([1, 2, 3, 4], [1, 5, 3, 0]).join() === "1,3", "changedPieces: the places that differ");
+check(S.changedPieces([1, 2], [1, 2]).length === 0 && S.changedPieces([1], [1, 2]).join() === "1", "changedPieces: none, and a longer one's extra place");
+{
+	const v = padVectors.find((x) => x.k === 4), K2 = v.pad.slice(); K2[5] = (K2[5] + 1) % v.n;
+	check(S.changedPieces(S.encrypt(v.basic, v.pad, v.n), S.encrypt(v.basic, K2, v.n)).join() === "5", "one key piece corrected changes that one piece of the sequence");
+}
 console.log(`${failures ? "FAIL" : "ok"}: ${vectors.length} vectors, ${padVectors.length} pad vectors, ${failures} failures`);
 process.exit(failures ? 1 : 0);

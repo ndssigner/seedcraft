@@ -65,12 +65,13 @@
 	// in "What you have"); last, the turn a tap just completed; typing, text,
 	// keyText: everything typed at once; out, error: what decodeTurns made of
 	// it, for sig (the pieces it was worked out from). What it is read as is
-	// its own, apart from the backup being made (st.plan, st.padDict): words,
-	// padAs, padForm and padDict (the key's own collection), kept from `keep`.
+	// its own, apart from the backup being made (st.mode, st.plan, st.padDict):
+	// mode, words, padAs, padForm and padDict (the key's own collection), kept from `keep`.
 	function freshRead(keep) {
 		return { turn: 0, taps: [], keyTaps: [], keyFile: null, fileText: "", last: null,
 			typing: false, text: "", keyText: "", out: null, error: "", sig: "",
-			words: keep ? keep.words : 12, padAs: keep ? keep.padAs : "string", padForm: keep ? keep.padForm : null, padDict: keep ? keep.padDict : null };
+			words: keep ? keep.words : 12, padAs: keep ? keep.padAs : "string", padForm: keep ? keep.padForm : null, padDict: keep ? keep.padDict : null,
+			mode: keep ? keep.mode : null };
 	}
 	const T = () => SEEDCRAFT_TEXT[st.lang];
 	// a dictionary of another size: what was made or read with the old one
@@ -432,18 +433,27 @@
 	// an element edged in a piece's colour (CSS var --c)
 	const tint = (e, colour) => { if (colour) e.style.setProperty("--c", colour); return e; };
 	// the two modes (SPEC §10, §11.1), chosen before making or reading: what
-	// each one keeps safe, and what it doesn't. Changing it starts over.
+	// each one keeps safe, and what it doesn't. Recovering, it is what is read's
+	// (st.read.mode), apart from the backup being made (st.mode). Choosing the
+	// same one again changes nothing; another starts over, and a backup's key
+	// or sequence already made goes only once the person says so.
+	const modeNow = () => st.screen === "read" ? st.read.mode : st.mode;
 	function setMode(mode) {
+		if (mode === modeNow()) return true;
+		if (st.screen === "read") {
+			st.read = { ...freshRead(st.read), mode };
+			return true;
+		}
+		const m = st.make;
+		if (((m.key && m.key.pieces.length) || m.symbols) && !confirm(T().modeChangeAsk)) return false;
 		st.mode = mode;
-		st.make = { seed: st.make.seed, entropy: null, symbols: null, pos: 0, tab: "turn" };
-		st.read = freshRead(st.read);
-		st.step.read = "have";
-		render();
+		st.make = { seed: m.seed, entropy: null, symbols: null, pos: 0, tab: "turn" };
+		return true;
 	}
 	function modeChoice(then) {
 		const t = T();
-		const option = (mode, name, points) => h("button", { class: "mode" + (st.mode === mode ? " on" : ""), "aria-pressed": String(st.mode === mode),
-			on: { click: () => { setMode(mode); if (then) then(); } } },
+		const option = (mode, name, points) => h("button", { class: "mode" + (modeNow() === mode ? " on" : ""), "aria-pressed": String(modeNow() === mode),
+			on: { click: () => { if (!setMode(mode)) return; if (then) then(); else render(); } } },
 			art(mode), h("b", { text: name }), h("span", { class: "points" }, points.map((x) => h("span", { text: x }))));
 		return panel(h("p", { class: "lead", text: st.screen === "read" ? t.modeHelpRead : t.modeHelp }),
 			h("div", { class: "modes" }, option("basic", t.modeBasic, t.modeBasicPoints), option("pad", t.modePad, t.modePadPoints)));
@@ -467,7 +477,7 @@
 		const m = st.make, rd = st.read;
 		if (flow === "make") return ({ plan: !!st.mode, gather: !!st.gathered, dict: !!st.dict && st.dict.checked && (!keyDictNeeded() || !!st.padDict),
 			key: keyReady() && (st.plan.padAs === "string" || !!m.padKept), seq: !!m.symbols, check: !!m.checked, store: !!m.stored })[step];
-		return ({ have: !!st.mode && !!st.dict && keyGiven(), recover: !!rd.out, seed: !!rd.out })[step];
+		return ({ have: !!rd.mode && !!st.dict && keyGiven(), recover: !!rd.out, seed: !!rd.out })[step];
 	}
 	function journey(flow) {
 		const t = T(), steps = stepsOf(flow);
@@ -508,10 +518,12 @@
 		if (flow === "make") {
 			if (step !== "plan" && step !== "store" && !st.mode) need = "plan";
 			else if (["key", "seq", "check"].includes(step) && !st.dict) need = "dict";
-			else if (step === "key" && keyDictNeeded() && !st.padDict) need = "dict";
+			else if (["key", "seq", "check"].includes(step) && keyDictNeeded() && !st.padDict) need = "dict";
 			else if (["seq", "check"].includes(step) && st.mode === "pad" && !keyReady()) need = "key";
+			// a key file is saved before a sequence is made with it, and before it is checked: this page forgets it
+			else if ((step === "check" || (step === "seq" && !st.make.symbols)) && st.mode === "pad" && st.plan.padAs === "file" && !st.make.padKept) need = "key";
 			else if (step === "check" && !st.make.symbols) need = "seq";
-		} else if (step !== "have" && (!st.mode || !st.dict || !keyGiven())) need = "have";
+		} else if (step !== "have" && (!st.read.mode || !st.dict || !keyGiven())) need = "have";
 		else if (step === "seed" && !st.read.out) need = "recover";
 		if (!need) return null;
 		setNav({ hidden: true });
@@ -530,7 +542,7 @@
 		if (!stepsOf("read").includes(st.step.read)) st.step.read = "have";
 		const step = st.step.read;
 		navOpts = {};
-		if (st.mode && st.dict && keyGiven()) readOut(st.read);
+		if (st.read.mode && st.dict && keyGiven()) readOut(st.read);
 		const body = needFirst("read", step) || ({ have: haveStep, recover: () => turnReader(st.read), seed: seedStep })[step]();
 		return h("div", { class: "flow" }, journey("read"), h("div", { class: "flow-body" }, body), stepNav("read", navOpts));
 	}
@@ -581,9 +593,10 @@
 	}
 
 	// a step's own little steps, on a short thread: keys, their names, the current one, which are done, go(key)
+	// (the first one, the mode, opens the others)
 	const subSteps = (keys, names, current, done, go) => h("ol", { class: "substeps" }, keys.map((x, i) =>
 		h("li", { class: [x === current ? "on" : "", done[x] ? "done" : ""].filter(Boolean).join(" ") },
-			h("button", { disabled: x !== keys[0] && !st.mode ? "" : undefined, "aria-current": x === current ? "step" : null, on: { click: () => go(x) } },
+			h("button", { disabled: x !== keys[0] && !modeNow() ? "" : undefined, "aria-current": x === current ? "step" : null, on: { click: () => go(x) } },
 				h("span", { class: "knot", "aria-hidden": "true" }), names[i]))));
 	function planStep() {
 		const t = T(), p = st.plan, d = st.dict;
@@ -1066,14 +1079,28 @@
 	// the key is complete, and as long as the seed planned
 	const keyReady = () => !!st.make.pad && !!st.dict && st.make.pad.length === keyLength();
 	// the key as it now is and, once complete, its numbers. A sequence already
-	// made with it follows a fixed piece.
+	// made with it follows a fixed piece: the pieces of it that changed are
+	// kept in m.keyChanged, to be told and fixed on the string, and it is
+	// checked again.
 	function setKey(key) {
 		const m = st.make, n = st.dict.things.length, L = keyLength(), was = m.pad;
 		m.key = key;
 		m.pad = key.pieces.length === L ? key.pieces.map((p) => p.value) : null;
 		if (String(was) === String(m.pad)) return;
 		m.padKept = false;
-		if (m.basic && m.pad) { m.symbols = S.encrypt(m.basic, m.pad, n); m.checked = false; m.check = null; }
+		if (m.basic && m.pad) {
+			const before = m.symbols;
+			m.symbols = S.encrypt(m.basic, m.pad, n); m.checked = false; m.check = null;
+			if (before) m.keyChanged = [...new Set([...(m.keyChanged || []), ...S.changedPieces(before, m.symbols)])].sort((a, b) => a - b);
+		}
+	}
+	// the pieces of the sequence changed by a key corrected after it was made, each a way to its turn
+	function keyChangedNote() {
+		const t = T(), m = st.make, changed = m.symbols && m.keyChanged || [];
+		if (!changed.length) return null;
+		const toTurn = (j) => { st.seen.howTo = true; m.tab = "turn"; m.turn = j; toStep("make", "seq"); };
+		return h("div", { class: "note warn" }, t.keyChanged(changed.length), " ",
+			...changed.slice(0, 6).map((j) => h("button", { class: "btn ghost small", on: { click: () => toTurn(j) } }, t.readPiece(j + 1))));
 	}
 	// to another piece; the lines explained on the one left are not shown again
 	function keyGo(to) {
@@ -1110,14 +1137,25 @@
 		setKey(m.key || { by: null, pieces: [], pos: 0, draft: [], fix: null });
 		const key = m.key, have = key.pieces.length, values = key.pieces.map((p) => p.value);
 		const update = (next) => { setKey(next); render(); };
-		setNav({ ready: have === L });
+		// a key file goes on only once saved: Check reads it, and Store forgets it here
+		setNav({ ready: have === L && (asString || !!m.padKept) });
 
-		// on the right, the key as it grows: its map, or its file
+		// on the right, the key as it grows: its map or its list, or its file
 		const right = [];
-		if (asString) right.push(h("div", { class: "note pad", text: t.padStringHelp }), hint(t.forms[form].drawing), have
-			? h("div", { class: "map tall" }, drawSeq(things, values, { current: key.pos, onPick: (i) => keyGo(i), pad: true, form }))
-			: h("div", { class: "key-empty" }, art("keyThings"), hint(t.keyEmpty)));
-		else {
+		if (asString) {
+			const tab = have && m.keyTab === "list" ? "list" : "map";
+			right.push(h("div", { class: "note pad", text: t.padStringHelp }));
+			if (have) right.push(seg([["map", t.tabWalk], ["list", t.tabList]], tab, (v) => { m.keyTab = v; render(); }));
+			if (!have) right.push(h("div", { class: "key-empty" }, art("keyThings"), hint(t.keyEmpty)));
+			else if (tab === "map") right.push(hint(t.forms[form].drawing),
+				h("div", { class: "map tall" }, drawSeq(things, values, { current: key.pos, onPick: (i) => keyGo(i), pad: true, form })));
+			else {
+				// the same key as names, one per line; saved only once it is whole
+				const text = values.map((v, i) => `${i + 1}. ${things[v].name}`).join("\n");
+				right.push(hint(t.listHelp), h("pre", { class: "code" }, text),
+					have === L ? h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => download(text + "\n", "list-b.txt", "text/plain") } }, t.saveList)) : null);
+			}
+		} else {
 			const lines = have ? S.writePadFile(values, n).trimEnd().split("\n") : [""];
 			lines[0] = `${L} ${n}`;
 			// a row still open has no check character yet
@@ -1126,7 +1164,7 @@
 			right.push(h("div", { class: "label pad-label", text: t.padFileTitle }), hint(t.padFileHelp),
 				h("pre", { class: "code pad-file" }, lines.map((x, i) => h("span", { class: i === row ? "on" : null, text: x + "\n" }))));
 			if (key.pieces[key.pos] && !key.fix && closesRow(key.pos, L) && !st.seen.rowCheck) right.push(h("div", { class: "note pad", text: t.keyRowCheck }));
-			if (have === L) right.push(h("div", { class: "row" }, h("button", { class: "btn",
+			if (have === L) right.push(m.padKept ? null : h("div", { class: "note warn", text: t.keySaveFirst }), h("div", { class: "row" }, h("button", { class: m.padKept ? "btn ghost" : "btn",
 				on: { click: () => { download(S.writePadFile(m.pad, n), "numbers.txt", "text/plain"); m.padKept = true; render(); } } }, t.padFileSave)));
 		}
 
@@ -1139,7 +1177,7 @@
 			// a bag only of pieces you can hold
 			const tools = [formOf(form).family !== "written" ? ["bag", t.toolBag] : null, ["coin", t.toolCoin],
 				...S.DICE.filter((s) => s !== 2).map((s) => ["d" + s, "🎲 d" + s])].filter(Boolean);
-			return tool(panel(...stepHead("make", t.keyLead),
+			return tool(panel(...stepHead("make", t.keyLead), keyChangedNote(),
 				h("div", { class: "choices" }, option("me", "✋", t.keyMe, t.keyMeHelp), option("device", "🖥️", t.keyDevice, t.keyDeviceHelp)),
 				who === "me" ? field(t.keyTools, h("div", { class: "row" }, tools.map(([by, label]) =>
 					h("button", { class: "btn ghost", on: { click: () => update({ ...key, by, draft: [] }) } }, label)))) : null,
@@ -1159,7 +1197,7 @@
 			const put = () => {
 				keyRolling = false;
 				const x = m.key;
-				if (st.screen === "make" && st.step.make === "key" && x && x.by === "device" && !x.fix && x.pieces.length < keyLength()) update(S.keyAddPiece(x, value, "device"));
+				if (st.screen === "make" && st.step.make === "key" && x && x.by === "device" && !x.fix && x.pieces.length < keyLength()) update(S.keyAddPiece(x, value, "device", [], keyLength()));
 				else render();
 			};
 			keyRolling = true;
@@ -1172,12 +1210,12 @@
 		const all = () => {
 			if (keyRolling) return;
 			let x = S.keyMove(m.key, m.key.pos, L);
-			for (const v of S.newPad(L - x.pieces.length, n)) x = S.keyAddPiece(x, v, "device");
+			for (const v of S.newPad(L - x.pieces.length, n)) x = S.keyAddPiece(x, v, "device", [], L);
 			st.seen.keyWhy = true;
 			update(S.keyMove(x, L - 1, L));
 		};
 		// a throw marked by hand: the piece's own coin or die when marking it again
-		const mark = (f) => update({ ...S.keyAddThrow({ ...m.key, by: markBy }, f, sides, k), by: key.by });
+		const mark = (f) => update({ ...S.keyAddThrow({ ...m.key, by: markBy }, f, sides, k, L), by: key.by });
 		const side = (i) => h("div", { class: "side" }, i >= 0 && i < have && i !== pos
 			? [hint(`${i < pos ? t.prevPiece : t.nextPiece} ${i + 1}`), icon(things[values[i]], 44), h("div", { class: "small-name", text: things[values[i]].name })] : null);
 		const centre = piece
@@ -1193,7 +1231,7 @@
 				h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => update(S.keyFix(key)) } }, t.keyFix)));
 		} else if (markBy === "device") controls.push(h("div", { class: "row" }, waits(h("button", { class: "btn", on: { click: draw } }, "🎲 " + t.keyRoll))));
 		else if (markBy === "bag") controls.push(hint(t.keyBagHow), h("div", { class: "palette" }, things.map((x, i) =>
-			h("button", { class: "pal", title: x.name, "aria-label": x.name, on: { click: () => update(S.keyAddPiece(m.key, i, "bag")) } }, icon(x, 40)))));
+			h("button", { class: "pal", title: x.name, "aria-label": x.name, on: { click: () => update(S.keyAddPiece(m.key, i, "bag", [], L)) } }, icon(x, 40)))));
 		else {
 			const faces = sides === 2 ? [[1, t.coinHeads], [0, t.coinTails]] : Array.from({ length: sides }, (_, f) => [f, String(sides === 10 ? f : f + 1)]);
 			controls.push(hint(sides === 2 ? t.keyThrowCoin : t.keyThrowDie),
@@ -1206,7 +1244,7 @@
 			h("span", { class: "meta", text: key.by === "device" ? t.keyDevice : key.by === "bag" ? t.toolBag : key.by === "coin" ? t.toolCoin : "🎲 " + key.by }),
 			key.draft.length || key.fix ? null : h("button", { class: "btn ghost small", on: { click: () => { m.keyWho = null; update({ ...key, by: null }); } } }, t.keyChange));
 		return tool(
-			panel(...stepHead("make", null, aside),
+			panel(...stepHead("make", null, aside), keyChangedNote(),
 				h("div", { class: "label", text: t.walkOf(pos + 1, L) }),
 				h("div", { class: "wizard" }, side(pos - 1), centre, side(pos + 1)),
 				st.seen.keyWhy ? null : hint(t.keyWhy),
@@ -1225,7 +1263,8 @@
 	// another seed: its words go, and in pad mode the key too: it starts again from the key (one key, one seed: SPEC §10.8)
 	function otherSeed() {
 		const m = st.make;
-		m.seed = ""; m.symbols = m.entropy = m.basic = null;
+		m.seed = ""; m.symbols = m.entropy = m.basic = m.check = m.keyChanged = null;
+		m.checked = m.stored = false;
 		if (st.mode !== "pad") { render(); return; }
 		m.key = m.pad = null; m.keyWho = null; m.padKept = false;
 		toStep("make", "key");
@@ -1271,7 +1310,7 @@
 							m.symbols = S.encrypt(m.basic, m.pad, n);
 						} else m.symbols = S.encode(m.entropy, k);
 						m.pos = m.turn = 0; m.tab = "turn";
-						m.checked = m.stored = false; m.check = null;
+						m.checked = m.stored = false; m.check = null; m.keyChanged = null;
 						render();
 					} } }, t.makeIt))),
 				panel(h("p", { class: "lead", text: padMode ? t.seqPadIntro : t.seqIntro }), kindsRow(st.plan.form, n, 0, d.things)));
@@ -1313,15 +1352,16 @@
 		}
 		const v = stringViews(m.symbols, { posKey: "pos", tabKey: "tab", listName: padMode ? "list-a.txt" : "sequence.txt",
 			help: padMode ? t.seqStringHelp : t.forms[form].make, turns: true });
-		const rest = [h("div", { class: "alert", text: padMode ? t.padMakeWarn : t.makeWarn }),
-			h("details", { class: "more" }, h("summary", { text: t.seqAbout }),
+		// the safety alert right under the step's name
+		const alert = h("div", { class: "alert", text: padMode ? t.padMakeWarn : t.makeWarn });
+		const rest = [h("details", { class: "more" }, h("summary", { text: t.seqAbout }),
 				fingerprintLine(m.entropy),
 				written ? null : h("p", { text: t.shop(each, n) }),
 				h("p", { text: materialsOf(form, L, n) }),
 				h("div", { class: "row" },
 					h("button", { class: "btn ghost small", on: { click: () => { if (confirm(t.otherSeedAsk(st.mode))) otherSeed(); } } }, "◀ " + t.otherSeed))),
 			h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => go("print") } }, "🖨 " + t.printIt))];
-		if (m.tab !== "turn") return tool(panel(...head(t.total(L)), ...v.left, v.tabs, ...rest), panel(...v.right));
+		if (m.tab !== "turn") return tool(panel(...head(t.total(L)), alert, ...v.left, v.tabs, ...rest), panel(...v.right));
 
 		// the seed's own sequence (in pad mode, before the key), and its bits
 		const plain = padMode ? m.basic : m.symbols, bits = S.symbolsToBits(plain, k);
@@ -1338,14 +1378,15 @@
 				byRow.size ? hint(t.handCells([...byRow].map(([r, cs]) => [r + 1, cs]))) : null));
 			if (padMode) {
 				// + the key's piece, on the clock of N
-				const K = m.pad[i], sum = S.clockStep(P, K, n, 1), raw = P + K, keyThings = st.plan.padAs === "string" ? (st.plan.padForm && st.padDict ? st.padDict.things : things) : null;
+				const K = m.pad[i], sum = S.clockStep(P, K, n, 1), raw = P + K, keyThings = st.plan.padAs === "string" ? (!st.plan.padForm ? things : st.padDict ? st.padDict.things : null) : null;
 				left.push(h("div", { class: "turn-key" }, clockSvg(n, P, K, 1), h("div", { class: "stack tight" },
 					h("div", { class: "row key-line" }, h("span", { class: "pad-label", text: t.turnKey(i + 1) }), keyThings ? icon(keyThings[K], 30) : null, h("b", { class: "bits-num", text: String(K) })),
 					h("code", { class: "turn-sum", text: `${P} + ${K} = ${raw}` + (sum.wrapped ? ` → ${raw} − ${n} = ${sum.value}` : "") }),
 					hint(t.turnClock(P, K, n, sum.wrapped)))));
 			}
 			left.push(h("div", { class: "turn-part" }, collectionRow(things, C, k), hint(t.turnCollection(C))),
-				h("div", { class: "turn-piece" }, icon(things[C], 64), h("div", { class: "stack tight" }, h("b", { class: "name", text: things[C].name }), h("span", { text: t.turnPut }))));
+				h("div", { class: "turn-piece" }, icon(things[C], 64), h("div", { class: "stack tight" }, h("b", { class: "name", text: things[C].name }), h("span", { text: t.turnPut }))),
+				(m.keyChanged || []).includes(i) ? h("div", { class: "note warn", text: t.seqKeyChanged }) : null);
 			// the last turns are the header (version and mask) and the padding: no squares of the QR code
 			if (roles.includes("header")) left.push(h("div", { class: "note" }, t.handHeader, " ", h("b", { text: t.handTemplate(size, qr.mask) })));
 			if (roles.includes("padding")) left.push(h("div", { class: "note", text: t.handPadding }));
@@ -1356,7 +1397,7 @@
 			done ? null : h("button", { class: "btn", on: { click: () => turnGo(i + 1) } }, t.nextPiece + " ▶"),
 			h("button", { class: "btn ghost small push", on: { click: () => turnGo(done ? 0 : L) } }, done ? t.handRestart : t.seeAll)));
 		// on the right, the QR code with this turn's squares, and the string so far
-		return tool(panel(...head(t.handStep(Math.min(i + 1, L), L)), ...left, v.tabs, ...rest),
+		return tool(panel(...head(t.handStep(Math.min(i + 1, L), L)), alert, ...left, v.tabs, ...rest),
 			panel(turnGrid(size, qr, painted, turn, (bit) => turnGo(Math.floor(bit / k))),
 				h("div", { class: "map turn-map" }, drawSeq(things, done ? m.symbols : m.symbols.slice(0, i + 1), { current: done ? -1 : i, onPick: turnGo, form }))));
 	}
@@ -1366,7 +1407,7 @@
 		const m = st.make;
 		if (!m.check) m.check = freshRead();
 		// read as it was made; a key file made here is read as it is (the key as things is read back like the sequence)
-		Object.assign(m.check, { words: st.plan.words, padAs: st.plan.padAs, padForm: st.plan.padForm, padDict: st.padDict });
+		Object.assign(m.check, { mode: st.mode, words: st.plan.words, padAs: st.plan.padAs, padForm: st.plan.padForm, padDict: st.padDict });
 		if (st.mode === "pad" && st.plan.padAs === "file") m.check.keyFile = m.pad;
 		return turnReader(m.check, { expect: m.entropy });
 	}
@@ -1375,10 +1416,14 @@
 	function storeStep() {
 		const t = T(), m = st.make, padMode = st.mode === "pad";
 		const items = padMode ? t.storePad : t.storeBasic;
+		// a key file made here and never saved: forgetting would lose the seed, so it is saved first
+		const unsaved = padMode && st.plan.padAs === "file" && !!m.pad && !m.padKept;
 		// one column: what to do, then forgetting the seed here
 		return h("div", { class: "narrow" }, panel(...stepHead("make"),
 				h("ul", { class: "checks" }, items.map((x) => h("li", {}, h("label", {}, h("input", { type: "checkbox" }), h("span", { text: x }))))),
-				h("div", { class: "row forget" }, h("button", { class: "btn", on: { click: () => {
+				unsaved ? h("div", { class: "note warn" }, t.storeKeyUnsaved, " ", h("button", { class: "btn small",
+					on: { click: () => { download(S.writePadFile(m.pad, st.dict.things.length), "numbers.txt", "text/plain"); m.padKept = true; render(); } } }, t.padFileSave)) : null,
+				h("div", { class: "row forget" }, h("button", { class: "btn", disabled: unsaved ? "" : undefined, on: { click: () => {
 					if (!confirm(t.storeForgetAsk(st.mode))) return;
 					st.make = { seed: "", entropy: null, symbols: null, pos: 0, tab: "turn" };
 					st.read = freshRead(); st.gathered = false; fingerprints.clear();
@@ -1396,7 +1441,7 @@
 			if (e.key === "ArrowLeft") { obj[key] = Math.max(0, (obj[key] || 0) - 1); render(); }
 		};
 		// reading turn by turn: the arrows move among the turns read (the space bar is left to the buttons)
-		const rd = st.edit || !st.dict ? null : st.screen === "read" && st.step.read === "recover" && st.mode && keyGiven() ? st.read
+		const rd = st.edit || !st.dict ? null : st.screen === "read" && st.step.read === "recover" && st.read.mode && keyGiven() ? st.read
 			: st.screen === "make" && st.step.make === "check" && m.symbols ? m.check : null;
 		if (rd && !rd.typing) {
 			if (e.key === "ArrowRight") readGo(rd, rd.turn + 1);
@@ -1422,17 +1467,17 @@
 	// ---- read ------------------------------------------------------------
 	// read, 1: what you have — the mode it was made in, its dictionary and, with a key, the key
 	function haveStep() {
-		const t = T(), rd = st.read, padMode = st.mode === "pad";
+		const t = T(), rd = st.read, padMode = rd.mode === "pad";
 		if (st.edit) return dictStep();
 		const r = st.have || (st.have = { sub: "mode" });
-		if (!st.mode && r.sub !== "mode") r.sub = "mode";
+		if (!rd.mode && r.sub !== "mode") r.sub = "mode";
 		if (!padMode && r.sub === "key") r.sub = "dict";
 		const goSub = (x) => { r.sub = x; render(); scrollTo(0, 0); };
 		const KEYS = ["mode", "form", "dict", padMode ? "key" : null].filter(Boolean), names = [t.planSubs[0], t.planSubs[1], t.haveDictSub, t.haveKeySub];
-		const subs = subSteps(KEYS, names, r.sub, { mode: !!st.mode, form: !!r.formChosen, dict: !!st.dict, key: !!st.dict && keyGiven() }, goSub);
+		const subs = subSteps(KEYS, names, r.sub, { mode: !!rd.mode, form: !!r.formChosen, dict: !!st.dict, key: !!st.dict && keyGiven() }, goSub);
 		const back = (x) => ["◀ " + names[KEYS.indexOf(x)], () => goSub(x)], on = (x) => [names[KEYS.indexOf(x)] + " ▶", () => goSub(x)];
 		let body;
-		if (r.sub === "mode") { body = modeChoice(() => goSub("form")); setNav({ prev: null, next: on("form"), ready: !!st.mode }); }
+		if (r.sub === "mode") { body = modeChoice(() => goSub("form")); setNav({ prev: null, next: on("form"), ready: !!rd.mode }); }
 		else if (r.sub === "form") {
 			// any form: a backup to read back may have been made in one that is not recommended
 			body = tool(panel(h("p", { class: "lead", text: t.haveFormHelp }), formPicker(FORMS, (id) => { st.plan.form = id; r.formChosen = true; render(); })),
@@ -1502,14 +1547,14 @@
 	}
 	// the key is given: in pad mode, its file checked, or its collection known
 	function keyGiven() {
-		if (st.mode !== "pad") return true;
 		const rd = st.read;
+		if (rd.mode !== "pad") return true;
 		return rd.padAs === "file" ? !!rd.keyFile : !rd.padForm || !!rd.padDict;
 	}
 
 	// ---- read, 2 (and make, 6): turn by turn --------------------------------------
 	// The key's numbers so far (null in the basic mode): its file's, or its pieces tapped
-	const readKey = (rd) => st.mode !== "pad" ? null : rd.padAs === "file" ? rd.keyFile || [] : rd.keyTaps;
+	const readKey = (rd) => rd.mode !== "pad" ? null : rd.padAs === "file" ? rd.keyFile || [] : rd.keyTaps;
 	// a key as things: its own collection, or the sequence's
 	const keyThingsOf = (rd) => rd.padForm && rd.padDict ? rd.padDict.things : st.dict.things;
 	const readLength = (rd) => symbolsFor(rd.words, st.dict.things.length);
@@ -1524,7 +1569,7 @@
 	// to another turn: any one already read, or the first one not read yet
 	function readGo(rd, to) { rd.turn = Math.max(0, Math.min(readFrontier(rd), to)); rd.last = null; seenWhy(rd); render(); }
 	// past the first turn, the basic mode's why (shared with making one) is not shown again
-	function seenWhy(rd) { if (rd.turn > 0 && st.mode !== "pad") st.seen.whyBasic = true; }
+	function seenWhy(rd) { if (rd.turn > 0 && rd.mode !== "pad") st.seen.whyBasic = true; }
 	// What the L turns give, worked out again only when a piece changes:
 	// decodeTurns (both directions, both roles) or, if nothing decodes, "nofit".
 	function readOut(rd) {
@@ -1542,8 +1587,8 @@
 	// bits differ from the QR code the seed gives (its data squares and its
 	// header). Only when the good reading is the order the pieces were read in
 	// (or, with no key, that order backwards); otherwise null.
-	function wrongTurns(out, L, k) {
-		const reading = !out.reversed ? (j) => j : st.mode !== "pad" ? (j) => L - 1 - j : null;
+	function wrongTurns(out, L, k, padMode) {
+		const reading = !out.reversed ? (j) => j : !padMode ? (j) => L - 1 - j : null;
 		if (!reading) return null;
 		const qr = S.compactSeedQR(out.entropy), cells = S.dataModulesRowMajor(qr.size), ndata = cells.length;
 		const want = cells.map(([r, c]) => qr.getModule(c, r) ? 1 : 0).concat([0, 0], bitsOf(qr.mask, 3));
@@ -1551,11 +1596,12 @@
 		for (let j = 0; j < L; j++) for (let b = j * k; b < (j + 1) * k && b < ndata + 5; b++) if (bits[b] !== want[b]) { wrong.push(reading(j)); break; }
 		return wrong.sort((a, b) => a - b);
 	}
-	// the seed read: its words and fingerprint; checking a copy, whether it is the one made
+	// the seed read: its words and fingerprint; checking a copy, whether it is the one made,
+	// exactly (with no piece the QR code had to put right)
 	function seedResult(out, expect) {
-		const t = T(), same = !!expect && [...out.entropy].join() === [...expect].join();
-		return h("div", { class: "result" + (expect && !same ? " wrong" : "") },
-			h("div", { class: "result-title", text: expect ? (same ? "✓ " + t.checkMatch : "✗ " + t.checkMismatch) : "✓ " + t.seedFound }), seedAlert(),
+		const t = T(), same = !!expect && [...out.entropy].join() === [...expect].join(), exact = same && !out.fixed;
+		return h("div", { class: "result" + (expect && !exact ? " wrong" : "") },
+			h("div", { class: "result-title", text: expect ? (exact ? "✓ " + t.checkMatch : same ? "⚠ " + t.checkFixed : "✗ " + t.checkMismatch) : "✓ " + t.seedFound }), seedAlert(),
 			h("div", { class: "words" }, S.entropyToMnemonic(out.entropy).split(" ").map((w, i) => h("div", {}, h("span", {}, i + 1), w))),
 			fingerprintLine(out.entropy));
 	}
@@ -1572,7 +1618,7 @@
 	// fingerprint, or what to look at again. The same reader recovers a seed
 	// and checks a copy just made (opts.expect: the seed it should give).
 	function turnReader(rd, opts = {}) {
-		const t = T(), things = st.dict.things, n = things.length, k = Math.log2(n), padMode = st.mode === "pad";
+		const t = T(), things = st.dict.things, n = things.length, k = Math.log2(n), padMode = rd.mode === "pad";
 		const checking = !!opts.expect, flow = checking ? "make" : "read", m = st.make;
 		const L = readLength(rd), size = S.sizeFor(L, k), ndata = S.dataModulesRowMajor(size).length;
 		const keyThings = padMode && rd.padAs === "string" ? keyThingsOf(rd) : null;
@@ -1581,8 +1627,12 @@
 		const i = rd.turn = Math.max(0, Math.min(frontier, rd.turn || 0));
 		const plainOf = (j) => key ? S.clockStep(rd.taps[j], key[j], n, -1).value : rd.taps[j];
 		const out = i === L ? rd.out : null, qr = out && S.compactSeedQR(out.entropy);
-		// checking: the copy reads back only while every piece read gives the seed made
-		if (checking) m.checked = !!rd.out && [...rd.out.entropy].join() === [...opts.expect].join();
+		// checking: the copy reads back only while every piece read gives the seed made, exactly:
+		// a piece the QR code's error correction had to put right is still wrong on the string
+		if (checking) {
+			m.checked = !!rd.out && !rd.out.fixed && [...rd.out.entropy].join() === [...opts.expect].join();
+			if (m.checked) m.keyChanged = null;
+		}
 		// the squares painted: the turns read, as read; at the end, the seed's own QR code
 		const painted = qr ? qrPainted(qr) : new Map(), read = [];
 		if (!qr) for (let j = 0; j < frontier; j++) read.push(...bitsOf(plainOf(j), k));
@@ -1681,11 +1731,11 @@
 			else if (rd.last === i - 1 && i > 0) left.push(h("div", { class: "turn-last" }, h("div", { class: "label", text: t.readLast(i) }), ...turnMath(i - 1)));
 			left.push(tools);
 		} else if (out) {
-			const wrong = wrongTurns(out, L, k);
+			const wrong = wrongTurns(out, L, k, padMode);
 			left.push(...readNotes(out),
 				wrong && wrong.length ? h("div", { class: "note warn" }, t.readWrong(wrong.length), " ",
 					...wrong.slice(0, 6).map((j) => h("button", { class: "btn ghost small", on: { click: () => readGo(rd, j) } }, t.readPiece(j + 1))))
-				: out.fixed && !wrong ? h("div", { class: "note warn", text: t.readFixed }) : null,
+				: out.fixed ? h("div", { class: "note warn", text: t.readFixed }) : null,
 				seedResult(out, opts.expect), tools);
 		} else left.push(errorBox(rd.error === "nofit" ? t.readNoFit : ""), hint(t.readJump), tools);
 		if (!checking) setNav({ ready: !!rd.out });
@@ -1703,7 +1753,7 @@
 		const t = T(), rd = st.read, qr = S.compactSeedQR(rd.out.entropy);
 		setNav({});
 		return tool(panel(...stepHead("read"), ...readNotes(rd.out), seedResult(rd.out),
-			h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => { st.read = freshRead(); toStep("read", "have"); } } }, t.readAgain))),
+			h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => { st.read = { ...freshRead(), mode: st.read.mode }; toStep("read", "have"); } } }, t.readAgain))),
 			panel(turnGrid(qr.size, qr, qrPainted(qr), [], null), hint(t.handTemplate(qr.size, qr.mask))));
 	}
 
