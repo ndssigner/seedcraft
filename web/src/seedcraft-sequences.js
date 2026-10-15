@@ -367,6 +367,43 @@ const SeedcraftSequences = (() => {
 		return { value: bits.reduce((v, x) => v * 2 + x, 0), bits, used, rejected };
 	}
 
+	// The key made piece by piece, by hand or by the device (§10.2), as plain
+	// state: { by, pieces: [{ value, by, throws }], pos, draft, fix }. by is
+	// who draws now ("device", "bag", "coin", "d4" … "d20"); draft the throws
+	// of the first missing piece; fix, while a piece set by hand is marked
+	// again, { at, held } (held: the draft put aside). A piece once drawn
+	// changes only by such a correction, never by moving. Each function
+	// returns a new key.
+	const keyOf = (key) => ({ fix: null, ...key, pieces: key.pieces.slice(), draft: key.draft.slice() });
+	// to: clamped to the pieces drawn and the first missing one (at most L - 1);
+	// moving gives up a correction under way
+	function keyMove(key, to, L) {
+		const k = keyOf(key);
+		if (k.fix) { k.draft = k.fix.held; k.fix = null; }
+		k.pos = Math.max(0, Math.min(to, k.pieces.length, L - 1));
+		return k;
+	}
+	// a number drawn: the next piece, or the one being corrected
+	function keyAddPiece(key, value, by, throws = []) {
+		const k = keyOf(key), piece = { value, by, throws: throws.slice() };
+		if (k.fix) { k.pieces[k.fix.at] = piece; k.draft = k.fix.held; k.fix = null; }
+		else { k.pieces.push(piece); k.draft = []; }
+		return k;
+	}
+	// one throw of a coin or a die (face from 0): the piece closes once it gives k bits
+	function keyAddThrow(key, face, sides, k) {
+		const draft = key.draft.concat(face), r = throwsToNumber(draft, sides, k);
+		return r ? keyAddPiece(key, r.value, key.by, draft) : { ...keyOf(key), draft };
+	}
+	// mark the piece at pos again: only one set by hand
+	function keyFix(key) {
+		const k = keyOf(key), piece = k.pieces[k.pos];
+		if (k.fix || !piece || piece.by === "device") return k;
+		k.fix = { at: k.pos, held: k.draft };
+		k.draft = [];
+		return k;
+	}
+
 	// two pads made independently, added mod N (§10.2): the result is uniform
 	// if either one is (the device's pad and one made by hand)
 	function addPads(a, b, n) {
@@ -736,7 +773,7 @@ const SeedcraftSequences = (() => {
 		sha256, mnemonicToEntropy, entropyToMnemonic,
 		functionModules, templateModule, dataModulesRowMajor, compactSeedQR, encode, decode,
 		symbolsToBits, readSequence, decodeObjects, physicalSequence, piecesToBuy, rsCorrect,
-		PAD_DIGITS, PadFileError, newPad, DICE, diceBits, throwsToNumber, addPads, encrypt, decrypt, encodePad, decodePad, decodePadObjects,
+		PAD_DIGITS, PadFileError, newPad, DICE, diceBits, throwsToNumber, keyMove, keyAddPiece, keyAddThrow, keyFix, addPads, encrypt, decrypt, encodePad, decodePad, decodePadObjects,
 		checkCharacter, writePadFile, readPadFile,
 		sizeFor, turnBits, clockStep, decodeTurns,
 	};

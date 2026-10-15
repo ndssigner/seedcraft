@@ -57,6 +57,7 @@
 		mode: null,  // "basic" or "pad" (SPEC §10), chosen before making or reading
 		make: { seed: "", entropy: null, symbols: null, pos: 0, tab: "walk" },
 		read: freshRead(),
+		seen: {},  // the one-line explanations already shown once: keyWhy, reroll, rowCheck
 	};
 	// what is being read: the sequence (taps, typing, text, as before) and, in
 	// pad mode, the pad (padIn: as a string of things, or as a file's text)
@@ -389,7 +390,7 @@
 		document.body.classList.toggle("in-flow", st.screen === "make" || st.screen === "read");
 		// what scrolls inside the page (the map, the two columns) keeps its place across a redraw
 		const SCROLLERS = ".map, .flow-body, .flow-body .tool > .panel";
-		const view = [st.screen, st.step[st.screen], st.make.tab, st.make.padTab, st.plan.sub, st.edit && st.edit.kind].join();
+		const view = [st.screen, st.step[st.screen], st.make.tab, st.make.key && st.make.key.by, st.plan.sub, st.edit && st.edit.kind].join();
 		const kept = view === lastView ? [...$("app").querySelectorAll(SCROLLERS)].map((e) => e.scrollTop) : [];
 		lastView = view;
 		$("app").replaceChildren(({ intro, make: makeFlow, read: readFlow, print: printSheet, about, donate })[st.screen]());
@@ -438,17 +439,19 @@
 
 	// ---- the two journeys ----------------------------------------------
 	// Making a backup and reading one: each a sequence of steps along a thread,
-	// a knot per step, filled once that step has done its job. The pad's step
-	// is on its own thread colour, as the pad is drawn everywhere.
-	const MAKE_STEPS = ["plan", "gather", "dict", "seq", "pad", "check", "store"];
+	// a knot per step, filled once that step has done its job. The key's step
+	// (the pad's) is on its own thread colour, as the pad is drawn everywhere.
+	// Making one, the key comes first: the sequence is made with it.
+	const MAKE_STEPS = ["plan", "gather", "dict", "key", "seq", "check", "store"];
 	const READ_STEPS = ["have", "seq", "pad", "seed"];
-	const stepsOf = (flow) => (flow === "make" ? MAKE_STEPS : READ_STEPS).filter((x) => x !== "pad" || st.mode === "pad");
+	const keyThread = (step) => step === "key" || step === "pad";
+	const stepsOf = (flow) => (flow === "make" ? MAKE_STEPS : READ_STEPS).filter((x) => !keyThread(x) || st.mode === "pad");
 	const stepName = (flow, step) => (flow === "make" ? T().makeSteps[MAKE_STEPS.indexOf(step)] : T().readSteps[READ_STEPS.indexOf(step)])[0];
 	function toStep(flow, step) { st.step[flow] = step; st.edit = null; go(flow); }
 	function stepDone(flow, step) {
 		const m = st.make, rd = st.read;
-		if (flow === "make") return ({ plan: !!st.mode, gather: !!st.gathered, dict: !!st.dict && st.dict.checked, seq: !!m.symbols,
-			pad: !!m.symbols && !!m.padKept, check: !!m.checked, store: !!m.stored })[step];
+		if (flow === "make") return ({ plan: !!st.mode, gather: !!st.gathered, dict: !!st.dict && st.dict.checked && (!keyDictNeeded() || !!st.padDict),
+			key: !!m.pad && (st.plan.padAs === "string" || !!m.padKept), seq: !!m.symbols, check: !!m.checked, store: !!m.stored })[step];
 		return ({ have: !!st.mode && !!st.dict, seq: rd.taps.length > 0 || !!rd.text.trim(),
 			pad: rd.padIn.taps.length > 0 || !!rd.padIn.text.trim() || !!rd.padIn.file.trim(), seed: !!rd.out })[step];
 	}
@@ -457,7 +460,7 @@
 		return h("nav", { class: "journey" + (flow === "read" ? " short" : ""), "aria-label": flow === "make" ? t.tabMakeFlow : t.tabReadFlow },
 			h("ol", {}, steps.map((step, i) => {
 				const cur = st.step[flow] === step;
-				return h("li", { class: [cur ? "on" : "", stepDone(flow, step) ? "done" : "", step === "pad" ? "pad" : ""].filter(Boolean).join(" ") },
+				return h("li", { class: [cur ? "on" : "", stepDone(flow, step) ? "done" : "", keyThread(step) ? "pad" : ""].filter(Boolean).join(" ") },
 					h("button", { "aria-current": cur ? "step" : null, on: { click: () => toStep(flow, step) } },
 						h("span", { class: "knot", "aria-hidden": "true" }),
 						h("span", { class: "step-name" }, h("small", { text: String(i + 1) }), stepName(flow, step))));
@@ -490,8 +493,10 @@
 		let need = null;
 		if (flow === "make") {
 			if (step !== "plan" && step !== "store" && !st.mode) need = "plan";
-			else if (["seq", "pad", "check"].includes(step) && !st.dict) need = "dict";
-			else if (["pad", "check"].includes(step) && !st.make.symbols) need = "seq";
+			else if (["key", "seq", "check"].includes(step) && !st.dict) need = "dict";
+			else if (step === "key" && keyDictNeeded() && !st.padDict) need = "dict";
+			else if (["seq", "check"].includes(step) && st.mode === "pad" && !st.make.pad) need = "key";
+			else if (step === "check" && !st.make.symbols) need = "seq";
 		} else if (step !== "have" && (!st.mode || !st.dict)) need = "have";
 		if (!need) return null;
 		setNav({ hidden: true });
@@ -502,7 +507,7 @@
 		if (!stepsOf("make").includes(st.step.make)) st.step.make = "plan";
 		const step = st.step.make;
 		navOpts = {};
-		const body = needFirst("make", step) || ({ plan: planStep, gather: gatherStep, dict: dictStep, seq: seqStep, pad: padStep,
+		const body = needFirst("make", step) || ({ plan: planStep, gather: gatherStep, dict: dictStep, key: keyStep, seq: seqStep,
 			check: checkStep, store: storeStep })[step]();
 		return h("div", { class: "flow" }, journey("make"), h("div", { class: "flow-body" }, body), stepNav("make", navOpts));
 	}
@@ -749,7 +754,40 @@
 						h("button", { class: "btn ghost small", on: { click: () => download(json(), "dictionary.json", "application/json") } }, t.dictSaveJson),
 						h("button", { class: "btn ghost small", on: { click: () => download(d.things.map((x) => x.name).join("\n") + "\n", "dictionary.txt", "text/plain") } }, t.dictSaveTxt))),
 				reading ? null : h("div", { class: "row" },
-					h("button", { class: "btn ghost small", on: { click: () => { if (confirm(t.dictForgetAsk)) { setDict(null); render(); } } } }, t.dictForget))));
+					h("button", { class: "btn ghost small", on: { click: () => { if (confirm(t.dictForgetAsk)) { setDict(null); render(); } } } }, t.dictForget)),
+				!reading && keyDictNeeded() ? keyDictBlock() : null));
+	}
+	// pad mode, the key as things of another collection: its own dictionary (SPEC §11.4)
+	function keyDictNeeded() { return st.mode === "pad" && st.plan.padAs === "string" && !!st.plan.padForm; }
+	// that dictionary, below the sequence's: made, ready-made or from a file; then checked like the other
+	function keyDictBlock() {
+		const t = T(), n = st.dict.things.length, padForm = st.plan.padForm, pd = st.padDict;
+		const label = h("div", { class: "label pad-label", text: t.padDictTitle + ": " + t.forms[padForm].name });
+		const pick = (things, checked) => { st.padDict = { things, checked: !!checked }; st.make.check = null; render(); };
+		const name = (things) => editDict({ kind: "name", target: "pad", things, i: 0 });
+		if (pd) return h("div", { class: "field key-dict" }, label,
+			h("div", { class: "dictline" }, h("span", { class: "minis" }, pd.things.map((x) => icon(x, 22)))),
+			pd.checked ? h("div", { class: "note ok" }, "✓ " + t.dictChecked) : h("div", { class: "note warn", text: t.dictNotChecked }),
+			h("div", { class: "row" },
+				h("button", { class: pd.checked ? "btn ghost small" : "btn small", on: { click: () => editDict({ kind: "check", target: "pad", i: 0 }) } }, t.dictCheck),
+				h("button", { class: "btn ghost small", on: { click: () => name(pd.things.map((x) => ({ ...x, symbolTyped: !!x.emoji && x.emoji !== initialsOf(x.name) }))) } }, t.dictEdit),
+				h("button", { class: "btn ghost small", on: { click: () => { st.padDict = null; st.make.check = null; render(); } } }, t.dictOther)));
+		const err = h("div");
+		const open = h("input", { type: "file", accept: ".json,.txt,application/json,text/plain", class: "hidden", on: { change: async (e) => {
+			const f = e.target.files[0];
+			if (!f) return;
+			try {
+				const own = dictFromFile(await f.text(), f.name), problem = dictProblem(own);
+				if (problem) { err.replaceChildren(errorBox(problem)); return; }
+				if (own.length !== n) { err.replaceChildren(errorBox(t.errPadDictSize(own.length, n))); return; }
+				pick(own);
+			} catch (x) { err.replaceChildren(errorBox(t.errDictFile)); }
+		} } });
+		return h("div", { class: "field key-dict" }, label, h("p", { class: "meta", text: t.padDictHelp(n) }),
+			h("div", { class: "row" }, h("button", { class: "btn small", on: { click: () => name(Array.from({ length: n }, () => ({ name: "", emoji: "", colour: "", photo: "" }))) } }, t.dictName),
+				h("button", { class: "btn ghost small", on: { click: () => open.click() } }, t.dictOpen), open),
+			conventional(n, padForm, pick),
+			field(t.padDictReady, readyDicts(n, padForm, pick)), err);
 	}
 
 	// naming the pieces one by one
@@ -983,7 +1021,180 @@
 		return { tabs: seg(views, tab, (v) => { m[opts.tabKey] = v; render(); }), left, right };
 	}
 
-	// ---- make, 4: the sequence ----------------------------------------------
+	// ---- make, 4: the key (pad mode) ----------------------------------------------
+	// The key comes first: L numbers, each pure chance, drawn one piece at a time
+	// by the person (a bag, coins, a die) or by the device (SPEC §10.2). Its
+	// state is st.make.key (see S.keyMove); st.make.pad, its numbers once all L
+	// are there. A piece once drawn stays: moving only shows it again, and only
+	// the first missing one is drawn. One set by hand can be marked again
+	// ("Fix"), never thrown again.
+	const KEY_ROW = 16;  // numbers per row of the key file, each row closed by its check character
+	const keyLength = () => symbolsFor(st.plan.words, st.dict.things.length);
+	// a coin is a die of 2 sides; the bag and the device throw nothing
+	const sidesOf = (by) => by === "coin" ? 2 : /^d\d+$/.test(by || "") ? Number(by.slice(1)) : 0;
+	const hasReroll = (throws, by) => sidesOf(by) > 0 && throws.some((f) => f >= S.diceBits(sidesOf(by)).keep);
+	const closesRow = (i, L) => (i + 1) % KEY_ROW === 0 || i === L - 1;
+	// the key as it now is and, once complete, its numbers. A sequence already
+	// made with it follows a fixed piece; one of another length goes.
+	function setKey(key) {
+		const m = st.make, n = st.dict.things.length, L = keyLength(), was = m.pad;
+		m.key = key;
+		m.pad = key.pieces.length === L ? key.pieces.map((p) => p.value) : null;
+		if (String(was) === String(m.pad)) return;
+		m.padKept = false;
+		if (m.basic && m.pad && m.basic.length === L) { m.symbols = S.encrypt(m.basic, m.pad, n); m.checked = false; m.check = null; }
+		else if (m.symbols) m.symbols = m.entropy = m.basic = null;
+	}
+	// to another piece; the lines explained on the one left are not shown again
+	function keyGo(to) {
+		const key = st.make.key, p = key.pieces[key.pos], L = keyLength();
+		st.seen.keyWhy = true;
+		if (p && hasReroll(p.throws, p.by)) st.seen.reroll = true;
+		if (p && st.plan.padAs === "file" && closesRow(key.pos, L)) st.seen.rowCheck = true;
+		setKey(S.keyMove(key, to, L));
+		render();
+	}
+	// a die with a number on it; rolling, it spins (CSS, unless reduced motion)
+	const diceSvg = (face, rolling) => svg("svg", { class: "die" + (rolling ? " rolling" : ""), viewBox: "0 0 100 100", "aria-hidden": "true" },
+		svg("rect", { x: 10, y: 10, width: 80, height: 80, rx: 18, class: "die-body" }),
+		svg("text", { x: 50, y: 64, "text-anchor": "middle", class: "die-face" }, face === null ? "?" : String(face)));
+	let keyRolling = false;
+	// one throw as it is read: the face marked, its number from 0, its bits or "again"
+	function throwText(f, sides) {
+		const t = T(), { b, keep } = S.diceBits(sides), out = f < keep ? f.toString(2).padStart(b, "0") : t.keyAgain;
+		if (sides === 2) return `${f ? t.coinHeads : t.coinTails} → ${out}`;
+		if (sides === 10) return `${t.keyFace} ${f} → ${out}`;  // a d10 is marked 0–9: already from 0
+		return `${t.keyFace} ${f + 1} → ${f} → ${out}`;
+	}
+	// the throws of a piece, and once it is complete its bits and number
+	function throwTrail(throws, sides, k) {
+		const r = throws.length ? S.throwsToNumber(throws, sides, k) : null, keep = S.diceBits(sides).keep;
+		return h("ol", { class: "trail" }, throws.map((f) => h("li", { class: f >= keep ? "again" : null, text: throwText(f, sides) })),
+			r ? h("li", { class: "total", text: `${r.bits.join("")} → ${r.value}` }) : null);
+	}
+	function keyStep() {
+		const t = T(), m = st.make, n = st.dict.things.length, k = Math.log2(n), L = keyLength();
+		const asString = st.plan.padAs === "string", own = asString && !!st.plan.padForm;
+		const form = own ? st.plan.padForm : st.plan.form, things = own ? st.padDict.things : st.dict.things;
+		const start = m.key || { by: null, pieces: [], pos: 0, draft: [], fix: null };
+		// a seed of another length since: the numbers already drawn stay, as many as fit
+		setKey(start.pieces.length > L ? S.keyMove({ ...start, pieces: start.pieces.slice(0, L) }, start.pos, L) : start);
+		const key = m.key, have = key.pieces.length, values = key.pieces.map((p) => p.value);
+		const update = (next) => { setKey(next); render(); };
+		setNav({ ready: have === L });
+
+		// on the right, the key as it grows: its map, or its file
+		const right = [];
+		if (asString) right.push(h("div", { class: "note pad", text: t.padStringHelp }), hint(t.forms[form].drawing), have
+			? h("div", { class: "map tall" }, drawSeq(things, values, { current: key.pos, onPick: (i) => keyGo(i), pad: true, form }))
+			: h("div", { class: "key-empty" }, art("keyThings"), hint(t.keyEmpty)));
+		else {
+			const lines = have ? S.writePadFile(values, n).trimEnd().split("\n") : [""];
+			lines[0] = `${L} ${n}`;
+			// a row still open has no check character yet
+			if (have < L && have % KEY_ROW) lines[lines.length - 1] = lines[lines.length - 1].replace(/ \S$/, "");
+			const row = 1 + Math.floor(key.pos / KEY_ROW);
+			right.push(h("div", { class: "label pad-label", text: t.padFileTitle }), hint(t.padFileHelp),
+				h("pre", { class: "code pad-file" }, lines.map((x, i) => h("span", { class: i === row ? "on" : null, text: x + "\n" }))));
+			if (key.pieces[key.pos] && !key.fix && closesRow(key.pos, L) && !st.seen.rowCheck) right.push(h("div", { class: "note pad", text: t.keyRowCheck }));
+			if (have === L) right.push(h("div", { class: "row" }, h("button", { class: "btn",
+				on: { click: () => { download(S.writePadFile(m.pad, n), "numbers.txt", "text/plain"); m.padKept = true; render(); } } }, t.padFileSave)));
+		}
+
+		// who draws: the person, with what; or the device
+		if (!key.by) {
+			const who = m.keyWho;
+			const option = (value, glyph, label, help) => h("button", { class: "choice" + (who === value ? " on" : ""), "aria-pressed": String(who === value),
+				on: { click: () => { m.keyWho = value; if (value === "device") update({ ...key, by: "device", draft: [] }); else render(); } } },
+				h("span", { class: "glyph", "aria-hidden": "true", text: glyph }), h("b", { text: label }), h("span", { text: help }));
+			// a bag only of pieces you can hold
+			const tools = [formOf(form).family !== "written" ? ["bag", t.toolBag] : null, ["coin", t.toolCoin],
+				...S.DICE.filter((s) => s !== 2).map((s) => ["d" + s, "🎲 d" + s])].filter(Boolean);
+			return tool(panel(...stepHead("make", t.keyLead),
+				h("div", { class: "choices" }, option("me", "✋", t.keyMe, t.keyMeHelp), option("device", "🖥️", t.keyDevice, t.keyDeviceHelp)),
+				who === "me" ? field(t.keyTools, h("div", { class: "row" }, tools.map(([by, label]) =>
+					h("button", { class: "btn ghost", on: { click: () => update({ ...key, by, draft: [] }) } }, label)))) : null,
+				h("div", { class: "note warn", text: t.keyOffline })),
+			panel(...right));
+		}
+
+		// piece by piece: the piece at pos, drawn or to draw (or being marked again)
+		const pos = key.pos, piece = key.fix ? null : key.pieces[pos];
+		const markBy = key.fix ? key.pieces[key.fix.at].by : key.by, sides = sidesOf(markBy);
+		const throws = piece ? piece.throws : key.draft, throwsBy = piece ? piece.by : markBy;
+		const die = h("div", { class: "die-box" }, diceSvg(null, false));
+		const draw = () => {
+			if (keyRolling) return;
+			const value = S.newPad(1, n)[0];
+			const put = () => {
+				keyRolling = false;
+				if (st.screen === "make" && st.step.make === "key" && m.key && m.key.by === "device" && !m.key.fix) update(S.keyAddPiece(m.key, value, "device"));
+			};
+			if (matchMedia("(prefers-reduced-motion: reduce)").matches) { put(); return; }
+			keyRolling = true;
+			die.replaceChildren(diceSvg(null, true));
+			setTimeout(put, 600);
+		};
+		const all = () => {
+			let x = S.keyMove(m.key, m.key.pos, L);
+			for (const v of S.newPad(L - x.pieces.length, n)) x = S.keyAddPiece(x, v, "device");
+			st.seen.keyWhy = true;
+			update(S.keyMove(x, L - 1, L));
+		};
+		// a throw marked by hand: the piece's own coin or die when marking it again
+		const mark = (f) => update({ ...S.keyAddThrow({ ...m.key, by: markBy }, f, sides, k), by: key.by });
+		const side = (i) => h("div", { class: "side" }, i >= 0 && i < have && i !== pos
+			? [hint(`${i < pos ? t.prevPiece : t.nextPiece} ${i + 1}`), icon(things[values[i]], 44), h("div", { class: "small-name", text: things[values[i]].name })] : null);
+		const centre = piece
+			? h("div", { class: "centre" }, icon(things[piece.value], 104), h("div", { class: "name", text: things[piece.value].name }),
+				h("div", { class: "meta", text: t.keyNumber(piece.value, piece.value.toString(2).padStart(k, "0")) }))
+			: h("div", { class: "centre" }, markBy === "device" ? die : icon({}, 104));
+		const controls = [];
+		if (key.fix) controls.push(h("div", { class: "row between" }, h("span", { class: "label pad-label", text: t.keyFixing(pos + 1) }),
+			h("button", { class: "btn ghost small", on: { click: () => keyGo(pos) } }, t.keyFixCancel)));
+		if (piece) {
+			if (piece.by === "device") controls.push(h("div", { class: "row key-by" }, diceSvg(piece.value, false), hint(t.keyByDevice)));
+			else controls.push(piece.by === "bag" ? hint(t.keyByBag) : throwTrail(piece.throws, sidesOf(piece.by), k),
+				h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => update(S.keyFix(key)) } }, t.keyFix)));
+		} else if (markBy === "device") controls.push(h("div", { class: "row" }, h("button", { class: "btn", on: { click: draw } }, "🎲 " + t.keyRoll)));
+		else if (markBy === "bag") controls.push(hint(t.keyBagHow), h("div", { class: "palette" }, things.map((x, i) =>
+			h("button", { class: "pal", title: x.name, "aria-label": x.name, on: { click: () => update(S.keyAddPiece(m.key, i, "bag")) } }, icon(x, 40)))));
+		else {
+			const faces = sides === 2 ? [[1, t.coinHeads], [0, t.coinTails]] : Array.from({ length: sides }, (_, f) => [f, String(sides === 10 ? f : f + 1)]);
+			controls.push(hint(sides === 2 ? t.keyThrowCoin : t.keyThrowDie),
+				h("div", { class: "faces" }, faces.map(([f, label]) => h("button", { class: "btn ghost face", on: { click: () => mark(f) } }, label))),
+				throws.length ? throwTrail(throws, sides, k) : null);
+		}
+		// Next on the first missing piece draws it (device) or waits for the throws
+		const onNext = !piece && !key.fix ? (key.by === "device" ? draw : null) : pos < L - 1 ? () => keyGo(pos + 1) : null;
+		const aside = h("div", { class: "row key-method" },
+			h("span", { class: "meta", text: key.by === "device" ? t.keyDevice : key.by === "bag" ? t.toolBag : key.by === "coin" ? t.toolCoin : "🎲 " + key.by }),
+			h("button", { class: "btn ghost small", on: { click: () => { m.keyWho = null; update({ ...S.keyMove(key, pos, L), by: null, draft: [] }); } } }, t.keyChange));
+		return tool(
+			panel(...stepHead("make", null, aside),
+				h("div", { class: "label", text: t.walkOf(pos + 1, L) }),
+				h("div", { class: "wizard" }, side(pos - 1), centre, side(pos + 1)),
+				st.seen.keyWhy ? null : hint(t.keyWhy),
+				...controls,
+				hasReroll(throws, throwsBy) && !st.seen.reroll ? h("div", { class: "note pad", text: t.keyRerollWhy }) : null,
+				h("div", { class: "row" },
+					h("button", { class: "btn ghost", disabled: pos === 0 ? "" : undefined, on: { click: () => keyGo(pos - 1) } }, "◀ " + t.prevPiece),
+					key.by === "device" && have < L ? h("button", { class: "btn ghost small", on: { click: all } }, t.keyAll) : null,
+					h("button", { class: "btn push", disabled: onNext ? undefined : "", on: { click: () => { if (onNext) onNext(); } } },
+						piece && pos === L - 1 ? "✓ " + t.done : t.nextPiece + " ▶")),
+				bar(have / L)),
+			panel(...right));
+	}
+
+	// ---- make, 5: the sequence ----------------------------------------------
+	// another seed: in pad mode the key goes too, and it starts again from the key (one key, one seed: SPEC §10.8)
+	function otherSeed() {
+		const m = st.make;
+		m.symbols = m.entropy = m.basic = null;
+		if (st.mode !== "pad") { render(); return; }
+		m.key = m.pad = null; m.keyWho = null; m.padKept = false;
+		toStep("make", "key");
+	}
 	function seqStep() {
 		const t = T(), m = st.make, d = st.dict;
 		const n = d.things.length, k = Math.log2(n), padMode = st.mode === "pad";
@@ -1020,15 +1231,12 @@
 						if (!check()) { err.replaceChildren(errorBox(t.errWordsPlanned(st.plan.words))); return; }
 						m.entropy = S.mnemonicToEntropy(m.seed);
 						if (padMode) {
-							// the basic sequence plus a pad drawn here (SPEC §10.9)
+							// the basic sequence plus the key of the step before, mod N (SPEC §10.3)
 							m.basic = S.encode(m.entropy, k);
-							m.devicePad = S.newPad(m.basic.length, n);
-							m.handPad = null; m.handText = "";
-							m.pad = m.devicePad;
 							m.symbols = S.encrypt(m.basic, m.pad, n);
 						} else m.symbols = S.encode(m.entropy, k);
-						m.pos = 0; m.padPos = 0; m.hand = 0; m.tab = "walk"; m.padTab = "walk";
-						m.padKept = m.checked = m.stored = false; m.check = null;
+						m.pos = 0; m.hand = 0; m.tab = "walk";
+						m.checked = m.stored = false; m.check = null;
 						render();
 					} } }, t.makeIt))),
 				panel(h("p", { class: "lead", text: padMode ? t.seqPadIntro : t.seqIntro }), kindsRow(st.plan.form, n, 0, d.things)));
@@ -1048,87 +1256,9 @@
 					written ? null : h("p", { text: t.shop(each, n) }),
 					h("p", { text: materialsOf(st.plan.form, L, n) }),
 					h("div", { class: "row" },
-						h("button", { class: "btn ghost small", on: { click: () => { if (confirm(t.otherSeedAsk(st.mode))) { m.symbols = null; m.entropy = null; render(); } } } }, "◀ " + t.otherSeed))),
+						h("button", { class: "btn ghost small", on: { click: () => { if (confirm(t.otherSeedAsk(st.mode))) otherSeed(); } } }, "◀ " + t.otherSeed))),
 				h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => go("print") } }, "🖨 " + t.printIt))),
 			panel(...v.right));
-	}
-
-	// ---- make, 5: the pad (pad mode) ------------------------------------------
-	// Drawn here (for learning only), a pad made by hand added to it if you
-	// like (SPEC §10.2), then kept as a second string or as a file (§10.6, §10.7).
-	function padStep() {
-		if (st.edit && st.edit.target === "pad") { setNav({ hidden: true }); return st.edit.kind === "name" ? nameScreen() : checkScreen(); }
-		const t = T(), m = st.make, n = st.dict.things.length, L = m.symbols.length, asString = st.plan.padAs === "string";
-		const remake = () => {
-			m.pad = m.handPad ? S.addPads(m.devicePad, m.handPad, n) : m.devicePad;
-			m.symbols = S.encrypt(m.basic, m.pad, n);
-			m.pos = 0; m.padPos = 0; m.checked = false; m.check = null;
-			render();
-		};
-		let hand;
-		if (m.handPad) hand = h("div", { class: "note ok" }, "✓ " + t.padHandAdded, " ",
-			h("button", { class: "btn ghost small", on: { click: () => { m.handPad = null; remake(); } } }, t.padHandRemove));
-		else {
-			const area = h("textarea", { class: "input", rows: 4, spellcheck: "false", autocomplete: "off", placeholder: "3A37 DFE7 0239…",
-				on: { input: (e) => { m.handText = e.target.value; } } });
-			area.value = m.handText || "";
-			const err = h("div");
-			const add = () => {
-				// one character per number, as in the pad file; spaces, line breaks and notes after # are ignored
-				const chars = [...(m.handText || "").replace(/#.*$/gm, "").replace(/\s+/g, "").toUpperCase()];
-				const value = (ch) => { const v = S.PAD_DIGITS.indexOf(ch); return v < n ? v : -1; };
-				const bad = chars.find((ch) => value(ch) < 0);
-				if (bad !== undefined) { err.replaceChildren(errorBox(t.errHandChar(bad, n))); return; }
-				if (chars.length !== L) { err.replaceChildren(errorBox(t.errHandLength(chars.length, L))); return; }
-				m.handPad = chars.map(value);
-				m.handText = "";
-				remake();
-			};
-			hand = h("details", { class: "more" }, h("summary", { text: t.padHandTitle }), hint(t.padHandHelp(n, L)), area, err,
-				h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: add } }, t.padHandAdd)));
-		}
-		const file = S.writePadFile(m.pad, n);
-		const save = h("button", { class: asString ? "btn ghost small" : "btn", on: { click: () => { download(file, "numbers.txt", "text/plain"); m.padKept = true; } } }, t.padFileSave);
-		// another collection for the pad: its own dictionary, ready-made or from a file (SPEC §11.4)
-		const padForm = asString ? st.plan.padForm : null, needDict = !!padForm && !st.padDict;
-		const pickPadDict = (things) => { st.padDict = { things }; m.check = null; render(); };
-		const padDictPanel = () => {
-			const err = h("div");
-			const open = h("input", { type: "file", accept: ".json,.txt,application/json,text/plain", class: "hidden", on: { change: async (e) => {
-				const f = e.target.files[0];
-				if (!f) return;
-				try {
-					const own = dictFromFile(await f.text(), f.name), problem = dictProblem(own);
-					if (problem) { err.replaceChildren(errorBox(problem)); return; }
-					if (own.length !== n) { err.replaceChildren(errorBox(t.errPadDictSize(own.length, n))); return; }
-					pickPadDict(own);
-				} catch (x) { err.replaceChildren(errorBox(t.errDictFile)); }
-			} } });
-			return panel(h("div", { class: "label pad-label", text: t.padDictTitle + ": " + t.forms[padForm].name }), h("p", { class: "lead", text: t.padDictHelp(n) }),
-				h("div", { class: "row" }, h("button", { class: "btn", on: { click: () => editDict({ kind: "name", target: "pad",
-					things: Array.from({ length: n }, () => ({ name: "", emoji: "", colour: "", photo: "" })), i: 0 }) } }, t.dictName)),
-				conventional(n, padForm, pickPadDict),
-				field(t.padDictReady, readyDicts(n, padForm, pickPadDict)),
-				h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => open.click() } }, t.dictOpen), open), err);
-		};
-		// as things: the same two columns as the sequence (the piece on the left, the map on the right)
-		const v = asString && !needDict ? stringViews(m.pad, { posKey: "padPos", tabKey: "padTab", listName: "list-b.txt", help: t.padStringHelp, pad: true,
-			things: padForm ? st.padDict.things : null, form: padForm || st.plan.form }) : null;
-		setNav({ ready: !needDict, onNext: () => { m.padKept = true; } });
-		// the piece in hand first; adding a key made by hand, the least used, last
-		return tool(
-			panel(...stepHead("make"),
-				h("div", { class: "note warn", text: t.padLearnOnly }),
-				h("div", { class: "row" }, h("span", { class: "label", text: t.planPadAs }), seg([["string", t.padAsString], ["file", t.padAsFile]], st.plan.padAs, (x) => { st.plan.padAs = x; render(); })),
-				v ? [...v.left, v.tabs] : null,
-				asString ? null : [h("p", { text: t.padFileHelp }), h("div", { class: "row" }, save)],
-				hand),
-			needDict ? padDictPanel()
-			// the key's own dictionary, if it has one, above its drawing
-			: v ? panel(padForm && st.padDict ? h("div", { class: "dictline" }, h("span", { class: "pad-label", text: t.padDictTitle }),
-				h("span", { class: "minis" }, st.padDict.things.map((x) => icon(x, 22))),
-				h("button", { class: "btn ghost small", on: { click: () => { st.padDict = null; m.check = null; render(); } } }, t.dictEdit)) : null, ...v.right)
-			: panel(h("div", { class: "label pad-label", text: t.padFileTitle }), art("keyFile"), h("pre", { class: "code pad-file", text: file }), h("div", { class: "row" }, save)));
 	}
 
 	// ---- make, 6: read it back --------------------------------------------------
@@ -1166,10 +1296,15 @@
 			if (e.key === "ArrowLeft") { obj[key] = Math.max(0, (obj[key] || 0) - 1); render(); }
 		};
 		if (st.screen === "read" && st.step.read === "seed" && rd.out && rd.view === "hand") return step(rd, "hand", rd.symbols.length);
+		// the key: only moves among the pieces drawn, never draws (the space bar is left to the buttons)
+		if (st.screen === "make" && st.step.make === "key" && m.key && m.key.by && !st.edit) {
+			if (e.key === "ArrowRight") keyGo(m.key.pos + 1);
+			if (e.key === "ArrowLeft") keyGo(m.key.pos - 1);
+			return;
+		}
 		if (st.screen !== "make" || !m.symbols) return;
 		if (st.step.make === "seq" && m.tab === "hand") return step(m, "hand", m.symbols.length);
 		if (st.step.make === "seq" && m.tab === "walk") return step(m, "pos", m.symbols.length - 1);
-		if (st.step.make === "pad" && st.plan.padAs === "string" && m.padTab === "walk") return step(m, "padPos", m.pad.length - 1);
 	});
 
 	// ---- read ------------------------------------------------------------
@@ -1488,7 +1623,7 @@
 		// the two journeys, as they will go: one door each
 		const journeyList = (flow, steps) => h("div", { class: "door-steps" },
 			h("h3", { text: flow === "make" ? t.tabMakeFlow : t.tabReadFlow }),
-			h("ol", {}, steps.map(([a, b], i) => h("li", { class: (flow === "make" ? MAKE_STEPS : READ_STEPS)[i] === "pad" ? "pad" : null },
+			h("ol", {}, steps.map(([a, b], i) => h("li", { class: keyThread((flow === "make" ? MAKE_STEPS : READ_STEPS)[i]) ? "pad" : null },
 				h("b", { text: a }), h("span", { text: b })))));
 		return h("div", { class: "intro" },
 			h("section", { class: "hero" },

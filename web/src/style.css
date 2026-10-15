@@ -575,3 +575,28 @@ details.pad-dict > * + * { margin-top: var(--sp-2); }
 	.key { padding: 6px 2px 7px; font-size: var(--fs-xs); }
 	.key .icon { width: 28px; height: 28px; }
 }
+
+/* the key, piece by piece: who draws it, the die, the faces to mark, the throws so far */
+.choice .glyph { font-size: 30px; line-height: 1; }
+.key-method { gap: 6px; align-items: center; }
+.key-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 24px 0; }
+.key-empty .art { max-width: 160px; }
+.die { width: 96px; height: 96px; display: block; }
+.key-by .die { width: 40px; height: 40px; }
+.die-body { fill: var(--surface); stroke: var(--pad); stroke-width: 4; }
+.die-face { font-family: var(--mono); font-size: 40px; font-weight: 700; fill: var(--fg); }
+.die.rolling { animation: die-roll 600ms cubic-bezier(.2, .7, .3, 1); }
+@keyframes die-roll { from { transform: rotate(0deg) scale(.85); } to { transform: rotate(720deg) scale(1); } }
+.die.rolling .die-face { opacity: .4; }
+.key-by { align-items: center; gap: 8px; }
+.faces { display: flex; flex-wrap: wrap; gap: 6px; }
+.faces .face { min-width: 2.75em; padding-left: 8px; padding-right: 8px; font-variant-numeric: tabular-nums; }
+.palette { display: flex; flex-wrap: wrap; gap: 4px; }
+.palette .pal { border: 1px solid var(--line); background: var(--surface); border-radius: var(--r-m); padding: 2px; cursor: pointer; }
+.palette .pal:hover { border-color: var(--pad); }
+ol.trail { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; font-family: var(--mono); font-size: var(--fs-s); }
+ol.trail .again { color: var(--muted); }
+ol.trail .total { font-weight: 700; color: var(--pad); }
+pre.pad-file span.on { background: var(--pad-soft); }
+.key-dict { border-top: 1px solid var(--line); padding-top: var(--sp-3); }
+@media (prefers-reduced-motion: reduce) { .die.rolling { animation: none; } .die.rolling .die-face { opacity: 1; } }
