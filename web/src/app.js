@@ -525,13 +525,36 @@
 		return h("div", { class: "kinds" }, shown.map((x) => h("span", {}, icon(x, 38), count ? h("small", { text: "×" + count }) : null)),
 			things.length > shown.length ? h("span", { class: "more-kinds", text: "+" + (things.length - shown.length) }) : null);
 	}
-	function formCard(f, pick) {
-		const t = T(), w = t.forms[f.id], on = st.plan.form === f.id;
-		return h(pick ? "button" : "div", { class: "form" + (on && pick ? " on" : "") + (pick ? "" : " bad"), "aria-pressed": pick ? String(on) : null,
-			on: pick ? { click: pick } : null },
-			art(f.id), h("b", { text: w.name }), h("span", { class: "what", text: w.what }),
-			h("span", { class: "facts" }, h("span", {}, h("i", { text: t.formBlends }), w.blends), h("span", {}, h("i", { text: t.formOrder }), w.order)));
+	// Choosing a form: a compact selector on the left (drawing and name),
+	// what the chosen one is on the right; it is accepted with the bar, after
+	// reading, not by the click itself.
+	function formPicker(forms, pick) {
+		const t = T();
+		return h("div", { class: "forms two compact", role: "group", "aria-label": t.formTitle }, forms.map((f) => {
+			const on = st.plan.form === f.id;
+			return h("button", { class: "form" + (on ? " on" : "") + (f.keeps ? "" : " loose"), "aria-pressed": String(on), on: { click: () => pick(f.id) } },
+				art(f.id), h("b", { text: t.forms[f.id].name }));
+		}));
 	}
+	// for "something else": what not to do, the forms that lose their order among it (SPEC §11.5)
+	function avoidBlock() {
+		const t = T();
+		const bad = (x) => h("div", { class: "form bad" }, art(x.id), h("b", { text: t.forms[x.id].name }),
+			h("span", { class: "facts" }, h("span", {}, h("i", { text: t.formOrder }), t.forms[x.id].order)));
+		return {
+			forms: [h("h3", { class: "avoid-title", text: t.formAvoidTitle }), hint(t.formAvoidHelp), h("div", { class: "forms two compact" }, FORMS.filter((x) => !x.keeps).map(bad))],
+			list: h("ul", { class: "list avoid" }, t.formAvoid.map((x) => h("li", { text: x }))),
+		};
+	}
+	// what a form is: its drawing, what it keeps, whether it blends in and keeps its order, its note
+	function formDetail(id, ...more) {
+		const t = T(), f = formOf(id), w = t.forms[id];
+		return panel(h("div", { class: "form-detail" }, art(id),
+			h("div", { class: "stack tight" }, title(w.name), h("p", { class: "what", text: w.what }),
+				h("dl", { class: "facts" }, h("dt", { text: t.formBlends }), h("dd", { text: w.blends }), h("dt", { text: t.formOrder }), h("dd", { text: w.order })))),
+			h("div", { class: "note" + (f.keeps ? "" : " warn"), text: w.note }), ...more);
+	}
+
 	// a step's own little steps, on a short thread: keys, their names, the current one, which are done, go(key)
 	const subSteps = (keys, names, current, done, go) => h("ol", { class: "substeps" }, keys.map((x, i) =>
 		h("li", { class: [x === current ? "on" : "", done[x] ? "done" : ""].filter(Boolean).join(" ") },
@@ -548,17 +571,11 @@
 		let body;
 		if (p.sub === "mode") { body = [modeChoice(() => goSub("form"))]; setNav({ prev: null, next: on("form"), ready: !!st.mode }); }
 		else if (p.sub === "form") {
-			const f = formOf(p.form), w = t.forms[p.form];
-			const other = p.form === "other" && p.formChosen;
-			const forms = panel(hint(t.formHelp),
-				h("div", { class: "forms" + (other ? " two compact" : "") }, FORMS.filter((x) => x.keeps).map((x) => formCard(x, () => { setForm(x.id); p.formChosen = true; if (x.id === "other") render(); else goSub("size"); }))),
-				p.formChosen ? h("div", { class: "note" }, h("b", { text: w.name + ": " }), w.note) : null);
-			// "something else": what to avoid, beside the forms
-			body = [other ? tool(forms, panel(title(t.formAvoidTitle), hint(t.formAvoidHelp),
-				h("div", { class: "forms two" }, FORMS.filter((x) => !x.keeps).map((x) => formCard(x, null))),
-				h("ul", { class: "list avoid" }, t.formAvoid.map((x) => h("li", { text: x }))))) : forms];
-			if (f.keeps === false) p.form = "other";
-			setNav({ prev: back("mode"), next: on("size"), ready: !!p.formChosen });
+			if (!formOf(p.form).keeps) p.form = "other";
+			const avoid = p.form === "other" ? avoidBlock() : null;
+			body = [tool(panel(hint(t.formHelp), formPicker(FORMS.filter((x) => x.keeps), (id) => { setForm(id); p.formChosen = true; render(); }),
+				avoid ? avoid.forms : null), formDetail(p.form, avoid ? avoid.list : null))];
+			setNav({ prev: back("mode"), next: [on("size")[0], () => { p.formChosen = true; goSub("size"); }] });
 		} else {
 			const n = d ? d.things.length : p.n, L = symbolsFor(p.words, n), two = st.mode === "pad" && p.padAs === "string", same = two && !p.padForm;
 			const written = formOf(p.form).family === "written", each = buyFor(p.words, n, st.mode, same ? "string" : "file");
@@ -1147,9 +1164,9 @@
 		if (r.sub === "mode") { body = modeChoice(() => goSub("form")); setNav({ prev: null, next: on("form"), ready: !!st.mode }); }
 		else if (r.sub === "form") {
 			// any form: a backup to read back may have been made in one that is not recommended
-			body = panel(hint(t.haveFormHelp),
-				h("div", { class: "forms" }, FORMS.map((f) => formCard(f, () => { st.plan.form = f.id; r.formChosen = true; goSub("dict"); }))));
-			setNav({ prev: back("mode"), next: on("dict") });
+			body = tool(panel(hint(t.haveFormHelp), formPicker(FORMS, (id) => { st.plan.form = id; r.formChosen = true; render(); })),
+				formDetail(st.plan.form));
+			setNav({ prev: back("mode"), next: [on("dict")[0], () => { r.formChosen = true; goSub("dict"); }] });
 		} else {
 			body = h("div", { class: "stack" }, dictScreen(),
 				st.dict ? h("div", { class: "note ok" }, "✓ " + t.haveSummary(st.mode, st.dict.things.length) + ". " + t.forms[st.plan.form].read) : null);
