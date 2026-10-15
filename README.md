@@ -88,8 +88,11 @@ Two journeys, each a sequence of steps along a thread:
   (pad mode only) and the seed.
 
 In pad mode, which the page calls "with a key" (a lock and its key: plainer
-than "pad"), the page draws the key (for learning only), adds one made by
-hand if you like, and keeps it as a second sequence of things (the same
+than "pad"), the page makes the key first, piece by piece, by chance: from your own
+bag, coins or dice, or from the device (for learning only). Then it shows the
+way turn by turn: each piece of the sequence comes from the QR code's squares,
+plus the key's piece on the clock of N; recovering and checking read it back
+the same way. The key is kept as a second sequence of things (the same
 kinds, or another collection with its own dictionary, SPEC §11.4) or as a
 text file. The printable sheet shows only the sequence: in this mode whoever
 makes it learns nothing. In the basic mode that sheet is the seed for
