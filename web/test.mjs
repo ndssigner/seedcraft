@@ -187,5 +187,29 @@ for (const s of S.DICE) for (let k = 1; k <= 8; k++) {
 }
 let bad = false; try { S.throwsToNumber([6], 6, 4); } catch { bad = true; }
 check(bad, "face outside the die");
+// turns: with the vectors, the bits of each turn are those of encode
+for (const v of vectors) {
+	const k = v.k, e = Uint8Array.from(Buffer.from(v.entropy, "hex")), seq = v.symbols, name = v.name + " k=" + k;
+	const size = S.sizeFor(seq.length, k), qr = S.compactSeedQR(e), bits = S.symbolsToBits(seq, k);
+	check(size === qr.size, "sizeFor " + name);
+	let ok = true, roles = new Set();
+	for (let i = 0; i < seq.length; i++) for (const t of S.turnBits(size, i, k)) {
+		roles.add(t.role);
+		if (t.role === "data" && (qr.getModule(t.cell[1], t.cell[0]) ? 1 : 0) !== bits[t.bit]) ok = false;
+		if ((t.role === "data") !== (t.cell !== null)) ok = false;
+	}
+	check(ok && roles.has("header"), "turnBits " + name);
+	check(hex(S.decodeTurns(seq, null, k).entropy) === v.entropy && !S.decodeTurns(seq, null, k).reversed, "decodeTurns " + name);
+	check(S.decodeTurns([...seq].reverse(), null, k).reversed === true, "decodeTurns reversed " + name);
+}
+for (const v of padVectors) {
+	const k = v.k;
+	check(hex(S.decodeTurns(v.sequence, v.pad, k).entropy) === v.entropy, "decodeTurns pad " + v.name);
+	check(S.decodeTurns([...v.sequence].reverse(), v.pad, k).reversed === true, "decodeTurns pad reversed " + v.name);
+}
+// the clock (SPEC §10.3)
+check(JSON.stringify(S.clockStep(9, 12, 16, 1)) === '{"value":5,"wrapped":true}', "clock 9 + 12");
+check(JSON.stringify(S.clockStep(5, 12, 16, -1)) === '{"value":9,"wrapped":true}', "clock 5 - 12");
+check(JSON.stringify(S.clockStep(3, 1, 2, -1)) === '{"value":0,"wrapped":false}' && S.clockStep(1, 1, 2, 1).value === 0, "clock N = 2");
 console.log(`${failures ? "FAIL" : "ok"}: ${vectors.length} vectors, ${padVectors.length} pad vectors, ${failures} failures`);
 process.exit(failures ? 1 : 0);
