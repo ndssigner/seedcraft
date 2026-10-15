@@ -600,3 +600,58 @@ ol.trail .total { font-weight: 700; color: var(--pad); }
 pre.pad-file span.on { background: var(--pad-soft); }
 .key-dict { border-top: 1px solid var(--line); padding-top: var(--sp-3); }
 @media (prefers-reduced-motion: reduce) { .die.rolling { animation: none; } .die.rolling .die-face { opacity: 1; } }
+
+/* the sequence turn by turn: the squares, their bits and number, the clock of N, the collection, the piece */
+.squares { display: inline-flex; gap: 3px; }
+.sq { width: 22px; height: 22px; border: 1.5px solid #1c2826; border-radius: 3px; background: #ffffff; }
+.sq.on { background: #1c2826; }
+/* a bit of the header or of the padding: no square in the QR code */
+.sq.header, .sq.padding { border-style: dashed; border-color: var(--muted); }
+.sq.header.on, .sq.padding.on { background: var(--muted); }
+.bits-strip { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bits-strip code { font-family: var(--mono); font-size: var(--fs-m); letter-spacing: .08em; }
+.bits-strip .arrow { color: var(--muted); }
+.bits-num { font-family: var(--book); font-size: var(--fs-xl); line-height: 1; }
+.turn-part { display: flex; flex-direction: column; gap: 4px; }
+.turn-key { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; align-items: center; border-left: 3px solid var(--pad); padding-left: 10px; }
+.key-line { align-items: center; gap: 8px; }
+.turn-sum { font-family: var(--mono); font-size: var(--fs-m); font-weight: 700; }
+.clock { width: 120px; height: 120px; }
+.clock-ring { fill: none; stroke: var(--line-strong); stroke-width: 1.5; }
+.clock .tick { fill: var(--line-strong); }
+.clock .tick.from { fill: var(--fg); }
+.clock .tick.to, .clock .tick.wrap { fill: var(--pad); }
+.clock-arc { fill: none; stroke: var(--pad); stroke-width: 4; stroke-linecap: round; }
+.clock-head { fill: var(--pad); }
+.clock-n { font-size: 11px; fill: var(--muted); font-family: var(--mono); }
+.clock-n.from, .clock-n.to { fill: var(--fg); font-weight: 700; font-size: 14px; }
+.clock-n.wrap { fill: var(--pad); font-weight: 700; }
+.clock-by { font-size: 28px; font-weight: 700; fill: var(--pad); font-family: var(--book); }
+.collection { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 1px 6px; }
+.crow { display: flex; align-items: center; gap: 5px; padding: 0 4px; border-radius: var(--r-s); border: 1px solid transparent; }
+.crow .num { width: 16px; text-align: right; }
+.crow code { font-family: var(--mono); font-size: var(--fs-xs); color: var(--muted); }
+.crow .icon { width: 22px; height: 22px; margin-left: auto; }
+.crow.on { border-color: var(--accent); background: var(--accent-soft); }
+.crow.on code, .crow.on .num { color: var(--accent-ink); }
+.turn-piece { display: flex; align-items: center; gap: 12px; background: var(--sunk); border-radius: var(--r-l); padding: 6px 12px; }
+.turn-piece .name { font-family: var(--book); font-size: var(--fs-l); }
+.map.turn-map { max-height: 200px; }
+@media (min-width: 880px) and (min-height: 560px) {
+	.flow-body .tool > .panel:last-child > .map.turn-map { flex: 0 1 auto; max-height: 34%; min-height: 80px; }
+}
+/* how it goes, once, before the first turn: four boxes in a row */
+.narrow.howto { max-width: 860px; }
+.howto-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; }
+.howto-box { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 8px; text-align: center; padding: 14px 8px; background: var(--sunk); border-radius: var(--r-m); }
+.howto-box + .howto-box::before { content: "→"; position: absolute; left: -19px; top: 34px; color: var(--muted); font-size: var(--fs-l); }
+.howto-box p { margin: 0; font-size: var(--fs-s); }
+.howto-pic { width: 64px; height: 48px; }
+.howto-pic path { stroke: var(--line-strong); stroke-width: 3; stroke-linecap: round; }
+.howto-box .bits-num { font-size: 40px; line-height: 48px; }
+.howto-box .squares { height: 48px; align-items: center; }
+.howto-scanner { font-family: var(--book); font-size: var(--fs-l); text-align: center; margin: 0; }
+@media (max-width: 640px) {
+	.howto-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+	.howto-box + .howto-box::before { content: none; }
+}
