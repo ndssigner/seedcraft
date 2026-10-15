@@ -22,6 +22,26 @@
 	const buyFor = (words, n, mode, padAs) => mode === "pad" && padAs === "string" ? PAD_BUY[words][n]
 		: mode === "pad" && words === 12 && n === 2 ? 135 : BUY[words][n];
 	const symbolsFor = (words, n) => Math.ceil((words === 12 ? 213 : 364) / Math.log2(n));
+	// The forms of SPEC §11.2, as data: the recommended N, how the pieces are
+	// drawn (strung on a thread, in rows, or written as entries), the example
+	// dictionary, whether the form keeps its order, centimetres per piece for
+	// strung ones. Their words are in SEEDCRAFT_TEXT[lang].forms.
+	const FORMS = [
+		{ id: "book", n: 8, family: "written", set: "streets", keeps: true },
+		{ id: "stickers", n: 16, family: "rows", set: "charms", keeps: true },
+		{ id: "necklace", n: 16, family: "strung", set: "beads", keeps: true, cm: 0.8 },
+		{ id: "gems", n: 8, family: "strung", set: "gems", keeps: true, cm: 0.6 },
+		{ id: "bricks", n: 16, family: "rows", set: "bricks", keeps: true },
+		{ id: "books", n: 8, family: "rows", set: "authors", keeps: false },
+		{ id: "cards", n: 4, family: "rows", set: "suits", keeps: false },
+		{ id: "other", n: 16, family: "rows", set: null, keeps: true },
+	];
+	const formOf = (id) => FORMS.find((f) => f.id === id) || FORMS[2];
+	// playing cards: four decks for 12 words, six for 24 (SPEC §11.2)
+	const materialsOf = (id, L, n) => {
+		const f = formOf(id), words = L > symbolsFor(12, n) ? 24 : 12;
+		return T().forms[id].materials(L, f.cm ? Math.ceil((L * f.cm + 20) / 10) * 10 : 0, words === 12 ? 4 : 6);
+	};
 
 	// ---- state -------------------------------------------------------
 	const st = {
@@ -29,7 +49,8 @@
 		screen: "intro",  // intro, make, read, print, about, donate
 		// the two journeys, each a sequence of steps (see MAKE_STEPS, READ_STEPS)
 		step: { make: "plan", read: "have" },
-		plan: { words: 12, n: 16, padAs: "string" },
+		plan: { words: 12, n: 16, padAs: "string", form: "necklace", padForm: null },  // padForm: the pad's own form, if another
+		padDict: null,  // the pad's own dictionary, when it is another collection (SPEC §11.4)
 		dict: null,  // { things: [{ name, emoji, photo, colour, symbol }], checked }
 		edit: null,  // the dictionary being named: { kind: "name", things, i }, or checked: { kind: "check", i }
 		mode: null,  // "basic" or "pad" (SPEC §10), chosen before making or reading
@@ -108,6 +129,9 @@
 			const w = r * 2, hgt = r * 1.5;
 			g.append(svg("rect", { x: x - r, y: y - hgt / 2, width: w, height: hgt, rx: 4, fill: thing.colour || "#ddd", stroke: ring, "stroke-width": width, class: cur }));
 			for (const dx of [-r / 2, r / 2]) g.append(svg("rect", { x: x + dx - r / 4, y: y - hgt / 2 - r / 3, width: r / 2, height: r / 3, rx: 2, fill: thing.colour || "#ddd", stroke: "rgba(0,0,0,.35)" }));
+		} else if (opts.tile) {
+			const fill = thing.colour || (opts.dark ? "#222c2b" : "#ffffff");
+			g.append(svg("rect", { x: x - r, y: y - r, width: 2 * r, height: 2 * r, rx: r / 4, fill, stroke: ring, "stroke-width": width, class: cur }));
 		} else {
 			const fill = thing.colour || (opts.dark ? "#222c2b" : "#ffffff");
 			g.append(svg("circle", { cx: x, cy: y, r, fill, stroke: ring, "stroke-width": width, class: cur }));
@@ -118,8 +142,10 @@
 			g.append(svg("text", { x, y: y + r * 0.34, "text-anchor": "middle", "font-size": r * 0.95, "font-weight": 700,
 				fill: ink, "font-family": "Menlo, Consolas, 'DejaVu Sans', sans-serif" }, thing.symbol + "︎"));
 		} else if (thing.name) {
-			const initials = thing.name.trim().split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
-			g.append(svg("text", { x, y: y + r * 0.3, "text-anchor": "middle", "font-size": r * 0.8, "font-weight": 700,
+			// initials; a one-word name, its first three letters (Square and Street must differ)
+			const words = thing.name.trim().split(/\s+/);
+			const initials = words.length > 1 ? words.map((w) => w[0]).join("").slice(0, 2).toUpperCase() : words[0].slice(0, 3);
+			g.append(svg("text", { x, y: y + r * 0.3, "text-anchor": "middle", "font-size": r * (initials.length > 2 ? 0.62 : 0.8), "font-weight": 700,
 				fill: thing.colour ? (lightColour(thing.colour) ? "#111111" : "#ffffff") : opts.dark ? "#e2eae7" : "#1c2826" }, initials));
 		} else g.append(svg("text", { x, y: y + r * 0.3, "text-anchor": "middle", "font-size": r * 0.9, fill: "#8e9693" }, "?"));
 		return g;
@@ -130,8 +156,10 @@
 		return s;
 	}
 
-	// The whole string: pieces on a thread that snakes row by row. opts:
-	// paper (tick boxes), perRow, current (highlighted), onPick(i).
+	// The whole sequence: pieces on a thread that snakes row by row (the
+	// thread is the order, whatever the form). opts: paper (tick boxes),
+	// perRow, current (highlighted), onPick(i), pad (the pad's thread), form
+	// (its start and end, and tiles for forms in rows).
 	function stringSvg(things, sequence, opts = {}) {
 		const perRow = opts.perRow || 8, cell = 58, r = 21, rowH = opts.paper ? 66 : 74, pad = 66;
 		const n = sequence.length, rows = Math.max(1, Math.ceil(n / perRow));
@@ -155,14 +183,15 @@
 		const [ex, ey] = pos(n - 1), lastRight = Math.floor((n - 1) / perRow) % 2 === 0;
 		d += ` L${ex + (lastRight ? 30 : -30)},${ey}`;
 		root.append(svg("path", { class: "thread" + (opts.pad ? " pad" : ""), d }));
-		root.append(svg("text", { x: sx - 34, y: sy + 7, "text-anchor": "middle", "font-size": 20 }, "🔒"));
-		root.append(svg("text", { class: "tag", x: sx - 34, y: sy + 30, "text-anchor": "middle" }, T().clasp));
+		const f = opts.form && formOf(opts.form), w = opts.form && T().forms[opts.form];
+		root.append(svg("text", { x: sx - 34, y: sy + 7, "text-anchor": "middle", "font-size": 20 }, !f || f.family === "strung" ? "🔒" : "★"));
+		root.append(svg("text", { class: "tag", x: sx - 34, y: sy + 30, "text-anchor": "middle" }, w ? w.start : T().clasp));
 		root.append(svg("circle", { class: "knot" + (opts.pad ? " pad" : ""), cx: ex + (lastRight ? 32 : -32), cy: ey, r: 6 }));
-		root.append(svg("text", { class: "tag", x: ex + (lastRight ? 32 : -32), y: ey + 26, "text-anchor": "middle" }, T().end));
-		const dark = !opts.paper && darkScreen();
+		root.append(svg("text", { class: "tag", x: ex + (lastRight ? 32 : -32), y: ey + 26, "text-anchor": "middle" }, w ? w.end : T().end));
+		const dark = !opts.paper && darkScreen(), tile = !!f && f.family === "rows";
 		sequence.forEach((idx, i) => {
 			const [x, y] = pos(i);
-			const g = bead(things[idx], x, y, r, { dark, current: i === opts.current });
+			const g = bead(things[idx], x, y, r, { dark, current: i === opts.current, tile });
 			g.append(svg("title", {}, `${i + 1}: ${things[idx].name}`));
 			if (opts.onPick) { g.setAttribute("class", "pick"); g.addEventListener("click", () => opts.onPick(i)); }
 			if (opts.paper) root.append(svg("rect", { class: "tick", x: x - 13, y: y + r + 3, width: 26, height: 16, rx: 4 }));
@@ -170,6 +199,17 @@
 		});
 		return root;
 	}
+
+	// An address book's entries, as ruled lines: the number, a blank for any
+	// name and number, and the kind of street. Same options as stringSvg.
+	function entriesList(things, sequence, opts = {}) {
+		return h("ol", { class: "entries" + (opts.paper ? " paper" : "") + (opts.pad ? " pad" : "") }, sequence.map((idx, i) =>
+			h("li", { class: i === opts.current ? "on" : null, on: opts.onPick ? { click: () => opts.onPick(i) } : null },
+				h("span", { class: "n", text: String(i + 1) }), h("span", { class: "blank" }), h("b", { text: things[idx].name }),
+				opts.paper ? h("span", { class: "tick" }) : null)));
+	}
+	const drawSeq = (things, sequence, opts = {}) =>
+		opts.form && formOf(opts.form).family === "written" ? entriesList(things, sequence, opts) : stringSvg(things, sequence, opts);
 
 	// A photo of a piece: the centre square, 192 px, as a JPEG data URL (the
 	// only kind of image this page may show).
@@ -340,32 +380,62 @@
 	}
 
 	// ---- make, 1: the plan ----------------------------------------------
+	// The forms of SPEC §11.2, each with what the table says of it: whether it
+	// blends in and keeps its order. A form whose order can be undone has a
+	// dashed edge, and says it is not for the only copy.
+	function setForm(id) { st.plan.form = id; if (!st.dict) st.plan.n = formOf(id).n; render(); }
+	function formChoice() {
+		const t = T(), p = st.plan;
+		const card = (f) => {
+			const w = t.forms[f.id];
+			return h("button", { class: "form" + (p.form === f.id ? " on" : "") + (f.keeps ? "" : " loose"), "aria-pressed": String(p.form === f.id),
+				on: { click: () => setForm(f.id) } },
+				h("b", { text: w.name }), h("span", { class: "what", text: w.what }),
+				h("span", { class: "facts" }, h("span", {}, h("i", { text: t.formBlends }), w.blends), h("span", {}, h("i", { text: t.formOrder }), w.order)),
+				h("span", { class: "n-of", text: "N = " + f.n }));
+		};
+		const w = t.forms[p.form];
+		return panel(title(t.formTitle), hint(t.formHelp), h("div", { class: "forms" }, FORMS.map(card)),
+			h("div", { class: "note" + (formOf(p.form).keeps ? "" : " warn") }, h("b", { text: w.name + ": " }), formOf(p.form).keeps ? w.note : t.formNotOnly + " " + w.note));
+	}
 	function planStep() {
 		const t = T(), p = st.plan, d = st.dict;
-		const n = d ? d.things.length : p.n, L = symbolsFor(p.words, n);
+		const n = d ? d.things.length : p.n, L = symbolsFor(p.words, n), two = st.mode === "pad" && p.padAs === "string";
 		return tool(
-			modeChoice(),
+			h("div", { class: "stack" }, modeChoice(), st.mode ? formChoice() : null),
 			panel(title(t.planTitle),
 				field(t.seedWords, seg([[12, "12"], [24, "24"]], p.words, (v) => { p.words = v; render(); })),
 				field(t.howMany, d ? h("div", { class: "meta", text: t.planNFixed(n) })
-					: seg(SIZES.map((v) => [v, String(v), v === 16 ? "★" : ""]), p.n, (v) => { p.n = v; render(); }), d ? null : hint("★ " + t.recommended)),
+					: seg(SIZES.map((v) => [v, String(v), v === formOf(p.form).n ? "★" : ""]), p.n, (v) => { p.n = v; render(); }), d ? null : hint(`★ ${t.recommended} (${t.forms[p.form].name})`)),
 				st.mode === "pad" ? field(t.planPadAs, seg([["string", t.padAsString], ["file", t.padAsFile]], p.padAs, (v) => { p.padAs = v; render(); }),
 					hint(p.padAs === "string" ? t.planPadString : t.planPadFile)) : null,
+				two ? field(t.formPadForm, seg([["same", t.formPadSame], ["other", t.formPadOther]], p.padForm ? "other" : "same",
+					(v) => { p.padForm = v === "other" ? FORMS.find((f) => f.id !== p.form).id : null; st.padDict = null; render(); }),
+					p.padForm ? h("select", { class: "input", "aria-label": t.formPadForm, on: { change: (e) => { p.padForm = e.target.value; st.padDict = null; render(); } } },
+						FORMS.filter((f) => f.id !== p.form).map((f) => h("option", { value: f.id, selected: f.id === p.padForm ? "" : null }, t.forms[f.id].name))) : null) : null,
 				st.mode ? h("div", { class: "big-total", text: t.planSummary(st.mode, p.padAs, L) }) : hint(t.planChooseMode),
+				st.mode ? hint(t.forms[p.form].make) : null,
 				stepNav("make", { ready: !!st.mode })));
 	}
 
 	// ---- make, 2: what to get ---------------------------------------------
+	// How many of each kind (none to buy for an address book: its kinds are
+	// written), and what else each form needs; for both halves in pad mode.
 	function gatherStep() {
-		const t = T(), p = st.plan, n = st.dict ? st.dict.things.length : p.n;
-		const L = symbolsFor(p.words, n), each = buyFor(p.words, n, st.mode, p.padAs);
-		const strings = st.mode === "pad" && p.padAs === "string" ? 2 : 1, copies = st.mode === "pad" ? 2 : 1;
-		const cm = Math.ceil((L * 0.8 + 20) / 10) * 10;
+		const t = T(), p = st.plan, n = st.dict ? st.dict.things.length : p.n, L = symbolsFor(p.words, n);
+		const two = st.mode === "pad" && p.padAs === "string", same = two && !p.padForm;
+		const written = (id) => formOf(id).family === "written";
+		// the same kinds for both halves: the table of SPEC §10.6; each half on its own: §6 (and 135 for N = 2)
+		const each = buyFor(p.words, n, st.mode, same ? "string" : "file");
+		const half = (id, label) => h("div", { class: "stack" }, label ? h("div", { class: "label" + (label === t.stringPad ? " pad-label" : ""), text: label }) : null,
+			written(id) ? null : h("div", { class: "big-total", text: t.buyEach(each, n) }),
+			materialsOf(id, L, n) ? h("p", { text: materialsOf(id, L, n) }) : null);
 		return tool(
-			panel(title(t.buyCard), hint(t.buyHelp), h("p", { text: t.gatherWhy(L, strings) }), hint(t.buyExact)),
-			panel(h("div", { class: "big-total", text: t.buyEach(each, n) }),
-				h("p", { text: t.gatherDictCopies(copies) }),
-				h("p", { text: t.gatherStrings(strings, L, cm) }),
+			panel(title(t.buyCard), hint(t.buyHelp), h("p", { text: t.gatherWhy(L, two) }), hint(t.buyExact)),
+			panel(same ? half(p.form, null) : half(p.form, two ? t.stringSeq : null),
+				same ? h("p", { text: t.gatherTwice }) : null,
+				two && p.padForm ? half(p.padForm, t.stringPad) : null,
+				h("p", { text: t.gatherDictCopies(st.mode === "pad" ? 2 : 1) }),
 				st.mode === "pad" && p.padAs === "file" ? hint(t.gatherFile) : null,
 				stepNav("make", { onNext: () => { st.gathered = true; } })));
 	}
@@ -392,8 +462,22 @@
 		if (new Set(things.map((x) => x.name.trim().toLowerCase())).size !== things.length) return t.errDictDup;
 		return "";
 	};
+	// The ready-made dictionaries that fit N kinds, this form's first. pick(things, conventional):
+	// for an address book with street types, the conventional order (SPEC §11.3), nothing to check.
+	const thingsOf = (set, n) => set.things.slice(0, n).map((x) => ({ name: x[st.lang], emoji: x.emoji || "", colour: x.colour || "",
+		symbol: x.symbol || "", brick: !!x.brick, photo: "" }));
+	function readyDicts(n, formId, pick) {
+		const f = formOf(formId);
+		const sets = SETS.filter((set) => set.things.length >= n).sort((a, b) => (b.id === f.set) - (a.id === f.set));
+		return h("div", { class: "row" }, sets.map((set) => h("button", { class: set.id === f.set ? "btn small" : "btn ghost small",
+			on: { click: () => pick(thingsOf(set, n), set.id === "streets" && f.id === "book") } }, set.icon + " " + set[st.lang])));
+	}
+	const conventional = (n, formId, pick) => formId === "book" && n === 8
+		? field(T().dictConventional, hint(T().dictConventionalHelp), h("div", { class: "row" },
+			h("button", { class: "btn", on: { click: () => pick(thingsOf(SETS.find((x) => x.id === "streets"), 8), true) } }, "📒 " + T().dictConventional)))
+		: null;
 	function dictScreen() {
-		const t = T(), d = st.dict;
+		const t = T(), d = st.dict, form = formOf(st.plan.form);
 		const err = h("div");
 		const open = h("input", { type: "file", accept: ".json,.txt,application/json,text/plain", class: "hidden", on: { change: async (e) => {
 			const f = e.target.files[0];
@@ -408,20 +492,24 @@
 		if (!d) {
 			let n = st.plan.n;
 			const sizes = h("div");
-			const drawSizes = () => sizes.replaceChildren(seg(SIZES.map((v) => [v, String(v), v === 16 ? "★" : ""]), n, (v) => { n = st.plan.n = v; drawSizes(); }));
+			const pick = (things, checked) => { setDict({ things, checked }); render(); };
+			const examples = h("div");
+			const drawSizes = () => {
+				sizes.replaceChildren(seg(SIZES.map((v) => [v, String(v), v === form.n ? "★" : ""]), n, (v) => { n = st.plan.n = v; drawSizes(); }));
+				examples.replaceChildren(readyDicts(n, form.id, pick));
+				conv.replaceChildren(conventional(n, form.id, pick) || "");
+			};
+			const conv = h("div");
 			drawSizes();
-			const example = h("div", { class: "row" }, SETS.map((set) => h("button", { class: "btn ghost small", on: { click: () => {
-				setDict({ things: set.things.slice(0, n).map((x) => ({ name: x[st.lang], emoji: x.emoji || "", colour: x.colour || "", symbol: x.symbol || "", brick: !!x.brick, photo: "" })), checked: false });
-				render();
-			} } }, set.icon + " " + set[st.lang])));
 			return tool(
 				panel(title(t.dictCard),
-					field(t.howMany, sizes, hint("★ " + t.recommended)),
+					field(t.howMany, sizes, hint(`★ ${t.recommended} (${t.forms[form.id].name})`)),
+					conv,
 					h("div", { class: "row" },
 						h("button", { class: "btn", on: { click: () => editDict({ kind: "name", things: Array.from({ length: n }, () => ({ name: "", emoji: "", colour: "", photo: "" })), i: 0 }) } }, t.dictName),
 						h("button", { class: "btn ghost", on: { click: () => open.click() } }, t.dictOpen), open),
 					err,
-					h("details", { class: "more" }, h("summary", { text: t.dictExample }), hint(t.dictExampleHelp), example)),
+					h("details", { class: "more" }, h("summary", { text: t.dictExample }), hint(t.dictExampleHelp), examples)),
 				panel(h("p", { text: t.dictIntro }), h("ol", { class: "how-to" }, t.dictChecks.map((x) => h("li", { text: x })))));
 		}
 		const json = () => JSON.stringify({ format: "seedcraft-dictionary", version: 0,
@@ -634,9 +722,10 @@
 	// One string to make, piece by piece: step by step, as a drawing, as a
 	// list; the sequence also as the QR code it keeps (and, in the basic mode,
 	// the QR code by hand). opts: posKey (where it is), tabKey (which view),
-	// listName (its file), help (a note above), extra views [[key, label, fill(view)]].
+	// listName (its file), help (a note above), extra views [[key, label, fill(view)]],
+	// things (its dictionary, if not the sequence's) and form.
 	function stringViews(string, opts) {
-		const t = T(), m = st.make, d = st.dict, L = string.length;
+		const t = T(), m = st.make, things = opts.things || st.dict.things, L = string.length, form = opts.form || st.plan.form;
 		const views = [["walk", t.tabWalk], ...(opts.extra || []).filter((x) => x[0] === "hand").map(([v, l]) => [v, l]),
 			["drawing", t.tabDrawing], ["list", t.tabList], ...(opts.extra || []).filter((x) => x[0] !== "hand").map(([v, l]) => [v, l])];
 		if (!views.some(([v]) => v === m[opts.tabKey])) m[opts.tabKey] = "walk";
@@ -644,7 +733,7 @@
 		const view = h("div", { class: "stack" });
 		if (opts.help && tab !== "qr") view.append(h("div", { class: "note" + (opts.pad ? " pad" : ""), text: opts.help }));
 		if (tab === "walk") {
-			const thing = (i) => d.things[string[i]];
+			const thing = (i) => things[string[i]];
 			const pos = Math.min(m[opts.posKey] || 0, L - 1);
 			const move = (to) => { m[opts.posKey] = Math.max(0, Math.min(L - 1, to)); render(); };
 			const side = (i, label) => h("div", { class: "side" }, i >= 0 && i < L ? [hint(`${label} · ${i + 1}`), icon(thing(i), 44), h("div", { class: "small-name", text: thing(i).name })] : null);
@@ -655,11 +744,11 @@
 				h("div", { class: "row" },
 					h("button", { class: "btn ghost", disabled: pos === 0 ? "" : undefined, on: { click: () => move(pos - 1) } }, "◀ " + t.prevPiece),
 					h("button", { class: "btn push", on: { click: () => pos < L - 1 ? move(pos + 1) : null } }, pos < L - 1 ? t.nextPiece + " ▶" : "✓ " + t.done)),
-				stringSvg(d.things, string, { current: pos, onPick: (i) => move(i), pad: opts.pad }));
+				drawSeq(things, string, { current: pos, onPick: (i) => move(i), pad: opts.pad, form }));
 		}
-		if (tab === "drawing") view.append(hint(t.stringHelp), stringSvg(d.things, string, { pad: opts.pad }));
+		if (tab === "drawing") view.append(h("div", { class: "note" }, t.forms[form].make), hint(t.forms[form].drawing), drawSeq(things, string, { pad: opts.pad, form }));
 		if (tab === "list") {
-			const text = string.map((s, i) => `${i + 1}. ${d.things[s].name}`).join("\n");
+			const text = string.map((s, i) => `${i + 1}. ${things[s].name}`).join("\n");
 			view.append(hint(t.listHelp), h("pre", { class: "code", text }),
 				h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => download(text + "\n", opts.listName, "text/plain") } }, t.saveList)));
 		}
@@ -703,12 +792,12 @@
 							m.symbols = S.encrypt(m.basic, m.pad, n);
 						} else m.symbols = S.encode(m.entropy, k);
 						m.pos = 0; m.padPos = 0; m.hand = 0; m.tab = "walk"; m.padTab = "walk";
-						m.padKept = m.checked = m.stored = false; m.check = freshRead(st.plan.padAs);
+						m.padKept = m.checked = m.stored = false; m.check = null;
 						render();
 					} } }, t.makeIt))),
 				panel(field(t.tabDict, dictLine()), hint(padMode ? t.seqPadIntro : t.seqIntro)));
 		}
-		const L = m.symbols.length, each = S.piecesToBuy(m.symbols, n), cm = Math.ceil((L * 0.8 + 20) / 10) * 10;
+		const L = m.symbols.length, each = S.piecesToBuy(m.symbols, n), written = formOf(st.plan.form).family === "written";
 		const extra = [["qr", t.tabQr, (view) => view.append(h("div", { class: "qrbox" }, qrSvg(S.compactSeedQR(m.entropy)), hint(padMode ? t.qrHelpPad : t.qrHelp)))]];
 		// the QR code by hand starts from the basic sequence: in pad mode, only after subtracting the pad
 		if (!padMode) extra.unshift(["hand", t.tabHand, (view) => {
@@ -718,14 +807,15 @@
 		return tool(
 			panel(title(padMode ? t.seqTitlePad : t.makeCard), dictLine(),
 				h("div", { class: "big-total", text: t.total(L) }),
-				h("p", { text: t.shop(each, n, cm) }),
+				written ? null : h("p", { text: t.shop(each, n) }),
+				h("p", { text: materialsOf(st.plan.form, L, n) }),
 				h("div", { class: "alert", text: padMode ? t.padMakeWarn : t.makeWarn }),
 				h("div", { class: "row" },
 					h("button", { class: "btn ghost small", on: { click: () => { if (confirm(t.otherSeedAsk)) { m.symbols = null; m.entropy = null; render(); } } } }, "◀ " + t.otherSeed),
 					h("button", { class: "btn ghost small", on: { click: () => go("print") } }, t.printIt)),
 				stepNav("make")),
 			panel(...stringViews(m.symbols, { posKey: "pos", tabKey: "tab", listName: padMode ? "list-a.txt" : "sequence.txt",
-				help: padMode ? t.seqStringHelp : null, extra })));
+				help: padMode ? t.seqStringHelp : t.forms[st.plan.form].make, extra })));
 	}
 
 	// ---- make, 5: the pad (pad mode) ------------------------------------------
@@ -736,7 +826,7 @@
 		const remake = () => {
 			m.pad = m.handPad ? S.addPads(m.devicePad, m.handPad, n) : m.devicePad;
 			m.symbols = S.encrypt(m.basic, m.pad, n);
-			m.pos = 0; m.padPos = 0; m.checked = false; m.check = freshRead(st.plan.padAs);
+			m.pos = 0; m.padPos = 0; m.checked = false; m.check = null;
 			render();
 		};
 		let hand;
@@ -763,22 +853,50 @@
 		}
 		const file = S.writePadFile(m.pad, n);
 		const save = h("button", { class: asString ? "btn ghost small" : "btn", on: { click: () => { download(file, "numbers.txt", "text/plain"); m.padKept = true; } } }, t.padFileSave);
+		// another collection for the pad: its own dictionary, ready-made or from a file (SPEC §11.4)
+		const padForm = asString ? st.plan.padForm : null, needDict = !!padForm && !st.padDict;
+		const pickPadDict = (things) => { st.padDict = { things }; m.check = null; render(); };
+		const padDictPanel = () => {
+			const err = h("div");
+			const open = h("input", { type: "file", accept: ".json,.txt,application/json,text/plain", class: "hidden", on: { change: async (e) => {
+				const f = e.target.files[0];
+				if (!f) return;
+				try {
+					const own = dictFromFile(await f.text(), f.name), problem = dictProblem(own);
+					if (problem) { err.replaceChildren(errorBox(problem)); return; }
+					if (own.length !== n) { err.replaceChildren(errorBox(t.errPadDictSize(own.length, n))); return; }
+					pickPadDict(own);
+				} catch (x) { err.replaceChildren(errorBox(t.errDictFile)); }
+			} } });
+			return panel(h("div", { class: "label pad-label", text: t.padDictTitle + ": " + t.forms[padForm].name }), hint(t.padDictHelp),
+				conventional(n, padForm, pickPadDict),
+				field(t.padDictReady, readyDicts(n, padForm, pickPadDict)),
+				h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => open.click() } }, t.dictOpen), open), err);
+		};
 		return tool(
 			panel(title(t.padTitle), h("p", { text: t.padIntro }),
 				h("div", { class: "note warn", text: t.padLearnOnly }),
 				hand,
 				field(t.planPadAs, seg([["string", t.padAsString], ["file", t.padAsFile]], st.plan.padAs, (v) => { st.plan.padAs = v; render(); })),
 				asString ? null : [hint(t.padFileHelp), h("div", { class: "row" }, save)],
-				stepNav("make", { onNext: () => { m.padKept = true; } })),
-			asString
-				? panel(...stringViews(m.pad, { posKey: "padPos", tabKey: "padTab", listName: "list-b.txt", help: t.padStringHelp, pad: true }))
+				padForm && st.padDict ? h("div", { class: "dictline" }, h("span", { class: "pad-label", text: t.padDictTitle }),
+					h("span", { class: "minis" }, st.padDict.things.map((x) => icon(x, 22))),
+					h("button", { class: "btn ghost small", on: { click: () => { st.padDict = null; m.check = null; render(); } } }, t.dictEdit)) : null,
+				stepNav("make", { ready: !needDict, onNext: () => { m.padKept = true; } })),
+			needDict ? padDictPanel()
+			: asString
+				? panel(...stringViews(m.pad, { posKey: "padPos", tabKey: "padTab", listName: "list-b.txt", help: t.padStringHelp, pad: true,
+					things: padForm ? st.padDict.things : null, form: padForm || st.plan.form }))
 				: panel(h("div", { class: "label", text: t.padFileTitle }), h("pre", { class: "code pad-file", text: file }), hint(t.padFileHelp), h("div", { class: "row" }, save)));
 	}
 
 	// ---- make, 6: read it back --------------------------------------------------
 	function checkStep() {
 		const m = st.make;
-		if (!m.check) m.check = freshRead(st.plan.padAs);
+		if (!m.check) {
+			m.check = freshRead(st.plan.padAs);
+			if (st.plan.padForm && st.padDict) m.check.padIn.dict = st.padDict.things;
+		}
 		return readPanel(m.check, { expect: m.entropy });
 	}
 
@@ -822,7 +940,11 @@
 		if (st.edit) return dictStep();
 		return h("div", { class: "stack" },
 			tool(modeChoice(),
-				panel(title(t.haveTitle), hint(t.haveHelp), dictLine(),
+				panel(title(t.haveTitle), hint(t.haveHelp),
+					field(t.formTitle, h("select", { class: "input", "aria-label": t.formTitle, on: { change: (e) => { st.plan.form = e.target.value; render(); } } },
+						FORMS.map((f) => h("option", { value: f.id, selected: f.id === st.plan.form ? "" : null }, t.forms[f.id].name))),
+						hint(t.forms[st.plan.form].read)),
+					dictLine(),
 					st.mode && st.dict ? h("div", { class: "big-total", text: t.haveSummary(st.mode, st.dict.things.length) }) : null,
 					stepNav("read", { ready: !!st.mode && !!st.dict }))),
 			dictScreen());
@@ -909,7 +1031,7 @@
 				return [hint(t.typeHelp), area,
 					h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => { slot.typing = false; render(); } } }, t.tapInstead))];
 			}
-			return [hint(onPad ? t.tapPadHelp : t.tapHelp),
+			return [hint(onPad ? (pin.dict && st.plan.padForm ? t.forms[st.plan.padForm].read : t.tapPadHelp) : t.forms[st.plan.form].read),
 				h("div", { class: "keypad" }, things.map((x, i) =>
 					tint(h("button", { class: "key" + (x.colour ? " tinted" : ""), "aria-label": x.name, on: { click: () => {
 						slot.taps.push(i);
@@ -960,6 +1082,9 @@
 				h("div", { class: "row between" }, h("span", { class: "meta", text: pin.dict ? t.padDictOwn(n) : t.padDictSame }),
 					pin.dict ? h("button", { class: "btn ghost small", on: { click: () => { pin.dict = null; pin.taps = []; render(); } } }, t.padDictForget)
 						: h("button", { class: "btn ghost small", on: { click: () => open.click() } }, t.padDictOpen), open),
+				pin.dict ? null : h("details", { class: "more" }, h("summary", { text: t.padDictReady }),
+					st.plan.padForm ? conventional(n, st.plan.padForm, (things) => { pin.dict = things; pin.taps = []; render(); }) : null,
+					readyDicts(n, st.plan.padForm || "other", (things) => { pin.dict = things; pin.taps = []; render(); })),
 				err);
 		};
 		const result = () => {
@@ -1024,7 +1149,7 @@
 			h("div", { class: "big-total", text: t.tapped(slot.taps.length, len12, len24) }),
 			h("div", { class: "lasttaps" }, last.map((i, j) => h("span", { class: j === last.length - 1 ? "newest" : "" },
 				icon(things[i], j === last.length - 1 ? 48 : 32), h("small", { text: `${slot.taps.length - last.length + j + 1}` })))),
-			stringSvg(things, slot.taps, { pad: onPad }));
+			drawSeq(things, slot.taps, { pad: onPad, form: onPad && pin.dict ? st.plan.padForm || "other" : st.plan.form }));
 		else if (onPad && pin.source === "file") right.push(h("div", { class: "label pad-label", text: t.stringPad }), hint(t.padFileReadHelp));
 		if (!rd.out && !inJourney) right.push(errorBox(rd.error), h("div", { class: "row" }, h("button", { class: "btn push", on: { click: readIt } }, t.readIt)));
 		if (!inJourney) right.push(stepNav("make", { ready: undefined }));
@@ -1038,7 +1163,8 @@
 	function printSheet() {
 		const t = T(), m = st.make, d = st.dict;
 		if (!d || !m.symbols) { st.screen = "make"; st.step.make = "seq"; return makeFlow(); }
-		const n = d.things.length, each = S.piecesToBuy(m.symbols, n), cm = Math.ceil((m.symbols.length * 0.8 + 20) / 10) * 10;
+		const form = formOf(st.plan.form), w = t.forms[form.id], L = m.symbols.length;
+		const n = d.things.length, each = S.piecesToBuy(m.symbols, n), materials = materialsOf(form.id, L, n);
 		const shop = [...d.things].sort((a, b) => a.name.localeCompare(b.name, st.lang));
 		return h("div", {},
 			h("div", { class: "noprint panel print-bar" },
@@ -1047,17 +1173,18 @@
 					h("button", { class: "btn ghost", on: { click: () => toStep("make", "seq") } }, "◀ " + t.back),
 					h("button", { class: "btn push", on: { click: () => print() } }, t.printBtn))),
 			h("div", { class: "card sheet" },
-				h("h2", { text: t.sheetTitle }), h("p", { class: "help", text: t.sheetSub }),
-				h("h3", { text: t.sheetShop }),
-				h("p", { text: t.sheetEach(each) }),
-				h("div", { class: "legend shop" }, shop.map((x) => h("span", { class: "item" }, icon(x, 34, true), x.name))),
-				h("p", { text: t.sheetString(cm) }),
+				h("h2", { text: w.sheetTitle }), h("p", { class: "help", text: w.sheetSub }),
+				h("h3", { text: form.family === "written" ? t.sheetNeed : t.sheetShop }),
+				form.family === "written" ? null : h("p", { text: t.sheetEach(each) }),
+				form.family === "written" ? null : h("div", { class: "legend shop" }, shop.map((x) => h("span", { class: "item" }, icon(x, 34, true), x.name))),
+				materials ? h("p", { text: materials }) : null,
 				h("h3", { text: t.sheetHow }),
-				h("ol", { class: "how-to" }, [t.sheetStep1, t.sheetStep2, t.sheetStep3, t.sheetStep4].map((s) => h("li", { text: s }))),
-				h("div", { class: "magic" }, h("div", { class: "magic-title", text: t.sheetMagicTitle }), h("p", { text: t.sheetMagic })),
+				h("ol", { class: "how-to" }, w.sheetSteps.map((x) => h("li", { text: x }))),
+				// the magic is for the forms a child can make, whose order stays
+				form.family !== "written" && form.keeps ? h("div", { class: "magic" }, h("div", { class: "magic-title", text: t.sheetMagicTitle }), h("p", { text: t.sheetMagic })) : null,
 				h("div", { class: "drawing-page" },
 					h("h3", { text: t.sheetDrawing }),
-					stringSvg(d.things, m.symbols, { paper: true, perRow: m.symbols.length > 80 ? 10 : 8 }))));
+					drawSeq(d.things, m.symbols, { paper: true, perRow: L > 80 ? 10 : 8, form: form.id }))));
 	}
 
 	// ---- about -------------------------------------------------------
