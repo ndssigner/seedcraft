@@ -55,9 +55,9 @@
 		dict: null,  // { things: [{ name, emoji, photo, colour, symbol }], checked }
 		edit: null,  // the dictionary being named: { kind: "name", things, i }, or checked: { kind: "check", i }
 		mode: null,  // "basic" or "pad" (SPEC §10), chosen before making or reading
-		make: { seed: "", entropy: null, symbols: null, pos: 0, tab: "walk" },
+		make: { seed: "", entropy: null, symbols: null, pos: 0, tab: "turn" },
 		read: freshRead(),
-		seen: {},  // the one-line explanations already shown once: keyWhy, reroll, rowCheck
+		seen: {},  // the one-line explanations already shown once: keyWhy, reroll, rowCheck, howTo, whyPad, whyBasic
 	};
 	// what is being read: the sequence (taps, typing, text, as before) and, in
 	// pad mode, the pad (padIn: as a string of things, or as a file's text)
@@ -73,7 +73,7 @@
 		st.dict = d;
 		if (d) st.plan.n = d.things.length;
 		if (!same) {
-			st.make = { seed: st.make.seed, entropy: null, symbols: null, pos: 0, tab: "walk" };
+			st.make = { seed: st.make.seed, entropy: null, symbols: null, pos: 0, tab: "turn" };
 			st.read = freshRead();
 		}
 	}
@@ -81,7 +81,7 @@
 	// another number of words: what was made for the old length goes (the key, the sequence), as with a new N
 	function setWords(words) {
 		st.plan.words = words;
-		st.make = { seed: st.make.seed, entropy: null, symbols: null, pos: 0, tab: "walk" };
+		st.make = { seed: st.make.seed, entropy: null, symbols: null, pos: 0, tab: "turn" };
 		st.read = freshRead();
 	}
 
@@ -429,7 +429,7 @@
 	// each one keeps safe, and what it doesn't. Changing it starts over.
 	function setMode(mode) {
 		st.mode = mode;
-		st.make = { seed: st.make.seed, entropy: null, symbols: null, pos: 0, tab: "walk" };
+		st.make = { seed: st.make.seed, entropy: null, symbols: null, pos: 0, tab: "turn" };
 		st.read = freshRead(st.plan.padAs);
 		st.step.read = "have";
 		render();
@@ -901,9 +901,10 @@
 	// Each piece → its number → k bits → the next k white squares of the
 	// template, row by row (SPEC §3); the last bits are the header (version,
 	// mask) and padding, which go on no square.
-	// The template drawn as squares. dark(r, c): a square's colour (the QR code's,
-	// or the bits read so far); fixedDark(r, c): a fixed square's (null: not known yet).
-	function handGrid(size, dark, fixedDark, cells, upto, current, onPick, done) {
+	// The template drawn as squares. dark(r, c, bit): a square's colour (the QR
+	// code's, or the bits read so far); fixedDark(r, c): a fixed square's (null:
+	// not known yet); known(bit): whether a data square is filled in yet.
+	function handGrid(size, dark, fixedDark, cells, known, current, onPick, done) {
 		const cs = 14, m = 30, w = 2 * m + size * cs;
 		const fn = S.functionModules(size);
 		const owner = new Map(cells.map(([r, c], i) => [r * size + c, i]));
@@ -922,7 +923,7 @@
 			else {
 				const bit = owner.get(key), on = dark(r, c, bit);
 				if (current.bits.has(bit)) cls = on ? "cur-dark" : "cur-light";
-				else if (bit < upto) cls = on ? "dark" : "light";
+				else if (known(bit)) cls = on ? "dark" : "light";
 				else cls = "empty";
 			}
 			const rect = svg("rect", { x: m + c * cs, y: m + r * cs, width: cs, height: cs, class: "cell " + cls });
@@ -931,6 +932,65 @@
 		}
 		return g;
 	}
+
+	// ---- one turn, piece by piece: the drawings both journeys share ---------------
+	// A turn's k squares in a row, then their bits and their number. A bit of
+	// the header or of the padding has no square in the QR code: its box is dashed.
+	const squaresOf = (bits, roles) => h("span", { class: "squares", "aria-hidden": "true" },
+		bits.map((b, j) => h("span", { class: "sq" + (b ? " on" : "") + (roles[j] !== "data" ? " " + roles[j] : "") })));
+	function bitsStrip(bits, roles) {
+		return h("div", { class: "bits-strip" }, squaresOf(bits, roles),
+			h("span", { class: "arrow", text: "→" }), h("code", { text: bits.join("") }),
+			h("span", { class: "arrow", text: "→" }), h("b", { class: "bits-num", text: String(parseInt(bits.join(""), 2)) }));
+	}
+	// The clock of N: the numbers 0 to n − 1 on a ring, and the arc from `from`
+	// on by `by` steps, forwards (sign +1, making a copy) or backwards (−1,
+	// recovering), going round past n − 1 or below 0. With n = 32 only every
+	// fourth number is written, and the ones in the sum: from, the result, and
+	// by in the middle.
+	function clockSvg(n, from, by, sign) {
+		const step = S.clockStep(from, by, n, sign), to = step.value, R = 72, c = 100;
+		const angle = (v) => 2 * Math.PI * v / n - Math.PI / 2;
+		const at = (v, r = R) => [c + r * Math.cos(angle(v)), c + r * Math.sin(angle(v))];
+		const g = svg("svg", { class: "clock", viewBox: "0 0 200 200", role: "img",
+			"aria-label": `${from} ${sign > 0 ? "+" : "−"} ${by} → ${to} (${n})` }, svg("circle", { cx: c, cy: c, r: R, class: "clock-ring" }));
+		if (by % n) {
+			const [x0, y0] = at(from), [x1, y1] = at(to), a = angle(to);
+			// the arrow's head points along the ring, the way it goes
+			const dx = -Math.sin(a) * sign, dy = Math.cos(a) * sign, px = Math.cos(a), py = Math.sin(a);
+			const head = [[x1, y1], [x1 - 11 * dx + 6 * px, y1 - 11 * dy + 6 * py], [x1 - 11 * dx - 6 * px, y1 - 11 * dy - 6 * py]];
+			g.append(svg("path", { class: "clock-arc", d: `M${x0},${y0} A${R},${R} 0 ${by / n > 0.5 ? 1 : 0} ${sign > 0 ? 1 : 0} ${x1},${y1}` }),
+				svg("polygon", { class: "clock-head", points: head.map((p) => p.join(",")).join(" ") }));
+		}
+		for (let v = 0; v < n; v++) {
+			const [x, y] = at(v), role = v === to ? " to" : v === from ? " from" : v === 0 && step.wrapped ? " wrap" : "";
+			g.append(svg("circle", { cx: x, cy: y, r: n > 16 ? 2.5 : 3.5, class: "tick" + role }));
+			if (n <= 16 || v % 4 === 0 || v === from || v === to) {
+				const [lx, ly] = at(v, R + 16);
+				g.append(svg("text", { x: lx, y: ly + 4, "text-anchor": "middle", class: "clock-n" + role }, String(v)));
+			}
+		}
+		g.append(svg("text", { x: c, y: c + 10, "text-anchor": "middle", class: "clock-by" }, (sign > 0 ? "+" : "−") + by));
+		return g;
+	}
+	// The collection as a table to translate with: every piece with its number
+	// and its bits, the row of `value` marked.
+	const collectionRow = (things, value, k) => h("div", { class: "collection" }, things.map((x, v) =>
+		h("div", { class: "crow" + (v === value ? " on" : ""), title: x.name },
+			h("span", { class: "num", text: String(v) }), h("code", { text: v.toString(2).padStart(k, "0") }), icon(x, 24, false, v === value))));
+	// The QR code's template for a turn: the squares of `turn` (S.turnBits)
+	// marked with their row and column; those in `painted` (bit → 0 or 1)
+	// filled in. qr: the seed's QR code, if known (its format squares; once
+	// every square is painted and no turn is open, a QR code to scan).
+	// onPick(bit): a square clicked.
+	function turnGrid(size, qr, painted, turn, onPick) {
+		const cells = S.dataModulesRowMajor(size), current = { bits: new Set(), rows: new Set(), cols: new Set() };
+		for (const b of turn) if (b.cell) { current.bits.add(b.bit); current.rows.add(b.cell[0]); current.cols.add(b.cell[1]); }
+		const done = !!qr && !turn.length && cells.every((_, b) => painted.has(b));
+		const fixed = qr ? (r, c) => qr.getModule(c, r) : (r, c) => S.templateModule(size, r, c);
+		return handGrid(size, (r, c, bit) => painted.get(bit) === 1, fixed, cells, (bit) => painted.has(bit), current, onPick || null, done);
+	}
+
 	// The QR code by hand, for a sequence of symbols: step by step (at: the piece
 	// being drawn; at = L: all of it), or live while reading (no qr yet, no move).
 	// qr: the seed's CompactSeedQR once known; without it, the template's size
@@ -955,7 +1015,7 @@
 		const upto = done ? ndata : Math.max(0, first);
 		const dark = qr ? (r, c) => qr.getModule(c, r) : (r, c, bit) => bits[bit] === 1;
 		const fixedDark = qr ? (r, c) => qr.getModule(c, r) : (r, c) => S.templateModule(size, r, c);
-		const grid = handGrid(size, dark, fixedDark, cells, upto, current, move ? (bit) => move(Math.floor(bit / k)) : null, done);
+		const grid = handGrid(size, dark, fixedDark, cells, (b) => b < upto, current, move ? (bit) => move(Math.floor(bit / k)) : null, done);
 		const info = [];
 		if (i >= 0 && i < L) {
 			const s = symbols[i], thing = d.things[s];
@@ -990,15 +1050,15 @@
 
 	// One sequence to make, piece by piece, in two columns: on the left the
 	// piece in hand and the controls, on the right the whole of it (the
-	// drawing as a map that follows the piece, or the QR code by hand, or the
-	// list), always in view. opts: posKey (where it is), tabKey (which view),
-	// listName (its file), help (a note above the piece), hand (the QR code
-	// by hand, basic mode only), things (its dictionary, if not the
+	// drawing as a map that follows the piece, or the list), always in view.
+	// opts: posKey (where it is), tabKey (which view), listName (its file),
+	// help (a note above the piece), turns (offer the turn by turn view
+	// first: the caller draws it), things (its dictionary, if not the
 	// sequence's), form, pad. Returns { tabs, left, right }.
 	function stringViews(string, opts) {
 		const t = T(), m = st.make, things = opts.things || st.dict.things, L = string.length, form = opts.form || st.plan.form;
-		const views = [["walk", t.tabWalk], opts.hand ? ["hand", t.tabHand] : null, ["list", t.tabList]].filter(Boolean);
-		if (!views.some(([v]) => v === m[opts.tabKey])) m[opts.tabKey] = "walk";
+		const views = [opts.turns ? ["turn", t.tabTurns] : null, ["walk", t.tabWalk], ["list", t.tabList]].filter(Boolean);
+		if (!views.some(([v]) => v === m[opts.tabKey])) m[opts.tabKey] = views[0][0];
 		const tab = m[opts.tabKey], left = [], right = [];
 		if (tab === "walk") {
 			const thing = (i) => things[string[i]];
@@ -1014,11 +1074,6 @@
 					h("button", { class: "btn ghost", title: t.walkHelp, disabled: pos === 0 ? "" : undefined, on: { click: () => move(pos - 1) } }, "◀ " + t.prevPiece),
 					h("button", { class: "btn push", title: t.walkHelp, on: { click: () => pos < L - 1 ? move(pos + 1) : null } }, pos < L - 1 ? t.nextPiece + " ▶" : "✓ " + t.done)));
 			right.push(hint(t.forms[form].drawing), h("div", { class: "map tall" }, drawSeq(things, string, { current: pos, onPick: (i) => move(i), pad: opts.pad, form })));
-		}
-		if (tab === "hand") {
-			const parts = opts.hand().filter(Boolean), withGrid = (e) => e.classList && (e.classList.contains("hand-qr") || e.classList.contains("hand-side"));
-			left.push(...parts.filter((e) => !withGrid(e)));
-			right.push(...parts.filter(withGrid));
 		}
 		if (tab === "list") {
 			const text = string.map((s, i) => `${i + 1}. ${things[s].name}`).join("\n");
@@ -1192,7 +1247,7 @@
 				hasReroll(throws, throwsBy) && !st.seen.reroll ? h("div", { class: "note pad", text: t.keyRerollWhy }) : null,
 				h("div", { class: "row" },
 					h("button", { class: "btn ghost", disabled: pos === 0 ? "" : undefined, on: { click: () => keyGo(pos - 1) } }, "◀ " + t.prevPiece),
-					key.by === "device" && have < L ? waits(h("button", { class: "btn ghost small", on: { click: all } }, t.keyAll)) : null,
+					key.by === "device" && have < L ? waits(h("button", { class: "btn ghost small", on: { click: all } }, t.seeAll)) : null,
 					piece && pos === L - 1 ? null : waits(h("button", { class: "btn push", disabled: onNext ? undefined : "", on: { click: () => { if (onNext) onNext(); } } },
 						t.nextPiece + " ▶"))),
 				bar(have / L)),
@@ -1248,30 +1303,95 @@
 							m.basic = S.encode(m.entropy, k);
 							m.symbols = S.encrypt(m.basic, m.pad, n);
 						} else m.symbols = S.encode(m.entropy, k);
-						m.pos = 0; m.hand = 0; m.tab = "walk";
+						m.pos = m.turn = 0; m.tab = "turn";
 						m.checked = m.stored = false; m.check = null;
 						render();
 					} } }, t.makeIt))),
 				panel(h("p", { class: "lead", text: padMode ? t.seqPadIntro : t.seqIntro }), kindsRow(st.plan.form, n, 0, d.things)));
 		}
-		const L = m.symbols.length, each = S.piecesToBuy(m.symbols, n), written = formOf(st.plan.form).family === "written";
-		// the QR code by hand starts from the basic sequence: in pad mode, only after subtracting the pad
-		const hand = padMode ? null : () => handView(d, m.symbols, S.compactSeedQR(m.entropy), m.hand || 0, (to) => { m.hand = Math.max(0, Math.min(L, to)); render(); });
+		return composeStep();
+	}
+	// to another turn of the sequence (L: all of it); the first turn's why is then not shown again
+	function turnGo(to) {
+		const m = st.make;
+		if (!(m.turn > 0) && to > 0) st.seen[st.mode === "pad" ? "whyPad" : "whyBasic"] = true;
+		m.turn = Math.max(0, Math.min(m.symbols.length, to));
+		render();
+	}
+	// The sequence made, turn by turn (SPEC §3, §10.3): each turn takes the
+	// next k squares of the seed's QR code, reads them as bits and a number,
+	// in pad mode adds the key's piece on the clock of N, and gives the piece
+	// to put on the string. Before the first turn, once, how it goes. The map
+	// and the list stay as views, for whoever already knows.
+	function composeStep() {
+		const t = T(), m = st.make, things = st.dict.things, n = things.length, k = Math.log2(n), padMode = st.mode === "pad";
+		const L = m.symbols.length, each = S.piecesToBuy(m.symbols, n), form = st.plan.form, written = formOf(form).family === "written";
+		const head = (aside) => stepHead("make", null, h("span", { class: "meta", text: aside }));
+		if (!st.seen.howTo) {
+			// four boxes in a row, drawn the same for every seed (none of it is the seed's own)
+			const ex = "10110".slice(0, k).split("").map(Number);
+			const words = svg("svg", { class: "howto-pic", viewBox: "0 0 60 40", "aria-hidden": "true" },
+				[0, 1, 2].map((r) => svg("path", { d: `M6,${8 + r * 12} h${18 - r * 3} M30,${8 + r * 12} h${22 - r * 4}` })));
+			const qrPic = svg("svg", { class: "howto-pic", viewBox: "0 0 21 21", "aria-hidden": "true" }, svg("rect", { width: 21, height: 21, fill: "#ffffff" }),
+				[[0, 0], [0, 14], [14, 0]].flatMap(([r, c]) => [svg("rect", { x: c + 0.5, y: r + 0.5, width: 6, height: 6, fill: "none", stroke: "#1c2826" }),
+					svg("rect", { x: c + 2, y: r + 2, width: 3, height: 3, fill: "#1c2826" })]),
+				[[9, 9], [9, 11], [10, 10], [11, 8], [12, 12], [14, 15], [15, 10], [16, 13], [17, 17], [18, 11], [9, 16], [12, 18], [19, 19], [8, 3], [10, 5]]
+					.map(([r, c]) => svg("rect", { x: c, y: r, width: 1, height: 1, fill: "#1c2826" })));
+			const box = (pic, text) => h("div", { class: "howto-box" }, pic, h("p", { text }));
+			return h("div", { class: "narrow howto" }, panel(...head(t.total(L)), h("p", { class: "lead", text: t.howToLead }),
+				h("div", { class: "howto-row" }, box(words, t.howToWords(st.plan.words)), box(qrPic, t.howToQr),
+					box(squaresOf(ex, ex.map(() => "data")), t.howToBits), box(h("b", { class: "bits-num", text: String(parseInt(ex.join(""), 2)) }), t.howToNums(k, n))),
+				h("p", { class: "howto-scanner", text: t.howToScanner }),
+				h("div", { class: "row" }, h("button", { class: "btn push", on: { click: () => { st.seen.howTo = true; m.turn = 0; m.tab = "turn"; render(); } } }, t.howToGo + " ▶"))));
+		}
 		const v = stringViews(m.symbols, { posKey: "pos", tabKey: "tab", listName: padMode ? "list-a.txt" : "sequence.txt",
-			help: padMode ? t.seqStringHelp : t.forms[st.plan.form].make, hand });
-		// what to do first (the piece in hand), then which view, then the rest
-		return tool(
-			panel(...stepHead("make", null, h("span", { class: "meta", text: t.total(L) })),
-				h("div", { class: "alert", text: padMode ? t.padMakeWarn : t.makeWarn }),
-				...v.left, v.tabs,
-				h("details", { class: "more" }, h("summary", { text: t.seqAbout }),
-					fingerprintLine(m.entropy),
-					written ? null : h("p", { text: t.shop(each, n) }),
-					h("p", { text: materialsOf(st.plan.form, L, n) }),
-					h("div", { class: "row" },
-						h("button", { class: "btn ghost small", on: { click: () => { if (confirm(t.otherSeedAsk(st.mode))) otherSeed(); } } }, "◀ " + t.otherSeed))),
-				h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => go("print") } }, "🖨 " + t.printIt))),
-			panel(...v.right));
+			help: padMode ? t.seqStringHelp : t.forms[form].make, turns: true });
+		const rest = [h("div", { class: "alert", text: padMode ? t.padMakeWarn : t.makeWarn }),
+			h("details", { class: "more" }, h("summary", { text: t.seqAbout }),
+				fingerprintLine(m.entropy),
+				written ? null : h("p", { text: t.shop(each, n) }),
+				h("p", { text: materialsOf(form, L, n) }),
+				h("div", { class: "row" },
+					h("button", { class: "btn ghost small", on: { click: () => { if (confirm(t.otherSeedAsk(st.mode))) otherSeed(); } } }, "◀ " + t.otherSeed))),
+			h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => go("print") } }, "🖨 " + t.printIt))];
+		if (m.tab !== "turn") return tool(panel(...head(t.total(L)), ...v.left, v.tabs, ...rest), panel(...v.right));
+
+		// the seed's own sequence (in pad mode, before the key), and its bits
+		const plain = padMode ? m.basic : m.symbols, bits = S.symbolsToBits(plain, k);
+		const qr = S.compactSeedQR(m.entropy), size = qr.size, ndata = S.dataModulesRowMajor(size).length;
+		const i = Math.max(0, Math.min(L, m.turn || 0)), done = i === L, turn = done ? [] : S.turnBits(size, i, k);
+		const painted = new Map();
+		for (let b = 0; b < Math.min(ndata, (i + 1) * k); b++) painted.set(b, bits[b]);
+		const left = [];
+		if (!done) {
+			const P = plain[i], C = m.symbols[i], roles = turn.map((b) => b.role), byRow = new Map();
+			for (const { cell } of turn) if (cell) { if (!byRow.has(cell[0])) byRow.set(cell[0], []); byRow.get(cell[0]).push(cell[1] + 1); }
+			if (i === 0 && !st.seen[padMode ? "whyPad" : "whyBasic"]) left.push(h("div", { class: "note" + (padMode ? " pad" : ""), text: padMode ? t.whyPad : t.whyBasic(n, k) }));
+			left.push(h("div", { class: "turn-part" }, hint(t.turnSquares), bitsStrip(turn.map((b) => bits[b.bit]), roles),
+				byRow.size ? hint(t.handCells([...byRow].map(([r, cs]) => [r + 1, cs]))) : null));
+			if (padMode) {
+				// + the key's piece, on the clock of N
+				const K = m.pad[i], sum = S.clockStep(P, K, n, 1), raw = P + K, keyThings = st.plan.padAs === "string" ? (st.plan.padForm && st.padDict ? st.padDict.things : things) : null;
+				left.push(h("div", { class: "turn-key" }, clockSvg(n, P, K, 1), h("div", { class: "stack tight" },
+					h("div", { class: "row key-line" }, h("span", { class: "pad-label", text: t.turnKey(i + 1) }), keyThings ? icon(keyThings[K], 30) : null, h("b", { class: "bits-num", text: String(K) })),
+					h("code", { class: "turn-sum", text: `${P} + ${K} = ${raw}` + (sum.wrapped ? ` → ${raw} − ${n} = ${sum.value}` : "") }),
+					hint(t.turnClock(P, K, n, sum.wrapped)))));
+			}
+			left.push(h("div", { class: "turn-part" }, collectionRow(things, C, k), hint(t.turnCollection(C))),
+				h("div", { class: "turn-piece" }, icon(things[C], 64), h("div", { class: "stack tight" }, h("b", { class: "name", text: things[C].name }), h("span", { text: t.turnPut }))));
+			// the last turns are the header (version and mask) and the padding: no squares of the QR code
+			if (roles.includes("header")) left.push(h("div", { class: "note" }, t.handHeader, " ", h("b", { text: t.handTemplate(size, qr.mask) })));
+			if (roles.includes("padding")) left.push(h("div", { class: "note", text: t.handPadding }));
+		} else left.push(h("div", { class: "note ok", text: "✓ " + t.handDone }), hint(t.handTemplate(size, qr.mask)),
+			h("div", { class: "note" + (padMode ? " pad" : ""), text: padMode ? t.endPad : t.endBasic }));
+		left.push(h("div", { class: "row" },
+			h("button", { class: "btn ghost", disabled: i === 0 ? "" : undefined, on: { click: () => turnGo(i - 1) } }, "◀ " + t.prevPiece),
+			done ? null : h("button", { class: "btn", on: { click: () => turnGo(i + 1) } }, t.nextPiece + " ▶"),
+			h("button", { class: "btn ghost small push", on: { click: () => turnGo(done ? 0 : L) } }, done ? t.handRestart : t.seeAll)));
+		// on the right, the QR code with this turn's squares, and the string so far
+		return tool(panel(...head(t.handStep(Math.min(i + 1, L), L)), ...left, v.tabs, ...rest),
+			panel(turnGrid(size, qr, painted, turn, (bit) => turnGo(Math.floor(bit / k))),
+				h("div", { class: "map turn-map" }, drawSeq(things, done ? m.symbols : m.symbols.slice(0, i + 1), { current: done ? -1 : i, onPick: turnGo, form }))));
 	}
 
 	// ---- make, 6: read it back --------------------------------------------------
@@ -1293,7 +1413,7 @@
 				h("ul", { class: "checks" }, items.map((x) => h("li", {}, h("label", {}, h("input", { type: "checkbox" }), h("span", { text: x }))))),
 				h("div", { class: "row forget" }, h("button", { class: "btn", on: { click: () => {
 					if (!confirm(t.storeForgetAsk(st.mode))) return;
-					st.make = { seed: "", entropy: null, symbols: null, pos: 0, tab: "walk" };
+					st.make = { seed: "", entropy: null, symbols: null, pos: 0, tab: "turn" };
 					st.read = freshRead(); st.gathered = false; fingerprints.clear();
 					st.step.make = "plan";
 					go("intro");
@@ -1316,7 +1436,12 @@
 			return;
 		}
 		if (st.screen !== "make" || !m.symbols) return;
-		if (st.step.make === "seq" && m.tab === "hand") return step(m, "hand", m.symbols.length);
+		if (st.step.make === "seq" && m.tab === "turn") {
+			if (!st.seen.howTo) return;
+			if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); turnGo((m.turn || 0) + 1); }
+			if (e.key === "ArrowLeft") turnGo((m.turn || 0) - 1);
+			return;
+		}
 		if (st.step.make === "seq" && m.tab === "walk") return step(m, "pos", m.symbols.length - 1);
 	});
 
