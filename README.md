@@ -72,9 +72,10 @@ use offline. English and Spanish.
 
 Two journeys, each a sequence of steps along a thread:
 
-- **Back up a seed**: plan (the mode, with what each one protects; the
-  form, from the eight of [SPEC §11.2](SPEC-sequences.md#112-which-form)
-  or another; the number of words and of kinds), get the pieces (how many
+- **Back up a seed**: plan, one question at a time, with drawings (the
+  mode, with what each one protects; the form, from those of [SPEC
+  §11.2](SPEC-sequences.md#112-which-form) that keep their order, the
+  others shown only as what to avoid; the number of words and of kinds), get the pieces (how many
   of each kind, and what else the form needs), the dictionary (name the
   pieces one by one, with a photo if you like, check it against the real
   thing, save it as a file; or a ready-made one, or the address book's
@@ -86,12 +87,19 @@ Two journeys, each a sequence of steps along a thread:
   (tap the pieces in order from either end, or type their names), the pad
   (pad mode only) and the seed.
 
-In pad mode the page draws a pad (for learning only), adds one made by hand
-if you like, and keeps it as a second sequence of things (the same kinds,
-or another collection with its own dictionary, SPEC §11.4) or as a text
-file. The printable sheet shows only the sequence: in this mode whoever
+In pad mode, which the page calls "with a key" (a lock and its key: plainer
+than "pad"), the page draws the key (for learning only), adds one made by
+hand if you like, and keeps it as a second sequence of things (the same
+kinds, or another collection with its own dictionary, SPEC §11.4) or as a
+text file. The printable sheet shows only the sequence: in this mode whoever
 makes it learns nothing. In the basic mode that sheet is the seed for
 anyone who knows this method: only for someone you trust completely.
+
+Every seed the page shows comes with its fingerprint (BIP-32, with no
+passphrase), the eight characters wallets show, to check the words without
+reading them out. It is computed in the page itself: SHA-512, PBKDF2,
+RIPEMD-160 and secp256k1 in plain JavaScript, checked against Node's
+crypto by `web/test.mjs`.
 
 It is a single file that cannot connect anywhere: its Content-Security-Policy
 forbids every network request, external script and `eval`; only its own

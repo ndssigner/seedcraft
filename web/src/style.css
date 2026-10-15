@@ -271,7 +271,7 @@ ul.list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; 
 .mode .points span::before { content: "• "; color: var(--muted); }
 
 /* the QR code by hand: the manual's template, on squared paper */
-.hand-qr { width: 100%; max-width: 440px; height: auto; align-self: center; }
+.hand-qr { width: 100%; max-width: 600px; height: auto; align-self: center; }
 .hand-qr .cell { stroke: #c4cac7; stroke-width: .5; cursor: pointer; }
 .hand-qr .fn-dark { fill: #1c2826; cursor: default; }
 .hand-qr .fn-light { fill: #b9c1bd; cursor: default; }
@@ -400,3 +400,79 @@ ol.entries li.on .n { color: var(--current); }
 ol.entries.pad li { border-bottom-color: var(--pad-soft); }
 ol.entries .tick { width: 18px; height: 14px; border: 1.2px solid #8e9693; border-radius: 3px; flex: none; }
 ol.entries.paper li { color: #111; border-bottom-color: #ccc; }
+
+/* hints: a small "i" and a thin rule, so that they read as help, not as content */
+.hint { position: relative; padding: 2px 0 2px 26px; }
+.hint::before { content: "i"; position: absolute; left: 4px; top: 3px; width: 15px; height: 15px; border-radius: 50%; border: 1.5px solid var(--muted);
+	font: italic 700 10px/12px var(--book); text-align: center; color: var(--muted); box-sizing: border-box; }
+/* small labels that use the hint's colour are not hints */
+.wizard .hint, .row.between .hint, .side .hint { padding: 0; }
+.wizard .hint::before, .row.between .hint::before, .side .hint::before { content: none; }
+
+/* illustrations */
+.art { width: 100%; max-width: 180px; height: auto; display: block; }
+.art .art-thread { fill: none; stroke: var(--thread); stroke-width: 3; stroke-linecap: round; }
+.art .art-thread.pad { stroke: var(--pad); stroke-dasharray: 8 4; }
+.art .art-piece { stroke: rgba(0, 0, 0, .3); stroke-width: 1; }
+.art .art-ink { fill: none; stroke: var(--fg); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.art .art-ink-fill { fill: var(--fg); }
+.art .art-pad-line { fill: none; stroke: var(--pad); stroke-width: 2.4; stroke-linecap: round; }
+.art .art-paper { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.4; }
+.art .art-line { stroke: var(--line-strong); stroke-width: 1.4; stroke-linecap: round; }
+.art .art-mark { stroke: var(--thread); stroke-width: 3; stroke-linecap: round; }
+.art .art-frame { fill: none; stroke: var(--line-strong); stroke-width: 1.2; }
+.art .art-facet { fill: none; stroke: rgba(255, 255, 255, .55); stroke-width: 1; }
+.art .art-card { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.2; }
+.art .art-suit { font-size: 13px; }
+.art .art-label { font: 600 16px var(--sans); fill: var(--muted); }
+.art .art-mono { font: 600 7.5px var(--mono); fill: var(--fg); }
+.mode .art, .form .art, .choice .art { align-self: center; margin: 2px 0 4px; }
+.form .art { max-width: 140px; }
+.form.bad { cursor: default; border-style: dashed; opacity: .85; }
+.form.bad b { color: var(--bad); }
+ul.avoid li::marker { content: "✗  "; color: var(--bad); }
+
+/* the plan's three little steps, on their own short thread */
+.substeps { list-style: none; margin: 0 auto; padding: 0; display: flex; gap: 0; max-width: 560px; width: 100%; position: relative; }
+.substeps::before { content: ""; position: absolute; left: 16%; right: 16%; top: 11px; height: 2px; background: var(--thread); opacity: .45; }
+.substeps li { flex: 1; display: flex; justify-content: center; position: relative; }
+.substeps button { border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; color: var(--muted); font-weight: 600; font-size: 13px; }
+.substeps button:disabled { cursor: not-allowed; opacity: .5; }
+.substeps .knot { width: 16px; height: 16px; border-radius: 50%; background: var(--paper); border: 2.5px solid var(--thread); box-sizing: border-box; margin-top: 3px; }
+.substeps li.done .knot { background: var(--thread); }
+.substeps li.on button { color: var(--fg); }
+.substeps li.on .knot { box-shadow: 0 0 0 3px var(--paper), 0 0 0 5px var(--current); }
+
+/* a row of kinds, each with how many of it */
+.kinds { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: flex-end; }
+.kinds > span { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.kinds small { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--fg); }
+.kinds .more-kinds { font-size: 13px; color: var(--muted); align-self: center; }
+.choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+.choice { display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: var(--r-m); background: var(--sunk); cursor: pointer; font-size: 13px; }
+.choice:hover { border-color: var(--pad); }
+.choice.on { border-color: var(--pad); box-shadow: 0 0 0 2px var(--pad); background: var(--pad-soft); }
+.choice b { font-family: var(--book); font-size: 16px; }
+
+/* what you need: one thing per row, its drawing on the left */
+.narrow.wide { max-width: 820px; }
+.need { display: grid; grid-template-columns: 190px 1fr; gap: 16px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
+.need p { margin: 0; }
+.need b { font-family: var(--book); font-size: 17px; }
+.need-art { display: flex; justify-content: center; }
+.stack.tight { gap: 4px; }
+@media (max-width: 560px) { .need { grid-template-columns: 1fr; } }
+
+/* naming a piece: its name, and its symbol right beside it */
+.name-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end; }
+.name-row input.emoji { width: 84px; height: 46px; font-size: 18px; }
+
+/* the step by step's drawing: a window on the whole sequence that follows the current piece */
+.map { max-height: 260px; overflow: auto; border: 1px solid var(--line); border-radius: var(--r-m); background: var(--sunk); scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { .map { scroll-behavior: auto; } }
+/* a seed's fingerprint, to compare with the wallet's */
+.fingerprint { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-size: 14px; }
+.fingerprint > span:first-child { font-weight: 650; }
+.fingerprint code { font-family: var(--mono); font-size: 16px; font-weight: 700; letter-spacing: .06em; padding: 1px 8px; border-radius: var(--r-s); background: var(--accent-soft); color: var(--accent-ink); }
+.fingerprint .hint { flex-basis: 100%; }
+details.mask-why summary { font-size: 14px; color: var(--fg); }
