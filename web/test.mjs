@@ -207,6 +207,17 @@ for (const v of padVectors) {
 	check(hex(S.decodeTurns(v.sequence, v.pad, k).entropy) === v.entropy, "decodeTurns pad " + v.name);
 	check(S.decodeTurns([...v.sequence].reverse(), v.pad, k).reversed === true, "decodeTurns pad reversed " + v.name);
 }
+// reading turn by turn, piece by piece: sequence − key on the clock of N gives the basic sequence, and the seed
+for (const v of padVectors) {
+	const plain = v.sequence.map((c, i) => S.clockStep(c, v.pad[i], v.n, -1).value);
+	check(plain.join() === v.basic.join() && hex(S.decode(plain, v.k).entropy) === v.entropy, "turnos de vuelta " + v.name + " k=" + v.k);
+	check(S.decodeTurns(v.sequence, v.pad, v.k).plain.join() === plain.join(), "decodeTurns plain is the turns' " + v.name + " k=" + v.k);
+}
+// the basic mode: each piece is its own number; the size from the length alone
+for (const v of vectors) {
+	const r = S.decodeTurns(v.symbols, null, v.k);
+	check(r.plain.join() === v.symbols.join() && S.sizeFor(v.symbols.length, v.k) === S.compactSeedQR(r.entropy).size, "turns back, basic " + v.name + " k=" + v.k);
+}
 // the clock (SPEC §10.3)
 check(JSON.stringify(S.clockStep(9, 12, 16, 1)) === '{"value":5,"wrapped":true}', "clock 9 + 12");
 check(JSON.stringify(S.clockStep(5, 12, 16, -1)) === '{"value":9,"wrapped":true}', "clock 5 - 12");
