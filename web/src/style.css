@@ -522,11 +522,7 @@ details.more-panel summary { cursor: pointer; font-weight: 650; }
 	.form, .mode, .choice { padding: 8px 10px; gap: 3px; }
 	/* the forms side by side: the drawing on the left of each, three to a row */
 	.forms { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-	.forms.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-	/* beside what to avoid, the other forms are only their names */
-	.forms.compact .form { grid-template-columns: 56px 1fr; align-items: center; }
-	.forms.compact .form .art { max-width: 56px; grid-row: auto; }
-	.forms.compact .form .facts, .forms.compact .form .what { display: none; }
+
 	.form { display: grid; grid-template-columns: 80px 1fr; column-gap: 10px; align-items: start; font-size: 12px; line-height: 1.35; }
 	.form .art { grid-row: 1 / span 4; max-width: 80px; align-self: center; margin: 0; }
 	.form b { font-size: 15px; }
@@ -536,3 +532,19 @@ details.more-panel summary { cursor: pointer; font-weight: 650; }
 	.need { padding: 8px 0; }
 	.panel { gap: 11px; padding: 14px 16px; }
 }
+
+/* choosing a form: the selector (drawing and name) on the left, what the chosen one is on the right */
+.forms.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.forms.compact .form { display: grid; grid-template-columns: 56px 1fr; column-gap: 10px; align-items: center; padding: 6px 10px; }
+.forms.compact .form .art { max-width: 56px; margin: 0; grid-row: auto; }
+.forms.compact .form b { font-size: 15px; }
+.form-detail { display: grid; grid-template-columns: minmax(0, 200px) 1fr; gap: 16px; align-items: center; }
+.form-detail .art { max-width: 200px; }
+.form-detail .what { margin: 0; font-size: 15px; }
+.form-detail dl.facts { margin: 4px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 14px; }
+.form-detail dt { font-weight: 650; }
+.form-detail dd { margin: 0; color: var(--muted); }
+h3.avoid-title { margin: 6px 0 0; font-size: 17px; color: var(--bad); }
+@media (max-width: 560px) { .form-detail { grid-template-columns: 1fr; } .form-detail .art { max-width: 160px; justify-self: center; } }
+.forms.compact .form.bad .art { grid-row: 1 / span 2; }
+.forms.compact .form.bad .facts { font-size: 12px; }
