@@ -520,8 +520,9 @@
 	// a row of the form's example pieces (or beads), with a count under each
 	// (own: the dictionary to show, if it is already made)
 	function kindsRow(formId, n, count, own) {
-		const set = SETS.find((x) => x.id === formOf(formId).set && x.things.length >= n) || SETS.find((x) => x.things.length >= n) || SETS[0];
-		const things = own && own.length === n ? own : thingsOf(set, n), shown = things.slice(0, 8);
+		// the form's own example; if it has fewer kinds than N, plain numbered pieces rather than another material
+		const own_ = formOf(formId).set, set = SETS.find((x) => x.id === own_ && x.things.length >= n) || (own_ ? null : SETS.find((x) => x.things.length >= n));
+		const things = own && own.length === n ? own : set ? thingsOf(set, n) : Array.from({ length: n }, (_, i) => ({ name: String(i), emoji: String(i) })), shown = things.slice(0, 8);
 		return h("div", { class: "kinds" }, shown.map((x) => h("span", {}, icon(x, 38), count ? h("small", { text: "×" + count }) : null)),
 			things.length > shown.length ? h("span", { class: "more-kinds", text: "+" + (things.length - shown.length) }) : null);
 	}
@@ -605,25 +606,44 @@
 	}
 
 	// ---- make, 2: what you need -----------------------------------------------
-	// Each thing to gather with a drawing: the pieces (the same number of each
-	// kind), the dictionary, what the form needs, and the key's half.
+	// Two things to gather. The pieces: how many of each kind in all, and what
+	// that number is made of (the sequence, and the key if it has the same
+	// kinds; one of each per copy of the dictionary). What holds them: for the
+	// sequence, its dictionary, and in pad mode the key and its dictionary (or
+	// the key's file). A key in another collection has pieces of its own.
 	function gatherStep() {
 		const t = T(), p = st.plan, n = st.dict ? st.dict.things.length : p.n, L = symbolsFor(p.words, n);
-		const two = st.mode === "pad" && p.padAs === "string", same = two && !p.padForm, copies = st.mode === "pad" ? 2 : 1;
-		const each = buyFor(p.words, n, st.mode, same ? "string" : "file");
-		const need = (picture, label, ...text) => h("div", { class: "need" }, h("div", { class: "need-art" }, picture), h("div", { class: "stack tight" }, h("b", { text: label }), ...text));
+		const pad = st.mode === "pad", things = pad && p.padAs === "string", same = things && !p.padForm, keyForm = things ? p.padForm || p.form : null;
 		const written = (id) => formOf(id).family === "written";
-		const half = (id, label, own) => [
-			written(id) ? null : need(kindsRow(id, n, each, own), label ? t.gatherPiecesFor(label) : t.gatherPiecesTitle, h("p", { text: t.gatherPieces(each, n, same) })),
-			materialsOf(id, L, n) ? need(art(id), t.forms[id].name, h("p", { text: materialsOf(id, L, n) })) : null];
-		return h("div", { class: "narrow wide" }, panel(title(t.buyCard), hint(t.gatherLead),
-			...half(p.form, two && p.padForm ? t.stringSeq : null, st.dict && st.dict.things),
-			two && p.padForm ? half(p.padForm, t.stringPad, st.padDict && st.padDict.things) : null,
-			need(kindsRow(p.form, n, copies, st.dict && st.dict.things), t.gatherDictTitle, h("p", { text: t.gatherDictCopies(copies) })),
-			st.mode === "pad" && p.padAs === "file" ? need(art("keyFile"), t.padFileTitle, h("p", { text: t.gatherFile })) : null,
-			hint(t.buyExact),
-			setNav({ onNext: () => { st.gathered = true; } })));
+		// an address book's conventional order needs no dictionary of pieces (SPEC §11.3)
+		const dictPieces = (id) => id === "book" && n === 8 ? 0 : 1;
+		// for: what the pieces are for ("seq", "both" halves, or the "key" alone)
+		const pieces = (id, label, each, forWhat, copies, own) => written(id) ? null : h("div", { class: "need-block" },
+			label ? h("div", { class: "label" + (label === t.stringPad ? " pad-label" : ""), text: label }) : null,
+			kindsRow(id, n, each + copies, own),
+			h("p", { class: "need-total", text: t.gatherPiecesTotal(each + copies, n) }),
+			hint(t.gatherPiecesSplit(each, copies, forWhat)));
+		const blocks = same
+			? [pieces(p.form, null, buyFor(p.words, n, "pad", "string"), "both", 2 * dictPieces(p.form), st.dict && st.dict.things)]
+			: [pieces(p.form, things ? t.stringSeq : null, buyFor(p.words, n, st.mode, "file"), "seq", (pad && !things ? 2 : 1) * dictPieces(p.form), st.dict && st.dict.things),
+				things ? pieces(keyForm, t.stringPad, buyFor(p.words, n, "pad", "file"), "key", dictPieces(keyForm), st.padDict && st.padDict.things) : null];
+		const support = (picture, label, text, key) => h("div", { class: "need" + (key ? " key" : "") },
+			h("div", { class: "need-art" }, picture), h("div", { class: "stack tight" }, h("b", { text: label }), text ? h("p", { text }) : null));
+		const supports = [
+			support(art(p.form), t.gatherForSeq(L), materialsOf(p.form, L, n)),
+			support(art(p.form), t.gatherForDict(dictPieces(p.form) && n), t.forms[p.form].dictSupport(n)),
+			things ? support(art(keyForm === p.form && !p.padForm ? "keyThings" : keyForm), t.gatherForKey(L), materialsOf(keyForm, L, n), true) : null,
+			things ? support(art(keyForm), t.gatherForKeyDict(dictPieces(keyForm) && n), t.forms[keyForm].dictSupport(n), true) : null,
+			pad && !things ? support(art("keyFile"), t.gatherForKeyFile, t.gatherFile, true) : null,
+			pad && !things ? support(art(p.form), t.gatherForKeyDict(dictPieces(p.form) && n), t.forms[p.form].dictSupport(n), true) : null];
+		setNav({ onNext: () => { st.gathered = true; } });
+		return tool(
+			panel(title(t.gatherPiecesTitle), hint(t.gatherLead),
+				...(blocks.some(Boolean) ? blocks : [h("p", { text: t.gatherNoPieces })]),
+				hint(t.buyExact)),
+			panel(title(t.gatherSupportsTitle), ...supports));
 	}
+
 
 	// ---- make, 3 (and read, 1): the dictionary ------------------------------
 	// naming or checking has its own way on, piece by piece: the bar waits

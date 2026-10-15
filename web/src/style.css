@@ -548,3 +548,10 @@ h3.avoid-title { margin: 6px 0 0; font-size: 17px; color: var(--bad); }
 @media (max-width: 560px) { .form-detail { grid-template-columns: 1fr; } .form-detail .art { max-width: 160px; justify-self: center; } }
 .forms.compact .form.bad .art { grid-row: 1 / span 2; }
 .forms.compact .form.bad .facts { font-size: 12px; }
+
+/* what you need: the pieces (how many of each, in all, and what makes that number), what holds them */
+.need-block { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; border-top: 1px solid var(--line); }
+.need-total { margin: 0; font-family: var(--book); font-size: 19px; font-weight: 600; }
+.need.key b { color: var(--pad); }
+.flow-body .need { grid-template-columns: 110px 1fr; }
+.flow-body .need .art { max-width: 110px; }
