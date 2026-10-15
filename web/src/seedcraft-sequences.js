@@ -339,6 +339,34 @@ const SeedcraftSequences = (() => {
 		return Array.from(crypto.getRandomValues(new Uint8Array(length)), (b) => b % n);
 	}
 
+	const DICE = [2, 4, 6, 8, 10, 12, 16, 20]; // sides; 2 is the coin
+
+	// b bits per throw, b the largest with 2^b <= sides; faces 0..keep-1 count,
+	// the rest are thrown again (§10.2). Keeping a power of two is what leaves
+	// every kept face equally likely
+	function diceBits(sides) {
+		const b = Math.floor(Math.log2(sides));
+		return { b, keep: 2 ** b };
+	}
+
+	// the k-bit number the throws give, faces numbered from 0. bits are the k
+	// final bits, used the indices of the throws that count, rejected those
+	// thrown again. null while throws are missing. Throws after the number is
+	// complete are ignored
+	function throwsToNumber(faces, sides, k) {
+		const { b, keep } = diceBits(sides), bits = [], used = [], rejected = [];
+		faces.forEach((f) => {
+			if (!Number.isInteger(f) || f < 0 || f >= sides) throw new Error(`face ${f} is not on a die of ${sides} sides`);
+		});
+		for (let i = 0; i < faces.length && bits.length < k; i++) {
+			if (faces[i] >= keep) { rejected.push(i); continue; }
+			used.push(i);
+			for (let j = b - 1; j >= 0 && bits.length < k; j--) bits.push((faces[i] >> j) & 1);
+		}
+		if (bits.length < k) return null;
+		return { value: bits.reduce((v, x) => v * 2 + x, 0), bits, used, rejected };
+	}
+
 	// two pads made independently, added mod N (§10.2): the result is uniform
 	// if either one is (the device's pad and one made by hand)
 	function addPads(a, b, n) {
@@ -660,7 +688,7 @@ const SeedcraftSequences = (() => {
 		sha256, mnemonicToEntropy, entropyToMnemonic,
 		functionModules, templateModule, dataModulesRowMajor, compactSeedQR, encode, decode,
 		symbolsToBits, readSequence, decodeObjects, physicalSequence, piecesToBuy, rsCorrect,
-		PAD_DIGITS, PadFileError, newPad, addPads, encrypt, decrypt, encodePad, decodePad, decodePadObjects,
+		PAD_DIGITS, PadFileError, newPad, DICE, diceBits, throwsToNumber, addPads, encrypt, decrypt, encodePad, decodePad, decodePadObjects,
 		checkCharacter, writePadFile, readPadFile,
 	};
 })();
