@@ -5,8 +5,8 @@
 
 # seedcraft
 
-Keep a Bitcoin seed as **a sequence of things** — beads on a necklace, bricks,
-cards ordered by suit, stickers in a row, books on a shelf — and read it back,
+Keep a Bitcoin seed as **a sequence of things** — beads on a necklace, glued
+bricks, stickers in an album, the entries of an address book — and read it back,
 by software or **by hand** with a pencil. An open specification with
 reference tools, from the [NDS-Signer](https://github.com/ndssigner/nds-signer)
 project, but meant for any wallet or signer.
@@ -38,22 +38,31 @@ scanned, or decoded by software.
 The things can be anything in any carrier, as long as the order is fixed
 for ever and no piece can come off. See [SPEC-sequences.md](SPEC-sequences.md).
 
-**What protects what.** Keeping the dictionary apart hides that the sequence
-is a seed at all — it is just a necklace, or a collection. It is **not a
-lock**: someone who knows this method can rebuild the dictionary from the
-QR code's structure and read the seed in a fraction of a second (with 16
-kinds; [SPEC §9](SPEC-sequences.md#9-security-considerations),
-`tools/dictionary_attack.py`). Keep the sequence as safe as the words, and
-use a BIP-39 passphrase for real protection.
+## What protects what
 
-**Pad mode**, for places you do not control: a random pad is added to the
-sequence, number by number, and kept apart, as a second string or a text
-file. Then the sequence alone, or the pad alone, says nothing about the
-seed; only both together give it
-([SPEC §10](SPEC-sequences.md#10-pad-mode)). It is in the reference
-implementation; the web tool and the PDFs do not have it yet.
-[RISK-AUDIT.md](RISK-AUDIT.md) sets out what each mode protects against and
-what it does not, with the evidence.
+There are two modes, for two kinds of risk.
+
+**Basic.** The sequence alone is the seed. What hides it is the thing
+itself: a necklace or a collection that nobody takes for a backup, as long
+as the dictionary (one of each kind, in a row) is not next to it. It is
+**not a lock**: someone who knows this method rebuilds the dictionary from
+the QR code's structure and reads the seed in a fraction of a second (with
+up to 16 kinds; [SPEC §9](SPEC-sequences.md#9-security-considerations),
+`tools/dictionary_attack.py`). For a backup in a place you control: keep it
+as safe as the words, and use a BIP-39 passphrase for real protection.
+
+**Pad.** For places you do not control: travel, hotels, inspections. A
+random pad is added to the sequence, number by number, and kept somewhere
+else, as a second string or a text file. Then the sequence alone, or the
+pad alone, says nothing about the seed, whoever has it; only both together
+give it ([SPEC §10](SPEC-sequences.md#10-pad-mode)). The price: **losing
+either half loses the seed.** It is in the reference implementation; the
+web tool and the PDFs do not have it yet.
+
+[SPEC §11](SPEC-sequences.md#11-choosing-a-mode-and-a-form) helps choose a
+mode and a form, and says what not to do. [RISK-AUDIT.md](RISK-AUDIT.md)
+sets out what each mode protects against and what it does not, with the
+evidence.
 
 ## Web tool
 
@@ -69,7 +78,8 @@ use offline. English and Spanish.
 - **Make a sequence**: step by step, forwards and backwards, a drawing, a
   list, the QR code it keeps, and a printable sheet for whoever makes it
   (shopping list without the dictionary's order, instructions, the drawing
-  with boxes to tick).
+  with boxes to tick). That sheet is the seed for anyone who knows this
+  method: only for someone you trust completely.
 - **Read a sequence**: tap the pieces in order from a selector (or type
   their names), from either end; the seed appears as soon as it is complete.
 
@@ -101,8 +111,8 @@ reproducibly with Typst from the reference implementation
 ## Download
 
 [Releases](https://github.com/ndssigner/seedcraft/releases) have everything in
-one reproducible zip: the web tool, the PDFs, the specification and the risk
-audit, with a `SHA256SUMS`.
+one reproducible zip: the web tool, the PDFs and the specification (and,
+from the next release on, the risk audit), with a `SHA256SUMS`.
 
 ## In this repository
 
@@ -136,7 +146,7 @@ python3 tests/test_pad.py                # pad mode and the audit's evidence
 node web/test.mjs                        # the JavaScript (Node.js ≥ 18)
 node web/build.mjs                       # dist/seedcraft-sequences.html + its SHA-256
 docs/manual/build.sh                     # the PDFs (Typst 0.15.1)
-python3 tools/bundle.py v0.3.0           # the release zip
+python3 tools/bundle.py vX.Y.Z           # the release zip
 python3 tools/readme_hero.py             # this README's picture (needs Chrome)
 ```
 
