@@ -211,5 +211,44 @@ for (const v of padVectors) {
 check(JSON.stringify(S.clockStep(9, 12, 16, 1)) === '{"value":5,"wrapped":true}', "clock 9 + 12");
 check(JSON.stringify(S.clockStep(5, 12, 16, -1)) === '{"value":9,"wrapped":true}', "clock 5 - 12");
 check(JSON.stringify(S.clockStep(3, 1, 2, -1)) === '{"value":0,"wrapped":false}' && S.clockStep(1, 1, 2, 1).value === 0, "clock N = 2");
+// the key made piece by piece (SPEC §10.2): a piece once drawn never changes by moving
+try {
+	let key = { by: "d6", pieces: [], pos: 0, draft: [] };
+	key = S.keyAddThrow(key, 2, 6, 4); key = S.keyAddThrow(key, 4, 6, 4);
+	check(key.pieces.length === 0 && key.draft.join() === "2,4", "a piece half drawn");
+	key = S.keyMove(key, 0, 54); key = S.keyMove(key, 5, 54);
+	check(key.draft.join() === "2,4" && key.pos === 0, "moving neither loses nor skips the piece half drawn");
+	key = S.keyAddThrow(key, 3, 6, 4);
+	check(key.pieces.length === 1 && key.pieces[0].value === 11 && key.draft.length === 0, "the piece closes");
+	check(key.pieces[0].by === "d6" && key.pieces[0].throws.join() === "2,4,3", "the piece keeps who drew it and its throws");
+	const fixed = JSON.stringify(key.pieces);
+	key = S.keyMove(S.keyMove(key, 0, 54), 1, 54);
+	check(JSON.stringify(key.pieces) === fixed && key.pos === 1, "back and on throws nothing again");
+	check(S.keyMove(key, 99, 54).pos === 1 && S.keyMove(key, -3, 54).pos === 0, "moving stays within the pieces drawn and the first missing one");
+	// device and bag pieces; the last position is L - 1
+	let dev = { by: "device", pieces: [], pos: 0, draft: [] };
+	for (const v of [5, 0, 15]) dev = S.keyAddPiece(dev, v, "device");
+	check(dev.pieces.map((p) => p.value).join() === "5,0,15" && dev.pieces.every((p) => p.by === "device") && dev.pos === 0, "device pieces");
+	check(S.keyMove(dev, 9, 3).pos === 2, "a full key's last piece is L - 1");
+	// correcting a piece set by hand: it is marked again in its place, the draft of the first missing piece kept
+	let fix = S.keyAddThrow(S.keyAddThrow(S.keyMove(key, 1, 54), 1, 6, 4), 0, 6, 4);   // piece 1: 01 00 -> 4
+	fix = S.keyAddThrow(fix, 3, 6, 4);                                                    // piece 2 half drawn
+	check(fix.pieces.length === 2 && fix.pieces[1].value === 4 && fix.draft.join() === "3", "two pieces and a draft");
+	fix = S.keyFix(S.keyMove(fix, 0, 54));
+	check(fix.fix && fix.fix.at === 0 && fix.draft.length === 0, "correcting starts with no throws");
+	fix = S.keyAddThrow(S.keyAddThrow(fix, 0, 6, 4), 1, 6, 4);                            // 00 01 -> 1
+	check(fix.pieces.length === 2 && fix.pieces[0].value === 1 && fix.pieces[1].value === 4 && !fix.fix && fix.draft.join() === "3" && fix.pos === 0,
+		"a corrected piece is replaced in place and the draft comes back");
+	let cancel = S.keyAddThrow(S.keyFix(fix), 2, 6, 4);
+	cancel = S.keyMove(cancel, 1, 54);
+	check(!cancel.fix && cancel.pieces[0].value === 1 && cancel.draft.join() === "3", "moving away cancels a correction");
+	check(S.keyFix(S.keyMove(dev, 1, 3)).fix === null, "a device piece is never corrected");
+	check(S.keyFix(S.keyMove(fix, 2, 54)).fix === null, "the first missing piece has nothing to correct");
+	let bag = S.keyAddPiece({ by: "bag", pieces: [], pos: 0, draft: [] }, 7, "bag");
+	check(bag.pieces[0].value === 7 && bag.pieces[0].by === "bag" && S.keyFix(bag).fix.at === 0, "a bag piece can be corrected");
+	const before = JSON.stringify(key);
+	S.keyAddThrow(key, 0, 6, 4); S.keyMove(key, 0, 54); S.keyFix(key);
+	check(JSON.stringify(key) === before, "key functions return a new key");
+} catch (e) { check(false, "key state functions: " + e); }
 console.log(`${failures ? "FAIL" : "ok"}: ${vectors.length} vectors, ${padVectors.length} pad vectors, ${failures} failures`);
 process.exit(failures ? 1 : 0);
