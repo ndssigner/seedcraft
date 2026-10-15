@@ -83,15 +83,24 @@ Evidence: E2, E4 (§6).
 
 ### 4.2 Basic mode: knowing the method is enough
 
-The dictionary of a basic sequence is not a key. The CompactSeedQR has 24
-bits known in advance (byte mode, length, terminator, pad byte 0xEC), its
-Reed-Solomon parity gives 56 linear equations over $\mathrm{GF}(2)$ in the
-same bits, and the header has 5 more. With $N = 16$ that makes
-$24 + 56 + 5 = 85$ equations in $16 \times 4 = 64$ unknowns (4 bits for each
-kind): solving them gives the dictionary, and trying the 8 masks does the
-rest. `tools/dictionary_attack.py` does it in hundredths of a second, for
-12 and 24 words and every $N \le 16$; for $N = 32$ ($32 \times 5 = 160$
-unknowns), up to about $2^{53}$ candidates remain.
+The dictionary of a basic sequence is not a key. For 12 words, the
+CompactSeedQR has 24 bits known in advance (byte mode, length, terminator,
+pad byte 0xEC), its Reed-Solomon parity gives 56 linear equations over
+$\mathrm{GF}(2)$ in the same bits, and the header has 5 more. With $N = 16$
+that makes $24 + 56 + 5 = 85$ equations in $16 \times 4 = 64$ unknowns (4
+bits for each kind). For 24 words there is no pad byte, but more parity:
+$16 + 80 + 5 = 101$ equations in the same 64 unknowns. Solving them gives
+the dictionary, and trying the 8 masks does the rest.
+`tools/dictionary_attack.py` does it in hundredths of a second, for 12 and
+24 words and every $N \le 16$.
+
+For $N = 32$ there are up to $32 \times 5 = 160$ unknowns, more than the
+equations, and how many candidates are left depends on the seed (on how
+many of the 32 kinds it uses). Over 300 random seeds, the median is $2^{38}$
+for 12 words and $2^{47}$ for 24; one seed in a hundred leaves more than
+$2^{58}$ and $2^{62}$. Each candidate is checked in microseconds, with no
+PBKDF2 (§4.6): half of all seeds are within reach of a few GPUs, and
+$N = 32$ is not a lock either.
 
 So **a basic sequence is the seed** for anyone who has it and knows this
 method, as words on paper are. It is a better hiding place, not a lock. Its
@@ -136,9 +145,9 @@ Evidence: E5.
 ### 4.4 Pad mode: partial and digital copies
 
 - **A partial copy counts as a full one.** Part of $C$ with all of $K$
-  gives that part of $P$; the QR code's error correction can then fill in up to 7
-  missing codewords (12 words; 10 for 24 words), and its fixed parts help
-  further. Treat a photo of part of the sequence, or a pad file with a few
+  gives that part of $P$; the QR code's error correction can then fill in
+  up to 7 missing codewords (12 words; 10 for 24 words), and its fixed parts
+  help further. Treat a photo of part of the sequence, or a pad file with a few
   rows missing, as the whole thing.
 - **A digital pad is harmless alone, but it lasts.** Email, cloud sync,
   backups and messaging servers keep copies for years, beyond the user's
@@ -154,8 +163,8 @@ Evidence: E5.
 
 Losing the sequence or the pad loses the seed, with no way back. Losing
 every copy of the dictionary, with both halves still there, is not quite
-final: the $N!$ orders ($16! \approx 2^{44}$) can be tried by computer, with the QR
-code as an instant check of each, which is within reach of a GPU. But that
+final: the $N!$ orders ($16! \approx 2^{44}$) can be tried by computer, with
+the QR code as an instant check of each, which is within reach of a GPU. But that
 is a rescue, not a plan. Copies reduce these risks; each copy has to be as
 far from the other half as the original.
 A 2-of-3 scheme (any two of three parts give the seed) is possible with
@@ -174,7 +183,7 @@ probability $q$, at almost no cost per guess. Hence the rule that a pad
 comes from a cryptographic generator, optionally added to a physical source
 (SPEC §10.2). The sum is uniform if either part is, provided the two are
 made independently: if $K_d$ is uniform and $K_h$ independent of it, with any
-distribution, then for every $x$
+distribution, then for every $x \in \mathbb{Z}_N^L$
 
 $$\Pr[K_d + K_h = x] = \sum_{y} \Pr[K_h = y] \, \Pr[K_d = x - y] = N^{-L} \sum_{y} \Pr[K_h = y] = N^{-L}$$
 
@@ -239,10 +248,10 @@ So that reviewers do not have to rediscover them.
    against anyone who knows the method: $\le 8$ tries (§4.2).
 2. **Noise pieces** (things outside the dictionary, dropped by the
    reader) on a basic sequence. The adversary only has to choose which of
-   the $n + k$ kinds are noise, and noise is never in the dictionary:
-   $\binom{n+k}{k} \cdot 8$ tries, $\binom{19}{3} \cdot 8 = 7752 \approx 2^{13}$
-   for $n = 16$, $k = 3$. As disguise they may
-   still have a place (§5); as protection, none.
+   the $N + m$ kinds are noise, and noise is never in the dictionary:
+   $\binom{N+m}{m} \cdot 8$ tries,
+   $\binom{19}{3} \cdot 8 = 7752 \approx 2^{13}$ for $N = 16$, $m = 3$. As
+   disguise they may still have a place (§5); as protection, none.
 3. **Only the entropy and a "2-bit mask"** (130 bits, 33 pieces), with a
    secret dictionary and noise, as an earlier draft proposed. The QR code
    has 8 masks, not 4, and any of them gives a valid code, so no mask needs
