@@ -78,6 +78,13 @@
 		}
 	}
 
+	// another number of words: what was made for the old length goes (the key, the sequence), as with a new N
+	function setWords(words) {
+		st.plan.words = words;
+		st.make = { seed: st.make.seed, entropy: null, symbols: null, pos: 0, tab: "walk" };
+		st.read = freshRead();
+	}
+
 	// ---- tiny DOM helpers --------------------------------------------
 	function h(tag, props, ...children) {
 		const e = document.createElement(tag);
@@ -451,7 +458,7 @@
 	function stepDone(flow, step) {
 		const m = st.make, rd = st.read;
 		if (flow === "make") return ({ plan: !!st.mode, gather: !!st.gathered, dict: !!st.dict && st.dict.checked && (!keyDictNeeded() || !!st.padDict),
-			key: !!m.pad && (st.plan.padAs === "string" || !!m.padKept), seq: !!m.symbols, check: !!m.checked, store: !!m.stored })[step];
+			key: keyReady() && (st.plan.padAs === "string" || !!m.padKept), seq: !!m.symbols, check: !!m.checked, store: !!m.stored })[step];
 		return ({ have: !!st.mode && !!st.dict, seq: rd.taps.length > 0 || !!rd.text.trim(),
 			pad: rd.padIn.taps.length > 0 || !!rd.padIn.text.trim() || !!rd.padIn.file.trim(), seed: !!rd.out })[step];
 	}
@@ -495,7 +502,7 @@
 			if (step !== "plan" && step !== "store" && !st.mode) need = "plan";
 			else if (["key", "seq", "check"].includes(step) && !st.dict) need = "dict";
 			else if (step === "key" && keyDictNeeded() && !st.padDict) need = "dict";
-			else if (["seq", "check"].includes(step) && st.mode === "pad" && !st.make.pad) need = "key";
+			else if (["seq", "check"].includes(step) && st.mode === "pad" && !keyReady()) need = "key";
 			else if (step === "check" && !st.make.symbols) need = "seq";
 		} else if (step !== "have" && (!st.mode || !st.dict)) need = "have";
 		if (!need) return null;
@@ -594,7 +601,7 @@
 			// how many of each to get is the next step's: here only how long it is, and of which kinds
 			body = [tool(
 				panel(
-					field(t.seedWords, seg([[12, "12"], [24, "24"]], p.words, (v) => { p.words = v; render(); })),
+					field(t.seedWords, seg([[12, "12"], [24, "24"]], p.words, (v) => { if (v !== p.words) setWords(v); render(); })),
 					field(t.howMany, d ? h("div", { class: "meta", text: t.planNFixed(n) })
 						: seg(SIZES.map((v) => [v, String(v), v === formOf(p.form).n ? "★" : "", t.recommended]), p.n, (v) => { p.n = v; render(); }),
 						kindsRow(p.form, n, 0, d && d.things))),
@@ -1034,19 +1041,21 @@
 	const sidesOf = (by) => by === "coin" ? 2 : /^d\d+$/.test(by || "") ? Number(by.slice(1)) : 0;
 	const hasReroll = (throws, by) => sidesOf(by) > 0 && throws.some((f) => f >= S.diceBits(sidesOf(by)).keep);
 	const closesRow = (i, L) => (i + 1) % KEY_ROW === 0 || i === L - 1;
+	// the key is complete, and as long as the seed planned
+	const keyReady = () => !!st.make.pad && !!st.dict && st.make.pad.length === keyLength();
 	// the key as it now is and, once complete, its numbers. A sequence already
-	// made with it follows a fixed piece; one of another length goes.
+	// made with it follows a fixed piece.
 	function setKey(key) {
 		const m = st.make, n = st.dict.things.length, L = keyLength(), was = m.pad;
 		m.key = key;
 		m.pad = key.pieces.length === L ? key.pieces.map((p) => p.value) : null;
 		if (String(was) === String(m.pad)) return;
 		m.padKept = false;
-		if (m.basic && m.pad && m.basic.length === L) { m.symbols = S.encrypt(m.basic, m.pad, n); m.checked = false; m.check = null; }
-		else if (m.symbols) m.symbols = m.entropy = m.basic = null;
+		if (m.basic && m.pad) { m.symbols = S.encrypt(m.basic, m.pad, n); m.checked = false; m.check = null; }
 	}
 	// to another piece; the lines explained on the one left are not shown again
 	function keyGo(to) {
+		if (keyRolling) return;
 		const key = st.make.key, p = key.pieces[key.pos], L = keyLength();
 		st.seen.keyWhy = true;
 		if (p && hasReroll(p.throws, p.by)) st.seen.reroll = true;
@@ -1076,9 +1085,7 @@
 		const t = T(), m = st.make, n = st.dict.things.length, k = Math.log2(n), L = keyLength();
 		const asString = st.plan.padAs === "string", own = asString && !!st.plan.padForm;
 		const form = own ? st.plan.padForm : st.plan.form, things = own ? st.padDict.things : st.dict.things;
-		const start = m.key || { by: null, pieces: [], pos: 0, draft: [], fix: null };
-		// a seed of another length since: the numbers already drawn stay, as many as fit
-		setKey(start.pieces.length > L ? S.keyMove({ ...start, pieces: start.pieces.slice(0, L) }, start.pos, L) : start);
+		setKey(m.key || { by: null, pieces: [], pos: 0, draft: [], fix: null });
 		const key = m.key, have = key.pieces.length, values = key.pieces.map((p) => p.value);
 		const update = (next) => { setKey(next); render(); };
 		setNav({ ready: have === L });
@@ -1123,19 +1130,25 @@
 		const markBy = key.fix ? key.pieces[key.fix.at].by : key.by, sides = sidesOf(markBy);
 		const throws = piece ? piece.throws : key.draft, throwsBy = piece ? piece.by : markBy;
 		const die = h("div", { class: "die-box" }, diceSvg(null, false));
+		const busy = [], waits = (b) => { busy.push(b); return b; };  // the buttons that wait while the die rolls
 		const draw = () => {
 			if (keyRolling) return;
 			const value = S.newPad(1, n)[0];
 			const put = () => {
 				keyRolling = false;
-				if (st.screen === "make" && st.step.make === "key" && m.key && m.key.by === "device" && !m.key.fix) update(S.keyAddPiece(m.key, value, "device"));
+				const x = m.key;
+				if (st.screen === "make" && st.step.make === "key" && x && x.by === "device" && !x.fix && x.pieces.length < keyLength()) update(S.keyAddPiece(x, value, "device"));
+				else render();
 			};
-			if (matchMedia("(prefers-reduced-motion: reduce)").matches) { put(); return; }
 			keyRolling = true;
-			die.replaceChildren(diceSvg(null, true));
-			setTimeout(put, 600);
+			busy.forEach((b) => { b.disabled = true; });
+			// it spins (~600 ms) and stops on the number, which stays a moment; with reduced motion, the number at once
+			const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+			die.replaceChildren(diceSvg(value, !still));
+			setTimeout(() => { die.replaceChildren(diceSvg(value, false)); setTimeout(put, 500); }, still ? 0 : 600);
 		};
 		const all = () => {
+			if (keyRolling) return;
 			let x = S.keyMove(m.key, m.key.pos, L);
 			for (const v of S.newPad(L - x.pieces.length, n)) x = S.keyAddPiece(x, v, "device");
 			st.seen.keyWhy = true;
@@ -1156,7 +1169,7 @@
 			if (piece.by === "device") controls.push(h("div", { class: "row key-by" }, diceSvg(piece.value, false), hint(t.keyByDevice)));
 			else controls.push(piece.by === "bag" ? hint(t.keyByBag) : throwTrail(piece.throws, sidesOf(piece.by), k),
 				h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => update(S.keyFix(key)) } }, t.keyFix)));
-		} else if (markBy === "device") controls.push(h("div", { class: "row" }, h("button", { class: "btn", on: { click: draw } }, "🎲 " + t.keyRoll)));
+		} else if (markBy === "device") controls.push(h("div", { class: "row" }, waits(h("button", { class: "btn", on: { click: draw } }, "🎲 " + t.keyRoll))));
 		else if (markBy === "bag") controls.push(hint(t.keyBagHow), h("div", { class: "palette" }, things.map((x, i) =>
 			h("button", { class: "pal", title: x.name, "aria-label": x.name, on: { click: () => update(S.keyAddPiece(m.key, i, "bag")) } }, icon(x, 40)))));
 		else {
@@ -1169,7 +1182,7 @@
 		const onNext = !piece && !key.fix ? (key.by === "device" ? draw : null) : pos < L - 1 ? () => keyGo(pos + 1) : null;
 		const aside = h("div", { class: "row key-method" },
 			h("span", { class: "meta", text: key.by === "device" ? t.keyDevice : key.by === "bag" ? t.toolBag : key.by === "coin" ? t.toolCoin : "🎲 " + key.by }),
-			h("button", { class: "btn ghost small", on: { click: () => { m.keyWho = null; update({ ...S.keyMove(key, pos, L), by: null, draft: [] }); } } }, t.keyChange));
+			key.draft.length || key.fix ? null : h("button", { class: "btn ghost small", on: { click: () => { m.keyWho = null; update({ ...key, by: null }); } } }, t.keyChange));
 		return tool(
 			panel(...stepHead("make", null, aside),
 				h("div", { class: "label", text: t.walkOf(pos + 1, L) }),
@@ -1179,18 +1192,18 @@
 				hasReroll(throws, throwsBy) && !st.seen.reroll ? h("div", { class: "note pad", text: t.keyRerollWhy }) : null,
 				h("div", { class: "row" },
 					h("button", { class: "btn ghost", disabled: pos === 0 ? "" : undefined, on: { click: () => keyGo(pos - 1) } }, "◀ " + t.prevPiece),
-					key.by === "device" && have < L ? h("button", { class: "btn ghost small", on: { click: all } }, t.keyAll) : null,
-					h("button", { class: "btn push", disabled: onNext ? undefined : "", on: { click: () => { if (onNext) onNext(); } } },
-						piece && pos === L - 1 ? "✓ " + t.done : t.nextPiece + " ▶")),
+					key.by === "device" && have < L ? waits(h("button", { class: "btn ghost small", on: { click: all } }, t.keyAll)) : null,
+					piece && pos === L - 1 ? null : waits(h("button", { class: "btn push", disabled: onNext ? undefined : "", on: { click: () => { if (onNext) onNext(); } } },
+						t.nextPiece + " ▶"))),
 				bar(have / L)),
 			panel(...right));
 	}
 
 	// ---- make, 5: the sequence ----------------------------------------------
-	// another seed: in pad mode the key goes too, and it starts again from the key (one key, one seed: SPEC §10.8)
+	// another seed: its words go, and in pad mode the key too: it starts again from the key (one key, one seed: SPEC §10.8)
 	function otherSeed() {
 		const m = st.make;
-		m.symbols = m.entropy = m.basic = null;
+		m.seed = ""; m.symbols = m.entropy = m.basic = null;
 		if (st.mode !== "pad") { render(); return; }
 		m.key = m.pad = null; m.keyWho = null; m.padKept = false;
 		toStep("make", "key");
