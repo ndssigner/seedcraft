@@ -21,6 +21,7 @@ FILES = [  # (path in the repository, name in the bundle)
     ("docs/seedqr-templates-en.pdf", "seedqr-templates-en.pdf"),
     ("docs/seedqr-templates-es.pdf", "seedqr-templates-es.pdf"),
     ("SPEC-sequences.md", "SPEC-sequences.md"),
+    ("RISK-AUDIT.md", "RISK-AUDIT.md"),
     ("LICENSE", "LICENSE"),
 ]
 
@@ -39,6 +40,8 @@ seedqr-templates-*.pdf        Templates to copy a SeedQR (Standard or Compact)
                               from SeedSigner or a compatible signer, like
                               NDS-Signer, with the fixed parts already drawn.
 SPEC-sequences.md             The specification.
+RISK-AUDIT.md                 What each mode protects against, and the
+                              evidence.
 SHA256SUMS                    Check the files: sha256sum -c SHA256SUMS
 
 Borradores: no guardes con un formato en borrador la semilla de fondos reales.
@@ -54,6 +57,8 @@ seedqr-templates-*.pdf        Plantillas para copiar un SeedQR (estándar o
                               compatible, como NDS-Signer, con las partes
                               fijas ya dibujadas.
 SPEC-sequences.md             La especificación.
+RISK-AUDIT.md                 De qué protege cada modo y de qué no, con las
+                              pruebas.
 SHA256SUMS                    Comprueba los ficheros: sha256sum -c SHA256SUMS
 """
 

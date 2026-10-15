@@ -106,7 +106,7 @@ def main():
             out = subprocess.run([qrdecode], input=to_pgm(draw_qr(v["symbols"], k)),
                                  capture_output=True).stdout
             check(out == entropy + b"\n", "redrawn QR read by quirc " + name)
-    # SPEC §8 says the dictionary is no secret against someone who knows this
+    # SPEC §9 says the dictionary is no secret against someone who knows this
     # method: keep that true (tools/dictionary_attack.py)
     sys.path.insert(0, str(ROOT / "tools"))
     import dictionary_attack
