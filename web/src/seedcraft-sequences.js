@@ -469,8 +469,194 @@ const SeedcraftSequences = (() => {
 		return { pad, n };
 	}
 
+	// ---- the seed's fingerprint (BIP-32) ---------------------------------
+	// The eight hex characters a wallet shows for a seed: the first four bytes
+	// of HASH160 of the master public key. Seeing the same fingerprint as the
+	// wallet tells that the words are right, without showing them. All in
+	// this file, with no dependency on WebCrypto: SHA-512, HMAC and PBKDF2
+	// (BIP-39), RIPEMD-160, and multiplication on secp256k1.
+
+	// SHA-512's constants, as the standard defines them: the first 64 bits of
+	// the fractional parts of the square roots (H) and cube roots (K) of the
+	// first primes, computed exactly with integer roots
+	const iroot = (n, k) => {
+		let x = 1n << BigInt(Math.ceil(n.toString(2).length / k) + 1);
+		for (;;) {
+			const y = ((BigInt(k) - 1n) * x + n / x ** BigInt(k - 1)) / BigInt(k);
+			if (y >= x) break;
+			x = y;
+		}
+		while ((x + 1n) ** BigInt(k) <= n) x++;
+		while (x ** BigInt(k) > n) x--;
+		return x;
+	};
+	const PRIMES = [];
+	for (let c = 2; PRIMES.length < 80; c++) if (PRIMES.every((p) => c % p)) PRIMES.push(c);
+	const pairs = (values) => {
+		const out = new Int32Array(2 * values.length);
+		values.forEach((v, i) => { out[2 * i] = Number((v >> 32n) & 0xffffffffn) | 0; out[2 * i + 1] = Number(v & 0xffffffffn) | 0; });
+		return out;
+	};
+	const M64 = (1n << 64n) - 1n;
+	const H512 = pairs(PRIMES.slice(0, 8).map((p) => iroot(BigInt(p) << 128n, 2) & M64));
+	const K512 = pairs(PRIMES.map((p) => iroot(BigInt(p) << 192n, 3) & M64));
+
+	// 64-bit words as pairs of 32-bit halves, [hi, lo]
+	const W512 = new Int32Array(160);
+	function sha512Block(H, data, off) {
+		const W = W512;
+		for (let i = 0; i < 32; i++) W[i] = (data[off + 4 * i] << 24) | (data[off + 4 * i + 1] << 16) | (data[off + 4 * i + 2] << 8) | data[off + 4 * i + 3];
+		for (let i = 16; i < 80; i++) {
+			const xh = W[2 * i - 30], xl = W[2 * i - 29], yh = W[2 * i - 4], yl = W[2 * i - 3];
+			const s0h = ((xh >>> 1) | (xl << 31)) ^ ((xh >>> 8) | (xl << 24)) ^ (xh >>> 7);
+			const s0l = ((xl >>> 1) | (xh << 31)) ^ ((xl >>> 8) | (xh << 24)) ^ ((xl >>> 7) | (xh << 25));
+			const s1h = ((yh >>> 19) | (yl << 13)) ^ ((yl >>> 29) | (yh << 3)) ^ (yh >>> 6);
+			const s1l = ((yl >>> 19) | (yh << 13)) ^ ((yh >>> 29) | (yl << 3)) ^ ((yl >>> 6) | (yh << 26));
+			const l = (W[2 * i - 31] >>> 0) + (s0l >>> 0) + (W[2 * i - 13] >>> 0) + (s1l >>> 0);
+			W[2 * i] = W[2 * i - 32] + s0h + W[2 * i - 14] + s1h + Math.floor(l / 0x100000000);
+			W[2 * i + 1] = l;
+		}
+		let [ah, al, bh, bl, ch, cl, dh, dl, eh, el, fh, fl, gh, gl, hh, hl] = H;
+		for (let i = 0; i < 80; i++) {
+			const S1h = ((eh >>> 14) | (el << 18)) ^ ((eh >>> 18) | (el << 14)) ^ ((el >>> 9) | (eh << 23));
+			const S1l = ((el >>> 14) | (eh << 18)) ^ ((el >>> 18) | (eh << 14)) ^ ((eh >>> 9) | (el << 23));
+			const chh = (eh & fh) ^ (~eh & gh), chl = (el & fl) ^ (~el & gl);
+			const t1l = (hl >>> 0) + (S1l >>> 0) + (chl >>> 0) + (K512[2 * i + 1] >>> 0) + (W[2 * i + 1] >>> 0);
+			const t1h = hh + S1h + chh + K512[2 * i] + W[2 * i] + Math.floor(t1l / 0x100000000);
+			const S0h = ((ah >>> 28) | (al << 4)) ^ ((al >>> 2) | (ah << 30)) ^ ((al >>> 7) | (ah << 25));
+			const S0l = ((al >>> 28) | (ah << 4)) ^ ((ah >>> 2) | (al << 30)) ^ ((ah >>> 7) | (al << 25));
+			const mjh = (ah & bh) ^ (ah & ch) ^ (bh & ch), mjl = (al & bl) ^ (al & cl) ^ (bl & cl);
+			const t2l = (S0l >>> 0) + (mjl >>> 0), t2h = S0h + mjh + Math.floor(t2l / 0x100000000);
+			hh = gh; hl = gl; gh = fh; gl = fl; fh = eh; fl = el;
+			const el2 = (dl >>> 0) + (t1l >>> 0);
+			eh = (dh + t1h + Math.floor(el2 / 0x100000000)) | 0; el = el2 | 0;
+			dh = ch; dl = cl; ch = bh; cl = bl; bh = ah; bl = al;
+			const al2 = (t1l >>> 0) + (t2l >>> 0);
+			ah = (t1h + t2h + Math.floor(al2 / 0x100000000)) | 0; al = al2 | 0;
+		}
+		[ah, al, bh, bl, ch, cl, dh, dl, eh, el, fh, fl, gh, gl, hh, hl].forEach((v, i) => {
+			if (i % 2) { const l = (H[i] >>> 0) + (v >>> 0); H[i] = l | 0; H[i - 1] = (H[i - 1] + Math.floor(l / 0x100000000)) | 0; }
+			else H[i] = (H[i] + v) | 0;
+		});
+	}
+	// the hash of data, from a state that has already taken `before` bytes (a multiple of 128)
+	function sha512From(state, data, before) {
+		const H = Int32Array.from(state), len = data.length;
+		const padded = new Uint8Array(((len + 17 + 127) >> 7) << 7);
+		padded.set(data);
+		padded[len] = 0x80;
+		const view = new DataView(padded.buffer), bits = (before + len) * 8;
+		view.setUint32(padded.length - 8, Math.floor(bits / 0x100000000));
+		view.setUint32(padded.length - 4, bits >>> 0);
+		for (let off = 0; off < padded.length; off += 128) sha512Block(H, padded, off);
+		const out = new Uint8Array(64), ov = new DataView(out.buffer);
+		for (let i = 0; i < 16; i++) ov.setInt32(4 * i, H[i]);
+		return out;
+	}
+	const sha512 = (data) => sha512From(H512, data, 0);
+	// HMAC-SHA512 with its key's inner and outer states computed once (PBKDF2 calls it 4096 times)
+	function hmacKey(key) {
+		if (key.length > 128) key = sha512(key);
+		const block = (x) => { const b = new Uint8Array(128).fill(x); key.forEach((k, i) => { b[i] ^= k; }); return b; };
+		const inner = Int32Array.from(H512), outer = Int32Array.from(H512);
+		sha512Block(inner, block(0x36), 0);
+		sha512Block(outer, block(0x5c), 0);
+		return { inner, outer };
+	}
+	const hmac512 = (k, msg) => sha512From(k.outer, sha512From(k.inner, msg, 128), 128);
+	function pbkdf2Sha512(password, salt, iterations) {
+		const k = hmacKey(password);
+		const first = new Uint8Array(salt.length + 4);
+		first.set(salt);
+		first[salt.length + 3] = 1;
+		let u = hmac512(k, first);
+		const t = u.slice();
+		for (let i = 1; i < iterations; i++) { u = hmac512(k, u); for (let j = 0; j < 64; j++) t[j] ^= u[j]; }
+		return t;
+	}
+
+	// RIPEMD-160
+	const RMD = {
+		r: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 7, 4, 13, 1, 10, 6, 15, 3, 12, 0, 9, 5, 2, 14, 11, 8,
+			3, 10, 14, 4, 9, 15, 8, 1, 2, 7, 0, 6, 13, 11, 5, 12, 1, 9, 11, 10, 0, 8, 12, 4, 13, 3, 7, 15, 14, 5, 6, 2,
+			4, 0, 5, 9, 7, 12, 2, 10, 14, 1, 3, 8, 11, 6, 15, 13],
+		rr: [5, 14, 7, 0, 9, 2, 11, 4, 13, 6, 15, 8, 1, 10, 3, 12, 6, 11, 3, 7, 0, 13, 5, 10, 14, 15, 8, 12, 4, 9, 1, 2,
+			15, 5, 1, 3, 7, 14, 6, 9, 11, 8, 12, 2, 10, 0, 4, 13, 8, 6, 4, 1, 3, 11, 15, 0, 5, 12, 2, 13, 9, 7, 10, 14,
+			12, 15, 10, 4, 1, 5, 8, 7, 6, 2, 13, 14, 0, 3, 9, 11],
+		s: [11, 14, 15, 12, 5, 8, 7, 9, 11, 13, 14, 15, 6, 7, 9, 8, 7, 6, 8, 13, 11, 9, 7, 15, 7, 12, 15, 9, 11, 7, 13, 12,
+			11, 13, 6, 7, 14, 9, 13, 15, 14, 8, 13, 6, 5, 12, 7, 5, 11, 12, 14, 15, 14, 15, 9, 8, 9, 14, 5, 6, 8, 6, 5, 12,
+			9, 15, 5, 11, 6, 8, 13, 12, 5, 12, 13, 14, 11, 8, 5, 6],
+		ss: [8, 9, 9, 11, 13, 15, 15, 5, 7, 7, 8, 11, 14, 14, 12, 6, 9, 13, 15, 7, 12, 8, 9, 11, 7, 7, 12, 7, 6, 15, 13, 11,
+			9, 7, 15, 11, 8, 6, 6, 14, 12, 13, 5, 14, 13, 13, 7, 5, 15, 5, 8, 11, 14, 14, 6, 14, 6, 9, 12, 9, 12, 5, 15, 8,
+			8, 5, 12, 9, 12, 5, 14, 6, 8, 13, 6, 5, 15, 13, 11, 11],
+		k: [0, 0x5a827999, 0x6ed9eba1, 0x8f1bbcdc, 0xa953fd4e], kk: [0x50a28be6, 0x5c4dd124, 0x6d703ef3, 0x7a6d76e9, 0],
+	};
+	function ripemd160(data) {
+		const f = (j, x, y, z) => j < 16 ? x ^ y ^ z : j < 32 ? (x & y) | (~x & z) : j < 48 ? (x | ~y) ^ z : j < 64 ? (x & z) | (y & ~z) : x ^ (y | ~z);
+		const rotl = (x, n) => (x << n) | (x >>> (32 - n));
+		const len = data.length, padded = new Uint8Array(((len + 9 + 63) >> 6) << 6);
+		padded.set(data);
+		padded[len] = 0x80;
+		const view = new DataView(padded.buffer);
+		view.setUint32(padded.length - 8, (len * 8) >>> 0, true);
+		view.setUint32(padded.length - 4, Math.floor(len * 8 / 0x100000000), true);
+		const h = [0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0];
+		for (let off = 0; off < padded.length; off += 64) {
+			const X = [];
+			for (let i = 0; i < 16; i++) X.push(view.getUint32(off + 4 * i, true));
+			let [a, b, c, d, e] = h, [a2, b2, c2, d2, e2] = h;
+			for (let j = 0; j < 80; j++) {
+				let t = (rotl((a + f(j, b, c, d) + X[RMD.r[j]] + RMD.k[j >> 4]) | 0, RMD.s[j]) + e) | 0;
+				a = e; e = d; d = rotl(c, 10); c = b; b = t;
+				t = (rotl((a2 + f(79 - j, b2, c2, d2) + X[RMD.rr[j]] + RMD.kk[j >> 4]) | 0, RMD.ss[j]) + e2) | 0;
+				a2 = e2; e2 = d2; d2 = rotl(c2, 10); c2 = b2; b2 = t;
+			}
+			const t = (h[1] + c + d2) | 0;
+			h[1] = (h[2] + d + e2) | 0; h[2] = (h[3] + e + a2) | 0; h[3] = (h[4] + a + b2) | 0; h[4] = (h[0] + b + c2) | 0; h[0] = t;
+		}
+		const out = new Uint8Array(20), ov = new DataView(out.buffer);
+		h.forEach((v, i) => ov.setUint32(4 * i, v >>> 0, true));
+		return out;
+	}
+
+	// secp256k1: k·G, in affine coordinates (done once per seed, speed does not matter)
+	const P256K = (1n << 256n) - (1n << 32n) - 977n;
+	const G256K = [0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798n, 0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8n];
+	const mod = (a) => ((a % P256K) + P256K) % P256K;
+	function inv(a) {
+		let [r0, r1, s0, s1] = [mod(a), P256K, 1n, 0n];
+		while (r1) { const q = r0 / r1; [r0, r1] = [r1, r0 - q * r1]; [s0, s1] = [s1, s0 - q * s1]; }
+		return mod(s0);
+	}
+	function pointAdd(p, q) {
+		if (!p) return q;
+		if (!q) return p;
+		if (p[0] === q[0] && mod(p[1] + q[1]) === 0n) return null;
+		const l = p[0] === q[0] ? mod(3n * p[0] * p[0] * inv(2n * p[1])) : mod((q[1] - p[1]) * inv(q[0] - p[0]));
+		const x = mod(l * l - p[0] - q[0]);
+		return [x, mod(l * (p[0] - x) - p[1])];
+	}
+	function pointMul(k) {
+		let r = null, p = G256K;
+		for (; k > 0n; k >>= 1n) { if (k & 1n) r = pointAdd(r, p); p = pointAdd(p, p); }
+		return r;
+	}
+	const hexOf = (b) => [...b].map((x) => x.toString(16).padStart(2, "0")).join("");
+	const utf8 = (s) => new TextEncoder().encode(s.normalize("NFKD"));
+	// BIP-39's seed, and the fingerprint of its BIP-32 master key
+	const mnemonicToSeed = (mnemonic, passphrase = "") => pbkdf2Sha512(utf8(mnemonic), utf8("mnemonic" + passphrase), 2048);
+	function fingerprint(mnemonic, passphrase = "") {
+		const I = hmac512(hmacKey(utf8("Bitcoin seed")), mnemonicToSeed(mnemonic, passphrase));
+		const [x, y] = pointMul(BigInt("0x" + hexOf(I.slice(0, 32))));
+		const pub = new Uint8Array(33);
+		pub[0] = y & 1n ? 3 : 2;
+		pub.set(x.toString(16).padStart(64, "0").match(/../g).map((b) => parseInt(b, 16)), 1);
+		return hexOf(ripemd160(sha256(pub)).slice(0, 4));
+	}
+
 	return {
 		FORMAT_VERSION, HEADER_BITS, LAYOUTS, DecodeError,
+		sha512, hmac512, hmacKey, pbkdf2Sha512, ripemd160, mnemonicToSeed, fingerprint,
 		sha256, mnemonicToEntropy, entropyToMnemonic,
 		functionModules, templateModule, dataModulesRowMajor, compactSeedQR, encode, decode,
 		symbolsToBits, readSequence, decodeObjects, physicalSequence, piecesToBuy, rsCorrect,

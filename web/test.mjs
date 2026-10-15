@@ -2,13 +2,13 @@
 // (vectors/sequences-v0.json, vectors/sequences-pad.json) and Node.js's own
 // crypto.
 //     node web/test.mjs
-import { createHash } from "node:crypto";
+import { createECDH, createHash, createHmac, pbkdf2Sync } from "node:crypto";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 
 const here = new URL(".", import.meta.url);
 const read = (p) => readFileSync(new URL(p, here), "utf8");
-const ctx = vm.createContext({ crypto: globalThis.crypto }); // the browser's crypto.getRandomValues
+const ctx = vm.createContext({ crypto: globalThis.crypto, TextEncoder }); // the browser's crypto.getRandomValues and TextEncoder
 for (const f of ["third_party/qrcodegen.js", "src/bip39-english.js", "src/seedcraft-sequences.js"])
 	vm.runInContext(read(f), ctx, { filename: f });
 vm.runInContext("globalThis.S = SeedcraftSequences;", ctx);
@@ -23,8 +23,31 @@ for (const len of [0, 1, 55, 56, 63, 64, 65, 200]) {
 	const data = Uint8Array.from({ length: len }, (_, i) => (i * 7 + 3) & 255);
 	check(hex(S.sha256(data)) === createHash("sha256").update(data).digest("hex"), "sha256 len " + len);
 }
+// the fingerprint's primitives against Node: SHA-512, HMAC-SHA512, PBKDF2, RIPEMD-160
+for (const len of [0, 1, 111, 112, 127, 128, 129, 300]) {
+	const data = Uint8Array.from({ length: len }, (_, i) => (i * 13 + 5) & 255);
+	check(hex(S.sha512(data)) === createHash("sha512").update(data).digest("hex"), "sha512 len " + len);
+	check(hex(S.ripemd160(data)) === createHash("ripemd160").update(data).digest("hex"), "ripemd160 len " + len);
+	const key = data.slice(0, Math.min(len, 200));
+	check(hex(S.hmac512(S.hmacKey(key), data)) === createHmac("sha512", key).update(data).digest("hex"), "hmac-sha512 len " + len);
+}
+check(hex(S.pbkdf2Sha512(new TextEncoder().encode("password"), new TextEncoder().encode("salt"), 7))
+	=== pbkdf2Sync("password", "salt", 7, 64, "sha512").toString("hex"), "pbkdf2-sha512");
+// the well-known fingerprint of the pretend seed "abandon … about"
+check(S.fingerprint("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about") === "73c5da0a", "fingerprint abandon…about");
+// a fingerprint as Node computes it, for a mnemonic and a passphrase
+const nodeFingerprint = (mnemonic, passphrase = "") => {
+	const seed = pbkdf2Sync(mnemonic.normalize("NFKD"), ("mnemonic" + passphrase).normalize("NFKD"), 2048, 64, "sha512");
+	const I = createHmac("sha512", "Bitcoin seed").update(seed).digest();
+	const ecdh = createECDH("secp256k1");
+	ecdh.setPrivateKey(I.subarray(0, 32));
+	const pub = ecdh.getPublicKey(null, "compressed");
+	return createHash("ripemd160").update(createHash("sha256").update(pub).digest()).digest("hex").slice(0, 8);
+};
+check(S.fingerprint("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", "TREZOR")
+	=== nodeFingerprint("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", "TREZOR"), "fingerprint with passphrase");
 // vectors
-const vectors = JSON.parse(read("../vectors/sequences-v0.json")).vectors;
+const vectors =JSON.parse(read("../vectors/sequences-v0.json")).vectors;
 let seed = 1;
 const rand = (n) => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed % n; };
 for (const v of vectors) {
@@ -32,6 +55,7 @@ for (const v of vectors) {
 	const entropy = Uint8Array.from(Buffer.from(v.entropy, "hex"));
 	check(hex(S.mnemonicToEntropy(v.mnemonic)) === v.entropy, "mnemonic -> entropy " + name);
 	check(S.entropyToMnemonic(entropy) === v.mnemonic, "entropy -> mnemonic " + name);
+	if (v.k === 4) check(S.fingerprint(v.mnemonic) === nodeFingerprint(v.mnemonic), "fingerprint " + name);
 	const symbols = S.encode(entropy, v.k, 0);
 	check(JSON.stringify(symbols) === JSON.stringify(v.symbols), "encode (same symbols and mask as Python) " + name);
 	const rnd = S.encode(entropy, v.k);
