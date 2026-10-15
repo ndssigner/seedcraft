@@ -166,5 +166,26 @@ const counts = new Array(32).fill(0);
 S.newPad(64000, 32).forEach((x) => counts[x]++);
 const chi = counts.reduce((s, c) => s + (c - 2000) ** 2 / 2000, 0);
 check(chi < 70, "newPad uniform, chi-squared " + chi.toFixed(1));
+// dice (SPEC §10.2)
+for (const [s, b] of [[2, 1], [4, 2], [6, 2], [8, 3], [10, 3], [12, 3], [16, 4], [20, 4]])
+	check(S.diceBits(s).b === b && S.diceBits(s).keep === 2 ** b, "diceBits d" + s);
+let r = S.throwsToNumber([2, 4, 5, 3], 6, 4);          // d6, N = 16: 2 -> 10, 4 and 5 are thrown again, 3 -> 11
+check(r && r.value === 11 && r.bits.join("") === "1011" && r.rejected.join() === "1,2" && r.used.join() === "0,3", "d6 1011");
+check(S.throwsToNumber([2, 4], 6, 4) === null, "d6 one throw missing");
+r = S.throwsToNumber([5, 6], 8, 4);                     // d8: 101 and the first bit of 110 -> 1011
+check(r && r.value === 11, "d8 takes the first bits of the last throw");
+check(S.throwsToNumber([15], 16, 4).value === 15 && S.throwsToNumber([19, 7], 20, 4).value === 7, "d16 and d20");
+check(S.throwsToNumber([1, 0, 1, 1], 2, 4).value === 11, "coins");
+// k from 1 to 8, any die: every value 0..2^k - 1 comes out of some throws
+for (const s of S.DICE) for (let k = 1; k <= 8; k++) {
+	const { b, keep } = S.diceBits(s), seen = new Set(), n = Math.ceil(k / b);
+	for (let x = 0; x < keep ** n && x < 4096; x++) {
+		const faces = Array.from({ length: n }, (_, j) => Math.floor(x / keep ** (n - 1 - j)) % keep);
+		seen.add(S.throwsToNumber(faces, s, k).value);
+	}
+	check(keep ** n > 4096 || seen.size === 2 ** k, `d${s} k=${k} gives every value`);
+}
+let bad = false; try { S.throwsToNumber([6], 6, 4); } catch { bad = true; }
+check(bad, "face outside the die");
 console.log(`${failures ? "FAIL" : "ok"}: ${vectors.length} vectors, ${padVectors.length} pad vectors, ${failures} failures`);
 process.exit(failures ? 1 : 0);
