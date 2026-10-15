@@ -197,7 +197,7 @@ const SEEDCRAFT_TEXT = {
 			dictn: `this pad is for ${x && x[0]} kinds of pieces, and your dictionary has ${x && x[1]}.`,
 		}[code]),
 		padSwapped: "The pad was the sequence and the other way round — that's fine.",
-		tabMakeFlow: "Make a backup", tabReadFlow: "Read a backup",
+		tabMakeFlow: "Back up a seed", tabReadFlow: "Recover a seed",
 		makeSteps: [
 			["Plan", "Choose the mode, the number of words and how many kinds of pieces."],
 			["Get the pieces", "How many of each kind, before you start."],
@@ -282,6 +282,14 @@ const SEEDCRAFT_TEXT = {
 				materials: (L) => `An album or a strip with room for ${L} stickers.`,
 				sheetTitle: "✨ My sticker album", sheetSub: "Or a strip, a notebook… anything to stick them on!",
 				sheetSteps: ["Start at the top left of the first page (where the ★ is).", "Stick them one by one, in the order of the numbers: 1, 2, 3… left to right, row by row.", "Each time you stick one, tick its number on the drawing, so you never lose your place ✔️", "When you reach the last one, it's done! 🎉"] },
+			photos: { name: "Photo album", what: "The subject of each photo", blends: "Perfectly, on a shelf", order: "Yes, if printed and glued or in fixed pockets; no on a phone or in the cloud",
+				note: "One obvious subject per photo, from kinds that never overlap: a dog in a car is neither. Whoever is in the photos is drawn into it if the album is ever examined.", start: "first", end: "last",
+				make: "Put the photos in the album in this order, page by page, each one of the subject named.",
+				read: "Start at the first photo and tap the subject of each one, in order, to the last.",
+				drawing: "From the first photo to the last, page by page.",
+				materials: (L) => `${L} printed photos, and an album with fixed pockets, or glue.`,
+				sheetTitle: "📷 My photo album", sheetSub: "Printed photos in a fixed order",
+				sheetSteps: ["Start at the first page, top left (where the ★ is).", "Put in one photo per place, in the order of the numbers, of the subject shown.", "Tick each number as you go, so you never lose your place ✔️", "Glue them, or use pockets they cannot slip out of. Never re-sort the album."] },
 			necklace: { name: "Necklace or bracelet", what: "Beads on a string", blends: "Well, and it can be worn", order: "Yes, on wire or strong cord, with a clasp marking the start",
 				note: "Strings break: check it now and then.", start: "start", end: "end",
 				make: "Thread them in this order, from the clasp.",
@@ -531,7 +539,7 @@ const SEEDCRAFT_TEXT = {
 			dictn: `este pad es para ${x && x[0]} clases de piezas, y tu diccionario tiene ${x && x[1]}.`,
 		}[code]),
 		padSwapped: "El pad era la secuencia y al revés; no pasa nada.",
-		tabMakeFlow: "Hacer una copia", tabReadFlow: "Leer una copia",
+		tabMakeFlow: "Guardar una semilla", tabReadFlow: "Recuperar una semilla",
 		makeSteps: [
 			["Planear", "Elige el modo, cuántas palabras y cuántas clases de piezas."],
 			["Reunir las piezas", "Cuántas de cada clase, antes de empezar."],
@@ -539,7 +547,7 @@ const SEEDCRAFT_TEXT = {
 			["La secuencia", "Escribe la semilla: la página da el orden de las piezas, una a una."],
 			["El pad", "Solo con pad: la segunda mitad, como ristra o como archivo."],
 			["Comprobar", "Léela como lo harías dentro de años: tiene que dar la misma semilla."],
-			["Guardar", "Dónde va cada cosa, y qué dejar a tus herederos."],
+			["Ponerla a salvo", "Dónde va cada cosa, y qué dejar a tus herederos."],
 		],
 		readSteps: [
 			["Qué tienes", "El modo con que se hizo, y su diccionario."],
@@ -568,7 +576,7 @@ const SEEDCRAFT_TEXT = {
 		checkReadHelp: "Lee lo que has hecho, pieza a pieza, como lo harías dentro de años. Tiene que devolver la misma semilla.",
 		checkHelpPad: "Lee las dos mitades como lo harías dentro de años: la secuencia, y el pad desde sus cosas o su archivo. Tienen que devolver la misma semilla.",
 		checkMatch: "La misma semilla: tu copia se lee bien.", checkMismatch: "Una semilla distinta de la que hiciste: revisa las piezas.",
-		storeTitle: "Guárdala", storeHelp: "Márcalo según avances. No se guarda nada.",
+		storeTitle: "Ponla a salvo", storeHelp: "Márcalo según avances. No se guarda nada.",
 		storeBasic: [
 			"Guárdala donde pega, entre cosas parecidas, tan bien como las propias palabras.",
 			"Guarda el diccionario aparte, o usa un orden fijo y apunta cuál (SPEC §11.3).",
@@ -616,6 +624,14 @@ const SEEDCRAFT_TEXT = {
 				materials: (L) => `Un álbum o una tira con sitio para ${L} pegatinas.`,
 				sheetTitle: "✨ Mi álbum de pegatinas", sheetSub: "O una tira, una libreta… ¡cualquier sitio donde pegarlas!",
 				sheetSteps: ["Empieza arriba a la izquierda de la primera página (donde está la ★).", "Pégalas una a una, en el orden de los números: 1, 2, 3… de izquierda a derecha, fila a fila.", "Cada vez que pegues una, marca su número en el dibujo, así nunca te pierdes ✔️", "Cuando llegues a la última, ¡listo! 🎉"] },
+			photos: { name: "Álbum de fotos", what: "El tema de cada foto", blends: "Perfectamente, en una estantería", order: "Sí, si están impresas y pegadas o en fundas fijas; no en un móvil ni en la nube",
+				note: "Un tema evidente por foto, de clases que nunca se solapen: un perro dentro de un coche no es ni lo uno ni lo otro. Quien salga en las fotos queda metido en esto si alguna vez se examina el álbum.", start: "primera", end: "última",
+				make: "Pon las fotos en el álbum en este orden, página a página, cada una del tema indicado.",
+				read: "Empieza por la primera foto y toca el tema de cada una, en orden, hasta la última.",
+				drawing: "De la primera foto a la última, página a página.",
+				materials: (L) => `${L} fotos impresas, y un álbum con fundas fijas, o pegamento.`,
+				sheetTitle: "📷 Mi álbum de fotos", sheetSub: "Fotos impresas en un orden fijo",
+				sheetSteps: ["Empieza en la primera página, arriba a la izquierda (donde está la ★).", "Pon una foto en cada sitio, en el orden de los números, del tema indicado.", "Marca cada número según avanzas, así nunca te pierdes ✔️", "Pégalas, o usa fundas de las que no se salgan. No reordenes nunca el álbum."] },
 			necklace: { name: "Collar o pulsera", what: "Cuentas en un hilo", blends: "Bien, y se puede llevar puesto", order: "Sí, en alambre o cordón fuerte, con un cierre que marca el inicio",
 				note: "Los hilos se rompen: revísalo de vez en cuando.", start: "inicio", end: "fin",
 				make: "Ensártalas en este orden, desde el cierre.",
@@ -735,6 +751,9 @@ const SEEDCRAFT_SETS = (() => {
 	const N = (en, es) => ({ en, es });
 	const streets = [N("Avenue", "Avenida"), N("Boulevard", "Bulevar"), N("Lane", "Calle"), N("Road", "Camino"),
 		N("Square", "Carretera"), N("Street", "Paseo"), N("Walk", "Plaza"), N("Way", "Ronda")];
+	// a photo album's kinds: the one obvious subject of each photo
+	const photos = [E("🧑", "People", "Personas"), E("🐾", "Animals", "Animales"), E("🚗", "Cars", "Coches"), E("🏛️", "Buildings", "Edificios"),
+		E("🌸", "Flowers", "Flores"), E("🍲", "Food", "Comida"), E("🌊", "Sea", "Mar"), E("⛰️", "Mountains", "Montañas")];
 	const suits = [E("♣️", "Clubs", "Tréboles"), E("♦️", "Diamonds", "Diamantes"), E("♥️", "Hearts", "Corazones"), E("♠️", "Spades", "Picas")];
 	const authors = [N("Austen", "Austen"), N("Brontë", "Brontë"), N("Cervantes", "Cervantes"), N("Dickens", "Dickens"),
 		N("Galdós", "Galdós"), N("Homer", "Homero"), N("Shakespeare", "Shakespeare"), N("Tolstoy", "Tolstói")];
@@ -756,6 +775,7 @@ const SEEDCRAFT_SETS = (() => {
 		{ id: "mixed", icon: "🎨", en: "Beads + charms", es: "Cuentas + charms", things: mixed },
 		{ id: "streets", icon: "📒", en: "Street types", es: "Tipos de calle", things: streets },
 		{ id: "gems", icon: "💎", en: "Gemstones", es: "Piedras", things: gems },
+		{ id: "photos", icon: "📷", en: "Photo subjects", es: "Temas de foto", things: photos },
 		{ id: "authors", icon: "📚", en: "Authors", es: "Autores", things: authors },
 		{ id: "suits", icon: "🃏", en: "Card suits", es: "Palos de la baraja", things: suits },
 	];
