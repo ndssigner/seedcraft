@@ -64,10 +64,13 @@
 	// key (keyTaps, or keyFile: the key file's numbers, from fileText, checked
 	// in "What you have"); last, the turn a tap just completed; typing, text,
 	// keyText: everything typed at once; out, error: what decodeTurns made of
-	// it, for sig (the pieces it was worked out from).
-	function freshRead() {
+	// it, for sig (the pieces it was worked out from). What it is read as is
+	// its own, apart from the backup being made (st.plan, st.padDict): words,
+	// padAs, padForm and padDict (the key's own collection), kept from `keep`.
+	function freshRead(keep) {
 		return { turn: 0, taps: [], keyTaps: [], keyFile: null, fileText: "", last: null,
-			typing: false, text: "", keyText: "", out: null, error: "", sig: "" };
+			typing: false, text: "", keyText: "", out: null, error: "", sig: "",
+			words: keep ? keep.words : 12, padAs: keep ? keep.padAs : "string", padForm: keep ? keep.padForm : null, padDict: keep ? keep.padDict : null };
 	}
 	const T = () => SEEDCRAFT_TEXT[st.lang];
 	// a dictionary of another size: what was made or read with the old one
@@ -78,7 +81,7 @@
 		if (d) st.plan.n = d.things.length;
 		if (!same) {
 			st.make = { seed: st.make.seed, entropy: null, symbols: null, pos: 0, tab: "turn" };
-			st.read = freshRead();
+			st.read = { ...freshRead(st.read), padDict: null };
 		}
 	}
 
@@ -86,7 +89,6 @@
 	function setWords(words) {
 		st.plan.words = words;
 		st.make = { seed: st.make.seed, entropy: null, symbols: null, pos: 0, tab: "turn" };
-		st.read = freshRead();
 	}
 
 	// ---- tiny DOM helpers --------------------------------------------
@@ -434,7 +436,7 @@
 	function setMode(mode) {
 		st.mode = mode;
 		st.make = { seed: st.make.seed, entropy: null, symbols: null, pos: 0, tab: "turn" };
-		st.read = freshRead();
+		st.read = freshRead(st.read);
 		st.step.read = "have";
 		render();
 	}
@@ -612,24 +614,25 @@
 						kindsRow(p.form, n, 0, d && d.things))),
 				panel(h("div", { class: "big-total", text: t.planSummary(st.mode, p.padAs, L) }),
 					written ? h("p", { text: t.planWrite(L) }) : null,
-					st.mode === "pad" ? keyAsFields() : null))];
+					st.mode === "pad" ? keyAsFields(p, () => { st.padDict = null; }) : null))];
 			setNav({ prev: back("form") });
 		}
 		return h("div", { class: "stack" }, subs, ...body.flat().filter(Boolean));
 	}
 
 	// pad mode: the key as things or as a file and, as things, in the same
-	// collection as the sequence or in another one (the plan; what you have)
-	function keyAsFields() {
-		const t = T(), p = st.plan;
+	// collection as the sequence or in another one: p is the plan's choice, or
+	// what is being read's; forget() drops the key's own dictionary
+	function keyAsFields(p, forget) {
+		const t = T(), form = st.plan.form;
 		const choice = (value, picture, label, help) => h("button", { class: "choice" + (p.padAs === value ? " on" : ""), "aria-pressed": String(p.padAs === value),
 			on: { click: () => { p.padAs = value; render(); } } }, art(picture), h("b", { text: label }), h("span", { text: help }));
 		return [field(t.planPadAs, h("div", { class: "choices" },
 				choice("string", "keyThings", t.padAsString, t.planPadString), choice("file", "keyFile", t.padAsFile, t.planPadFile))),
 			p.padAs === "string" ? field(t.formPadForm, seg([["same", t.formPadSame], ["other", t.formPadOther]], p.padForm ? "other" : "same",
-				(v) => { p.padForm = v === "other" ? FORMS.find((f) => f.id !== p.form && f.keeps).id : null; st.padDict = null; render(); }),
-				p.padForm ? h("select", { class: "input", "aria-label": t.formPadForm, on: { change: (e) => { p.padForm = e.target.value; st.padDict = null; render(); } } },
-					FORMS.filter((f) => f.id !== p.form && f.keeps).map((f) => h("option", { value: f.id, selected: f.id === p.padForm ? "" : null }, t.forms[f.id].name))) : null) : null];
+				(v) => { p.padForm = v === "other" ? FORMS.find((f) => f.id !== form && f.keeps).id : null; forget(); render(); }),
+				p.padForm ? h("select", { class: "input", "aria-label": t.formPadForm, on: { change: (e) => { p.padForm = e.target.value; forget(); render(); } } },
+					FORMS.filter((f) => f.id !== form && f.keeps).map((f) => h("option", { value: f.id, selected: f.id === p.padForm ? "" : null }, t.forms[f.id].name))) : null) : null];
 	}
 
 	// ---- make, 2: what you need -----------------------------------------------
@@ -780,11 +783,16 @@
 	}
 	// pad mode, the key as things of another collection: its own dictionary (SPEC §11.4)
 	function keyDictNeeded() { return st.mode === "pad" && st.plan.padAs === "string" && !!st.plan.padForm; }
+	// The key's own collection: the backup's (st.plan, st.padDict) or, recovering,
+	// the one being read's (st.read), which leaves the backup alone
+	const keyColl = () => st.screen === "read"
+		? { form: st.read.padForm, dict: st.read.padDict, set: (d) => { st.read.padDict = d; } }
+		: { form: st.plan.padForm, dict: st.padDict, set: (d) => { st.padDict = d; st.make.check = null; } };
 	// that dictionary, below the sequence's: made, ready-made or from a file; then checked like the other
 	function keyDictBlock() {
-		const t = T(), n = st.dict.things.length, padForm = st.plan.padForm, pd = st.padDict;
+		const t = T(), n = st.dict.things.length, kc = keyColl(), padForm = kc.form, pd = kc.dict;
 		const label = h("div", { class: "label pad-label", text: t.padDictTitle + ": " + t.forms[padForm].name });
-		const pick = (things, checked) => { st.padDict = { things, checked: !!checked }; st.make.check = null; render(); };
+		const pick = (things, checked) => { kc.set({ things, checked: !!checked }); render(); };
 		const name = (things) => editDict({ kind: "name", target: "pad", things, i: 0 });
 		if (pd) return h("div", { class: "field key-dict" }, label,
 			h("div", { class: "dictline" }, h("span", { class: "minis" }, pd.things.map((x) => icon(x, 22)))),
@@ -792,7 +800,7 @@
 			h("div", { class: "row" },
 				h("button", { class: pd.checked ? "btn ghost small" : "btn small", on: { click: () => editDict({ kind: "check", target: "pad", i: 0 }) } }, t.dictCheck),
 				h("button", { class: "btn ghost small", on: { click: () => name(pd.things.map((x) => ({ ...x, symbolTyped: !!x.emoji && x.emoji !== initialsOf(x.name) }))) } }, t.dictEdit),
-				h("button", { class: "btn ghost small", on: { click: () => { st.padDict = null; st.make.check = null; render(); } } }, t.dictOther)));
+				h("button", { class: "btn ghost small", on: { click: () => { kc.set(null); render(); } } }, t.dictOther)));
 		const err = h("div");
 		const open = h("input", { type: "file", accept: ".json,.txt,application/json,text/plain", class: "hidden", on: { change: async (e) => {
 			const f = e.target.files[0];
@@ -814,7 +822,7 @@
 	// naming the pieces one by one
 	function nameScreen() {
 		const t = T(), ed = st.edit, n = ed.things.length, x = ed.things[ed.i];
-		const form = ed.target === "pad" ? st.plan.padForm || st.plan.form : st.plan.form;
+		const form = ed.target === "pad" ? keyColl().form || st.plan.form : st.plan.form;
 		const err = h("div");
 		// the symbol follows the name (its initials) until it is typed by hand
 		const nameIn = h("input", { type: "text", class: "big-input", value: x.name, placeholder: t.forms[form].namePh, autocomplete: "off", "aria-label": t.thingName,
@@ -865,7 +873,7 @@
 			const all = dictProblem(ed.things);
 			if (all) { err.replaceChildren(errorBox(all)); return; }
 			const things = ed.things.map(({ symbolTyped, ...y }) => ({ ...y, name: y.name.trim() }));
-			if (ed.target === "pad") { st.padDict = { things, checked: false }; st.make.check = null; }
+			if (ed.target === "pad") keyColl().set({ things, checked: false });
 			else setDict({ things, checked: false });
 			editDict({ kind: "check", i: 0, target: ed.target });
 		}
@@ -892,7 +900,7 @@
 
 	// a round of checking against the real thing
 	function checkScreen() {
-		const t = T(), ed = st.edit, d = ed.target === "pad" ? st.padDict : st.dict, n = d.things.length, x = d.things[ed.i];
+		const t = T(), ed = st.edit, d = ed.target === "pad" ? keyColl().dict : st.dict, n = d.things.length, x = d.things[ed.i];
 		return h("div", { class: "narrow" }, panel(
 			h("div", { class: "row between" }, title(t.dictCheck), h("span", { class: "meta", text: t.pieceOf(ed.i, n) })),
 			h("div", { class: "wizard" },
@@ -1357,7 +1365,8 @@
 	function checkStep() {
 		const m = st.make;
 		if (!m.check) m.check = freshRead();
-		// a key file was made here: it is read as it is (the key as things is read back like the sequence)
+		// read as it was made; a key file made here is read as it is (the key as things is read back like the sequence)
+		Object.assign(m.check, { words: st.plan.words, padAs: st.plan.padAs, padForm: st.plan.padForm, padDict: st.padDict });
 		if (st.mode === "pad" && st.plan.padAs === "file") m.check.keyFile = m.pad;
 		return turnReader(m.check, { expect: m.entropy });
 	}
@@ -1435,9 +1444,9 @@
 		} else {
 			// the key: as things (the same collection, or another with its own
 			// dictionary), or as a file, checked whole here before the first turn
-			const file = st.plan.padAs === "file";
-			body = tool(panel(h("p", { class: "lead", text: t.haveKeyHelp }), ...keyAsFields()),
-				panel(...(file ? keyFileInput(rd) : st.plan.padForm ? [keyDictBlock()]
+			const file = rd.padAs === "file";
+			body = tool(panel(h("p", { class: "lead", text: t.haveKeyHelp }), ...keyAsFields(rd, () => { rd.padDict = null; })),
+				panel(...(file ? keyFileInput(rd) : rd.padForm ? [keyDictBlock()]
 					: [h("div", { class: "key-empty" }, art("keyThings"), hint(t.haveKeySame))])));
 			setNav({ prev: back("dict"), ready: keyGiven() });
 		}
@@ -1478,7 +1487,7 @@
 			if (f.n !== n) throw new S.PadFileError("dictn", "N does not match the dictionary", null, [f.n, n]);
 			const words = [12, 24].find((w) => symbolsFor(w, n) === f.pad.length);
 			if (!words) throw new S.PadFileError("words", "not the length of a seed", null, [f.pad.length, symbolsFor(12, n), symbolsFor(24, n)]);
-			if (words !== st.plan.words) readWords(words);
+			if (words !== rd.words) readWords(rd, words);
 			rd.keyFile = f.pad;
 			return "";
 		} catch (e) {
@@ -1486,34 +1495,40 @@
 			return T().errPadFile(e.code, e.line, e.detail);
 		}
 	}
-	// another number of words while reading: what was made goes, what is being read stays
-	function readWords(words) { const rd = st.read; setWords(words); st.read = rd; }
+	// another number of words while reading: the pieces past the new length go
+	function readWords(rd, words) {
+		const L = symbolsFor(words, st.dict.things.length);
+		Object.assign(rd, { words, taps: rd.taps.slice(0, L), keyTaps: rd.keyTaps.slice(0, L) });
+	}
 	// the key is given: in pad mode, its file checked, or its collection known
 	function keyGiven() {
 		if (st.mode !== "pad") return true;
-		return st.plan.padAs === "file" ? !!st.read.keyFile : !st.plan.padForm || !!st.padDict;
+		const rd = st.read;
+		return rd.padAs === "file" ? !!rd.keyFile : !rd.padForm || !!rd.padDict;
 	}
 
 	// ---- read, 2 (and make, 6): turn by turn --------------------------------------
 	// The key's numbers so far (null in the basic mode): its file's, or its pieces tapped
-	const readKey = (rd) => st.mode !== "pad" ? null : st.plan.padAs === "file" ? rd.keyFile || [] : rd.keyTaps;
+	const readKey = (rd) => st.mode !== "pad" ? null : rd.padAs === "file" ? rd.keyFile || [] : rd.keyTaps;
 	// a key as things: its own collection, or the sequence's
-	const keyThingsOf = () => st.plan.padForm && st.padDict ? st.padDict.things : st.dict.things;
-	const readLength = () => symbolsFor(st.plan.words, st.dict.things.length);
+	const keyThingsOf = (rd) => rd.padForm && rd.padDict ? rd.padDict.things : st.dict.things;
+	const readLength = (rd) => symbolsFor(rd.words, st.dict.things.length);
 	const bitsOf = (v, k) => v.toString(2).padStart(k, "0").split("").map(Number);
 	// the first turn not read yet (L: all of them are)
 	function readFrontier(rd) {
-		const L = readLength(), key = readKey(rd);
+		const L = readLength(rd), key = readKey(rd);
 		let f = 0;
 		while (f < L && rd.taps[f] !== undefined && (!key || key[f] !== undefined)) f++;
 		return f;
 	}
 	// to another turn: any one already read, or the first one not read yet
-	function readGo(rd, to) { rd.turn = Math.max(0, Math.min(readFrontier(rd), to)); rd.last = null; render(); }
+	function readGo(rd, to) { rd.turn = Math.max(0, Math.min(readFrontier(rd), to)); rd.last = null; seenWhy(rd); render(); }
+	// past the first turn, the basic mode's why (shared with making one) is not shown again
+	function seenWhy(rd) { if (rd.turn > 0 && st.mode !== "pad") st.seen.whyBasic = true; }
 	// What the L turns give, worked out again only when a piece changes:
 	// decodeTurns (both directions, both roles) or, if nothing decodes, "nofit".
 	function readOut(rd) {
-		const n = st.dict.things.length, L = readLength(), key = readKey(rd);
+		const n = st.dict.things.length, L = readLength(rd), key = readKey(rd);
 		const taps = rd.taps.slice(0, L), keys = key && key.slice(0, L), sig = JSON.stringify([n, taps, keys]);
 		if (sig === rd.sig) return;
 		Object.assign(rd, { sig, out: null, error: "" });
@@ -1559,14 +1574,15 @@
 	function turnReader(rd, opts = {}) {
 		const t = T(), things = st.dict.things, n = things.length, k = Math.log2(n), padMode = st.mode === "pad";
 		const checking = !!opts.expect, flow = checking ? "make" : "read", m = st.make;
-		const L = readLength(), size = S.sizeFor(L, k), ndata = S.dataModulesRowMajor(size).length;
-		const keyThings = padMode && st.plan.padAs === "string" ? keyThingsOf() : null;
+		const L = readLength(rd), size = S.sizeFor(L, k), ndata = S.dataModulesRowMajor(size).length;
+		const keyThings = padMode && rd.padAs === "string" ? keyThingsOf(rd) : null;
 		readOut(rd);
 		const key = readKey(rd), frontier = readFrontier(rd);
 		const i = rd.turn = Math.max(0, Math.min(frontier, rd.turn || 0));
 		const plainOf = (j) => key ? S.clockStep(rd.taps[j], key[j], n, -1).value : rd.taps[j];
 		const out = i === L ? rd.out : null, qr = out && S.compactSeedQR(out.entropy);
-		if (checking && out) m.checked = [...out.entropy].join() === [...opts.expect].join();
+		// checking: the copy reads back only while every piece read gives the seed made
+		if (checking) m.checked = !!rd.out && [...rd.out.entropy].join() === [...opts.expect].join();
 		// the squares painted: the turns read, as read; at the end, the seed's own QR code
 		const painted = qr ? qrPainted(qr) : new Map(), read = [];
 		if (!qr) for (let j = 0; j < frontier; j++) read.push(...bitsOf(plainOf(j), k));
@@ -1585,9 +1601,10 @@
 				th.map((x) => x.name.toLowerCase()));
 			const apply = () => {
 				try {
-					const taps = rd.text.trim() ? parse(rd.text, things) : rd.taps, keyTaps = keyThings && rd.keyText.trim() ? parse(rd.keyText, keyThings) : rd.keyTaps;
+					// the text is what was read (typeAll starts it from the pieces tapped)
+					const taps = parse(rd.text, things), keyTaps = keyThings ? parse(rd.keyText, keyThings) : rd.keyTaps;
 					if (taps.length > L || (keyThings && keyTaps.length > L)) { err.replaceChildren(errorBox(t.errTyped(Math.max(taps.length, keyTaps.length), L))); return; }
-					Object.assign(rd, { taps, keyTaps, typing: false });
+					Object.assign(rd, { taps, keyTaps, typing: false, text: "", keyText: "" });
 					readGo(rd, L);
 				} catch (e) {
 					if (!(e instanceof S.DecodeError)) throw e;
@@ -1597,7 +1614,7 @@
 			return tool(panel(...stepHead(flow, t.typeHelp),
 				area("text", t.stringSeq), keyThings ? area("keyText", t.stringPad) : null, err,
 				h("div", { class: "row" }, h("button", { class: "btn push", on: { click: apply } }, t.typeRead),
-					h("button", { class: "btn ghost small", on: { click: () => { rd.typing = false; render(); } } }, t.tapInstead))),
+					h("button", { class: "btn ghost small", on: { click: () => { Object.assign(rd, { typing: false, text: "", keyText: "" }); render(); } } }, t.tapInstead))),
 				panel(turnGrid(size, null, painted, [], null)));
 		}
 
@@ -1605,7 +1622,7 @@
 		const tap = (which, v) => {
 			(which === "key" ? rd.keyTaps : rd.taps)[i] = v;
 			st.seen.readTap = true;
-			if (i === frontier && readFrontier(rd) > i) { rd.turn = i + 1; rd.last = i; } else rd.last = null;
+			if (i === frontier && readFrontier(rd) > i) { rd.turn = i + 1; rd.last = i; seenWhy(rd); } else rd.last = null;
 			render();
 		};
 		// what a turn gives: (the key's piece taken away on the clock), the number, its bits and squares
@@ -1629,14 +1646,13 @@
 		};
 		const restart = () => {
 			if (!confirm(t.readRestartAsk)) return;
-			Object.assign(rd, freshRead(), { keyFile: rd.keyFile, fileText: rd.fileText });
+			Object.assign(rd, freshRead(rd), { keyFile: rd.keyFile, fileText: rd.fileText });
 			render();
 		};
 		const typeAll = () => {
-			const names = (taps, th) => taps.map((v) => th[v].name).join("\n");
-			if (!rd.text.trim()) rd.text = names(rd.taps, things);
-			if (keyThings && !rd.keyText.trim()) rd.keyText = names(rd.keyTaps, keyThings);
-			rd.typing = true;
+			// always the pieces as they now are
+			const names = (taps, th) => taps.filter((v) => v !== undefined).map((v) => th[v].name).join("\n");
+			Object.assign(rd, { typing: true, text: names(rd.taps, things), keyText: keyThings ? names(rd.keyTaps, keyThings) : "" });
 			render();
 		};
 		const tools = h("div", { class: "row" },
@@ -1646,12 +1662,13 @@
 			rd.taps.length || rd.keyTaps.length ? h("button", { class: "btn ghost small", on: { click: restart } }, "↺ " + t.readRestart) : null);
 
 		// on the left, the count; at the top, how long the seed is (a key file says it)
-		const words = checking || (padMode && st.plan.padAs === "file") ? null
-			: seg([12, 24].map((w) => [w, t.wordsPieces(w, symbolsFor(w, n))]), st.plan.words, (w) => { if (w !== st.plan.words) readWords(w); render(); });
+		const words = checking || (padMode && rd.padAs === "file") ? null
+			: seg([12, 24].map((w) => [w, t.wordsPieces(w, symbolsFor(w, n))]), rd.words, (w) => { if (w !== rd.words) readWords(rd, w); render(); });
 		const left = [...stepHead(flow, checking ? (padMode ? t.checkHelpPad : t.checkReadHelp) : null,
 			h("div", { class: "row key-method" }, words, h("span", { class: "meta", text: t.handStep(Math.min(i + 1, L), L) })))];
 		if (i < L) {
 			const C = rd.taps[i], K = key ? key[i] : undefined;
+			if (i === 0 && !padMode && !st.seen.whyBasic) left.push(h("div", { class: "note", text: t.whyBasic(n, k) }));
 			if (i === 0 && !st.seen.readTap) left.push(h("div", { class: "note", text: t.forms[st.plan.form].read }), keyThings ? hint(t.tapPadHelp) : null);
 			left.push(h("div", { class: "turn-part" }, h("div", { class: "label", text: t.readSeqPiece(i + 1) }), collectionRow(things, C, k, (v) => tap("seq", v))));
 			if (keyThings) left.push(h("div", { class: "turn-part turn-keypick" }, h("div", { class: "label pad-label", text: t.readKeyPiece(i + 1) }),
@@ -1669,9 +1686,9 @@
 				wrong && wrong.length ? h("div", { class: "note warn" }, t.readWrong(wrong.length), " ",
 					...wrong.slice(0, 6).map((j) => h("button", { class: "btn ghost small", on: { click: () => readGo(rd, j) } }, t.readPiece(j + 1))))
 				: out.fixed && !wrong ? h("div", { class: "note warn", text: t.readFixed }) : null,
-				seedResult(out, opts.expect), hint(t.handTemplate(size, qr.mask)), tools);
+				seedResult(out, opts.expect), tools);
 		} else left.push(errorBox(rd.error === "nofit" ? t.readNoFit : ""), hint(t.readJump), tools);
-		if (!checking) setNav({ ready: !!out });
+		if (!checking) setNav({ ready: !!rd.out });
 
 		// on the right, the QR code with this turn's squares, and the sequence read so far
 		const turn = i < L ? S.turnBits(size, i, k) : [];
