@@ -293,16 +293,23 @@ words with N = 16, 91 for 24 words), each from 0 to N − 1. Its safety
 rests on one thing: **every number must be pure chance**, with every value
 just as likely.
 
-- The **encoding device** (e.g. NDS-Signer) draws it.
-- If you like, add to it a pad made by hand, number by number, as in §10.3:
-  the result is safe as long as either of the two is. By hand, with any of
-  these:
-  - **coins**: 4 tosses per number for N = 16, heads 1 and tails 0, read as
-    in the table of §8;
-  - **a die with N faces** (16 for N = 16; the face 16 counts as 0);
+- Either the **encoding device** (e.g. NDS-Signer) draws it, or you make it
+  **by hand**, number by number, with any of these:
   - **a bag** with one piece of each kind: take one without looking, note
     it, **put it back** and shake the bag. If the pieces are not put back,
     it is not chance.
+  - **coins**: one toss per bit, heads 1 and tails 0; k tosses per number
+    (4 for N = 16), read as in the table of §8;
+  - **a die**, of any common kind (d4, d6, d8, d10, d12, d16, d20). Number
+    its faces from 0 (on a die marked 1 to s, subtract 1; a d10 marked 0–9
+    already is). Each throw gives b bits, b the largest with 2^b ≤ s: keep
+    a face below 2^b, written as b bits, and **throw again** on any other.
+    Join the bits, first throw first, until there are k; if the last throw
+    gives more than needed, keep its first ones. With N = 16 and a d6:
+    faces 0–3 give 2 bits, 4 and 5 are thrown again, two throws per
+    number. A die with N faces gives a number in one throw.
+- Both can be joined: a pad made by hand added to the device's, number by
+  number, as in §10.3, is safe as long as either of the two is.
 - **Never** numbers chosen by a person, nor taken from the seed, a
   password, a date or anything else.
 - **One pad for one seed** (§10.8).
@@ -413,8 +420,8 @@ it, is the seed. `RISK-AUDIT.md` goes through the cases.
 
 - **Encoding.** P: the symbols of the basic sequence (§3, all of them:
   data, header with version 0, padding bits). K: the pad, L symbols from
-  a cryptographic random number generator, optionally added mod N to a
-  pad made by hand. C[i] = (P[i] + K[i]) mod N. Decoding: P[i] = (C[i] −
+  a cryptographic random number generator, or made by hand (§10.2), or
+  the two added mod N. C[i] = (P[i] + K[i]) mod N. Decoding: P[i] = (C[i] −
   K[i]) mod N.
 - **Decoding software** tries C and C reversed against K, and both roles
   (C − K and K − C), and decodes each result as in §4, in both directions;
