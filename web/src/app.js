@@ -16,24 +16,31 @@
 	// pieces of each kind that cover 99.9 % of seeds, plus one spare, in
 	// packs of 5 (SPEC §6; simulated with the reference implementation)
 	const BUY = { 12: { 2: 130, 4: 45, 8: 25, 16: 15, 32: 10 }, 24: { 2: 215, 4: 70, 8: 35, 16: 20, 32: 15 } };
+	// the same for both strings of pad mode (SPEC §10.6); for a pad-mode
+	// sequence alone, the table above, except N = 2 with 12 words: 135
+	const PAD_BUY = { 12: { 2: 250, 4: 80, 8: 35, 16: 20, 32: 15 }, 24: { 2: 410, 4: 125, 8: 55, 16: 30, 32: 20 } };
+	const buyFor = (words, n, mode, padAs) => mode === "pad" && padAs === "string" ? PAD_BUY[words][n]
+		: mode === "pad" && words === 12 && n === 2 ? 135 : BUY[words][n];
 	const symbolsFor = (words, n) => Math.ceil((words === 12 ? 213 : 364) / Math.log2(n));
 
 	// ---- state -------------------------------------------------------
 	const st = {
 		lang: (navigator.language || "en").toLowerCase().startsWith("es") ? "es" : "en",
-		screen: "intro",
-		buy: { n: 16, words: 12 },
+		screen: "intro",  // intro, make, read, print, about, donate
+		// the two journeys, each a sequence of steps (see MAKE_STEPS, READ_STEPS)
+		step: { make: "plan", read: "have" },
+		plan: { words: 12, n: 16, padAs: "string" },
 		dict: null,  // { things: [{ name, emoji, photo, colour, symbol }], checked }
-		edit: null,  // naming in progress: { things, i } or checking: { i }
+		edit: null,  // the dictionary being named: { kind: "name", things, i }, or checked: { kind: "check", i }
 		mode: null,  // "basic" or "pad" (SPEC §10), chosen before making or reading
 		make: { seed: "", entropy: null, symbols: null, pos: 0, tab: "walk" },
 		read: freshRead(),
 	};
 	// what is being read: the sequence (taps, typing, text, as before) and, in
 	// pad mode, the pad (padIn: as a string of things, or as a file's text)
-	function freshRead() {
+	function freshRead(padAs = "string") {
 		return { taps: [], typing: false, text: "", out: null, error: "", which: "seq",
-			padIn: { source: "string", taps: [], typing: false, text: "", file: "", dict: null } };
+			padIn: { source: padAs, taps: [], typing: false, text: "", file: "", dict: null } };
 	}
 	const T = () => SEEDCRAFT_TEXT[st.lang];
 	// a dictionary of another size: what was made or read with the old one
@@ -41,6 +48,7 @@
 	function setDict(d) {
 		const same = st.dict && d && st.dict.things.length === d.things.length;
 		st.dict = d;
+		if (d) st.plan.n = d.things.length;
 		if (!same) {
 			st.make = { seed: st.make.seed, entropy: null, symbols: null, pos: 0, tab: "walk" };
 			st.read = freshRead();
@@ -146,10 +154,10 @@
 		}
 		const [ex, ey] = pos(n - 1), lastRight = Math.floor((n - 1) / perRow) % 2 === 0;
 		d += ` L${ex + (lastRight ? 30 : -30)},${ey}`;
-		root.append(svg("path", { class: "thread", d }));
+		root.append(svg("path", { class: "thread" + (opts.pad ? " pad" : ""), d }));
 		root.append(svg("text", { x: sx - 34, y: sy + 7, "text-anchor": "middle", "font-size": 20 }, "🔒"));
 		root.append(svg("text", { class: "tag", x: sx - 34, y: sy + 30, "text-anchor": "middle" }, T().clasp));
-		root.append(svg("circle", { class: "knot", cx: ex + (lastRight ? 32 : -32), cy: ey, r: 6 }));
+		root.append(svg("circle", { class: "knot" + (opts.pad ? " pad" : ""), cx: ex + (lastRight ? 32 : -32), cy: ey, r: 6 }));
 		root.append(svg("text", { class: "tag", x: ex + (lastRight ? 32 : -32), y: ey + 26, "text-anchor": "middle" }, T().end));
 		const dark = !opts.paper && darkScreen();
 		sequence.forEach((idx, i) => {
@@ -185,8 +193,8 @@
 	}
 
 	// ---- shell -------------------------------------------------------
-	const TABS = [["intro", "tabIntro"], ["buy", "tabBuy"], ["dict", "tabDict"], ["make", "tabMake"], ["read", "tabRead"]];
-	const TAB_OF = { intro: "intro", buy: "buy", dict: "dict", name: "dict", check: "dict", make: "make", print: "make", read: "read" };
+	const TABS = [["intro", "tabIntro"], ["make", "tabMakeFlow"], ["read", "tabReadFlow"]];
+	const TAB_OF = { intro: "intro", make: "make", print: "make", read: "read" };
 	function shell() {
 		const t = T();
 		document.documentElement.lang = st.lang;
@@ -196,8 +204,7 @@
 		$("lang").textContent = t.langName;
 		$("about").textContent = t.aboutTitle;
 		$("donate").textContent = t.donateTitle;
-		$("tabs").replaceChildren(...TABS.map(([name, label]) => h("button", { class: TAB_OF[st.screen] === name ? "on" : "", on: { click: () => go(name) } },
-			t[label], name === "dict" && st.dict ? h("span", { class: "count-badge", text: st.dict.things.length + (st.dict.checked ? " ✓" : "") }) : null)));
+		$("tabs").replaceChildren(...TABS.map(([name, label]) => h("button", { class: TAB_OF[st.screen] === name ? "on" : "", on: { click: () => go(name) } }, t[label])));
 	}
 	// the connection, always in sight; the warnings themselves appear next to a seed (seedAlert)
 	const online = () => {
@@ -230,8 +237,10 @@
 	}
 	function render() {
 		shell(); online(); links();
-		$("app").replaceChildren(({ intro, buy, dict: dictScreen, name: nameScreen, check: checkScreen, make: makeScreen,
-			read: readScreen, print: printSheet, about, donate })[st.screen]());
+		$("app").replaceChildren(({ intro, make: makeFlow, read: readFlow, print: printSheet, about, donate })[st.screen]());
+		// on a narrow screen the journey scrolls: keep the current step in view
+		const j = $("app").querySelector(".journey"), on = j && j.querySelector("li.on");
+		if (on && j.scrollWidth > j.clientWidth) j.scrollLeft = on.offsetLeft + on.offsetWidth / 2 - j.clientWidth / 2;
 	}
 
 	// ---- small building blocks ----------------------------------------
@@ -248,7 +257,7 @@
 	const tint = (e, colour) => { if (colour) e.style.setProperty("--c", colour); return e; };
 	const dictLine = () => {
 		const t = T(), d = st.dict;
-		if (!d) return h("div", { class: "note" }, t.noDict, " ", h("button", { class: "btn small", on: { click: () => go("dict") } }, t.dictCard));
+		if (!d) return h("div", { class: "note" }, t.noDict, " ", h("button", { class: "btn small", on: { click: () => toStep(st.screen === "read" ? "read" : "make", st.screen === "read" ? "have" : "dict") } }, t.dictCard));
 		return h("div", { class: "dictline" }, h("span", { class: "minis" }, d.things.map((x) => icon(x, 22))),
 			h("span", {}, t.dictSummary(d.things.length, d.checked)));
 	};
@@ -257,7 +266,8 @@
 	function setMode(mode) {
 		st.mode = mode;
 		st.make = { seed: st.make.seed, entropy: null, symbols: null, pos: 0, tab: "walk" };
-		st.read = freshRead();
+		st.read = freshRead(st.plan.padAs);
+		st.step.read = "have";
 		render();
 	}
 	function modeChoice() {
@@ -267,22 +277,102 @@
 		return panel(title(t.modeTitle), hint(t.modeHelp),
 			h("div", { class: "modes" }, option("basic", t.modeBasic, t.modeBasicPoints), option("pad", t.modePad, t.modePadPoints)), hint(t.modeMore));
 	}
-	const modeLine = () => h("div", { class: "row between" }, h("span", { class: "meta", text: T().modeNow(st.mode) }),
-		h("button", { class: "btn ghost small", on: { click: () => setMode(null) } }, T().modeChange));
 
-	// ---- what to buy -------------------------------------------------
-	function buy() {
-		const t = T(), b = st.buy;
-		const count = symbolsFor(b.words, b.n), each = BUY[b.words][b.n];
-		return tool(
-			panel(title(t.buyCard), hint(t.buyHelp),
-				field(t.seedWords, seg([[12, "12"], [24, "24"]], b.words, (v) => { b.words = v; render(); })),
-				field(t.howMany, seg(SIZES.map((n) => [n, String(n), n === 16 ? "★" : ""]), b.n, (v) => { b.n = v; render(); }), hint("★ " + t.recommended))),
-			panel(h("div", { class: "big-total", text: t.buyEach(each, b.n) }),
-				h("p", { text: t.buyWhy(count, Math.ceil((count * 0.8 + 20) / 10) * 10) }),
-				hint(t.buyExact),
-				h("div", { class: "row" }, h("button", { class: "btn push", on: { click: () => go("dict") } }, t.tabDict))));
+	// ---- the two journeys ----------------------------------------------
+	// Making a backup and reading one: each a sequence of steps along a thread,
+	// a knot per step, filled once that step has done its job. The pad's step
+	// is on its own thread colour, as the pad is drawn everywhere.
+	const MAKE_STEPS = ["plan", "gather", "dict", "seq", "pad", "check", "store"];
+	const READ_STEPS = ["have", "seq", "pad", "seed"];
+	const stepsOf = (flow) => (flow === "make" ? MAKE_STEPS : READ_STEPS).filter((x) => x !== "pad" || st.mode === "pad");
+	const stepName = (flow, step) => (flow === "make" ? T().makeSteps[MAKE_STEPS.indexOf(step)] : T().readSteps[READ_STEPS.indexOf(step)])[0];
+	function toStep(flow, step) { st.step[flow] = step; st.edit = null; go(flow); }
+	function stepDone(flow, step) {
+		const m = st.make, rd = st.read;
+		if (flow === "make") return ({ plan: !!st.mode, gather: !!st.gathered, dict: !!st.dict && st.dict.checked, seq: !!m.symbols,
+			pad: !!m.symbols && !!m.padKept, check: !!m.checked, store: !!m.stored })[step];
+		return ({ have: !!st.mode && !!st.dict, seq: rd.taps.length > 0 || !!rd.text.trim(),
+			pad: rd.padIn.taps.length > 0 || !!rd.padIn.text.trim() || !!rd.padIn.file.trim(), seed: !!rd.out })[step];
 	}
+	function journey(flow) {
+		const t = T(), steps = stepsOf(flow);
+		return h("nav", { class: "journey" + (flow === "read" ? " short" : ""), "aria-label": flow === "make" ? t.tabMakeFlow : t.tabReadFlow },
+			h("ol", {}, steps.map((step, i) => {
+				const cur = st.step[flow] === step;
+				return h("li", { class: [cur ? "on" : "", stepDone(flow, step) ? "done" : "", step === "pad" ? "pad" : ""].filter(Boolean).join(" ") },
+					h("button", { "aria-current": cur ? "step" : null, on: { click: () => toStep(flow, step) } },
+						h("span", { class: "knot", "aria-hidden": "true" }),
+						h("span", { class: "step-name" }, h("small", { text: String(i + 1) }), stepName(flow, step))));
+			})));
+	}
+	// back and on along the journey; next can wait for something (ready: false)
+	function stepNav(flow, opts = {}) {
+		const s = stepsOf(flow), i = s.indexOf(st.step[flow]), prev = s[i - 1], next = s[i + 1];
+		return h("div", { class: "row step-nav" },
+			prev ? h("button", { class: "btn ghost", on: { click: () => toStep(flow, prev) } }, "◀ " + stepName(flow, prev)) : null,
+			next ? h("button", { class: "btn push", disabled: opts.ready === false ? "" : undefined,
+				on: { click: () => { if (opts.onNext) opts.onNext(); toStep(flow, next); } } }, stepName(flow, next) + " ▶") : opts.last || null);
+	}
+	// a step that cannot start yet says which one comes first
+	function needFirst(flow, step) {
+		let need = null;
+		if (flow === "make") {
+			if (step !== "plan" && step !== "store" && !st.mode) need = "plan";
+			else if (["seq", "pad", "check"].includes(step) && !st.dict) need = "dict";
+			else if (["pad", "check"].includes(step) && !st.make.symbols) need = "seq";
+		} else if (step !== "have" && (!st.mode || !st.dict)) need = "have";
+		if (!need) return null;
+		return h("div", { class: "narrow" }, panel(title(stepName(flow, step)), h("p", { text: T().needFirst(stepName(flow, need)) }),
+			h("div", { class: "row" }, h("button", { class: "btn push", on: { click: () => toStep(flow, need) } }, stepName(flow, need) + " ▶"))));
+	}
+	function makeFlow() {
+		if (!stepsOf("make").includes(st.step.make)) st.step.make = "plan";
+		const step = st.step.make;
+		const body = needFirst("make", step) || ({ plan: planStep, gather: gatherStep, dict: dictStep, seq: seqStep, pad: padStep,
+			check: checkStep, store: storeStep })[step]();
+		return h("div", { class: "flow" }, journey("make"), body);
+	}
+	function readFlow() {
+		if (!stepsOf("read").includes(st.step.read)) st.step.read = "have";
+		const step = st.step.read;
+		const body = needFirst("read", step) || (step === "have" ? haveStep() : readPanel(st.read, { step }));
+		return h("div", { class: "flow" }, journey("read"), body);
+	}
+
+	// ---- make, 1: the plan ----------------------------------------------
+	function planStep() {
+		const t = T(), p = st.plan, d = st.dict;
+		const n = d ? d.things.length : p.n, L = symbolsFor(p.words, n);
+		return tool(
+			modeChoice(),
+			panel(title(t.planTitle),
+				field(t.seedWords, seg([[12, "12"], [24, "24"]], p.words, (v) => { p.words = v; render(); })),
+				field(t.howMany, d ? h("div", { class: "meta", text: t.planNFixed(n) })
+					: seg(SIZES.map((v) => [v, String(v), v === 16 ? "★" : ""]), p.n, (v) => { p.n = v; render(); }), d ? null : hint("★ " + t.recommended)),
+				st.mode === "pad" ? field(t.planPadAs, seg([["string", t.padAsString], ["file", t.padAsFile]], p.padAs, (v) => { p.padAs = v; render(); }),
+					hint(p.padAs === "string" ? t.planPadString : t.planPadFile)) : null,
+				st.mode ? h("div", { class: "big-total", text: t.planSummary(st.mode, p.padAs, L) }) : hint(t.planChooseMode),
+				stepNav("make", { ready: !!st.mode })));
+	}
+
+	// ---- make, 2: what to get ---------------------------------------------
+	function gatherStep() {
+		const t = T(), p = st.plan, n = st.dict ? st.dict.things.length : p.n;
+		const L = symbolsFor(p.words, n), each = buyFor(p.words, n, st.mode, p.padAs);
+		const strings = st.mode === "pad" && p.padAs === "string" ? 2 : 1, copies = st.mode === "pad" ? 2 : 1;
+		const cm = Math.ceil((L * 0.8 + 20) / 10) * 10;
+		return tool(
+			panel(title(t.buyCard), hint(t.buyHelp), h("p", { text: t.gatherWhy(L, strings) }), hint(t.buyExact)),
+			panel(h("div", { class: "big-total", text: t.buyEach(each, n) }),
+				h("p", { text: t.gatherDictCopies(copies) }),
+				h("p", { text: t.gatherStrings(strings, L, cm) }),
+				st.mode === "pad" && p.padAs === "file" ? hint(t.gatherFile) : null,
+				stepNav("make", { onNext: () => { st.gathered = true; } })));
+	}
+
+	// ---- make, 3 (and read, 1): the dictionary ------------------------------
+	const dictStep = () => st.edit && st.edit.kind === "name" ? nameScreen() : st.edit && st.edit.kind === "check" ? checkScreen() : dictScreen();
+	function editDict(edit) { st.edit = edit; render(); scrollTo(0, 0); }
 
 	// ---- dictionary ----------------------------------------------------
 	function dictFromFile(text, name) {
@@ -316,9 +406,9 @@
 			} catch (x) { err.replaceChildren(errorBox(t.errDictFile)); }
 		} } });
 		if (!d) {
-			let n = st.buy.n;
+			let n = st.plan.n;
 			const sizes = h("div");
-			const drawSizes = () => sizes.replaceChildren(seg(SIZES.map((v) => [v, String(v), v === 16 ? "★" : ""]), n, (v) => { n = v; drawSizes(); }));
+			const drawSizes = () => sizes.replaceChildren(seg(SIZES.map((v) => [v, String(v), v === 16 ? "★" : ""]), n, (v) => { n = st.plan.n = v; drawSizes(); }));
 			drawSizes();
 			const example = h("div", { class: "row" }, SETS.map((set) => h("button", { class: "btn ghost small", on: { click: () => {
 				setDict({ things: set.things.slice(0, n).map((x) => ({ name: x[st.lang], emoji: x.emoji || "", colour: x.colour || "", symbol: x.symbol || "", brick: !!x.brick, photo: "" })), checked: false });
@@ -328,7 +418,7 @@
 				panel(title(t.dictCard),
 					field(t.howMany, sizes, hint("★ " + t.recommended)),
 					h("div", { class: "row" },
-						h("button", { class: "btn", on: { click: () => { st.edit = { things: Array.from({ length: n }, () => ({ name: "", emoji: "", colour: "", photo: "" })), i: 0 }; go("name"); } } }, t.dictName),
+						h("button", { class: "btn", on: { click: () => editDict({ kind: "name", things: Array.from({ length: n }, () => ({ name: "", emoji: "", colour: "", photo: "" })), i: 0 }) } }, t.dictName),
 						h("button", { class: "btn ghost", on: { click: () => open.click() } }, t.dictOpen), open),
 					err,
 					h("details", { class: "more" }, h("summary", { text: t.dictExample }), hint(t.dictExampleHelp), example)),
@@ -342,15 +432,15 @@
 			panel(
 				d.checked ? h("div", { class: "note ok" }, "✓ " + t.dictChecked) : h("div", { class: "note warn", text: t.dictNotChecked }),
 				h("div", { class: "row" },
-					h("button", { class: d.checked ? "btn ghost" : "btn", on: { click: () => { st.edit = { i: 0 }; go("check"); } } }, t.dictCheck),
-					h("button", { class: "btn ghost", on: { click: () => { st.edit = { things: d.things.map((x) => ({ ...x })), i: 0 }; go("name"); } } }, t.dictEdit)),
+					h("button", { class: d.checked ? "btn ghost" : "btn", on: { click: () => editDict({ kind: "check", i: 0 }) } }, t.dictCheck),
+					h("button", { class: "btn ghost", on: { click: () => editDict({ kind: "name", things: d.things.map((x) => ({ ...x })), i: 0 }) } }, t.dictEdit)),
 				field(t.dictSave, hint(t.dictSaveHelp),
 					h("div", { class: "row" },
 						h("button", { class: "btn ghost small", on: { click: () => download(json(), "dictionary.json", "application/json") } }, t.dictSaveJson),
 						h("button", { class: "btn ghost small", on: { click: () => download(d.things.map((x) => x.name).join("\n") + "\n", "dictionary.txt", "text/plain") } }, t.dictSaveTxt))),
 				h("div", { class: "row" },
 					h("button", { class: "btn ghost small", on: { click: () => { if (confirm(t.dictForgetAsk)) { setDict(null); render(); } } } }, t.dictForget),
-					h("button", { class: "btn push", on: { click: () => go("make") } }, t.tabMake))));
+					st.screen === "make" ? stepNav("make", { onNext: () => {} }) : null)));
 	}
 
 	// naming the pieces one by one
@@ -401,8 +491,7 @@
 			const all = dictProblem(ed.things);
 			if (all) { err.replaceChildren(errorBox(all)); return; }
 			setDict({ things: ed.things.map((y) => ({ ...y, name: y.name.trim() })), checked: false });
-			st.edit = { i: 0 };
-			go("check");
+			editDict({ kind: "check", i: 0 });
 		}
 		const side = (j) => j >= 0 && j < n
 			? h("div", { class: "side" }, hint(j < ed.i ? t.prevPiece : t.nextPiece), icon(ed.things[j], 44), h("div", { class: "num", text: `${j} · ${ed.things[j].name || "?"}` }))
@@ -421,7 +510,7 @@
 					x.photo ? h("button", { class: "btn ghost small", on: { click: () => { x.photo = ""; render(); } } }, t.photoRemove) : null, photoIn),
 				err,
 				h("div", { class: "row" },
-					h("button", { class: "btn ghost", on: { click: () => { if (ed.i > 0) { ed.i--; render(); } else go("dict"); } } }, "◀ " + (ed.i > 0 ? t.back : t.tabDict)),
+					h("button", { class: "btn ghost", on: { click: () => { if (ed.i > 0) { ed.i--; render(); } else editDict(null); } } }, "◀ " + (ed.i > 0 ? t.back : t.tabDict)),
 					h("button", { class: "btn push", on: { click: next } }, ed.i < n - 1 ? t.next + " ▶" : "✓ " + t.dictDone))),
 			panel(field(t.wholeDict, strip)));
 	}
@@ -439,10 +528,10 @@
 			h("p", { class: "question", text: t.checkAsk(ed.i) }),
 			bar((ed.i + 1) / n),
 			h("div", { class: "row" },
-				h("button", { class: "btn ghost", on: { click: () => { st.edit = { things: d.things.map((y) => ({ ...y })), i: ed.i }; go("name"); } } }, "✗ " + t.checkNo),
+				h("button", { class: "btn ghost", on: { click: () => editDict({ kind: "name", things: d.things.map((y) => ({ ...y })), i: ed.i }) } }, "✗ " + t.checkNo),
 				h("button", { class: "btn push", on: { click: () => {
 					if (ed.i < n - 1) { ed.i++; render(); return; }
-					d.checked = true; go("dict");
+					d.checked = true; editDict(null);
 				} } }, "✓ " + t.checkYes))));
 	}
 
@@ -542,10 +631,45 @@
 			grid, move ? hint(t.handClick) : null, legend];
 	}
 
-	function makeScreen() {
+	// One string to make, piece by piece: step by step, as a drawing, as a
+	// list; the sequence also as the QR code it keeps (and, in the basic mode,
+	// the QR code by hand). opts: posKey (where it is), tabKey (which view),
+	// listName (its file), help (a note above), extra views [[key, label, fill(view)]].
+	function stringViews(string, opts) {
+		const t = T(), m = st.make, d = st.dict, L = string.length;
+		const views = [["walk", t.tabWalk], ...(opts.extra || []).filter((x) => x[0] === "hand").map(([v, l]) => [v, l]),
+			["drawing", t.tabDrawing], ["list", t.tabList], ...(opts.extra || []).filter((x) => x[0] !== "hand").map(([v, l]) => [v, l])];
+		if (!views.some(([v]) => v === m[opts.tabKey])) m[opts.tabKey] = "walk";
+		const tab = m[opts.tabKey];
+		const view = h("div", { class: "stack" });
+		if (opts.help && tab !== "qr") view.append(h("div", { class: "note" + (opts.pad ? " pad" : ""), text: opts.help }));
+		if (tab === "walk") {
+			const thing = (i) => d.things[string[i]];
+			const pos = Math.min(m[opts.posKey] || 0, L - 1);
+			const move = (to) => { m[opts.posKey] = Math.max(0, Math.min(L - 1, to)); render(); };
+			const side = (i, label) => h("div", { class: "side" }, i >= 0 && i < L ? [hint(`${label} · ${i + 1}`), icon(thing(i), 44), h("div", { class: "small-name", text: thing(i).name })] : null);
+			view.append(
+				h("div", { class: "row between" }, h("span", { class: "label", text: t.walkOf(pos + 1, L) }), hint(t.walkHelp)),
+				h("div", { class: "wizard" }, side(pos - 1, t.prevPiece), h("div", { class: "centre" }, icon(thing(pos), 104), h("div", { class: "name", text: thing(pos).name })), side(pos + 1, t.nextPiece)),
+				bar((pos + 1) / L),
+				h("div", { class: "row" },
+					h("button", { class: "btn ghost", disabled: pos === 0 ? "" : undefined, on: { click: () => move(pos - 1) } }, "◀ " + t.prevPiece),
+					h("button", { class: "btn push", on: { click: () => pos < L - 1 ? move(pos + 1) : null } }, pos < L - 1 ? t.nextPiece + " ▶" : "✓ " + t.done)),
+				stringSvg(d.things, string, { current: pos, onPick: (i) => move(i), pad: opts.pad }));
+		}
+		if (tab === "drawing") view.append(hint(t.stringHelp), stringSvg(d.things, string, { pad: opts.pad }));
+		if (tab === "list") {
+			const text = string.map((s, i) => `${i + 1}. ${d.things[s].name}`).join("\n");
+			view.append(hint(t.listHelp), h("pre", { class: "code", text }),
+				h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => download(text + "\n", opts.listName, "text/plain") } }, t.saveList)));
+		}
+		for (const [v, , fill] of opts.extra || []) if (tab === v) fill(view);
+		return [seg(views, tab, (v) => { m[opts.tabKey] = v; render(); }), view];
+	}
+
+	// ---- make, 4: the sequence ----------------------------------------------
+	function seqStep() {
 		const t = T(), m = st.make, d = st.dict;
-		if (!d) return h("div", { class: "narrow" }, panel(title(t.makeCard), dictLine()));
-		if (!st.mode) return tool(modeChoice(), panel(title(t.makeCard), dictLine()));
 		const n = d.things.length, k = Math.log2(n), padMode = st.mode === "pad";
 		if (!m.symbols) {
 			const area = h("textarea", { class: "input mono", rows: 3, spellcheck: "false", autocomplete: "off", placeholder: "height demise useless trap grow lion found off key clown transfer enroll" });
@@ -561,7 +685,7 @@
 			const test = (bytes) => { const e = new Uint8Array(bytes); crypto.getRandomValues(e); area.value = S.entropyToMnemonic(e); check(); };
 			check();
 			return tool(
-				panel(title(t.makeCard), modeLine(), seedAlert(),
+				panel(title(t.makeCard), seedAlert(),
 					field(t.seedTitle, hint(t.seedHelp),
 						h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => test(16) } }, t.seedTest12),
 							h("button", { class: "btn ghost small", on: { click: () => test(32) } }, t.seedTest24)),
@@ -578,70 +702,41 @@
 							m.pad = m.devicePad;
 							m.symbols = S.encrypt(m.basic, m.pad, n);
 						} else m.symbols = S.encode(m.entropy, k);
-						m.pos = 0; m.padPos = 0; m.which = "seq"; m.hand = 0; m.tab = "walk";
+						m.pos = 0; m.padPos = 0; m.hand = 0; m.tab = "walk"; m.padTab = "walk";
+						m.padKept = m.checked = m.stored = false; m.check = freshRead(st.plan.padAs);
 						render();
 					} } }, t.makeIt))),
-				panel(field(t.tabDict, dictLine())));
+				panel(field(t.tabDict, dictLine()), hint(padMode ? t.seqPadIntro : t.seqIntro)));
 		}
-		const L = m.symbols.length;
-		// in pad mode, two strings to make: the sequence and the pad
-		const onPad = padMode && m.which === "pad", string = onPad ? m.pad : m.symbols, posKey = onPad ? "padPos" : "pos";
-		const each = S.piecesToBuy(padMode ? m.symbols.concat(m.pad) : m.symbols, n), cm = Math.ceil((L * 0.8 + 20) / 10) * 10;
+		const L = m.symbols.length, each = S.piecesToBuy(m.symbols, n), cm = Math.ceil((L * 0.8 + 20) / 10) * 10;
+		const extra = [["qr", t.tabQr, (view) => view.append(h("div", { class: "qrbox" }, qrSvg(S.compactSeedQR(m.entropy)), hint(padMode ? t.qrHelpPad : t.qrHelp)))]];
 		// the QR code by hand starts from the basic sequence: in pad mode, only after subtracting the pad
-		if (padMode && m.tab === "hand") m.tab = "walk";
-		const views = [["walk", t.tabWalk], padMode ? null : ["hand", t.tabHand], ["drawing", t.tabDrawing], ["list", t.tabList], ["qr", t.tabQr]].filter(Boolean);
-		const view = h("div", { class: "stack" });
-		if (padMode && m.tab !== "qr") view.append(h("div", { class: "note", text: onPad ? t.padStringHelp : t.seqStringHelp }));
-		if (m.tab === "walk") {
-			const thing = (i) => d.things[string[i]];
-			const pos = m[posKey];
-			const move = (to) => { m[posKey] = Math.max(0, Math.min(L - 1, to)); render(); };
-			const side = (i, label) => h("div", { class: "side" }, i >= 0 && i < L ? [hint(`${label} · ${i + 1}`), icon(thing(i), 44), h("div", { class: "small-name", text: thing(i).name })] : null);
-			view.append(
-				h("div", { class: "row between" }, h("span", { class: "label", text: t.walkOf(pos + 1, L) }), hint(t.walkHelp)),
-				h("div", { class: "wizard" }, side(pos - 1, t.prevPiece), h("div", { class: "centre" }, icon(thing(pos), 104), h("div", { class: "name", text: thing(pos).name })), side(pos + 1, t.nextPiece)),
-				bar((pos + 1) / L),
-				h("div", { class: "row" },
-					h("button", { class: "btn ghost", disabled: pos === 0 ? "" : undefined, on: { click: () => move(pos - 1) } }, "◀ " + t.prevPiece),
-					h("button", { class: "btn push", on: { click: () => pos < L - 1 ? move(pos + 1) : null } }, pos < L - 1 ? t.nextPiece + " ▶" : "✓ " + t.done)),
-				stringSvg(d.things, string, { current: pos, onPick: (i) => move(i) }));
-		}
-		if (m.tab === "drawing") view.append(hint(t.stringHelp), stringSvg(d.things, string));
-		if (m.tab === "list") {
-			const text = string.map((s, i) => `${i + 1}. ${d.things[s].name}`).join("\n");
-			// in pad mode, file names that say nothing about which is which
-			const name = padMode ? (onPad ? "list-b.txt" : "list-a.txt") : "sequence.txt";
-			view.append(hint(t.listHelp), h("pre", { class: "code", text }),
-				h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => download(text + "\n", name, "text/plain") } }, t.saveList)));
-		}
-		if (m.tab === "hand") {
-			if (m.hand === undefined) m.hand = 0;
+		if (!padMode) extra.unshift(["hand", t.tabHand, (view) => {
 			const move = (to) => { m.hand = Math.max(0, Math.min(L, to)); render(); };
-			view.append(...handView(d, m.symbols, S.compactSeedQR(m.entropy), m.hand, move).filter(Boolean));
-		}
-		if (m.tab === "qr") view.append(h("div", { class: "qrbox" }, qrSvg(S.compactSeedQR(m.entropy)), hint(padMode ? t.qrHelpPad : t.qrHelp)));
+			view.append(...handView(d, m.symbols, S.compactSeedQR(m.entropy), m.hand || 0, move).filter(Boolean));
+		}]);
 		return tool(
-			panel(title(t.makeCard), dictLine(), modeLine(),
-				h("div", { class: "big-total", text: padMode ? t.padTotal(L) : t.total(L) }),
-				h("p", { text: padMode ? t.padShop(each, n, cm) : t.shop(each, n, cm) }),
+			panel(title(padMode ? t.seqTitlePad : t.makeCard), dictLine(),
+				h("div", { class: "big-total", text: t.total(L) }),
+				h("p", { text: t.shop(each, n, cm) }),
 				h("div", { class: "alert", text: padMode ? t.padMakeWarn : t.makeWarn }),
-				padMode ? padTools() : null,
 				h("div", { class: "row" },
-					h("button", { class: "btn ghost small", on: { click: () => { m.symbols = null; m.entropy = null; render(); } } }, "◀ " + t.otherSeed),
-					h("button", { class: "btn ghost small", on: { click: () => go("print") } }, t.printIt),
-					h("button", { class: "btn ghost small", on: { click: () => { st.read = freshRead(); go("read"); } } }, t.readCheck))),
-			panel(padMode ? seg([["seq", t.stringSeq], ["pad", t.stringPad]], m.which, (v) => { m.which = v; render(); }) : null,
-				seg(views, m.tab, (v) => { m.tab = v; render(); }), view));
+					h("button", { class: "btn ghost small", on: { click: () => { if (confirm(t.otherSeedAsk)) { m.symbols = null; m.entropy = null; render(); } } } }, "◀ " + t.otherSeed),
+					h("button", { class: "btn ghost small", on: { click: () => go("print") } }, t.printIt)),
+				stepNav("make")),
+			panel(...stringViews(m.symbols, { posKey: "pos", tabKey: "tab", listName: padMode ? "list-a.txt" : "sequence.txt",
+				help: padMode ? t.seqStringHelp : null, extra })));
 	}
 
-	// Pad mode, making: the pad drawn here (for learning only), a pad made by
-	// hand added to it if you like (SPEC §10.2), and the pad saved as a file (§10.7).
-	function padTools() {
-		const t = T(), m = st.make, n = st.dict.things.length, L = m.symbols.length;
+	// ---- make, 5: the pad (pad mode) ------------------------------------------
+	// Drawn here (for learning only), a pad made by hand added to it if you
+	// like (SPEC §10.2), then kept as a second string or as a file (§10.6, §10.7).
+	function padStep() {
+		const t = T(), m = st.make, n = st.dict.things.length, L = m.symbols.length, asString = st.plan.padAs === "string";
 		const remake = () => {
 			m.pad = m.handPad ? S.addPads(m.devicePad, m.handPad, n) : m.devicePad;
 			m.symbols = S.encrypt(m.basic, m.pad, n);
-			m.pos = 0; m.padPos = 0;
+			m.pos = 0; m.padPos = 0; m.checked = false; m.check = freshRead(st.plan.padAs);
 			render();
 		};
 		let hand;
@@ -667,53 +762,90 @@
 				h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: add } }, t.padHandAdd)));
 		}
 		const file = S.writePadFile(m.pad, n);
-		return field(t.padTitle,
-			h("div", { class: "note warn", text: t.padLearnOnly }),
-			hand,
-			hint(t.padFileHelp),
-			h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => download(file, "numbers.txt", "text/plain") } }, t.padFileSave)),
-			h("details", { class: "more" }, h("summary", { text: t.padFileSee }), h("pre", { class: "code", text: file })));
+		const save = h("button", { class: asString ? "btn ghost small" : "btn", on: { click: () => { download(file, "numbers.txt", "text/plain"); m.padKept = true; } } }, t.padFileSave);
+		return tool(
+			panel(title(t.padTitle), h("p", { text: t.padIntro }),
+				h("div", { class: "note warn", text: t.padLearnOnly }),
+				hand,
+				field(t.planPadAs, seg([["string", t.padAsString], ["file", t.padAsFile]], st.plan.padAs, (v) => { st.plan.padAs = v; render(); })),
+				asString ? null : [hint(t.padFileHelp), h("div", { class: "row" }, save)],
+				stepNav("make", { onNext: () => { m.padKept = true; } })),
+			asString
+				? panel(...stringViews(m.pad, { posKey: "padPos", tabKey: "padTab", listName: "list-b.txt", help: t.padStringHelp, pad: true }))
+				: panel(h("div", { class: "label", text: t.padFileTitle }), h("pre", { class: "code pad-file", text: file }), hint(t.padFileHelp), h("div", { class: "row" }, save)));
+	}
+
+	// ---- make, 6: read it back --------------------------------------------------
+	function checkStep() {
+		const m = st.make;
+		if (!m.check) m.check = freshRead(st.plan.padAs);
+		return readPanel(m.check, { expect: m.entropy });
+	}
+
+	// ---- make, 7: store it ------------------------------------------------------
+	function storeStep() {
+		const t = T(), m = st.make, padMode = st.mode === "pad";
+		const items = padMode ? t.storePad : t.storeBasic;
+		return tool(
+			panel(title(t.storeTitle), hint(t.storeHelp),
+				h("ul", { class: "checks" }, items.map((x) => h("li", {}, h("label", {}, h("input", { type: "checkbox" }), h("span", { text: x })))))),
+			panel(h("p", { text: t.storeForgetWhy }),
+				h("div", { class: "row" }, h("button", { class: "btn", on: { click: () => {
+					if (!confirm(t.storeForgetAsk)) return;
+					st.make = { seed: "", entropy: null, symbols: null, pos: 0, tab: "walk" };
+					st.read = freshRead(); st.gathered = false;
+					st.step.make = "plan";
+					go("intro");
+				} } }, t.storeForget)),
+				stepNav("make")));
 	}
 
 	// keyboard for the step-by-step view
 	addEventListener("keydown", (e) => {
 		if (/input|textarea/i.test(e.target.tagName)) return;
-		const rd = st.read;
-		if (st.screen === "read" && rd.out && rd.view === "hand") {
-			const L = rd.symbols.length, at = rd.hand || 0;
-			if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); rd.hand = Math.min(L, at + 1); render(); }
-			if (e.key === "ArrowLeft") { rd.hand = Math.max(0, at - 1); render(); }
-			return;
-		}
-		if (st.screen !== "make" || !st.make.symbols) return;
-		if (st.make.tab === "hand") {
-			const L = st.make.symbols.length, at = st.make.hand || 0;
-			if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); st.make.hand = Math.min(L, at + 1); render(); }
-			if (e.key === "ArrowLeft") { st.make.hand = Math.max(0, at - 1); render(); }
-			return;
-		}
-		if (st.make.tab !== "walk") return;
-		const key = st.mode === "pad" && st.make.which === "pad" ? "padPos" : "pos";
-		if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); st.make[key] = Math.min(st.make.symbols.length - 1, st.make[key] + 1); render(); }
-		if (e.key === "ArrowLeft") { st.make[key] = Math.max(0, st.make[key] - 1); render(); }
+		const rd = st.read, m = st.make;
+		const step = (obj, key, max) => {
+			if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); obj[key] = Math.min(max, (obj[key] || 0) + 1); render(); }
+			if (e.key === "ArrowLeft") { obj[key] = Math.max(0, (obj[key] || 0) - 1); render(); }
+		};
+		if (st.screen === "read" && st.step.read === "seed" && rd.out && rd.view === "hand") return step(rd, "hand", rd.symbols.length);
+		if (st.screen !== "make" || !m.symbols) return;
+		if (st.step.make === "seq" && m.tab === "hand") return step(m, "hand", m.symbols.length);
+		if (st.step.make === "seq" && m.tab === "walk") return step(m, "pos", m.symbols.length - 1);
+		if (st.step.make === "pad" && st.plan.padAs === "string" && m.padTab === "walk") return step(m, "padPos", m.pad.length - 1);
 	});
 
-	// ---- read --------------------------------------------------------
-	// In pad mode there are two things to read: the sequence, tapped or typed
-	// as in the basic mode, and the pad, as a second string of things (with
-	// the same dictionary or its own) or as a pad file, typed, pasted or opened.
-	function readScreen() {
-		const t = T(), rd = st.read, d = st.dict;
-		if (!d) return h("div", { class: "narrow" }, panel(title(t.readCard), dictLine()));
-		if (!st.mode) return tool(modeChoice(), panel(title(t.readCard), dictLine()));
+	// ---- read ------------------------------------------------------------
+	// read, 1: what you have — the mode it was made in, and its dictionary
+	function haveStep() {
+		const t = T();
+		if (st.edit) return dictStep();
+		return h("div", { class: "stack" },
+			tool(modeChoice(),
+				panel(title(t.haveTitle), hint(t.haveHelp), dictLine(),
+					st.mode && st.dict ? h("div", { class: "big-total", text: t.haveSummary(st.mode, st.dict.things.length) }) : null,
+					stepNav("read", { ready: !!st.mode && !!st.dict }))),
+			dictScreen());
+	}
+
+	// Reading: the sequence, tapped or typed, and in pad mode the pad, as a
+	// second string of things (with the same dictionary or its own) or as a
+	// pad file, typed, pasted or opened. The same reader serves the journey
+	// "Read a backup" (opts.step: one step at a time) and the step "Check" of
+	// making one (no opts.step: both strings side by side; opts.expect: the
+	// seed it should give).
+	function readPanel(rd, opts) {
+		const t = T(), d = st.dict, inJourney = !!opts.step;
 		const n = d.things.length, k = Math.log2(n), len12 = symbolsFor(12, n), len24 = symbolsFor(24, n);
 		const padMode = st.mode === "pad", pin = rd.padIn, padThings = pin.dict || d.things;
+		if (inJourney && opts.step !== "seed") rd.which = opts.step;
 		// what is tapped or typed now: the sequence, or the pad's string
 		const onPad = padMode && rd.which === "pad", slot = onPad ? pin : rd, things = onPad ? padThings : d.things;
 		const namesOf = (th) => th.map((x) => x.name.toLowerCase());
 		const objectsOf = (sl, th) => sl.typing
 			? sl.text.split(/[\n,]/).map((s) => s.replace(/^\s*\d+\.\s*/, "").trim().toLowerCase()).filter(Boolean)
 			: sl.taps.map((i) => th[i].name.toLowerCase());
+		const padGiven = () => pin.source === "file" ? !!pin.file.trim() : objectsOf(pin, padThings).length > 0;
 		// the pad's numbers, from its file or its string
 		const padSymbols = () => {
 			if (pin.source === "string") return S.readSequence(objectsOf(pin, padThings), namesOf(padThings));
@@ -725,11 +857,14 @@
 		const decodeNow = () => padMode
 			? S.decodePad(S.readSequence(objectsOf(rd, d.things), namesOf(d.things)), padSymbols(), k)
 			: S.decodeObjects(objectsOf(rd, d.things), namesOf(d.things));
+		const done = () => { if (inJourney) toStep("read", "seed"); else { if (opts.expect && sameSeed()) st.make.checked = true; render(); } };
+		const sameSeed = () => rd.out && opts.expect && [...rd.out.entropy].join() === [...opts.expect].join();
 		const readIt = () => {
 			const objects = objectsOf(rd, d.things);
 			rd.error = "";
+			rd.out = null;
 			if (!objects.length) rd.error = t.errEmpty;
-			else if (padMode && (pin.source === "file" ? !pin.file.trim() : !objectsOf(pin, padThings).length)) rd.error = t.errPadEmpty;
+			else if (padMode && !padGiven()) rd.error = t.errPadEmpty;
 			else {
 				try {
 					if (padMode) {
@@ -755,6 +890,15 @@
 					else rd.error = t.errRead(objects.length, len12, len24);
 				}
 			}
+			if (rd.out) done(); else render();
+		};
+		// a whole string tapped: read the seed if it gives one, else go on to the pad
+		const whole = () => {
+			try { decodeNow(); readIt(); return; } catch (e) { /* not yet */ }
+			if (padMode && !onPad && !padGiven()) {
+				if (inJourney) { toStep("read", "pad"); return; }
+				rd.which = "pad";
+			}
 			render();
 		};
 		// pieces tapped (or typed) for the sequence, or for the pad's string
@@ -769,11 +913,7 @@
 				h("div", { class: "keypad" }, things.map((x, i) =>
 					tint(h("button", { class: "key" + (x.colour ? " tinted" : ""), "aria-label": x.name, on: { click: () => {
 						slot.taps.push(i);
-						// a whole string: read the seed as soon as it gives one
-						if (slot.taps.length === len12 || slot.taps.length === len24) {
-							try { decodeNow(); readIt(); return; } catch (e) { /* not yet */ }
-						}
-						render();
+						if (slot.taps.length === len12 || slot.taps.length === len24) whole(); else render();
 					} } }, icon(x, 36), x.name), x.colour))),
 				h("div", { class: "row" },
 					h("button", { class: "btn ghost small", on: { click: () => { slot.taps.pop(); render(); } } }, t.undo),
@@ -822,48 +962,72 @@
 						: h("button", { class: "btn ghost small", on: { click: () => open.click() } }, t.padDictOpen), open),
 				err);
 		};
-		const left = [title(t.readCard), dictLine()];
-		if (padMode) {
-			const padCount = pin.source === "file" ? (padFileState().pad || []).length : objectsOf(pin, padThings).length;
-			left.push(modeLine(), hint(t.readPadHelp),
-				seg([["seq", `${t.stringSeq} · ${objectsOf(rd, d.things).length}`], ["pad", `${t.stringPad} · ${padCount}`]], rd.which, (v) => { rd.which = v; render(); }));
-			if (onPad) {
-				left.push(seg([["string", t.padAsString], ["file", t.padAsFile]], pin.source, (v) => { pin.source = v; render(); }));
-				if (pin.source === "file") left.push(...padFileInput());
-				else left.push(padDictInput(), ...piecesInput());
-			} else left.push(...piecesInput());
-		} else left.push(modeLine(), ...piecesInput());
-
-		const last = slot.taps.slice(-5);
-		const right = [];
-		// what was read: the string (then the seed), or the QR code by hand —
-		// live while tapping, to draw it as you go, and step by step once read.
-		// In pad mode the strings are not the QR code: only the seed is shown.
-		const view = padMode ? "string" : rd.view || "string";
-		if (!padMode && (!rd.typing || rd.out))
-			right.push(seg([["string", rd.out ? t.seedFound : t.readViewString], ["hand", t.tabHand]], view, (v) => { rd.view = v; render(); }));
-		if (view === "hand" && (rd.out || !rd.typing)) {
-			if (rd.out) {
-				const L = rd.symbols.length;
-				const move = (to) => { rd.hand = Math.max(0, Math.min(L, to)); render(); };
-				right.push(...handView(d, rd.symbols, S.compactSeedQR(rd.out.entropy), rd.hand || 0, move).filter(Boolean));
-			} else right.push(h("div", { class: "big-total", text: t.tapped(rd.taps.length, len12, len24) }),
-				...handView(d, rd.taps, null, rd.taps.length - 1, null).filter(Boolean));
-		} else if (rd.out) {
+		const result = () => {
 			const words = S.entropyToMnemonic(rd.out.entropy).split(" ");
-			right.push(h("div", { class: "result" }, h("div", { class: "result-title", text: "✓ " + t.seedFound }), seedAlert(),
+			const same = sameSeed();
+			return h("div", { class: "result" + (opts.expect && !same ? " wrong" : "") },
+				h("div", { class: "result-title", text: opts.expect ? (same ? "✓ " + t.checkMatch : "✗ " + t.checkMismatch) : "✓ " + t.seedFound }), seedAlert(),
 				h("div", { class: "words" }, words.map((w, i) => h("div", {}, h("span", {}, i + 1), w))),
 				rd.out.fixed ? h("div", { class: "note" }, t.repaired(rd.out.fixed)) : null,
 				rd.out.reversed ? h("div", { class: "note" }, t.reversed) : null,
 				rd.out.swapped ? h("div", { class: "note" }, t.padSwapped) : null,
-				h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => { st.read = freshRead(); render(); } } }, t.clear))));
-		} else if (!slot.typing && !(onPad && pin.source === "file")) right.push(
-			onPad ? h("div", { class: "label", text: t.stringPad }) : padMode ? h("div", { class: "label", text: t.stringSeq }) : null,
+				h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => {
+					Object.assign(rd, freshRead(pin.source));
+					if (inJourney) toStep("read", "seq"); else render();
+				} } }, inJourney ? t.readAgain : t.clear)));
+		};
+
+		// the step "The seed" of the journey: what was read gives it, or says why not
+		if (opts.step === "seed") {
+			const left = panel(title(t.readSeedTitle), dictLine(),
+				h("p", { text: t.readGiven(objectsOf(rd, d.things).length, padMode ? (pin.source === "file" ? (padFileState().pad || []).length : objectsOf(pin, padThings).length) : null) }),
+				rd.out ? null : h("div", { class: "row" }, h("button", { class: "btn push", on: { click: readIt } }, t.readIt)),
+				errorBox(rd.error),
+				stepNav("read"));
+			const view = rd.view || "string";
+			const right = [];
+			if (rd.out && !padMode) right.push(seg([["string", t.seedFound], ["hand", t.tabHand]], view, (v) => { rd.view = v; render(); }));
+			if (rd.out && !padMode && view === "hand") {
+				const L = rd.symbols.length;
+				const move = (to) => { rd.hand = Math.max(0, Math.min(L, to)); render(); };
+				right.push(...handView(d, rd.symbols, S.compactSeedQR(rd.out.entropy), rd.hand || 0, move).filter(Boolean));
+			} else if (rd.out) right.push(result());
+			else right.push(h("div", { class: "empty", text: t.readSeedEmpty }));
+			return tool(left, panel(...right));
+		}
+
+		const left = [title(inJourney ? stepName("read", opts.step) : t.checkTitle), dictLine()];
+		if (!inJourney) left.push(hint(padMode ? t.checkHelpPad : t.checkReadHelp));
+		if (padMode && !inJourney) {
+			const padCount = pin.source === "file" ? (padFileState().pad || []).length : objectsOf(pin, padThings).length;
+			left.push(seg([["seq", `${t.stringSeq} · ${objectsOf(rd, d.things).length}`], ["pad", `${t.stringPad} · ${padCount}`]], rd.which, (v) => { rd.which = v; render(); }));
+		}
+		if (onPad) {
+			left.push(seg([["string", t.padAsString], ["file", t.padAsFile]], pin.source, (v) => { pin.source = v; render(); }));
+			if (pin.source === "file") left.push(...padFileInput());
+			else left.push(padDictInput(), ...piecesInput());
+		} else left.push(...piecesInput());
+		if (inJourney) left.push(stepNav("read", opts.step === "pad" || !padMode ? { onNext: readIt } : {}));
+
+		const last = slot.taps.slice(-5);
+		const right = [];
+		// while reading: the string so far (or, in the basic mode, the QR code by
+		// hand, live, to draw it as you go); once read, the seed
+		const view = padMode ? "string" : rd.view || "string";
+		if (!padMode && !rd.out && !rd.typing)
+			right.push(seg([["string", t.readViewString], ["hand", t.tabHand]], view, (v) => { rd.view = v; render(); }));
+		if (rd.out && !inJourney) right.push(result());
+		else if (view === "hand" && !rd.typing) right.push(h("div", { class: "big-total", text: t.tapped(rd.taps.length, len12, len24) }),
+			...handView(d, rd.taps, null, rd.taps.length - 1, null).filter(Boolean));
+		else if (!slot.typing && !(onPad && pin.source === "file")) right.push(
+			padMode ? h("div", { class: "label" + (onPad ? " pad-label" : ""), text: onPad ? t.stringPad : t.stringSeq }) : null,
 			h("div", { class: "big-total", text: t.tapped(slot.taps.length, len12, len24) }),
 			h("div", { class: "lasttaps" }, last.map((i, j) => h("span", { class: j === last.length - 1 ? "newest" : "" },
 				icon(things[i], j === last.length - 1 ? 48 : 32), h("small", { text: `${slot.taps.length - last.length + j + 1}` })))),
-			stringSvg(things, slot.taps));
-		if (!rd.out) right.push(errorBox(rd.error), h("div", { class: "row" }, h("button", { class: "btn push", on: { click: readIt } }, t.readIt)));
+			stringSvg(things, slot.taps, { pad: onPad }));
+		else if (onPad && pin.source === "file") right.push(h("div", { class: "label pad-label", text: t.stringPad }), hint(t.padFileReadHelp));
+		if (!rd.out && !inJourney) right.push(errorBox(rd.error), h("div", { class: "row" }, h("button", { class: "btn push", on: { click: readIt } }, t.readIt)));
+		if (!inJourney) right.push(stepNav("make", { ready: undefined }));
 		return tool(panel(...left), panel(...right));
 	}
 
@@ -873,14 +1037,14 @@
 	// shopping list is in alphabetical order, without numbers).
 	function printSheet() {
 		const t = T(), m = st.make, d = st.dict;
-		if (!d || !m.symbols) { st.screen = "make"; return makeScreen(); }
+		if (!d || !m.symbols) { st.screen = "make"; st.step.make = "seq"; return makeFlow(); }
 		const n = d.things.length, each = S.piecesToBuy(m.symbols, n), cm = Math.ceil((m.symbols.length * 0.8 + 20) / 10) * 10;
 		const shop = [...d.things].sort((a, b) => a.name.localeCompare(b.name, st.lang));
 		return h("div", {},
 			h("div", { class: "noprint panel print-bar" },
 				h("div", { class: "alert" }, st.mode === "pad" ? t.printWarnPad : t.printWarn),
 				h("div", { class: "row" },
-					h("button", { class: "btn ghost", on: { click: () => go("make") } }, "◀ " + t.back),
+					h("button", { class: "btn ghost", on: { click: () => toStep("make", "seq") } }, "◀ " + t.back),
 					h("button", { class: "btn push", on: { click: () => print() } }, t.printBtn))),
 			h("div", { class: "card sheet" },
 				h("h2", { text: t.sheetTitle }), h("p", { class: "help", text: t.sheetSub }),
@@ -932,19 +1096,24 @@
 			h("b", { text: name + " ↗" }), h("span", { text: desc }));
 		const tryExample = () => {
 			const set = SETS[0];
-			setDict({ things: set.things.slice(0, 16).map((x) => ({ name: x[st.lang], emoji: x.emoji || "", colour: x.colour || "", symbol: x.symbol || "", brick: !!x.brick, photo: "" })), checked: false });
-			go("make");
+			setDict({ things: set.things.slice(0, st.plan.n).map((x) => ({ name: x[st.lang], emoji: x.emoji || "", colour: x.colour || "", symbol: x.symbol || "", brick: !!x.brick, photo: "" })), checked: false });
+			toStep("make", "plan");
 		};
+		// the two journeys, as they will go: one door each
+		const journeyList = (flow, steps) => h("div", { class: "door-steps" },
+			h("h3", { text: flow === "make" ? t.tabMakeFlow : t.tabReadFlow }),
+			h("ol", {}, steps.map(([a, b], i) => h("li", { class: (flow === "make" ? MAKE_STEPS : READ_STEPS)[i] === "pad" ? "pad" : null },
+				h("b", { text: a }), h("span", { text: b })))));
 		return h("div", { class: "intro" },
 			h("section", { class: "hero" },
 				h("div", { class: "hero-text" }, h("h1", { text: t.introTitle }), h("p", { class: "lead", text: t.introLead }),
-					h("div", { class: "row" },
-						h("button", { class: "btn big", on: { click: () => go("dict") } }, t.startDict),
-						h("button", { class: "btn ghost big", on: { click: tryExample } }, t.startTry),
-						h("button", { class: "btn ghost", on: { click: () => go("buy") } }, t.startBuy))),
+					h("div", { class: "row doors" },
+						h("button", { class: "btn big", on: { click: () => go("make") } }, t.tabMakeFlow),
+						h("button", { class: "btn ghost big", on: { click: () => go("read") } }, t.tabReadFlow)),
+					h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: tryExample } }, t.startTry))),
 				heroString()),
 			h("section", { class: "panel" }, h("h2", { class: "panel-title", text: t.stepsTitle }),
-				h("ol", { class: "steps" }, t.steps.map(([a, b], i) => h("li", {}, h("b", { text: `${i + 1}. ${a}` }), h("span", { text: b }))))),
+				h("div", { class: "doors-steps" }, journeyList("make", t.makeSteps), journeyList("read", t.readSteps))),
 			h("div", { class: "tool" },
 				panel(h("h2", { class: "panel-title", text: t.expectTitle }),
 					h("ul", { class: "list" }, t.expect.map((x) => h("li", { text: x })))),
