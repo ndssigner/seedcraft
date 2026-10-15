@@ -463,6 +463,7 @@ for ever**, and has kinds that **cannot be confused**. Lengths for 12 words
 | :--- | :---: | :---: | :--- | :--- | :--- |
 | **Address book**, the kind of street of each entry | 8 | 71 (122) | Very well, on a shelf or in a drawer | Yes, if handwritten and never rewritten | See §11.3 |
 | **Sticker album or strip** | 8–16 | 71–54 (122–91) | Very well, among children's things | Yes, if glued | Fades in the sun |
+| **Photo album**, the subject of each photo | 8 | 71 (122) | Perfectly, on a shelf | Yes, if printed and glued or in fixed pockets; **no** on a phone or in the cloud, where photos are re-sorted | One obvious subject per photo, from kinds that never overlap (a dog in a car is neither). Whoever is in the photos is drawn into it if the album is ever examined (§11.3) |
 | **Necklace or bracelet** of beads | 16 | 54 (91) | Well, and it can be worn | Yes, on wire or strong cord, with a clasp marking the start | Strings break: check it now and then |
 | **Gemstones**, in a multi-strand bracelet or a box with compartments | 8–16 | 71–54 | Well, as a collection or jewellery | Only if strung or glued | Natural stones vary in colour: choose kinds that differ in more than colour |
 | **Glued Lego bricks** | 8–16 | 71–54 | As a toy | Yes | Very durable |

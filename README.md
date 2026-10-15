@@ -72,8 +72,8 @@ use offline. English and Spanish.
 
 Two journeys, each a sequence of steps along a thread:
 
-- **Make a backup**: plan (the mode, with what each one protects; the
-  form, from the seven of [SPEC §11.2](SPEC-sequences.md#112-which-form)
+- **Back up a seed**: plan (the mode, with what each one protects; the
+  form, from the eight of [SPEC §11.2](SPEC-sequences.md#112-which-form)
   or another; the number of words and of kinds), get the pieces (how many
   of each kind, and what else the form needs), the dictionary (name the
   pieces one by one, with a photo if you like, check it against the real
@@ -82,7 +82,7 @@ Two journeys, each a sequence of steps along a thread:
   shape, a list, the QR code it keeps, and a printable sheet for whoever
   makes it), the pad (pad mode only), check (read it all back: it must give
   the same seed) and store (what goes where).
-- **Read a backup**: what you have (mode, form, dictionary), the sequence
+- **Recover a seed**: what you have (mode, form, dictionary), the sequence
   (tap the pieces in order from either end, or type their names), the pad
   (pad mode only) and the seed.
 

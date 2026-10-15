@@ -29,6 +29,7 @@
 	const FORMS = [
 		{ id: "book", n: 8, family: "written", set: "streets", keeps: true },
 		{ id: "stickers", n: 16, family: "rows", set: "charms", keeps: true },
+		{ id: "photos", n: 8, family: "rows", set: "photos", keeps: true },
 		{ id: "necklace", n: 16, family: "strung", set: "beads", keeps: true, cm: 0.8 },
 		{ id: "gems", n: 8, family: "strung", set: "gems", keeps: true, cm: 0.6 },
 		{ id: "bricks", n: 16, family: "rows", set: "bricks", keeps: true },
@@ -953,7 +954,7 @@
 	// Reading: the sequence, tapped or typed, and in pad mode the pad, as a
 	// second string of things (with the same dictionary or its own) or as a
 	// pad file, typed, pasted or opened. The same reader serves the journey
-	// "Read a backup" (opts.step: one step at a time) and the step "Check" of
+	// "Recover a seed" (opts.step: one step at a time) and the step "Check" of
 	// making one (no opts.step: both strings side by side; opts.expect: the
 	// seed it should give).
 	function readPanel(rd, opts) {
