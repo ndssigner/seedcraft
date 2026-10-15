@@ -137,8 +137,10 @@ enough to make and check easily.
    on a pegboard (fusible bead boards are usually 29×29 pegs) or a Lego
    baseplate with dark and light pieces. Scan the result.
    The header comes after the data, so the mask is only known from the
-   last things of the sequence (the last 2 for N = 8, 16, 32; up to 5 for
-   smaller N): to pick the template before drawing, read those first. The
+   last things of the sequence (the last 2 for N = 16 and 32, and for
+   N = 8 with 12 words; the last 3 for N = 8 with 24 words and for N = 4;
+   the last 5 for N = 2): to pick the template before drawing, read those
+   first. The
    data modules are in the same places in all eight templates of a size;
    the mask changes only the format information.
 4. **By software:** unmask with M, read the codewords, correct errors,
@@ -238,10 +240,10 @@ This section is about the basic mode; for pad mode see §10.
   is a seed at all: without it, it is a necklace or a collection, and
   someone who does not know this method sees nothing in it. But someone who
   does can rebuild the dictionary. The CompactSeedQR has parts known in
-  advance (byte mode, the length, the terminator, the pad bytes, the
-  header's version) and its Reed-Solomon parity is a set of linear equations
-  in the very bits of the unknown things: solved together, they give the
-  dictionary. `tools/dictionary_attack.py` does it:
+  advance (byte mode, the length, the terminator, the pad byte of 12-word
+  codes, the header's version) and its Reed-Solomon parity is a set of
+  linear equations in the very bits of the unknown things: solved together,
+  they give the dictionary. `tools/dictionary_attack.py` does it:
 
   | N | Orders of the dictionary (N!) | Tries, knowing this method |
   | :---: | :--- | :--- |
@@ -249,11 +251,11 @@ This section is about the basic mode; for pad mode see §10.
   | 4 | 24 | ≤ 8, instantly |
   | 8 | 40 320 ≈ 2¹⁵ | ≤ 8, instantly |
   | 16 | 2.1 × 10¹³ ≈ 2⁴⁴ | **≤ 8: a few hundredths of a second** |
-  | 32 | 2.6 × 10³⁵ ≈ 2¹¹⁸ | ≤ 2⁵⁴ ≈ 1.8 × 10¹⁶ (fewer: the 32 values must all differ) — within reach of anyone with a few GPUs |
+  | 32 | 2.6 × 10³⁵ ≈ 2¹¹⁸ | Depends on the seed: half of all seeds under 2³⁸ (12 words) or 2⁴⁷ (24 words), one in a hundred over 2⁵⁸ or 2⁶². Each try takes microseconds: half of all seeds are within reach of a few GPUs |
 
-  The same holds for 12 and 24 words. N! is what someone faces who knows
-  nothing of the QR code inside; the right column is what someone who knows
-  this specification faces.
+  For N ≤ 16 the same holds for 12 and 24 words. N! is what someone faces
+  who knows nothing of the QR code inside; the right column is what someone
+  who knows this specification faces.
 - **Encode on an air-gapped device only** (e.g. NDS-Signer). The web tool is
   for learning and testing with test seeds.
 - **Durability**: colours fade and look alike in poor light; strings break;
@@ -465,7 +467,7 @@ for ever**, and has kinds that **cannot be confused**. Lengths for 12 words
 | **Gemstones**, in a multi-strand bracelet or a box with compartments | 8–16 | 71–54 | Well, as a collection or jewellery | Only if strung or glued | Natural stones vary in colour: choose kinds that differ in more than colour |
 | **Glued Lego bricks** | 8–16 | 71–54 | As a toy | Yes | Very durable |
 | **Books on a shelf**, by author | 8 | 71 (122) | Perfectly | **No**: anyone tidying the shelf destroys it | Not for the only copy |
-| **Playing cards**, by suit | 4 | 107 (182): three decks | Perfectly | **No**: one game destroys it | Not for the only copy |
+| **Playing cards**, by suit | 4 | 107 (182): four decks (six), as one suit can come up far more often than the others (§6) | Perfectly | **No**: one game destroys it | Not for the only copy |
 
 ### 11.3 The address book
 

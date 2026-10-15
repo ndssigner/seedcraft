@@ -11,7 +11,8 @@ length, the terminator, the pad bytes 0xEC 0x11, the header's version 00),
 and its Reed-Solomon parity is a set of linear equations over GF(2) in those
 same bits. Gaussian elimination solves them: with N = 2 to 16 kinds of
 objects nothing is left to guess but the mask (8 tries); with N = 32 there
-are more unknowns than equations and some bits are left to brute force.
+are more unknowns than equations and some bits are left to brute force,
+how many depending on the seed.
 """
 import math
 import os
@@ -111,6 +112,18 @@ def attack(objects, k, nbytes, max_free=16):
     return None, frees
 
 
+def tries_bits(objects, k, nbytes):
+    """log2 of the candidates this attack has to try: 2^(free bits) for each
+    mask whose equations are consistent, added up."""
+    total = 0
+    for mask in range(8):
+        rows, nvar, _ = _equations(objects, k, nbytes, mask)
+        pivots = _solve(rows)
+        if pivots is not None:
+            total += 1 << (nvar - len(pivots))
+    return math.log2(total)
+
+
 def main():
     print("Recovering test seeds from their sequences alone (random dictionaries):\n")
     print("| Words | N | Without the method: N! orders | Knowing the method | Recovered |")
@@ -129,8 +142,23 @@ def main():
                 ok += got == entropy
                 worst = max([worst] + frees)
             tries = "at most 8 tries (%.2f s)" % ((time.time() - t0) / 3) if worst == 0 \
-                else "at most 2^%d tries (fewer: the N values must differ)" % (worst + 3)
+                else "up to 2^%d tries for these 3 seeds (see below)" % (worst + 3)
             print("| %d | %d | 2^%.0f | %s | %d/3 |" % (words, n, math.log2(math.factorial(n)), tries, ok))
+    # With N = 32 the tries depend on the seed: how many kinds it uses, and
+    # so how many unknowns there are. Their spread over random seeds:
+    print("\nN = 32, tries over 300 random seeds (the 32 values must also all differ, so fewer):\n")
+    print("| Words | Median | 1 seed in 10 above | 1 seed in 100 above | Most |")
+    print("| :---: | ---: | ---: | ---: | ---: |")
+    for nbytes, words in ((16, 12), (32, 24)):
+        bits = []
+        for trial in range(300):
+            rng = random.Random("N = 32, %d, %d" % (nbytes, trial))
+            entropy = bytes(rng.randrange(256) for _ in range(nbytes))
+            secret = list(range(32))
+            rng.shuffle(secret)
+            bits.append(tries_bits(["object %d" % secret[s] for s in sc.encode(entropy, 5)], 5, nbytes))
+        bits.sort()
+        print("| %d | 2^%.0f | 2^%.0f | 2^%.0f | 2^%.0f |" % (words, bits[150], bits[270], bits[297], bits[-1]))
 
 
 if __name__ == "__main__":
