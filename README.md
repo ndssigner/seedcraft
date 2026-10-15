@@ -70,24 +70,28 @@ evidence.
 also in each [release](https://github.com/ndssigner/seedcraft/releases), to
 use offline. English and Spanish.
 
-- **What to buy**: how many of each kind, before you start.
-- **My dictionary**: name the pieces one by one — the previous and next ones
-  in view, the whole dictionary below, a photo for each if you like — check
-  it against the real thing, save it as a file (names, or names and photos)
-  and open it another day. Or try a ready-made one.
-- **Make a sequence**: step by step, forwards and backwards, a drawing, a
-  list, the QR code it keeps, and a printable sheet for whoever makes it
-  (shopping list without the dictionary's order, instructions, the drawing
-  with boxes to tick). That sheet is the seed for anyone who knows this
-  method: only for someone you trust completely.
-- **Read a sequence**: tap the pieces in order from a selector (or type
-  their names), from either end; the seed appears as soon as it is complete.
-- **Pad mode**: chosen at the start, with what each mode protects. The page
-  draws a pad (for learning only), adds one made by hand if you like, guides
-  the pad's string as it does the sequence's, and saves the pad as a text
-  file; the printable sheet shows only the sequence. Reading, the pad can be
-  tapped as a second string (with its own dictionary if it has one), typed,
-  pasted or opened as a file.
+Two journeys, each a sequence of steps along a thread:
+
+- **Make a backup**: plan (the mode, with what each one protects; the
+  form, from the seven of [SPEC §11.2](SPEC-sequences.md#112-which-form)
+  or another; the number of words and of kinds), get the pieces (how many
+  of each kind, and what else the form needs), the dictionary (name the
+  pieces one by one, with a photo if you like, check it against the real
+  thing, save it as a file; or a ready-made one, or the address book's
+  conventional order), the sequence (step by step, a drawing in the form's
+  shape, a list, the QR code it keeps, and a printable sheet for whoever
+  makes it), the pad (pad mode only), check (read it all back: it must give
+  the same seed) and store (what goes where).
+- **Read a backup**: what you have (mode, form, dictionary), the sequence
+  (tap the pieces in order from either end, or type their names), the pad
+  (pad mode only) and the seed.
+
+In pad mode the page draws a pad (for learning only), adds one made by hand
+if you like, and keeps it as a second sequence of things (the same kinds,
+or another collection with its own dictionary, SPEC §11.4) or as a text
+file. The printable sheet shows only the sequence: in this mode whoever
+makes it learns nothing. In the basic mode that sheet is the seed for
+anyone who knows this method: only for someone you trust completely.
 
 It is a single file that cannot connect anywhere: its Content-Security-Policy
 forbids every network request, external script and `eval`; only its own

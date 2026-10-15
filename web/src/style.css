@@ -373,3 +373,30 @@ pre.pad-file { border-left: 4px solid var(--pad); }
 .door-steps li.pad::before { border-color: var(--pad); }
 .door-steps li b { font-family: var(--book); font-size: 16px; font-weight: 600; }
 .door-steps li span { font-size: 13px; color: var(--muted); }
+
+/* the forms of SPEC §11.2: what each says of itself. A form whose order can
+   be undone has a dashed edge: not for the only copy. */
+.forms { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.form { display: flex; flex-direction: column; gap: 5px; text-align: left; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: var(--r-m);
+	background: var(--sunk); cursor: pointer; font-size: 13px; }
+.form:hover { border-color: var(--accent); }
+.form.loose { border-style: dashed; }
+.form.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); background: var(--accent-soft); }
+.form b { font-family: var(--book); font-size: 16px; font-weight: 600; color: var(--accent-ink); }
+.form .what { color: var(--fg); }
+.form .facts { display: flex; flex-direction: column; gap: 3px; color: var(--muted); }
+.form .facts i { display: block; font-style: normal; font-weight: 650; color: var(--fg); font-size: 12px; }
+.form .n-of { margin-top: auto; font-size: 12px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+select.input { width: 100%; border: 1px solid var(--line-strong); background: var(--sunk); border-radius: var(--r-m); padding: 8px 10px; }
+
+/* an address book's entries: ruled lines, a blank for any name, the kind of street */
+ol.entries { list-style: none; margin: 0; padding: 0; columns: 2 220px; column-gap: 28px; }
+ol.entries li { display: flex; align-items: baseline; gap: 8px; padding: 5px 2px; border-bottom: 1px solid var(--line); break-inside: avoid; font-size: 14px; }
+ol.entries li[class], ol.entries li:not([class]) { cursor: default; }
+ol.entries .n { width: 26px; text-align: right; color: var(--muted); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+ol.entries .blank { flex: 1; border-bottom: 1px dotted var(--line-strong); height: 1em; }
+ol.entries li.on { background: var(--accent-soft); border-radius: var(--r-s); }
+ol.entries li.on .n { color: var(--current); }
+ol.entries.pad li { border-bottom-color: var(--pad-soft); }
+ol.entries .tick { width: 18px; height: 14px; border: 1.2px solid #8e9693; border-radius: 3px; flex: none; }
+ol.entries.paper li { color: #111; border-bottom-color: #ccc; }
