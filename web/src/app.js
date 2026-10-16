@@ -426,7 +426,7 @@
 		Slides.setLang(st.lang);
 		// what scrolls inside a legacy slide (the map, the two columns) keeps its place across a redraw
 		const SCROLLERS = ".slide-legacy, .map, .flow-body, .flow-body .tool > .panel";
-		const view = [st.screen, st.at[st.screen], st.make.tab, st.make.key && st.make.key.by, st.edit && st.edit.kind, st.edit && st.edit.target, st.edit && st.edit.i].join();
+		const view = [st.screen, st.at[st.screen], st.make.tab, st.make.key && st.make.key.by, st.make.key && st.make.key.pos, st.make.key && !!st.make.key.fix, st.edit && st.edit.kind, st.edit && st.edit.target, st.edit && st.edit.i].join();
 		const kept = view === lastView ? [...$("app").querySelectorAll(SCROLLERS)].map((e) => e.scrollTop) : [];
 		lastView = view;
 		Slides.show(slideNow(view));
@@ -484,13 +484,14 @@
 		const list = journeyOf(flow), at = st.at[flow] = J.resolve(flow, list, st.at[flow]);
 		const cur = list.find((x) => x.id === at), group = list.filter((x) => x.step === cur.step);
 		st.step[flow] = cur.step;
-		// naming or checking a dictionary, the count is the piece's
-		const ed = st.edit, count = ed ? `${ed.i + 1}/${ed.kind === "name" ? ed.things.length : ed.order.length}` : group.length > 1 ? `${group.indexOf(cur) + 1}/${group.length}` : null;
+		// naming or checking a dictionary: a slide per piece, with its own way on
+		const d = st.edit ? (st.edit.kind === "name" ? nameSlide(flow) : checkSlide(flow)) : SLIDES[flow][at]();
+		// naming or checking a dictionary, or throwing the key, the count is the piece's
+		const ed = st.edit, count = ed ? `${ed.i + 1}/${ed.kind === "name" ? ed.things.length : ed.order.length}` : d.count ? d.count
+			: group.length > 1 ? `${group.indexOf(cur) + 1}/${group.length}` : null;
 		const guide = stepsOf(flow).map((step) => ({ name: stepName(flow, step), current: step === cur.step,
 			count: step === cur.step ? count : null,
 			go: () => goSlide(flow, J.jump(journeyOf(flow), step, (id) => slideDone(flow, id))) }));
-		// naming or checking a dictionary: a slide per piece, with its own way on
-		const d = st.edit ? (st.edit.kind === "name" ? nameSlide(flow) : checkSlide(flow)) : SLIDES[flow][at]();
 		const before = along(flow, at, -1);
 		const prev = d.hidden ? null : d.prev !== undefined ? d.prev || (before ? null : toStart)
 			: before ? { label: d.legacy ? "◀ " + stepName(flow, journeyOf(flow).find((x) => x.id === before).step) : undefined, go: () => goSlide(flow, along(flow, at, -1)) } : toStart;
@@ -797,7 +798,7 @@
 			keyDictHave: () => needs("make") || asIsSlide("pad"),
 			keyWho: () => needs("make") || keyWhoSlide(),
 			keyTool: () => needs("make") || keyToolSlide(),
-			keyThrow: () => makeFlow(keyStep),
+			keyThrow: () => needs("make") || keyThrowSlide(),
 			seq: () => makeFlow(seqStep),
 			check: () => makeFlow(checkStep),
 			store: () => makeFlow(storeStep),
@@ -921,7 +922,8 @@
 			{ id: "coin", art: dieArt({ sides: 2, label: t.coinHeads }), title: c.coin.title, pros: c.coin.pros, cons: [c.coinMany(k)] },
 			...S.DICE.filter((x) => x !== 2).map(die)].filter(Boolean);
 		return decide({ question: t.keyTools, options, chosen: key && key.by !== "device" ? key.by : null,
-			choose: (by) => setKey({ ...m.key, by, draft: [], fix: null }) });
+			// the same tool again keeps the piece half thrown; another one starts it again
+			choose: (by) => { if (m.key.by !== by) setKey({ ...m.key, by, draft: [], fix: null }); } });
 	}
 
 	// ---- recovering: the key file, typed, pasted or opened --------------------------
@@ -1374,14 +1376,12 @@
 			if (before) m.keyChanged = [...new Set([...(m.keyChanged || []), ...S.changedPieces(before, m.symbols)])].sort((a, b) => a - b);
 		}
 	}
-	// the pieces of the sequence changed by a key corrected after it was made, each a way to its turn
-	function keyChangedNote() {
+	// the pieces of the sequence changed by a key corrected after it was made, each a way to its turn («⋯»)
+	const keyChangedWays = () => {
 		const t = T(), m = st.make, changed = m.symbols && m.keyChanged || [];
-		if (!changed.length) return null;
 		const toTurn = (j) => { st.seen.howTo = true; m.tab = "turn"; m.turn = j; toStep("make", "seq"); };
-		return h("div", { class: "note warn" }, t.keyChanged(changed.length), " ",
-			...changed.slice(0, 6).map((j) => h("button", { class: "btn ghost small", on: { click: () => toTurn(j) } }, t.readPiece(j + 1))));
-	}
+		return changed.slice(0, 6).map((j) => ({ icon: "↪", label: t.readPiece(j + 1), go: () => toTurn(j) }));
+	};
 	// to another piece; the lines explained on the one left are not shown again
 	function keyGo(to) {
 		if (keyRolling) return;
@@ -1393,11 +1393,6 @@
 		setKey(S.keyMove(key, to, L));
 		render();
 	}
-	// a die with a number on it; rolling, it spins (CSS, unless reduced motion)
-	const diceSvg = (face, rolling) => svg("svg", { class: "die" + (rolling ? " rolling" : ""), viewBox: "0 0 100 100", "aria-hidden": "true" },
-		svg("rect", { x: 10, y: 10, width: 80, height: 80, rx: 18, class: "die-body" }),
-		svg("text", { x: 50, y: 64, "text-anchor": "middle", class: "die-face" }, face === null ? "?" : String(face)));
-	let keyRolling = false;
 	// The throw that closes a piece giving more bits than it still needs (a
 	// d20 for N = 32: 4 bits, then 4 again, but only 1 left): { at, part }, the
 	// throw and how many of its first bits count; null if every bit counts.
@@ -1408,80 +1403,72 @@
 		const b = S.diceBits(sides).b, part = r.bits.length - b * (r.used.length - 1);
 		return part < b ? { at: r.used[r.used.length - 1], part } : null;
 	}
-	// one throw as it is read: the face marked, its number from 0, its bits or
-	// "again"; part: only its first bits count, the rest struck out
-	function throwText(f, sides, part) {
-		const t = T(), { b, keep } = S.diceBits(sides), bits = f.toString(2).padStart(b, "0");
-		const out = f >= keep ? t.keyAgain : part ? [h("b", { text: bits.slice(0, part) }), h("s", { text: bits.slice(part) })] : bits;
-		if (sides === 2) return [`${f ? t.coinHeads : t.coinTails} → `, out];
-		if (sides === 10) return [`${t.keyFace} ${f} → `, out];  // a d10 is marked 0–9: already from 0
-		return [`${t.keyFace} ${f + 1} → ${f} → `, out];
-	}
-	// the throws of a piece, and once it is complete its bits and number
-	function throwTrail(throws, sides, k) {
-		const r = throws.length ? S.throwsToNumber(throws, sides, k) : null, keep = S.diceBits(sides).keep, cut = lastPart(throws, sides, k);
-		return h("ol", { class: "trail" }, throws.map((f, j) => h("li", { class: f >= keep ? "again" : null }, ...throwText(f, sides, cut && cut.at === j ? cut.part : 0))),
-			r ? h("li", { class: "total", text: `${r.bits.join("")} → ${r.value}` }) : null);
-	}
-	function keyStep() {
+
+	// ---- the key's throw: a slide per piece ---------------------------------------
+	// «What came up?» On the left the faces of the die (or the coin) as buttons,
+	// every one tappable, and under them what to do now; in the middle the bit
+	// tower filling up, each face that counts on its left with its order number
+	// (①②③) and joined to its bits, those thrown again aside, dimmed, with ↻;
+	// then brace → the number → the key's dictionary turning to it → the piece
+	// → its slot in the key string at the bottom. A key file: the number goes
+	// to its place in the file, growing at the bottom. The bag: the dictionary
+	// as buttons. The device: one die that rolls and stops on the number. Only
+	// the current arrow shows whole. Moving never throws again: a piece drawn
+	// is shown as it was drawn, and a piece half thrown keeps its throws.
+	let keyRolling = false;  // the device's die rolling: nothing else moves until it stops
+	let keyFresh = null;     // the position of a piece just completed: it is shown arriving, once
+	let keyFocus = null;     // the face tapped from the keyboard, focused again once redrawn
+	const circled = (i) => i <= 20 ? String.fromCodePoint(0x2460 + i - 1) : i <= 35 ? String.fromCodePoint(0x3251 + i - 21) : i <= 50 ? String.fromCodePoint(0x32B1 + i - 36) : `(${i})`;
+	const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+	function keyThrowSlide() {
 		const t = T(), m = st.make, n = st.dict.things.length, k = Math.log2(n), L = keyLength();
 		const asString = st.plan.padAs === "string", own = asString && !!st.plan.padForm;
-		const form = own ? st.plan.padForm : st.plan.form, things = own ? st.padDict.things : st.dict.things;
-		setKey(m.key || { by: null, pieces: [], pos: 0, draft: [], fix: null });
-		const key = m.key, have = key.pieces.length, values = key.pieces.map((p) => p.value);
+		const things = own ? st.padDict.things : st.dict.things;
+		const key = m.key, pos = key.pos, have = key.pieces.length, values = key.pieces.map((p) => p.value);
+		const piece = key.fix ? null : key.pieces[pos] || null, value = piece ? piece.value : null;
+		// what this piece was (or is being) drawn with: its own, once drawn or while it is marked again
+		const by = key.fix ? key.pieces[key.fix.at].by : piece ? piece.by : key.by;
+		const sides = sidesOf(by), coin = sides === 2, tool = by === "bag" ? "bag" : by === "device" ? "device" : "dice";
+		const lay = Lay.keyThrow({ sides: sides || 6, bits: k, tool, file: !asString }), b = lay.boxes;
+		const throws = piece ? piece.throws : key.draft, parts = sides ? J.throwParts(throws, sides, k) : null;
 		const update = (next) => { setKey(next); render(); };
-		// a key file goes on only once saved: Check reads it, and Store forgets it here
-		setNav({ ready: have === L && (asString || !!m.padKept) });
+		const fresh = keyFresh === pos && !!piece && !calm();
+		keyFresh = null;
+		const focus = keyFocus; keyFocus = null;
 
-		// on the right, the key as it grows: its map or its list, or its file
-		const right = [];
-		if (asString) {
-			const tab = have && m.keyTab === "list" ? "list" : "map";
-			right.push(h("div", { class: "note pad", text: t.padStringHelp }));
-			if (have) right.push(seg([["map", t.tabWalk], ["list", t.tabList]], tab, (v) => { m.keyTab = v; render(); }));
-			if (!have) right.push(h("div", { class: "key-empty" }, art("keyThings"), hint(t.keyEmpty)));
-			else if (tab === "map") right.push(hint(t.forms[form].drawing),
-				h("div", { class: "map tall" }, drawSeq(things, values, { current: key.pos, onPick: (i) => keyGo(i), pad: true, form })));
-			else {
-				// the same key as names, one per line; saved only once it is whole
-				const text = values.map((v, i) => `${i + 1}. ${things[v].name}`).join("\n");
-				right.push(hint(t.listHelp), h("pre", { class: "code" }, text),
-					have === L ? h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => download(text + "\n", "list-b.txt", "text/plain") } }, t.saveList)) : null);
-			}
-		} else {
-			const lines = have ? S.writePadFile(values, n).trimEnd().split("\n") : [""];
-			lines[0] = `${L} ${n}`;
-			// a row still open has no check character yet
-			if (have < L && have % KEY_ROW) lines[lines.length - 1] = lines[lines.length - 1].replace(/ \S$/, "");
-			const row = 1 + Math.floor(key.pos / KEY_ROW);
-			right.push(h("div", { class: "label pad-label", text: t.padFileTitle }), hint(t.padFileHelp),
-				h("pre", { class: "code pad-file" }, lines.map((x, i) => h("span", { class: i === row ? "on" : null, text: x + "\n" }))));
-			if (key.pieces[key.pos] && !key.fix && closesRow(key.pos, L) && !st.seen.rowCheck) right.push(h("div", { class: "note pad", text: t.keyRowCheck }));
-			if (have === L) right.push(m.padKept ? null : h("div", { class: "note warn", text: t.keySaveFirst }), h("div", { class: "row" }, h("button", { class: m.padKept ? "btn ghost" : "btn",
-				on: { click: () => { download(S.writePadFile(m.pad, n), "numbers.txt", "text/plain"); m.padKept = true; render(); } } }, t.padFileSave)));
-		}
-
-		// piece by piece: the piece at pos, drawn or to draw (or being marked again)
-		const pos = key.pos, piece = key.fix ? null : key.pieces[pos];
-		const markBy = key.fix ? key.pieces[key.fix.at].by : key.by, sides = sidesOf(markBy);
-		const throws = piece ? piece.throws : key.draft, throwsBy = piece ? piece.by : markBy;
-		const die = h("div", { class: "die-box" }, diceSvg(null, false));
-		const busy = [], waits = (b) => { busy.push(b); return b; };  // the buttons that wait while the die rolls
+		// a throw marked: the piece's own coin or die (marking one again, the one it was thrown with)
+		const mark = (f) => {
+			if (piece || keyRolling) return;
+			const before = m.key, after = S.keyAddThrow({ ...before, by }, f, sides, k, L);
+			if (after.pieces.length > before.pieces.length || (before.fix && !after.fix)) keyFresh = pos;
+			const at = document.activeElement;
+			keyFocus = at && at.getAttribute && at.getAttribute("data-face") !== null ? f : null;
+			update({ ...after, by: before.by });
+		};
+		const pick = (v) => { if (piece || keyRolling) return; keyFresh = pos; update(S.keyAddPiece(m.key, v, "bag", [], L)); };
+		// the device: its die rolls (~600 ms) and stops on the number, which stays a moment; with reduced motion, at once
+		let dieEl = null;
+		const dieOf = (label, rolling) => V.die({ sides: 6, label, size: 100, rolling });
 		const draw = () => {
-			if (keyRolling) return;
-			const value = S.newPad(1, n)[0];
+			if (keyRolling || piece || key.fix || by !== "device") return;
+			const v = S.newPad(1, n)[0], still = calm();
 			const put = () => {
 				keyRolling = false;
 				const x = m.key;
-				if (st.screen === "make" && st.step.make === "key" && x && x.by === "device" && !x.fix && x.pieces.length < keyLength()) update(S.keyAddPiece(x, value, "device", [], keyLength()));
-				else render();
+				// still here, still the device's, still the first missing piece: else the number drawn is let go
+				if (st.screen === "make" && st.at.make === "keyThrow" && x && x.by === "device" && !x.fix && x.pieces.length < keyLength() && x.pos === x.pieces.length) {
+					keyFresh = x.pos;
+					update(S.keyAddPiece(x, v, "device", [], keyLength()));
+				} else render();
 			};
 			keyRolling = true;
-			busy.forEach((b) => { b.disabled = true; });
-			// it spins (~600 ms) and stops on the number, which stays a moment; with reduced motion, the number at once
-			const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
-			die.replaceChildren(diceSvg(value, !still));
-			setTimeout(() => { die.replaceChildren(diceSvg(value, false)); setTimeout(put, 500); }, still ? 0 : 600);
+			const nb = document.getElementById("slide-next");
+			if (nb) nb.disabled = true;
+			if (dieEl) { dieEl.disabled = true; dieEl.replaceChildren(dieOf(String(v), !still)); }
+			setTimeout(() => {
+				if (dieEl) dieEl.replaceChildren(dieOf(String(v), false));
+				setTimeout(put, still ? 0 : 500);
+			}, still ? 0 : 600);
 		};
 		const all = () => {
 			if (keyRolling) return;
@@ -1490,53 +1477,156 @@
 			st.seen.keyWhy = true;
 			update(S.keyMove(x, L - 1, L));
 		};
-		// a throw marked by hand: the piece's own coin or die when marking it again
-		const mark = (f) => update({ ...S.keyAddThrow({ ...m.key, by: markBy }, f, sides, k, L), by: key.by });
-		const side = (i) => h("div", { class: "side" }, i >= 0 && i < have && i !== pos
-			? [hint(`${i < pos ? t.prevPiece : t.nextPiece} ${i + 1}`), icon(things[values[i]], 44), h("div", { class: "small-name", text: things[values[i]].name })] : null);
-		const centre = piece
-			? h("div", { class: "centre" }, icon(things[piece.value], 104), h("div", { class: "name", text: things[piece.value].name }),
-				h("div", { class: "meta", text: t.keyNumber(piece.value, piece.value.toString(2).padStart(k, "0")) }))
-			: h("div", { class: "centre" }, markBy === "device" ? die : icon({}, 104));
-		const controls = [];
-		if (key.fix) controls.push(h("div", { class: "row between" }, h("span", { class: "label pad-label", text: t.keyFixing(pos + 1) }),
-			h("button", { class: "btn ghost small", on: { click: () => keyGo(pos) } }, t.keyFixCancel)));
-		if (piece) {
-			if (piece.by === "device") controls.push(h("div", { class: "row key-by" }, diceSvg(piece.value, false), hint(t.keyByDevice)));
-			else controls.push(piece.by === "bag" ? hint(t.keyByBag) : throwTrail(piece.throws, sidesOf(piece.by), k),
-				h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => update(S.keyFix(key)) } }, t.keyFix)));
-		} else if (markBy === "device") controls.push(h("div", { class: "row" }, waits(h("button", { class: "btn", on: { click: draw } }, "🎲 " + t.keyRoll))));
-		else if (markBy === "bag") controls.push(hint(t.keyBagHow), h("div", { class: "palette" }, things.map((x, i) =>
-			h("button", { class: "pal", title: x.name, "aria-label": x.name, on: { click: () => update(S.keyAddPiece(m.key, i, "bag", [], L)) } }, icon(x, 40)))));
-		else {
-			const faces = sides === 2 ? [[1, t.coinHeads], [0, t.coinTails]] : Array.from({ length: sides }, (_, f) => [f, String(sides === 10 ? f : f + 1)]);
-			controls.push(hint(sides === 2 ? t.keyThrowCoin : t.keyThrowDie),
-				h("div", { class: "faces" }, faces.map(([f, label]) => h("button", { class: "btn ghost face", on: { click: () => mark(f) } }, label))),
-				throws.length ? throwTrail(throws, sides, k) : null,
-				// a face tapped by mistake: take it back (not a throw made again)
-				throws.length ? h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => update(S.keyUndoThrow(m.key)) } }, "↶ " + t.keyUndo),
-					h("span", { class: "meta", text: t.keyUndoHelp })) : null);
+		const saveFile = () => { download(S.writePadFile(m.pad, n), "numbers.txt", "text/plain"); m.padKept = true; render(); };
+		const saveList = () => download(m.pad.map((v, i) => `${i + 1}. ${things[v].name}`).join("\n") + "\n", "list-b.txt", "text/plain");
+
+		// what to do now
+		const last = throws.length ? throws[throws.length - 1] : null;
+		const instruction = piece ? (tool === "bag" ? t.keyBagBack : t.keyPieceReady)
+			: tool === "bag" ? t.keyBagHow : tool === "device" ? t.keyTapDie
+			: !throws.length ? (coin ? t.keyThrowCoin : t.keyThrowDie)
+			: last >= S.diceBits(sides).keep ? t.keyNoCount : coin ? t.keyAgainCoin : t.keyAgainDie;
+
+		function body() {
+			const kids = [], over = [];
+			const faceOf = (f, box, cls) => svg("g", { transform: `translate(${box.x} ${box.y})`, class: cls },
+				V.die({ sides, face: f, size: box.w, label: coin ? (f ? t.coinHeadsMark : t.coinTailsMark) : undefined }));
+			// the tower: the bits so far (the device's and the bag's, the number's), the rest empty
+			if (b.tower) {
+				const bits = piece ? Lay.binary(value, n) : parts ? parts.bits : [];
+				kids.push(V.bits({ box: b.tower, bits: Array.from({ length: k }, (_, i) => bits[i] === undefined ? null : bits[i]), orientation: "tower", colour: "key" }));
+				const { x, y, w, h: hh } = b.brace, cx = x + w / 2, my = y + hh / 2, r = Math.min(6, hh / 4);
+				kids.push(svg("path", { class: "kt-brace" + (piece ? "" : " kt-wait"),
+					d: `M${x} ${y} Q${cx} ${y} ${cx} ${y + r} V${my - r} Q${cx} ${my} ${x + w} ${my} Q${cx} ${my} ${cx} ${my + r} V${y + hh - r} Q${cx} ${y + hh} ${x} ${y + hh}` }));
+			}
+			// the faces thrown: those that count beside their bits, the others aside
+			if (parts) {
+				const marks = Lay.throwMarks(lay, { bits: k, used: parts.used, rejected: parts.rejected });
+				marks.used.forEach((u) => kids.push(svg("g", { class: "kt-thrown" },
+					svg("path", { class: "kt-join", d: `M${u.join[0][0]} ${u.join[0][1]} H${u.join[1][0]} M${u.span[0][0]} ${u.span[0][1]} V${u.span[1][1]}` }),
+					faceOf(throws[u.at], u.face, "kt-small"),
+					svg("text", { x: u.label[0], y: u.label[1], "font-size": 10, "text-anchor": "end", class: "v-t kt-order" }, circled(u.at + 1)))));
+				marks.rejected.forEach((r) => kids.push(svg("g", { class: "kt-again" }, faceOf(throws[r.at], r.face, "kt-small"),
+					svg("text", { x: r.label[0], y: r.label[1], "font-size": 7, "text-anchor": "middle", class: "v-t kt-order" }, circled(r.at + 1) + "↻"),
+					svg("title", {}, t.keyNoCount))));
+				kids.push(svg("text", { x: b.info.x, y: b.info.y + 10, "font-size": 9, class: "v-t kt-info" }, coin ? t.keyCoinBits : t.keyFirstZero));
+			}
+			// the bag: the key's dictionary as buttons
+			if (b.picker) {
+				const pk = V.dictionary({ box: b.picker, things, mode: "picker", value, icon: "key", onPick: pick });
+				if (piece) pk.classList.add("kt-off");
+				kids.push(pk);
+			}
+			// brace → number → dictionary → piece → slot, each shown with its arrow
+			const stages = ["number", ...lay.arrows.map((a) => a.id).filter((id) => id !== "number")];
+			const at = (id) => stages.indexOf(id);
+			const groups = { number: svg("g"), dict: svg("g"), piece: svg("g"), slot: svg("g") };
+			const arrows = lay.arrows.map((a) => ({ a, g: svg("g") }));
+			kids.push(...arrows.map((x) => x.g), groups.number, groups.dict, groups.piece, groups.slot);
+			const stage = (p, turning) => {
+				const shown = (id) => !!piece && at(id) < p;
+				groups.number.replaceChildren(V.number({ box: b.number, value: shown("number") ? value : null, colour: "key" }));
+				if (b.keyDict) {
+					const reel = V.dictionary({ box: b.keyDict, things, mode: "reel", value: shown("dict") ? value : null, icon: "key", from: turning ? 0 : undefined });
+					groups.dict.replaceChildren(svg("g", { class: shown("dict") ? null : "kt-wait" }, reel));
+				}
+				if (b.piece) groups.piece.replaceChildren(V.piece({ box: b.piece, thing: shown("piece") ? things[value] : null }));
+				groups.slot.replaceChildren(asString ? keyString(shown("slot")) : keyFile(shown("slot")));
+				arrows.forEach(({ a, g }) => g.replaceChildren(V.arrow({ points: a.points, colour: "key",
+					state: !piece ? "hidden" : at(a.id) === p - 1 ? "current" : at(a.id) < p - 1 ? "past" : "hidden" })));
+			};
+			if (fresh) {
+				// it arrives: the number, the dictionary turning to it, the piece, its slot
+				stage(1);
+				const live = () => groups.number.isConnected !== false;
+				const steps = stages.slice(1).map((id, i) => [id, 450 * (i + 1) + (at("dict") >= 0 && at(id) > at("dict") ? 450 : 0)]);
+				steps.forEach(([id, ms]) => setTimeout(() => { if (live()) stage(at(id) + 1, id === "dict"); }, ms));
+			} else stage(stages.length);
+
+			// over the canvas: the faces, the device's die, what to do, the tools
+			if (b.faces) {
+				const order = coin ? [1, 0] : Array.from({ length: sides }, (_, f) => f);
+				order.forEach((f, i) => {
+					const btn = V.faceButton({ sides, face: f, label: coin ? (f ? t.coinHeads : t.coinTails) : undefined, disabled: !!piece, onPress: mark });
+					btn.classList.add("kt-face");
+					btn.setAttribute("data-face", String(f));
+					over.push(place(btn, Lay.faceBox(lay, i)));
+					if (focus === f && !piece) Promise.resolve().then(() => btn.focus());
+				});
+			}
+			if (b.die) {
+				dieEl = h("button", { type: "button", class: "v-face kt-face kt-die", "aria-label": t.keyTapDie, disabled: piece || keyRolling ? true : undefined, on: { click: draw } },
+					dieOf(piece ? String(value) : "?", false));
+				over.push(place(dieEl, b.die));
+			}
+			over.push(place(h("p", { class: "kt-instr" + (piece ? " ready" : ""), "aria-live": "polite", text: instruction }), b.instruction));
+			const act = (label, fn, cls = "btn ghost small") => h("button", { type: "button", class: cls, on: { click: fn } }, label);
+			const tools = [];
+			if (key.fix) tools.push(act(t.keyFixCancel, () => keyGo(pos)));
+			else if (!piece && throws.length && tool === "dice") tools.push(act("↶ " + t.keyUndo, () => update(S.keyUndoThrow(m.key))));
+			if (piece && piece.by !== "device") tools.push(act(t.keyFix, () => update(S.keyFix(key))));
+			if (piece && !asString && have === L && pos === L - 1) tools.push(act("⤓ " + t.padFileSave, saveFile, m.padKept ? "btn ghost small" : "btn small"));
+			over.push(place(h("div", { class: "kt-tools" }, tools), b.tools));
+			if (focus !== null && piece) Promise.resolve().then(() => { const nb = document.getElementById("slide-next"); if (nb) nb.focus(); });
+			return h("div", { class: "dict-slide kt-slide" }, canvas(...kids), ...over);
 		}
-		// Next on the first missing piece draws it (device) or waits for the throws
-		const onNext = !piece && !key.fix ? (key.by === "device" ? draw : null) : pos < L - 1 ? () => keyGo(pos + 1) : null;
-		const aside = h("div", { class: "row key-method" },
-			h("span", { class: "meta", text: key.by === "device" ? t.keyDevice : key.by === "bag" ? t.toolBag : key.by === "coin" ? t.toolCoin : "🎲 " + key.by }),
-			key.draft.length || key.fix ? null : h("button", { class: "btn ghost small", on: { click: () => { m.keyWho = null; update({ ...key, by: null }); } } }, t.keyChange));
-		return tool(
-			panel(...stepHead("make", null, aside), keyChangedNote(),
-				h("div", { class: "label", text: t.walkOf(pos + 1, L) }),
-				h("div", { class: "wizard" }, side(pos - 1), centre, side(pos + 1)),
-				st.seen.keyWhy ? null : hint(t.keyWhy),
-				...controls,
-				hasReroll(throws, throwsBy) && !st.seen.reroll ? h("div", { class: "note pad", text: t.keyRerollWhy }) : null,
-				lastPart(throws, sidesOf(throwsBy), k) && !st.seen.keyPart ? h("div", { class: "note pad", text: t.keyPartUsed(k) }) : null,
-				h("div", { class: "row" },
-					h("button", { class: "btn ghost", disabled: pos === 0 ? "" : undefined, on: { click: () => keyGo(pos - 1) } }, "◀ " + t.prevPiece),
-					key.by === "device" && have < L ? waits(h("button", { class: "btn ghost small", on: { click: all } }, t.seeAll)) : null,
-					piece && pos === L - 1 ? null : waits(h("button", { class: "btn push", disabled: onNext ? undefined : "", on: { click: () => { if (onNext) onNext(); } } },
-						t.nextPiece + " ▶"))),
-				bar(have / L)),
-			panel(...right));
+
+		// the key string being built: the piece's slot in the middle, six on each side
+		function keyString(withPiece) {
+			const items = Array.from({ length: 13 }, (_, j) => {
+				const i = pos - 6 + j;
+				if (i < 0 || i >= L) return undefined;
+				if (i === pos) return withPiece ? value : null;
+				return i < have ? values[i] : null;
+			});
+			return V.string({ box: b.keyString, role: "build", kind: "key", things, items, current: 6, firstPosition: pos - 5 });
+		}
+		// the key file growing (writePadFile's format): the line before (its first line, «L N», or
+		// the row before), then the row with this piece, its place framed under the slot, its check once the row is whole
+		function keyFile(withPiece) {
+			const r = Lay.fileRow(pos), start = r.row * 16, len = Math.min(16, L - start), box = b.keyString, slot = b.keySlot;
+			const at = (i) => i === pos ? (withPiece ? value : null) : i < have ? values[i] : null;
+			const row = Array.from({ length: len }, (_, j) => at(start + j));
+			const whole = row.every((v) => v !== null);
+			const lineOf = (vals) => S.writePadFile(vals, n).trimEnd().split("\n");
+			const parts = [svg("text", { x: box.x + 8, y: box.y + 48, "font-size": 14, "text-anchor": "middle", class: "v-t v-icon" }, ICON.key)];
+			const y1 = box.y + 16, y2 = box.y + 48;
+			if (r.row === 0) parts.push(svg("text", { x: r.xs[0] - 5, y: y1, "font-size": 11, class: "v-t v-mono kt-file-before" }, `${L} ${n}`));
+			else Array.from(lineOf(values.slice(start - 16, start))[1].replace(/ /g, "")).forEach((c, j) =>
+				parts.push(svg("text", { x: r.xs[j], y: y1, "font-size": 11, "text-anchor": "middle", class: "v-t v-mono kt-file-before" }, c)));
+			parts.push(svg("rect", { x: slot.x + slot.w / 2 - 13, y: y2 - 21, width: 26, height: 28, rx: 4, class: "kt-file-slot" }));
+			row.forEach((v, j) => parts.push(svg("text", { x: r.xs[j], y: y2, "font-size": 20, "text-anchor": "middle",
+				class: "v-t v-mono v-bold" + (start + j === pos ? " kt-file-now" : "") + (v === null ? " kt-file-hole" : "") }, v === null ? "·" : S.PAD_DIGITS[v])));
+			if (whole) parts.push(svg("text", { x: r.xs[16], y: y2, "font-size": 20, "text-anchor": "middle", class: "v-t v-mono kt-file-check" }, lineOf(row)[1].split(" ").pop()));
+			return svg("g", { class: "v v-file", role: "img", "aria-label": t.padFileTitle }, parts);
+		}
+
+		// on, back: a piece at a time; Next on the device's missing piece rolls it
+		let next;
+		if (key.fix || (!piece && by !== "device")) next = { go: () => {}, ready: false };
+		else if (!piece) next = { label: "🎲 " + t.keyRoll, go: draw, ready: !keyRolling };
+		else if (pos < L - 1) next = { go: () => keyGo(pos + 1) };
+		else {
+			const after = along("make", "keyThrow", 1);
+			next = after ? { go: () => goSlide("make", after), ready: asString || !!m.padKept } : null;
+		}
+		// one line, when there is something to say: what changed, what to do first, why
+		const changed = m.symbols && m.keyChanged || [];
+		const caption = changed.length ? t.keyChanged(changed.length) : key.fix ? t.keyFixing(pos + 1)
+			: !asString && have === L && !m.padKept ? t.keySaveFirst
+			: parts && parts.rejected.length && !st.seen.reroll ? t.keyRerollWhy
+			: sides && lastPart(throws, sides, k) && !st.seen.keyPart ? t.keyPartUsed(k)
+			: !asString && piece && closesRow(pos, L) && !st.seen.rowCheck ? t.keyRowCheck
+			: !st.seen.keyWhy ? t.keyWhy : null;
+		const shortcuts = keyChangedWays();
+		if (key.by === "device" && have < L) shortcuts.push({ icon: "⏩", label: t.seeAll, go: all });
+		if (have === L) shortcuts.push(asString ? { icon: "⤓", label: t.saveList, go: saveList } : { icon: "⤓", label: t.padFileSave, go: saveFile });
+		const why = tool === "bag" ? [t.keyBagPutBack] : tool === "device" ? [] : coin ? [t.keyCoinBits] : [t.keyFirstZero, t.keyRerollWhy, t.keyPartUsed(k)];
+		return {
+			question: t.keyThrowQ, count: `${pos + 1}/${L}`, caption: () => caption, shortcuts,
+			help: helpOf(stepName("make", "key"), t.keyWhy, asString ? why : [...why, t.padFileHelp]),
+			prev: pos > 0 ? { go: () => keyGo(pos - 1) } : undefined, next, body,
+		};
 	}
 
 	// ---- make, 5: the sequence ----------------------------------------------
@@ -1735,12 +1825,6 @@
 		if (rd && !rd.typing) {
 			if (e.key === "ArrowRight") { e.preventDefault(); readGo(rd, rd.turn + 1); }
 			if (e.key === "ArrowLeft") { e.preventDefault(); readGo(rd, rd.turn - 1); }
-			return navKey;
-		}
-		// the key: only moves among the pieces drawn, never draws (the space bar is left to the buttons)
-		if (st.screen === "make" && st.step.make === "key" && m.key && m.key.by && !st.edit) {
-			if (e.key === "ArrowRight") { e.preventDefault(); keyGo(m.key.pos + 1); }
-			if (e.key === "ArrowLeft") { e.preventDefault(); keyGo(m.key.pos - 1); }
 			return navKey;
 		}
 		if (st.screen !== "make" || !m.symbols) return false;
