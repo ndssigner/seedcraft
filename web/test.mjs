@@ -442,6 +442,20 @@ for (const n of [2, 4, 8, 16, 32]) {
 	check(as.boxes.actions.w >= 200 && as.boxes.actions.h >= 150, `dictAsIs n=${n}: room for its actions`);
 }
 check(Lay.keyThrow({ sides: 6 }).faces.cols === 3 && Lay.keyThrow({ sides: 6 }).faces.rows === 2, "throw d6: three by two");
+// reading back: the dictionary in a popup, every button big enough to tap; the two ends
+for (const n of [2, 4, 8, 16, 32]) {
+	const pp = Lay.pickerPopup({ n }), g = Lay.pickerGrid(pp.boxes.picker, n), p = pp.boxes.picker;
+	check(p.x >= 0 && p.y >= 0 && p.x + p.w <= pp.view.w && p.y + p.h <= pp.view.h && pp.view.w <= 440 && pp.view.h <= 250, `pickerPopup n=${n}: the picker in its canvas, which fits a popup`);
+	check(g.cols * g.rows >= n && g.cw >= 40 && g.ch >= 40, `pickerPopup n=${n}: a button per piece, each at least 40 × 40 (${Math.round(g.cw)} × ${Math.round(g.ch)})`);
+}
+checkLayout("readFinal", Lay.readFinal());
+{ const f = Lay.readFinal().boxes, area = (b) => b.w * b.h; check(f.qr.w === f.qr.h && f.qr.w >= 250 && Object.entries(f).every(([id, b]) => id === "qr" || id === "guide" || area(b) < area(f.qr)), "readFinal: the QR code square, the largest"); }
+for (const pad of [false, true]) {
+	const cf = Lay.checkFinal({ pad }), b = cf.boxes, rt = Lay.readTurn({ pad, n: 16 }).boxes;
+	checkLayout(`checkFinal pad=${pad}`, cf);
+	check(b.made.w === b.read.w && b.made.h === b.read.h && b.made.y === b.read.y && b.sign.x > b.made.x + b.made.w && b.sign.x + b.sign.w < b.read.x, `checkFinal pad=${pad}: the two QR codes side by side, the sign between them`);
+	check(b.seedColumn.h === rt.seedColumn.h && b.seedRow.y === rt.row.y && contains(b.seedColumn, b.seedRow) && (!pad || contains(b.keyColumn, b.keyRow)) && !!b.keyColumn === pad, `checkFinal pad=${pad}: the strings as the turn reads them, a row each to frame`);
+}
 {
 	const s = Lay.makeTurn({ pad: true, n: 16 }).boxes.seedString, k = Lay.keyThrow({ sides: 6 }).boxes.keyString;
 	check(s.h === k.h && s.y === k.y, "the string being built is the same element in the turn and the throw");
@@ -578,6 +592,12 @@ check(Lay.keyThrow({ sides: 6 }).faces.cols === 3 && Lay.keyThrow({ sides: 6 }).
 		const counter = tbox(walk(c, cls("v-clock-by"))[0]);
 		check(t.every((x) => !overlap(tbox(x), counter)), `clock n=${n} ${from}${sign > 0 ? "+" : "−"}${by}: the numbers clear of the counter`);
 	}
+	for (const n of [2, 16, 32]) for (const [from, by] of [[null, null], [5, null], [null, 3]]) {
+		const cw = V.clock({ box: rlay.boxes.clock, n, from, by, sign: -1, inputColour: "seed" }), ins = walk(cw, cls("v-clock-in")).map(textOf);
+		check(ins[0] === (from === null ? "" : String(from)) && ins[1] === (by === null ? "" : "−" + by) && !walk(cw, cls("v-clock-token")).length && !walk(cw, cls("v-clock-arc")).length
+			&& walk(cw, cls("v-clock-tick")).length === n, `clock n=${n} ${from}|${by}: waiting for a number, its band empty, nothing turning`);
+		within(cw, rlay.boxes.clock, `clock waiting n=${n}`);
+	}
 	const ci = V.clock({ box: lay.boxes.clock, n: 16, from: 11, by: 9, sign: 1, phase: "inputs" });
 	check(textOf(walk(ci, cls("v-clock-out"))[0]) === "" && textOf(walk(ci, cls("v-clock-by"))[0]) === "", "clock inputs: no output yet");
 	const cr = V.clock({ box: lay.boxes.clock, n: 16, from: 11, by: 9, sign: 1, phase: "run" });
@@ -680,9 +700,35 @@ check(Lay.keyThrow({ sides: 6 }).faces.cols === 3 && Lay.keyThrow({ sides: 6 }).
 		=== "mode form words size keyAs keyColl keyForm pieces dict dictHave keyDict keyDictHave keyWho keyThrow seed check store", "make: a key of another collection, drawn by the device");
 	check(ids("make", { mode: "pad", padAs: "string", padForm: null }).includes("keyColl") && !ids("make", { mode: "pad", padAs: "string", padForm: null }).includes("keyForm"), "make: the same collection asks no form for the key");
 	check(J.slides("make", { mode: "pad" }).filter((x) => x.step === "plan").length === 5 && J.slides("make", { mode: "pad" }).find((x) => x.id === "keyWho").step === "key", "make: each slide under its step");
-	check(ids("read", { mode: "basic" }) === "mode form size dict recover seed", "read: the basic mode's slides");
+	check(ids("read", { mode: "basic" }) === "mode form size dict words recover seed", "read: the basic mode's slides (the seed's length asked)");
 	check(ids("read", { mode: "pad", padAs: "file", dict: true }) === "mode form size dict dictHave keyAs keyFile recover seed", "read: a key file");
-	check(ids("read", { mode: "pad", padAs: "string", padForm: "necklace", dict: true }) === "mode form size dict dictHave keyAs keyColl keyForm keyDict recover seed", "read: a key of another collection");
+	check(ids("read", { mode: "pad", padAs: "string", padForm: "necklace", dict: true }) === "mode form size dict dictHave keyAs keyColl keyForm keyDict words recover seed", "read: a key of another collection");
+	// a turn read back: its stages show every arrow of readTurn once, in the cycle's order
+	for (const pad of [false, true]) for (const n of [2, 16, 32]) {
+		const stages = J.readStages({ pad }), arrows = Lay.readTurn({ pad, n }).arrows.map((a) => a.id);
+		check(stages.flatMap((x) => x.arrows).join() === arrows.join() && stages[0].id === "position" && stages[stages.length - 1].id === "paint", `readStages pad=${pad} n=${n}: every arrow once, in order, from the position to the squares painted`);
+	}
+	check(J.readStages({ pad: true }).map((x) => x.id).join() === "position,in,out,bits,paint" && J.readStages({ pad: true })[2].arrows.length === 0, "readStages: with a key, the clock's inputs, then what comes out (no arrow)");
+	// a copy read back against the one made: the reading that fits best, and the pieces that differ
+	{
+		const sym = [3, 1, 4, 1, 5, 9, 2, 6].map((x) => x % 8), key = [2, 7, 1, 8, 2, 8, 1, 8].map((x) => x % 8), rev = (a) => [...a].reverse();
+		const same = J.checkRead({ taps: sym, symbols: sym });
+		check(same.wrong.length === 0 && !same.reversed && same.seed.join() === sym.join(), "checkRead: the same pieces, nothing wrong");
+		const back = J.checkRead({ taps: rev(sym), symbols: sym });
+		check(back.wrong.length === 0 && back.reversed, "checkRead: read from the other end");
+		const bad = sym.slice(); bad[5] = (bad[5] + 1) % 8;
+		const one = J.checkRead({ taps: bad, symbols: sym });
+		check(one.wrong.length === 1 && one.wrong[0].turn === 5 && one.wrong[0].pos === 5 && one.wrong[0].column === "seed", "checkRead: one piece wrong, at its turn");
+		const badBack = J.checkRead({ taps: rev(bad), symbols: sym });
+		check(badBack.reversed && badBack.wrong.length === 1 && badBack.wrong[0].pos === 5 && badBack.wrong[0].turn === 2, "checkRead: read backwards, the wrong piece's turn as it was read");
+		const keyBad = key.slice(); keyBad[2] = (keyBad[2] + 3) % 8;
+		const k1 = J.checkRead({ taps: sym, keys: keyBad, symbols: sym, pad: key, keyRead: true });
+		check(k1.wrong.length === 1 && k1.wrong[0].column === "key" && k1.wrong[0].turn === 2 && k1.key.join() === keyBad.join(), "checkRead: a key piece wrong, in the key's column");
+		const sw = J.checkRead({ taps: key, keys: sym, symbols: sym, pad: key, keyRead: true });
+		check(sw.wrong.length === 0 && sw.swapped && sw.seed.join() === sym.join(), "checkRead: the two strings swapped");
+		const f = J.checkRead({ taps: rev(sym), keys: key, symbols: sym, pad: key, keyRead: false });
+		check(f.reversed && !f.swapped && !f.keyReversed && f.wrong.length === 0, "checkRead: a key file is read as it is");
+	}
 	const list = J.slides("make", { mode: "pad", padAs: "string", dict: false, keyWho: "me" });
 	check(J.resolve("make", list, "keyTool") === "keyTool" && J.resolve("make", list, "dictHave") === "dict" && J.resolve("make", list, "keyThrow") === "keyTool"
 		&& J.resolve("make", J.slides("make", { mode: "pad", padAs: "string" }), "keyThrow") === "keyWho" && J.resolve("make", list, "nowhere") === "mode", "resolve: a slide that went gives the one before it");
@@ -732,15 +778,19 @@ check(Lay.keyThrow({ sides: 6 }).faces.cols === 3 && Lay.keyThrow({ sides: 6 }).
 	vm.runInContext(read("src/i18n.js") + ";globalThis.TEXT = SEEDCRAFT_TEXT;", ctx, { filename: "src/i18n.js" });
 	const TX = ctx.TEXT;
 	const args = { turnPosition: [364], turnNumber: ["11111", 31], turnKeyAt: [364], turnKeyFile: [364, "V", 31], turnKeyNumber: [31], turnClockOf: [32],
-		turnOut: [31], turnDict: [31], turnSlot: [364] };
+		turnOut: [31], turnDict: [31], turnSlot: [364], readTap: [364], readTapBoth: [364], readTurnPad: [31, 31, 32, 31], readTurnBasic: [31] };
 	const keys = ["turnPosition", "turnBitsAre", "turnNumber", "turnKeyAt", "turnKeyFile", "turnKeyNumber", "turnClockOf", "turnOut", "turnDict", "turnSlot",
-		"turnHeader", "turnPadding", "seqKeyChanged", "endPad", "endBasic", "whyPad", "makeWarn", "seqIntro", "seqPadIntro"];
+		"turnHeader", "turnPadding", "seqKeyChanged", "endPad", "endBasic", "whyPad", "makeWarn", "seqIntro", "seqPadIntro",
+		// reading back: the turn's foot, the ends'
+		"readTap", "readTapBoth", "readTurnPad", "readTurnBasic", "readNoFit", "typeHelp", "handDone", "checkMatch", "checkFixed", "checkMismatch"];
 	for (const lang of ["en", "es"]) for (const k of keys) {
 		const v = TX[lang][k], s = typeof v === "function" ? v(...(args[k] || [])) : v;
 		check(typeof s === "string" && s.length <= 110, `caption ${lang}.${k} at most 110 characters (${s && s.length}: ${s})`);
 	}
 	// the explained turn's last step with a changed piece: the slot's sentence and the key's change together
 	for (const lang of ["en", "es"]) check((TX[lang].turnSlot(364) + " " + TX[lang].seqKeyChanged).length <= 110, `caption ${lang}: slot + key changed fits`);
+	// the first turn read: how to read each form
+	for (const lang of ["en", "es"]) for (const [id, f] of Object.entries(TX[lang].forms)) check(f.read.length <= 110, `caption ${lang}.forms.${id}.read at most 110 characters (${f.read.length})`);
 }
 console.log(`${failures ? "FAIL" : "ok"}: ${vectors.length} vectors, ${padVectors.length} pad vectors, ${failures} failures`);
 process.exit(failures ? 1 : 0);

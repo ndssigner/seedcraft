@@ -25,7 +25,7 @@ const SeedcraftJourneys = (() => {
 		["seed", "seq"], ["seq", "seq"], ["check", "check"], ["store", "store"]];
 	const READ = [["mode", "have"], ["form", "have"], ["size", "have"], ["dict", "have"], ["dictHave", "have"],
 		["keyAs", "have"], ["keyColl", "have"], ["keyForm", "have"], ["keyDict", "have"], ["keyDictHave", "have"], ["keyFile", "have"],
-		["recover", "recover"], ["seed", "seed"]];
+		["words", "have"], ["recover", "recover"], ["seed", "seed"]];
 
 	// The slides there are now. s: { mode, padAs ("string" | "file"),
 	// padForm (the key's own collection, or null), dict, padDict (whether
@@ -38,6 +38,8 @@ const SeedcraftJourneys = (() => {
 			keyAs: pad, keyColl: things, keyForm: own, dictHave: !!s.dict, keyDict: own, keyDictHave: own && !!s.padDict,
 			keyWho: pad, keyTool: pad && s.keyWho === "me", keyThrow: pad && !!s.keyBy, seq: !!s.made, keyFile: pad && s.padAs === "file",
 		};
+		// recovering, the seed's length is asked unless a key file tells it
+		if (flow === "read") there.words = !(pad && s.padAs === "file");
 		return (flow === "make" ? MAKE : READ).filter(([id]) => there[id] !== false).map(([id, step]) => ({ id, step }));
 	}
 	// The slide to show for `at`: itself if it is there, else the nearest one
@@ -127,5 +129,46 @@ const SeedcraftJourneys = (() => {
 	// How many first turns are explained a relation at a time
 	const EXPLAINED = 3;
 
-	return { BUY, PAD_BUY, EXPLAINED, turnStages, buyFor, symbolsFor, slides, resolve, jump, pieces, nameProblem, checkOrder, throwParts };
+	// ---- a turn read back (recovering, checking a copy) ----------------------
+	// The stages of a turn once its pieces are in, in the cycle's order, each
+	// with the arrows of layouts.js's readTurn it shows: the position (the turn's
+	// squares, while the pieces are chosen), then with a key the two numbers
+	// into the clock and what comes out of it (no arrow), then its bits, then
+	// the squares painted.
+	function readStages({ pad = false } = {}) {
+		const st = (id, ...arrows) => ({ id, arrows });
+		return pad ? [st("position", "position"), st("in", "clockSeed", "clockKey"), st("out"), st("bits", "bits"), st("paint", "paint")]
+			: [st("position", "position"), st("bits", "bits"), st("paint", "paint")];
+	}
+	// A copy read back against the one just made, piece by piece. taps and
+	// keys: what was read, turn by turn (keys: the key's column, null with no
+	// key); symbols and pad: the strings made. keyRead: the key was read as a
+	// string (so it, too, may have been read from its other end, or the two
+	// strings swapped); a key file is read as it is. The reading that fits
+	// best (the fewest pieces wrong; as given first): reversed (the sequence
+	// from its other end), keyReversed, swapped; seed and key, what was read
+	// at each place of the strings; wrong, the pieces that differ, in the order
+	// they were read: { pos (its place in the strings), turn (when it was
+	// read), column ("seed" or "key": where it was read) }.
+	function checkRead({ taps, keys = null, symbols, pad = null, keyRead = false }) {
+		const L = symbols.length, flips = [false, true];
+		let best = null;
+		for (const swapped of keyRead && keys ? flips : [false]) for (const reversed of flips) for (const keyReversed of keyRead && keys ? flips : [false]) {
+			const seedCol = swapped ? keys : taps, keyCol = swapped ? taps : keys, wrong = [], seed = [], key = [];
+			for (let p = 0; p < L; p++) {
+				const st = reversed ? L - 1 - p : p, kt = keyReversed ? L - 1 - p : p;
+				seed.push(seedCol[st]);
+				if (seedCol[st] !== symbols[p]) wrong.push({ pos: p, turn: st, column: swapped ? "key" : "seed" });
+				if (pad && keyCol) {
+					key.push(keyCol[kt]);
+					if (keyCol[kt] !== pad[p]) wrong.push({ pos: p, turn: kt, column: swapped ? "seed" : "key" });
+				}
+			}
+			if (!best || wrong.length < best.wrong.length)
+				best = { reversed, keyReversed, swapped, seed, key: pad && keyCol ? key : null, wrong: wrong.sort((a, b) => a.turn - b.turn || (a.column === "seed" ? -1 : 1)) };
+		}
+		return best;
+	}
+
+	return { BUY, PAD_BUY, EXPLAINED, turnStages, readStages, checkRead, buyFor, symbolsFor, slides, resolve, jump, pieces, nameProblem, checkOrder, throwParts };
 })();

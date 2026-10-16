@@ -147,6 +147,42 @@ const SeedcraftLayouts = (() => {
 		] };
 	}
 
+	// Choosing a piece while reading (a "+" tapped): the string's dictionary
+	// opened as buttons in a popup, under its question; its own canvas (view),
+	// lower the fewer kinds there are, so every button stays big enough to tap.
+	function pickerPopup({ n }) {
+		const view = { w: 420, h: n <= 4 ? 130 : n <= 8 ? 200 : 240 };
+		return { view, boxes: { picker: box(2, 2, view.w - 4, view.h - 4) } };
+	}
+	// Recovering, the end: the seed's QR code, whole and large, on the left; on
+	// the right what was found (and how it was read), its words, its fingerprint,
+	// and a note (where it is, what was put right).
+	function readFinal() {
+		return { boxes: {
+			guide: { ...GUIDE },
+			qr: box(24, 36, 290, 290),
+			title: box(340, 40, 316, 30),
+			words: box(340, 76, 316, 176),
+			fingerprint: box(340, 258, 316, 40),
+			note: box(340, 302, 316, 44),
+		}, arrows: [] };
+	}
+	// Checking a copy, the end: the QR code of your words and the one you read,
+	// side by side with = or ≠ between them, each named under it, and under
+	// both what it means. When they differ, on the right the strings as read
+	// around the piece that does not match, the row of each (as readTurn's) to frame it.
+	function checkFinal({ pad }) {
+		const piece = 41, top = 40, rowY = top + 3 * piece, b = {
+			guide: { ...GUIDE },
+			made: box(24, 44, 200, 200), sign: box(232, 119, 50, 50), read: box(290, 44, 200, 200),
+			madeLabel: box(24, 248, 200, 18), readLabel: box(290, 248, 200, 18),
+			result: box(24, 272, 466, 70),
+			seedColumn: box(510, top, 70, 7 * piece), seedRow: box(510, rowY, 70, piece),
+		};
+		if (pad) Object.assign(b, { keyColumn: box(590, top, 70, 7 * piece), keyRow: box(590, rowY, 70, piece) });
+		return { boxes: b, arrows: [] };
+	}
+
 	// The key's throw: the faces as buttons on the left (a coin's 2 up to a
 	// d20's 20, in a grid as square as the space allows), the instruction and
 	// the tools (undo, fix) under them, the bit tower in the middle with the
@@ -299,5 +335,5 @@ const SeedcraftLayouts = (() => {
 		}, columns, arrows: [] };
 	}
 
-	return { VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readTurn, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, fileRow, dictName, dictCheck, dictAsIs };
+	return { VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readTurn, pickerPopup, readFinal, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, fileRow, dictName, dictCheck, dictAsIs };
 })();
