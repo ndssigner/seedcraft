@@ -833,4 +833,6 @@ body { overflow: hidden; }
 	.slide-frame { width: auto; height: auto; font-size: inherit; box-shadow: none; background: none; overflow: visible; }
 	.slide-body, .slide-body.slide-legacy { position: static; width: auto; height: auto; overflow: visible; border: 0; background: none; }
 	.slide-top, .slide-question, .slide-foot, .slide-panel, .slide-scrim, .slide-popup-layer, .slide-turn { display: none !important; }
+	/* upright on a phone: the sheet still prints */
+	.lectern.upright .slide-frame { display: block; }
 }

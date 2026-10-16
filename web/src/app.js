@@ -414,7 +414,7 @@
 		Slides.setLang(st.lang);
 		// what scrolls inside a legacy slide (the map, the two columns) keeps its place across a redraw
 		const SCROLLERS = ".slide-legacy, .map, .flow-body, .flow-body .tool > .panel";
-		const view = [st.screen, st.step[st.screen], st.make.tab, st.make.key && st.make.key.by, st.plan.sub, st.edit && st.edit.kind].join();
+		const view = [st.screen, st.step[st.screen], st.make.tab, st.make.key && st.make.key.by, st.plan.sub, st.have && st.have.sub, st.edit && st.edit.kind].join();
 		const kept = view === lastView ? [...$("app").querySelectorAll(SCROLLERS)].map((e) => e.scrollTop) : [];
 		lastView = view;
 		Slides.show(slideNow(view));
