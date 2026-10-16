@@ -566,14 +566,20 @@ p.meta { margin: 0; }
 ol.trail { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; font-family: var(--mono); font-size: var(--fs-s); }
 ol.trail .again { color: var(--muted); }
 ol.trail .total { font-weight: 700; color: var(--pad); }
+/* the last throw's bits: those the piece takes, and those left over */
+ol.trail b { color: var(--pad); }
+ol.trail s { color: var(--muted); opacity: .7; }
 pre.pad-file span.on { background: var(--pad-soft); }
 .key-dict { border-top: 1px solid var(--line); padding-top: var(--sp-3); }
 @media (prefers-reduced-motion: reduce) { .die.rolling { animation: none; } .die.rolling .die-face { opacity: 1; } }
 
 /* the sequence turn by turn: the squares, their bits and number, the clock of N, the collection, the piece */
-.squares { display: inline-flex; gap: 3px; }
+.squares { display: inline-flex; gap: 6px; padding: 2px; }
 .sq { width: 22px; height: 22px; border: 1.5px solid #1c2826; border-radius: 3px; background: #ffffff; }
 .sq.on { background: #1c2826; }
+/* every square ringed in the theme's ink, so that a dark one shows on a dark page: 0011 is four squares */
+.sq { outline: 1px solid var(--muted); outline-offset: 1px; }
+.sq.header, .sq.padding { outline-style: dashed; }
 /* a bit of the header or of the padding: no square in the QR code */
 .sq.header, .sq.padding { border-style: dashed; border-color: var(--muted); }
 .sq.header.on, .sq.padding.on { background: var(--muted); }
@@ -582,6 +588,12 @@ pre.pad-file span.on { background: var(--pad-soft); }
 .bits-strip .arrow { color: var(--muted); }
 .bits-num { font-family: var(--book); font-size: var(--fs-xl); line-height: 1; }
 .turn-part { display: flex; flex-direction: column; gap: 4px; }
+/* a turn's back, where and on: at the top of the column, what is under it scrolling beneath
+   (on a phone the page scrolls, on a computer the column; between, the header is stuck above) */
+.turn-nav { position: sticky; top: 0; z-index: 3; background: var(--surface); padding: var(--sp-1) 0; border-bottom: 1px solid var(--line); }
+@media (min-width: 761px) { .turn-nav { top: 52px; } }
+@media (min-width: 880px) { .tool > .panel:first-child > .turn-nav { background: var(--paper); } }
+@media (min-width: 880px) and (min-height: 560px) { .flow-body .turn-nav { top: 0; } }
 .turn-key { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; align-items: center; border-left: 3px solid var(--pad); padding-left: 10px; }
 .key-line { align-items: center; gap: 8px; }
 .turn-sum { font-family: var(--mono); font-size: var(--fs-m); font-weight: 700; }

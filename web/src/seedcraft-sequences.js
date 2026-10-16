@@ -397,6 +397,14 @@ const SeedcraftSequences = (() => {
 		const draft = key.draft.concat(face), r = throwsToNumber(draft, sides, k);
 		return r ? keyAddPiece(key, r.value, key.by, draft, L) : { ...keyOf(key), draft };
 	}
+	// the last throw marked taken back: a face tapped by mistake, not a throw
+	// made again. Only the draft (of the first missing piece, or of the one
+	// being corrected); nothing to take back, the same key
+	function keyUndoThrow(key) {
+		const k = keyOf(key);
+		k.draft.pop();
+		return k;
+	}
 	// the places where two sequences differ (a longer one's extra places too):
 	// the pieces of a sequence that changed when its key did
 	function changedPieces(a, b) {
@@ -782,7 +790,7 @@ const SeedcraftSequences = (() => {
 		sha256, mnemonicToEntropy, entropyToMnemonic,
 		functionModules, templateModule, dataModulesRowMajor, compactSeedQR, encode, decode,
 		symbolsToBits, readSequence, decodeObjects, physicalSequence, piecesToBuy, rsCorrect,
-		PAD_DIGITS, PadFileError, newPad, DICE, diceBits, throwsToNumber, keyMove, keyAddPiece, keyAddThrow, keyFix, changedPieces, addPads, encrypt, decrypt, encodePad, decodePad, decodePadObjects,
+		PAD_DIGITS, PadFileError, newPad, DICE, diceBits, throwsToNumber, keyMove, keyAddPiece, keyAddThrow, keyUndoThrow, keyFix, changedPieces, addPads, encrypt, decrypt, encodePad, decodePad, decodePadObjects,
 		checkCharacter, writePadFile, readPadFile,
 		sizeFor, turnBits, clockStep, decodeTurns,
 	};
