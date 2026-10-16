@@ -377,6 +377,40 @@ for (const sides of [2, 4, 6, 8, 10, 12, 16, 20]) for (const bits of [1, 2, 3, 4
 	check(g.cols * g.rows >= sides && g.cols * g.rows - sides < g.cols && g.size >= 28, `throw d${sides}: room for every face, big enough to tap`);
 	check(g.cols * g.size + (g.cols - 1) * g.gap <= lay.boxes.faces.w && g.rows * g.size + (g.rows - 1) * g.gap <= lay.boxes.faces.h, `throw d${sides}: the buttons fit their box`);
 }
+// the throw with a bag, the device, a key file; each face's button, the thrown faces' places, the file's row
+for (const bits of [1, 2, 3, 4, 5]) for (const file of [false, true]) {
+	for (const tool of ["bag", "device"]) {
+		const lay = Lay.keyThrow({ bits, tool, file });
+		checkLayout(`throw ${tool} bits=${bits} file=${file}`, lay);
+		check(tool === "bag" ? !lay.boxes.tower && !lay.boxes.faces && lay.boxes.picker.w >= 300 && lay.boxes.picker.h >= 160 && !lay.arrows.some((a) => a.id === "number")
+			: !lay.boxes.faces && lay.boxes.die.w >= 80 && lay.boxes.tower.h >= bits * 16, `throw ${tool} bits=${bits}: its own box instead of the faces`);
+	}
+	for (const sides of [2, 6, 20]) {
+		const lay = Lay.keyThrow({ sides, bits, file });
+		checkLayout(`throw d${sides} bits=${bits} file=${file}`, lay);
+		check(file ? !lay.boxes.keyDict && !lay.boxes.piece && lay.arrows.map((a) => a.id).join() === "number,slot" && lay.arrows[1].from === "number"
+			: lay.arrows.map((a) => a.id).join() === "number,dict,piece,slot", `throw d${sides} bits=${bits} file=${file}: the arrows in order`);
+	}
+}
+for (const sides of [2, 4, 6, 8, 10, 12, 16, 20]) {
+	const lay = Lay.keyThrow({ sides, bits: 4 }), fb = Array.from({ length: sides }, (_, i) => Lay.faceBox(lay, i));
+	check(fb.every((b) => contains(lay.boxes.faces, b)) && fb.every((b, i) => fb.slice(i + 1).every((c) => !overlap(b, c))), `throw d${sides}: each face's button in the grid, apart`);
+	const b = Math.floor(Math.log2(sides));
+	for (const n of [2, 4, 8, 16, 32]) {
+		const k = Math.log2(n), l = Lay.keyThrow({ sides, bits: k }), used = [];
+		for (let from = 0; from < k; from += b) used.push({ at: used.length, from, to: Math.min(k, from + b) });
+		const marks = Lay.throwMarks(l, { bits: k, used, rejected: Array.from({ length: 9 }, (_, i) => 10 + i) });
+		check(marks.used.every((m) => contains(l.boxes.dice, m.face) && m.face.w >= 14 && m.label[0] > l.boxes.dice.x + 8), `throw d${sides} N=${n}: each face that counts beside its bits, with room for its number`);
+		check(marks.used.every((m, i) => marks.used.slice(i + 1).every((o) => !overlap(m.face, o.face))), `throw d${sides} N=${n}: the faces that count apart`);
+		check(marks.rejected.length >= 4 && marks.rejected.every((m) => contains(l.boxes.rejected, m.face) && m.label[1] <= l.boxes.rejected.y + l.boxes.rejected.h)
+			&& marks.rejected[marks.rejected.length - 1].at === 18, `throw d${sides} N=${n}: the faces thrown again aside, the last ones`);
+	}
+}
+for (const pos of [0, 3, 15, 16, 53, 90]) {
+	const r = Lay.fileRow(pos), x = r.xs[r.col], built = Lay.keyThrow({ sides: 6, file: true }).boxes;
+	check(r.row === Math.floor(pos / 16) && x === built.keySlot.x + built.keySlot.w / 2 && r.xs.every((v) => v - 7 >= built.keyString.x && v + 7 <= built.keyString.x + built.keyString.w)
+		&& r.xs[4] - r.xs[3] === 28 && r.xs[16] - r.xs[15] === 28, `fileRow ${pos}: its place under the slot, in groups of 4, the check after them, inside the string's box`);
+}
 // your own dictionary: naming, checking, as it is
 check(Lay.binary(5, 16).join("") === "0101" && Lay.binary(0, 2).join("") === "0" && Lay.binary(31, 32).join("") === "11111" && Lay.binary(2, 4).join("") === "10"
 	&& [2, 4, 8, 16, 32].every((n) => Lay.binary(n - 1, n).length === Lay.bitsOf(n)), "binary: as many bits as N takes (bitsOf), the highest first");
@@ -648,6 +682,19 @@ check(Lay.keyThrow({ sides: 6 }).faces.cols === 3 && Lay.keyThrow({ sides: 6 }).
 	}
 	check(J.checkOrder(4, () => 0.999999).join() !== "0,1,2,3" || J.checkOrder(4, () => 0).join() !== "0,1,2,3", "checkOrder: shuffled");
 	check(J.checkOrder(3, () => 1).length === 3 && J.checkOrder(1, Math.random).join() === "0", "checkOrder: a random() of 1 stays in range; one piece, one number");
+	// the key's throw: the throws read as throwsToNumber reads them
+	let seed = 11;
+	const rnd = (m) => { seed = (seed * 48271) % 2147483647; return seed % m; };
+	for (const sides of [2, 4, 6, 8, 10, 12, 16, 20]) for (const n of [2, 4, 8, 16, 32]) for (let rep = 0; rep < 30; rep++) {
+		const k = Math.log2(n), throws = Array.from({ length: rnd(12) }, () => rnd(sides)), p = J.throwParts(throws, sides, k), r = S.throwsToNumber(throws, sides, k);
+		const ok = r ? p.done && p.bits.join() === r.bits.join() && p.used.map((u) => u.at).join() === r.used.join() && p.rejected.join() === r.rejected.join()
+			: !p.done && p.bits.length < k;
+		check(ok && p.used.every((u, i) => u.from === (i ? p.used[i - 1].to : 0) && u.to > u.from && throws[u.at] === u.face), `throwParts d${sides} N=${n} ${throws}: as throwsToNumber`);
+	}
+	const d6 = J.throwParts([5, 2, 4, 1, 3], 6, 4);
+	check(d6.done && d6.rejected.join() === "0,2" && d6.used.map((u) => `${u.at}:${u.from}-${u.to}`).join() === "1:0-2,3:2-4" && d6.bits.join("") === "1001", "throwParts d6 N=16: 5 and 4 thrown again, 2 and 1 give 10 01");
+	const d20 = J.throwParts([19, 9, 17, 3], 20, 5);
+	check(d20.done && d20.used.map((u) => `${u.from}-${u.to}`).join() === "0-4,4-5" && d20.rejected.join() === "0,2", "throwParts d20 N=32: four bits, then only one of the next throw");
 }
 console.log(`${failures ? "FAIL" : "ok"}: ${vectors.length} vectors, ${padVectors.length} pad vectors, ${failures} failures`);
 process.exit(failures ? 1 : 0);

@@ -333,7 +333,6 @@ ul.list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; 
 ul.checks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 ul.checks label { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; max-width: 68ch; }
 ul.checks input { margin-top: 4px; accent-color: var(--accent); }
-pre.pad-file { border-left: 4px solid var(--pad); }
 
 /* the start page: two doors, and the two journeys as they will go */
 .doors .btn { min-width: 12em; }
@@ -533,32 +532,9 @@ p.meta { margin: 0; }
 	.forms.two { grid-template-columns: 1fr; }
 }
 
-/* the key, piece by piece: who draws it, the die, the faces to mark, the throws so far */
+/* choosing the key's way of drawing */
 .choice .glyph { font-size: 30px; line-height: 1; }
 .key-method { gap: 6px; align-items: center; }
-.key-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 24px 0; }
-.key-empty .art { max-width: 160px; }
-.die { width: 96px; height: 96px; display: block; }
-.key-by .die { width: 40px; height: 40px; }
-.die-body { fill: var(--surface); stroke: var(--pad); stroke-width: 4; }
-.die-face { font-family: var(--mono); font-size: 40px; font-weight: 700; fill: var(--fg); }
-.die.rolling { animation: die-roll 600ms cubic-bezier(.2, .7, .3, 1); }
-@keyframes die-roll { from { transform: rotate(0deg) scale(.85); } to { transform: rotate(720deg) scale(1); } }
-.die.rolling .die-face { opacity: .4; }
-.key-by { align-items: center; gap: 8px; }
-.faces { display: flex; flex-wrap: wrap; gap: 6px; }
-.faces .face { min-width: 2.75em; padding-left: 8px; padding-right: 8px; font-variant-numeric: tabular-nums; }
-.palette { display: flex; flex-wrap: wrap; gap: 4px; }
-.palette .pal { border: 1px solid var(--line); background: var(--surface); border-radius: var(--r-m); padding: 2px; cursor: pointer; }
-.palette .pal:hover { border-color: var(--pad); }
-ol.trail { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; font-family: var(--mono); font-size: var(--fs-s); }
-ol.trail .again { color: var(--muted); }
-ol.trail .total { font-weight: 700; color: var(--pad); }
-/* the last throw's bits: those the piece takes, and those left over */
-ol.trail b { color: var(--pad); }
-ol.trail s { color: var(--muted); opacity: .7; }
-pre.pad-file span.on { background: var(--pad-soft); }
-@media (prefers-reduced-motion: reduce) { .die.rolling { animation: none; } .die.rolling .die-face { opacity: 1; } }
 
 /* the sequence turn by turn: the squares, their bits and number, the clock of N, the collection, the piece */
 .squares { display: inline-flex; gap: 6px; padding: 2px; }
@@ -888,6 +864,26 @@ body { overflow: hidden; }
 .dict-actions .dict-forget { color: var(--err); margin-top: auto; }
 .dict-colours h2 { margin: 0 0 .5em; font-size: 1.2em; }
 .dict-colours .swatches { max-width: calc(var(--u) * 300); }
+/* the key's throw: the canvas (layouts.js's keyThrow) and, over it, each on its box:
+   the faces as buttons (or the device's die), what to do now, the tools */
+.kt-face, .kt-instr, .kt-tools { position: absolute; z-index: 1; box-sizing: border-box; }
+.kt-face .v-die { width: 100%; height: 100%; }
+.kt-instr { margin: 0; display: flex; align-items: center; font-weight: 600; font-size: 1.05em; line-height: 1.15; overflow: hidden; }
+.kt-instr.ready { color: var(--key); }
+.kt-tools { display: flex; flex-wrap: wrap; align-items: center; gap: calc(var(--u) * 5); overflow: hidden; }
+.kt-tools .btn { font-size: .85em; padding: .25em .7em; }
+.kt-wait { opacity: .35; }
+.kt-off { opacity: .55; pointer-events: none; }
+.kt-brace { fill: none; stroke: var(--key); stroke-width: 1.6; }
+.kt-join { fill: none; stroke: var(--key); stroke-width: 1.2; }
+.kt-order { fill: var(--muted); }
+.kt-again { opacity: .45; }
+.kt-again .kt-order { fill: var(--fg); }
+.kt-info { fill: var(--muted); }
+.kt-file-before, .kt-file-hole { fill: var(--muted); }
+.kt-file-now { fill: var(--key); }
+.kt-file-check { fill: var(--muted); font-style: italic; }
+.kt-file-slot { fill: var(--key-soft); stroke: var(--key); stroke-width: 1.4; }
 /* «?»: what to think of */
 .slide-help h2 { margin: 0 0 .5em; font-size: 1.2em; }
 .slide-help p { margin: 0 0 .5em; }
