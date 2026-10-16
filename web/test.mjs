@@ -304,41 +304,80 @@ check(threw, "route refuses a diagonal");
 check(Lay.segmentHitsBox([0, 5], [20, 5], { x: 5, y: 0, w: 5, h: 10 }) && !Lay.segmentHitsBox([0, 0], [20, 0], { x: 5, y: 0, w: 5, h: 10 }), "segment vs box");
 const inside = (b) => b.x >= 0 && b.y >= 0 && b.x + b.w <= Lay.VIEW.w && b.y + b.h <= Lay.VIEW.h;
 const overlap = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+const contains = (a, b) => b.x >= a.x && b.y >= a.y && b.x + b.w <= a.x + a.w && b.y + b.h <= a.y + a.h;
+const len = ([a, b]) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]);
 // two straight segments meet (touching counts): arrows never cross nor touch each other
 const meet = ([a, b], [c, d]) => Math.max(Math.min(a[0], b[0]), Math.min(c[0], d[0])) <= Math.min(Math.max(a[0], b[0]), Math.max(c[0], d[0]))
 	&& Math.max(Math.min(a[1], b[1]), Math.min(c[1], d[1])) <= Math.min(Math.max(a[1], b[1]), Math.max(c[1], d[1]));
+// two parallel segments closer than 12 px whose spans overlap or come within 24 px read as one line
+const tooNear = ([a, b], [c, d]) => {
+	const h1 = a[1] === b[1], h2 = c[1] === d[1];
+	if (h1 !== h2) return false;
+	const [along, across] = h1 ? [0, 1] : [1, 0];
+	const gap = Math.max(Math.min(a[along], b[along]), Math.min(c[along], d[along])) - Math.min(Math.max(a[along], b[along]), Math.max(c[along], d[along]));
+	return Math.abs(a[across] - c[across]) < 12 && gap < 24;
+};
 const segments = (a) => a.points.slice(1).map((p, i) => [a.points[i], p]);
-const checkArrows = (name, lay) => {
+const checkLayout = (name, lay) => {
+	check(Object.values(lay.boxes).every(inside), `${name} fits`);
+	// boxes never overlap, except a frame around a row and a slot in its string
+	const ids = Object.keys(lay.boxes);
+	ids.forEach((i, k) => ids.slice(k + 1).forEach((j) => {
+		const a = lay.boxes[i], b = lay.boxes[j];
+		if (i !== "row" && j !== "row" && !contains(a, b) && !contains(b, a)) check(!overlap(a, b), `${name} boxes ${i} and ${j} apart`);
+	}));
 	for (const a of lay.arrows) {
 		Lay.route(a.points);
 		check(a.from in lay.boxes && a.to in lay.boxes && (a.colour === "qr" || a.colour === "key"), `${name} arrow ${a.id} joins two boxes, in a colour`);
 		check(a.points.every(([x, y]) => x >= 0 && y >= 0 && x <= Lay.VIEW.w && y <= Lay.VIEW.h), `${name} arrow ${a.id} fits`);
+		const segs = segments(a);
+		check(segs.reduce((s, g) => s + len(g), 0) >= 16 && len(segs[segs.length - 1]) >= 12, `${name} arrow ${a.id} long enough to read`);
 		for (let i = 1; i < a.points.length; i++) for (const [id, b] of Object.entries(lay.boxes))
 			if (id !== a.from && id !== a.to && !overlap(b, lay.boxes[a.from]) && !overlap(b, lay.boxes[a.to]))
 				check(!Lay.segmentHitsBox(a.points[i - 1], a.points[i], b), `${name} arrow ${a.id} clear of ${id}`);
 	}
-	lay.arrows.forEach((a, i) => lay.arrows.slice(i + 1).forEach((b) =>
-		check(!segments(a).some((s) => segments(b).some((t) => meet(s, t))), `${name} arrows ${a.id} and ${b.id} apart`)));
+	lay.arrows.forEach((a, i) => lay.arrows.slice(i + 1).forEach((b) => {
+		check(!segments(a).some((s) => segments(b).some((t) => meet(s, t))), `${name} arrows ${a.id} and ${b.id} apart`);
+		// (two arrows chained through a box are kept apart by the box)
+		if (a.to !== b.from && b.to !== a.from)
+			check(!segments(a).some((s) => segments(b).some((t) => tooNear(s, t))), `${name} arrows ${a.id} and ${b.id} not side by side`);
+	}));
 };
+const ends = (a) => a.points[a.points.length - 1], starts = (a) => a.points[0];
+const onBorder = ([x, y], b) => (x === b.x || x === b.x + b.w) && y >= b.y && y <= b.y + b.h || (y === b.y || y === b.y + b.h) && x >= b.x && x <= b.x + b.w;
+const inCell = ([x, y], c) => onBorder([x, y], c);
 for (const n of [2, 4, 8, 16, 32]) for (const pad of [false, true]) {
 	for (const [name, lay] of [["make", Lay.makeTurn({ pad, n })], ["read", Lay.readTurn({ pad, n })]]) {
-		check(Object.values(lay.boxes).every(inside), `${name} n=${n} pad=${pad} fits`);
-		checkArrows(`${name} n=${n} pad=${pad}`, lay);
-		const keyed = ["keyString", "keyDict", "keyNumber", "keyColumn", "clock"].filter((k) => k in lay.boxes);
-		check(pad ? keyed.length === (name === "make" ? 4 : 2) : keyed.length === 0, `${name} n=${n} pad=${pad} has the key only with a key`);
+		checkLayout(`${name} n=${n} pad=${pad}`, lay);
+		for (const a of lay.arrows) check(onBorder(starts(a), lay.boxes[a.from]) && onBorder(ends(a), lay.boxes[a.to]), `${name} n=${n} pad=${pad} arrow ${a.id} leaves and reaches its boxes`);
+		const keyed = ["keyString", "keyDict", "keyNumber", "keyColumn", "keySlot", "clock"].filter((k) => k in lay.boxes);
+		check(pad ? keyed.length === (name === "make" ? 4 : 3) : keyed.length === 0, `${name} n=${n} pad=${pad} has the key only with a key`);
+		check("seedSlot" in lay.boxes && contains(lay.boxes[name === "make" ? "seedString" : "seedColumn"], lay.boxes.seedSlot), `${name} n=${n} pad=${pad} the turn's slot is in its string`);
+		if (pad) {
+			const m = Lay.clockModule(lay.boxes.clock), into = (id) => ends(lay.arrows.find((a) => a.id === id));
+			check(inCell(into("clockSeed"), m.inputs[0]) && inCell(into("clockKey"), m.inputs[1]), `${name} n=${n}: each number enters its own input cell`);
+		}
 	}
-	check(Lay.makeTurn({ pad, n }).boxes.bits.w >= Math.log2(n) * 16, `make n=${n} bits wide enough`);
+	const make = Lay.makeTurn({ pad, n });
+	check(make.boxes.bits.w >= Math.log2(n) * 16, `make n=${n} bits wide enough`);
+	check(make.arrows.find((a) => a.id === "position").from === "seedSlot" && make.arrows.find((a) => a.id === "slot").to === "seedSlot", `make n=${n} pad=${pad}: the cycle starts and ends at the slot`);
+	if (pad) check(contains(Lay.readTurn({ pad, n }).boxes.keyColumn, Lay.readTurn({ pad, n }).boxes.keySlot), `read n=${n}: the key's slot is in its column`);
 }
 check(Lay.makeTurn({ pad: true, n: 16 }).arrows.map((a) => a.id).join() === "position,bits,number,keyPiece,keyNumber,clockSeed,clockKey,output,slot", "make: the arrows in the cycle's order");
 check(Lay.makeTurn({ pad: false, n: 16 }).arrows.map((a) => a.id).join() === "position,bits,number,dict,slot", "make simple: the arrows in the cycle's order");
 for (const sides of [2, 4, 6, 8, 10, 12, 16, 20]) { const lay = Lay.keyThrow({ sides }); check(Object.values(lay.boxes).every(inside), "throw d" + sides + " fits"); }
-for (const sides of [2, 4, 6, 8, 10, 12, 16, 20]) {
-	const lay = Lay.keyThrow({ sides }), g = lay.faces;
-	checkArrows("throw d" + sides, lay);
+for (const sides of [2, 4, 6, 8, 10, 12, 16, 20]) for (const bits of [1, 2, 3, 4, 5]) {
+	const lay = Lay.keyThrow({ sides, bits }), g = lay.faces;
+	checkLayout(`throw d${sides} bits=${bits}`, lay);
+	check(lay.boxes.tower.h >= bits * 16 && contains(lay.boxes.keyString, lay.boxes.keySlot) && lay.arrows.find((a) => a.id === "slot").to === "keySlot", `throw d${sides} bits=${bits}: the tower and the slot`);
 	check(g.cols * g.rows >= sides && g.cols * g.rows - sides < g.cols && g.size >= 28, `throw d${sides}: room for every face, big enough to tap`);
 	check(g.cols * g.size + (g.cols - 1) * g.gap <= lay.boxes.faces.w && g.rows * g.size + (g.rows - 1) * g.gap <= lay.boxes.faces.h, `throw d${sides}: the buttons fit their box`);
 }
 check(Lay.keyThrow({ sides: 6 }).faces.cols === 3 && Lay.keyThrow({ sides: 6 }).faces.rows === 2, "throw d6: three by two");
+{
+	const s = Lay.makeTurn({ pad: true, n: 16 }).boxes.seedString, k = Lay.keyThrow({ sides: 6 }).boxes.keyString;
+	check(s.h === k.h && s.y === k.y, "the string being built is the same element in the turn and the throw");
+}
 {
 	const box = { x: 444, y: 32, w: 140, h: 170 }, m = Lay.clockModule(box);
 	const within = (b) => b.x >= box.x && b.y >= box.y && b.x + b.w <= box.x + box.w && b.y + b.h <= box.y + box.h;

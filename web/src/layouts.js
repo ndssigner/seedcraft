@@ -41,84 +41,95 @@ const SeedcraftLayouts = (() => {
 
 	const arrow = (id, from, to, colour, points) => ({ id, from, to, colour, points });
 
+	// The string being built (the seed in its turn, the key in its throw) is one
+	// element: bottom, full width, 13 pieces, the turn's slot in the middle.
+	const BUILT = box(20, 296, 640, 44), SLOT = box(316, 296, 48, 44);
+
 	// The turn while making the copy. Bottom to top, left to right: the seed
-	// string being built (full width), its position → the QR → its bits → their
+	// string being built, its slot's position → the QR → its bits → their
 	// number; with a key, the key string's piece → its dictionary → its number,
-	// both numbers → the clock → the seed's dictionary → the slot. The slot is the
-	// middle of the seed string, so arrows leave and reach it at x 334 and 346.
+	// both numbers → the clock → the seed's dictionary → the slot.
 	function makeTurn({ pad, n }) {
 		const bits = bitsOf(n);
 		const b = {
 			qr: box(20, 45, 95, 95),
-			bits: box(130, 60, bits * BIT, BIT),
-			number: box(130, 95, 60, 36),
-			seedString: box(20, 300, 640, 40),
+			bits: box(135, 56, bits * BIT, BIT),
+			number: box(135, 94, 60, 36),
+			seedString: { ...BUILT },
+			seedSlot: { ...SLOT },
 		};
 		const arrows = [
-			arrow("position", "seedString", "qr", "qr", [[334, 300], [334, 292], [67, 292], [67, 140]]),
-			arrow("bits", "qr", "bits", "qr", [[115, 71], [130, 71]]),
-			arrow("number", "bits", "number", "qr", [[150, 82], [150, 95]]),
+			arrow("position", "seedSlot", "qr", "qr", [[328, 296], [328, 284], [67, 284], [67, 140]]),
+			arrow("bits", "qr", "bits", "qr", [[115, 67], [135, 67]]),
+			arrow("number", "bits", "number", "qr", [[155, 78], [155, 94]]),
 		];
 		if (!pad) {
-			b.seedDict = box(297, 77, 86, 72);
+			b.seedDict = box(297, 76, 86, 72);
 			arrows.push(
-				arrow("dict", "number", "seedDict", "qr", [[190, 113], [297, 113]]),
-				arrow("slot", "seedDict", "seedString", "qr", [[346, 149], [346, 300]]));
+				arrow("dict", "number", "seedDict", "qr", [[195, 112], [297, 112]]),
+				arrow("slot", "seedDict", "seedSlot", "qr", [[352, 148], [352, 296]]));
 			return { boxes: b, arrows };
 		}
-		// the key string is a reference: vertical, its turn piece in the middle (y 160)
+		// the key string is a reference: vertical, its turn piece in the middle (y 145)
 		Object.assign(b, {
-			keyString: box(268, 45, 34, 230),
-			keyDict: box(316, 124, 86, 72),
-			keyNumber: box(316, 204, 86, 30),
-			clock: box(444, 32, 140, 170),
-			seedDict: box(470, 212, 86, 70),
+			keyString: box(268, 45, 34, 200),
+			keyDict: box(320, 109, 86, 72),
+			keyNumber: box(320, 197, 86, 30),
+			clock: box(452, 32, 140, 154),
+			seedDict: box(479, 204, 86, 48),
 		});
+		const keyIn = clockModule(b.clock).inputs[1], keyX = keyIn.x + keyIn.w / 2;
 		arrows.push(
-			arrow("keyPiece", "keyString", "keyDict", "key", [[302, 160], [316, 160]]),
-			arrow("keyNumber", "keyDict", "keyNumber", "key", [[359, 196], [359, 204]]),
-			// the seed's number climbs above everything and enters the input band's side
-			arrow("clockSeed", "number", "clock", "qr", [[190, 113], [255, 113], [255, 28], [430, 28], [430, 40], [444, 40]]),
-			// the key's number runs up the corridor between its dictionary and the module
-			arrow("clockKey", "keyNumber", "clock", "key", [[402, 219], [423, 219], [423, 52], [444, 52]]),
-			arrow("output", "clock", "seedDict", "qr", [[513, 202], [513, 212]]),
-			arrow("slot", "seedDict", "seedString", "qr", [[513, 282], [513, 292], [346, 292], [346, 300]]));
+			arrow("keyPiece", "keyString", "keyDict", "key", [[302, 145], [320, 145]]),
+			arrow("keyNumber", "keyDict", "keyNumber", "key", [[363, 181], [363, 197]]),
+			// the seed's number goes under the key and up the outer corridor into its
+			// (left) input cell; the key's runs up the inner corridor and over the top
+			// into its own (right) cell: so the two never cross
+			arrow("clockSeed", "number", "clock", "qr", [[165, 130], [165, 260], [436, 260], [436, 46], [452, 46]]),
+			arrow("clockKey", "keyNumber", "clock", "key", [[406, 212], [420, 212], [420, 14], [keyX, 14], [keyX, keyIn.y]]),
+			arrow("output", "clock", "seedDict", "qr", [[522, 186], [522, 204]]),
+			arrow("slot", "seedDict", "seedSlot", "qr", [[522, 252], [522, 272], [352, 272], [352, 296]]));
 		return { boxes: b, arrows };
 	}
 
 	// The turn while recovering: what is built is the QR, large on the right.
 	// The strings read are vertical and side by side on the left, 7 pieces each,
-	// the turn's row (the middle one) framed; every arrow leaves from that frame.
+	// the turn's row (the middle one) framed, with a "+" slot per string; every
+	// arrow leaves from that frame, each down its own corridor (x 188, 200, 212).
 	function readTurn({ pad, n }) {
-		const bits = bitsOf(n), piece = 41, top = 40;
+		const bits = bitsOf(n), piece = 41, top = 40, rowY = top + 3 * piece;
 		const b = {
 			seedColumn: box(20, top, 70, 7 * piece),
-			qr: box(480, 70, 180, 180),
+			seedSlot: box(24, rowY + 2, 36, piece - 4),
+			qr: box(490, 75, 170, 170),
 		};
-		const rowY = top + 3 * piece;
+		const toQr = (x) => [[x, 40], [575, 40], [575, b.qr.y]];
 		if (!pad) {
 			b.row = box(14, rowY, 82, piece);
-			b.bits = box(220, rowY + 12, bits * BIT, BIT);
-			const y = rowY + 23, right = b.bits.x + b.bits.w;
+			const y = rowY + 27;
+			b.bits = box(220, y - BIT / 2, bits * BIT, BIT);
 			return { boxes: b, arrows: [
-				arrow("position", "row", "qr", "qr", [[96, rowY + 9], [110, rowY + 9], [110, 40], [570, 40], [570, 70]]),
+				arrow("position", "row", "qr", "qr", [[96, rowY + 9], [110, rowY + 9], ...toQr(110)]),
 				arrow("bits", "row", "bits", "qr", [[96, y], [220, y]]),
-				arrow("paint", "bits", "qr", "qr", [[right, y], [480, y]]),
+				arrow("paint", "bits", "qr", "qr", [[220 + bits * BIT, y], [b.qr.x, y]]),
 			] };
 		}
 		Object.assign(b, {
 			keyColumn: box(100, top, 70, 7 * piece),
+			keySlot: box(104, rowY + 2, 36, piece - 4),
 			row: box(14, rowY, 162, piece),
-			clock: box(220, 90, 140, 170),
+			clock: box(228, 90, 120, 150),
 		});
-		const out = clockModule(b.clock).output, outY = out.y + out.h / 2;
-		b.bits = box(368, outY - BIT / 2, bits * BIT, BIT);
+		const m = clockModule(b.clock), [seedIn, keyIn] = m.inputs;
+		const outY = Math.round(m.output.y + m.output.h / 2), keyX = keyIn.x + keyIn.w / 2;
+		b.bits = box(364, outY - BIT / 2, bits * BIT, BIT);
+		// the key's number goes over the top into its own (right) cell
 		return { boxes: b, arrows: [
-			arrow("position", "row", "qr", "qr", [[176, rowY + 9], [192, rowY + 9], [192, 40], [570, 40], [570, 70]]),
-			arrow("clockSeed", "row", "clock", "qr", [[176, rowY + 23], [204, rowY + 23], [204, 100], [220, 100]]),
-			arrow("clockKey", "row", "clock", "key", [[176, rowY + 33], [210, rowY + 33], [210, 112], [220, 112]]),
-			arrow("bits", "clock", "bits", "qr", [[360, outY], [368, outY]]),
-			arrow("paint", "bits", "qr", "qr", [[368 + bits * BIT, outY], [480, outY]]),
+			arrow("position", "row", "qr", "qr", [[176, rowY + 9], [188, rowY + 9], ...toQr(188)]),
+			arrow("clockSeed", "row", "clock", "qr", [[176, rowY + 33], [212, rowY + 33], [212, seedIn.y + 15], [228, seedIn.y + 15]]),
+			arrow("clockKey", "row", "clock", "key", [[176, rowY + 21], [200, rowY + 21], [200, 74], [keyX, 74], [keyX, keyIn.y]]),
+			arrow("bits", "clock", "bits", "qr", [[348, outY], [364, outY]]),
+			arrow("paint", "bits", "qr", "qr", [[364 + bits * BIT, outY], [b.qr.x, outY]]),
 		] };
 	}
 
@@ -126,30 +137,32 @@ const SeedcraftLayouts = (() => {
 	// d20's 20, in a grid as square as the space allows), the instruction under
 	// them, the bit tower in the middle with the thrown faces on its left, then
 	// brace → number → the key's dictionary → the piece → its slot in the key
-	// string being built, at the bottom and full width.
+	// string being built. That row stays at the middle of a 5-bit tower,
+	// whatever N, so it never climbs into the question.
 	function keyThrow({ sides, bits = 5 }) {
 		const cols = sides <= 2 ? 2 : sides <= 6 ? 3 : sides <= 12 ? 4 : 5;
 		const rows = Math.ceil(sides / cols), gap = 6, area = { w: 180, h: 190 };
 		const size = Math.floor(Math.min(56, (area.w - gap * (cols - 1)) / cols, (area.h - gap * (rows - 1)) / rows));
 		const faces = box(20, 48, cols * size + (cols - 1) * gap, rows * size + (rows - 1) * gap);
-		const tower = box(330, 48, 28, bits * BIT), mid = Math.round(tower.y + tower.h / 2);
+		const mid = 48 + 5 * BIT / 2, h = bits * BIT, y = mid - h / 2;
 		const b = {
 			question: box(190, 4, 300, 34),
 			faces,
 			instruction: box(20, faces.y + faces.h + 10, 180, 24),
-			dice: box(222, 48, 100, tower.h),
-			tower,
-			brace: box(362, 48, 16, tower.h),
-			number: box(386, mid - 20, 56, 40),
-			keyDict: box(460, mid - 36, 86, 72),
-			piece: box(566, mid - 25, 80, 50),
-			keyString: box(20, 290, 640, 50),
+			dice: box(222, y, 100, h),
+			tower: box(330, y, 28, h),
+			brace: box(362, y, 16, h),
+			number: box(394, mid - 20, 56, 40),
+			keyDict: box(466, mid - 36, 86, 72),
+			piece: box(568, mid - 25, 76, 50),
+			keyString: { ...BUILT },
+			keySlot: { ...SLOT },
 		};
 		return { boxes: b, faces: { cols, rows, size, gap }, arrows: [
-			arrow("number", "brace", "number", "key", [[378, mid], [386, mid]]),
-			arrow("dict", "number", "keyDict", "key", [[442, mid], [460, mid]]),
-			arrow("piece", "keyDict", "piece", "key", [[546, mid], [566, mid]]),
-			arrow("slot", "piece", "keyString", "key", [[606, mid + 25], [606, 270], [340, 270], [340, 290]]),
+			arrow("number", "brace", "number", "key", [[378, mid], [394, mid]]),
+			arrow("dict", "number", "keyDict", "key", [[450, mid], [466, mid]]),
+			arrow("piece", "keyDict", "piece", "key", [[552, mid], [568, mid]]),
+			arrow("slot", "piece", "keySlot", "key", [[606, mid + 25], [606, 276], [352, 276], [352, 296]]),
 		] };
 	}
 
