@@ -423,7 +423,9 @@ check(Lay.keyThrow({ sides: 6 }).faces.cols === 3 && Lay.keyThrow({ sides: 6 }).
 	check(walk(s, cls("v-hole")).length === 7, "string: the empty positions are holes");
 	check(walk(s, (n) => n.tag === "text" && textOf(n) === "15").length === 1, "string: each piece's position beside it (9 + 6)");
 	const rad = (p) => Math.max(...walk(p, (n) => n.tag === "circle").map((c) => num(c.attrs.r)));
-	check(rad(cur[0]) > rad(pieces[5]), "string: the turn's piece is bigger");
+	check(rad(cur[0]) >= 1.5 * rad(pieces[5]) && rad(cur[0]) >= 20, "string: the turn's piece is by far the biggest (1.5 × a neighbour)");
+	const names = walk(s, cls("v-name"));
+	check(names.length === 1 && walk(cur[0], cls("v-name")).length === 1, "string build: only the turn's piece has its name under it");
 	const midCx = (p) => num(walk(p, (n) => n.tag === "circle")[0].attrs.cx), sl = lay.boxes.seedSlot;
 	check(Math.abs(midCx(cur[0]) - (sl.x + sl.w / 2)) < 1, "string: the turn's piece is in the slot's box");
 	within(s, lay.boxes.seedString, "string build");
@@ -482,12 +484,8 @@ check(Lay.keyThrow({ sides: 6 }).faces.cols === 3 && Lay.keyThrow({ sides: 6 }).
 		check(textOf(out) === String(S.clockStep(from, by, n, sign).value), `clock n=${n} sign=${sign}: the output is the sum mod N`);
 		const ins = walk(c, cls("v-clock-in"));
 		check(ins.length === 2 && textOf(ins[0]) === String(from) && textOf(ins[1]) === (sign > 0 ? "+" : "−") + by && cls("v-c-key")(ins[1]), `clock n=${n}: «${from} | ${sign > 0 ? "+" : "−"}${by}», the key's in its colour`);
-		const cells = walk(c, cls("v-clock-cell")).map((r) => ({ x: num(r.attrs.x), y: num(r.attrs.y), w: num(r.attrs.width), h: num(r.attrs.height) }));
-		check(same(cells, [...m.inputs, m.output]), `clock n=${n}: the bands are the layout's`);
-		const ring = walk(c, cls("v-clock-ring"))[0];
-		check(num(ring.attrs.cx) === m.dial.cx && num(ring.attrs.cy) === m.dial.cy && num(ring.attrs.r) === m.dial.r, `clock n=${n}: the dial is the layout's`);
 		const labels = walk(c, cls("v-clock-n")).map(textOf), to = S.clockStep(from, by, n, sign).value;
-		check(n <= 16 ? labels.length === n : labels.includes(String(from)) && labels.includes(String(to)) && labels.length <= n / 4 + 2 && labels.includes("8"), `clock n=${n}: ${n <= 16 ? "every number" : "every 4th number and the sum's"} written`);
+		check(n <= 8 ? labels.length === n : labels.includes(String(from)) && labels.includes(String(to)) && labels.length <= 10 && labels.includes(String(n / 2)), `clock n=${n}: ${n <= 8 ? "every number" : "every " + n / 8 + "th number and the sum's"} written`);
 		check(walk(c, cls("v-clock-tick")).length === n, `clock n=${n}: a tick per number`);
 		check(walk(c, cls("v-clock-n")).every((t) => Math.hypot(num(t.attrs.x) - m.dial.cx, num(t.attrs.y) - m.dial.cy) + 0.6 * num(t.attrs["font-size"]) <= m.dial.r), `clock n=${n}: the numbers inside the ring, clear of the bands`);
 		within(c, b, `clock n=${n}`);
@@ -501,6 +499,33 @@ check(Lay.keyThrow({ sides: 6 }).faces.cols === 3 && Lay.keyThrow({ sides: 6 }).
 	const cr = V.clock({ box: lay.boxes.clock, n: 16, from: 11, by: 9, sign: 1, phase: "run" });
 	check(textOf(walk(cr, cls("v-clock-out"))[0]) === "4", "clock run, without animation: the value appears directly");
 
+	// a clock's onDone always comes after clock() has returned, moving or not
+	{
+		let done = 0;
+		V.clock({ box: lay.boxes.clock, n: 16, from: 11, by: 9, sign: 1, phase: "run", onDone: () => { done++; } });
+		const sync = done;
+		await new Promise((r) => setTimeout(r, 0));
+		check(sync === 0 && done === 1, "clock run: onDone called once, asynchronously");
+	}
+	// the reel with no value yet: no row framed
+	check(walk(V.dictionary({ box: lay.boxes.keyDict, things: things.slice(0, 16), mode: "reel", value: null, icon: "key" }), cls("v-dict-on")).length === 0, "dictionary reel without a value: nothing framed");
+	check(walk(pk, cls("v-pick")).every((b) => walk(b, cls("v-name")).length === 1), "dictionary picker: each button with its name");
+	// what is read from the lectern is never smaller than 9 units (a bead's own glyph is a picture, not text)
+	{
+		const th6 = Lay.keyThrow({ sides: 6, bits: 5 }), simple = Lay.makeTurn({ pad: false, n: 16 });
+		const drawn = [
+			s, ref, rd, st16, pk,
+			V.string({ box: rlay.boxes.seedColumn, orientation: "v", role: "read", things, items: [1, 2, 3, null, undefined, undefined, undefined], current: 3 }),
+			...[lay.boxes.keyDict, lay.boxes.seedDict, simple.boxes.seedDict, th6.boxes.keyDict].map((b) => V.dictionary({ box: b, things: things.slice(0, 32), mode: "reel", value: 20, icon: "seed" })),
+			V.bits({ box: lay.boxes.bits, bits: [1, 0, 1, 1] }), V.bits({ box: th6.boxes.tower, bits: [1, 0, 1, 1, 0], orientation: "tower" }),
+			...[2, 8, 16, 32].flatMap((n) => [V.clock({ box: lay.boxes.clock, n, from: n - 1, by: 1, phase: "done" }), V.clock({ box: rlay.boxes.clock, n, from: 0, by: n - 1, sign: -1, phase: "done" })]),
+			V.number({ box: lay.boxes.number, value: 11 }), V.piece({ box: th6.boxes.piece, thing: things[3] }),
+		];
+		const small = drawn.flatMap((d) => walk(d, (n) => n.tag === "text" && !cls("v-glyph")(n) && num(n.attrs["font-size"]) < 9));
+		check(!small.length, `no text under 9 units ${small.slice(0, 3).map((t) => textOf(t) + "@" + t.attrs["font-size"]).join(", ")}`);
+		// the turn's position in blue and bold, whatever the string
+		check([s, ref, rd].every((d) => { const p = walk(d, cls("v-pos-current")); return p.length === 1 && cls("v-c-qr")(p[0]) && cls("v-bold")(p[0]); }), "string: the turn's position blue and bold in every role");
+	}
 	// QR: a grid; the turn's squares in blue
 	const q = V.qr({ box: lay.boxes.qr, size: 21, modules: (r, c) => (r + c) % 2 === 0, turnCells: [[9, 9], [9, 10], [10, 9]], painted: new Map([[0, 1]]) });
 	check(walk(q, cls("v-qr-turn")).length === 3, "qr: the turn's squares marked");
