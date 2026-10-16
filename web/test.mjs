@@ -622,6 +622,18 @@ check(Lay.keyThrow({ sides: 6 }).faces.cols === 3 && Lay.keyThrow({ sides: 6 }).
 	check(one({ mode: "pad", padAs: "string", padForm: "book" }) === JSON.stringify({ keyFile: false, groups: [{ kinds: ["seed"], form: "necklace", each: 15, copies: 1, what: "seq" },
 		{ kinds: ["key"], form: "book", each: 15, copies: 0, what: "key" }] }), "pieces: a key of another collection, a group each");
 	check(one({ mode: "pad", padAs: "file" }) === JSON.stringify({ keyFile: true, groups: [{ kinds: ["seed"], form: "necklace", each: 15, copies: 2, what: "seq" }] }), "pieces: a key file, a copy of the dictionary for it");
+	// your own dictionary: naming each piece, its bits, the order it is checked in
+	const named = [{ name: "Red" }, { name: " red " }, { name: "" }, { name: "Blue" }];
+	check(J.nameProblem(named, 0) === "dup" && J.nameProblem(named, 1) === "dup" && J.nameProblem(named, 2) === "empty" && J.nameProblem(named, 3) === null
+		&& J.nameProblem([{ name: "   " }], 0) === "empty", "nameProblem: an empty name, and one another piece has (case and spaces aside)");
+	check(J.bitsOf(5, 16).join("") === "0101" && J.bitsOf(0, 2).join("") === "0" && J.bitsOf(31, 32).join("") === "11111" && J.bitsOf(2, 4).join("") === "10", "bitsOf: as many bits as N takes, the highest first");
+	for (const n of [2, 4, 8, 16, 32]) {
+		let x = 7;
+		const order = J.checkOrder(n, () => { x = (x * 48271) % 2147483647; return x / 2147483647; });
+		check(order.length === n && [...order].sort((a, b) => a - b).every((v, i) => v === i), `checkOrder: every number below ${n} once`);
+	}
+	check(J.checkOrder(4, () => 0.999999).join() !== "0,1,2,3" || J.checkOrder(4, () => 0).join() !== "0,1,2,3", "checkOrder: shuffled");
+	check(J.checkOrder(3, () => 1).length === 3 && J.checkOrder(1, Math.random).join() === "0", "checkOrder: a random() of 1 stays in range; one piece, one number");
 }
 console.log(`${failures ? "FAIL" : "ok"}: ${vectors.length} vectors, ${padVectors.length} pad vectors, ${failures} failures`);
 process.exit(failures ? 1 : 0);
