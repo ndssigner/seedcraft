@@ -727,5 +727,20 @@ check(Lay.keyThrow({ sides: 6 }).faces.cols === 3 && Lay.keyThrow({ sides: 6 }).
 	const d20 = J.throwParts([19, 9, 17, 3], 20, 5);
 	check(d20.done && d20.used.map((u) => `${u.from}-${u.to}`).join() === "0-4,4-5" && d20.rejected.join() === "0,2", "throwParts d20 N=32: four bits, then only one of the next throw");
 }
+// the sequence's captions (the foot of a turn, the seed's slide): short enough for the foot's two lines, in both languages
+{
+	vm.runInContext(read("src/i18n.js") + ";globalThis.TEXT = SEEDCRAFT_TEXT;", ctx, { filename: "src/i18n.js" });
+	const TX = ctx.TEXT;
+	const args = { turnPosition: [364], turnNumber: ["11111", 31], turnKeyAt: [364], turnKeyFile: [364, "V", 31], turnKeyNumber: [31], turnClockOf: [32],
+		turnOut: [31], turnDict: [31], turnSlot: [364] };
+	const keys = ["turnPosition", "turnBitsAre", "turnNumber", "turnKeyAt", "turnKeyFile", "turnKeyNumber", "turnClockOf", "turnOut", "turnDict", "turnSlot",
+		"turnHeader", "turnPadding", "seqKeyChanged", "endPad", "endBasic", "whyPad", "makeWarn", "seqIntro", "seqPadIntro"];
+	for (const lang of ["en", "es"]) for (const k of keys) {
+		const v = TX[lang][k], s = typeof v === "function" ? v(...(args[k] || [])) : v;
+		check(typeof s === "string" && s.length <= 110, `caption ${lang}.${k} at most 110 characters (${s && s.length}: ${s})`);
+	}
+	// the explained turn's last step with a changed piece: the slot's sentence and the key's change together
+	for (const lang of ["en", "es"]) check((TX[lang].turnSlot(364) + " " + TX[lang].seqKeyChanged).length <= 110, `caption ${lang}: slot + key changed fits`);
+}
 console.log(`${failures ? "FAIL" : "ok"}: ${vectors.length} vectors, ${padVectors.length} pad vectors, ${failures} failures`);
 process.exit(failures ? 1 : 0);

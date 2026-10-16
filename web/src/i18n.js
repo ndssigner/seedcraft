@@ -114,7 +114,6 @@ const SEEDCRAFT_TEXT = {
 
 
 
-		padMakeWarn: "⚠️ Keep the sequence and the key apart, each with a copy of the dictionary. Lose one and the seed is lost.",
 		padFileHelp: "Neither its name nor its contents say what it is. Each row ends in a check, so a copying mistake shows.",
 		padFileSave: "Save the key as a file",
 		keyTools: "With what?",
@@ -211,6 +210,11 @@ const SEEDCRAFT_TEXT = {
 		turnOut: (v) => `Out comes ${v}.`,
 		turnDict: (v) => `In your dictionary, ${v} is this piece.`,
 		turnSlot: (i) => `Put it in slot ${i} of your string.`,
+		turnHeader: "These bits are the header (version and mask): they have no squares in the QR code.",
+		turnPadding: "Padding: random bits that complete the last piece. They have no squares.",
+		whyPad: "Your number + a random one = one that tells nothing to anyone without the key.",
+		endBasic: "That is your whole QR code: whoever has the string and the collection has your seed.",
+		endPad: "Each string alone is chance: each needs the other. Keep them apart, and lose neither.",
 		checkFixed: "Same seed, but some piece is wrong (the QR code put it right): fix it before storing.",
 		readAgain: "Read another",
 		formTitle: "Which form?",
@@ -457,7 +461,6 @@ const SEEDCRAFT_TEXT = {
 
 
 
-		padMakeWarn: "⚠️ Guarda la secuencia y la llave por separado, cada una con una copia del diccionario. Si pierdes una, pierdes la semilla.",
 		padFileHelp: "Ni su nombre ni su contenido dicen qué es. Cada fila acaba en un control: un error al copiarla se nota.",
 		padFileSave: "Guardar la llave como archivo",
 		keyTools: "¿Con qué?",
@@ -554,6 +557,11 @@ const SEEDCRAFT_TEXT = {
 		turnOut: (v) => `Sale el ${v}.`,
 		turnDict: (v) => `En tu diccionario, el ${v} es esta pieza.`,
 		turnSlot: (i) => `Ponla en el hueco ${i} de tu ristra.`,
+		turnHeader: "Estos bits son la cabecera (versión y máscara): no tienen cuadritos en el QR.",
+		turnPadding: "Relleno: bits al azar que completan la última pieza. No tienen cuadritos.",
+		whyPad: "Tu número + uno al azar = uno que no dice nada a quien no tenga la llave.",
+		endBasic: "Ese es tu QR entero: quien tenga la ristra y la colección tiene tu semilla.",
+		endPad: "Cada ristra sola es azar: cada una necesita la otra. Guárdalas por separado y no pierdas ninguna.",
 		checkFixed: "La misma semilla, pero alguna pieza está mal (el QR la ha arreglado): corrígela antes de guardar.",
 		readAgain: "Leer otra",
 		formTitle: "¿Qué forma?",

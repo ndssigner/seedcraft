@@ -416,6 +416,7 @@
 	const Slides = SeedcraftSlides;
 	let mounted = false, lastView = "";
 	function render() {
+		turnRun++;
 		document.documentElement.lang = st.lang;
 		if (!mounted) {
 			// another language from the «⋯» panel: the same slide, the same state, redrawn
@@ -1644,7 +1645,7 @@
 		return {
 			question: t.seedQ(st.plan.words),
 			next: made ? undefined : { label: t.makeIt + " ▶", go: () => { make(); if (m.symbols) goSlide("make", "seq"); }, ready: ok },
-			caption: () => made ? (padMode ? t.padMakeWarn : t.makeWarn) : padMode ? t.seqPadIntro : t.seqIntro,
+			caption: () => made ? (padMode ? t.whyPad : t.makeWarn) : padMode ? t.seqPadIntro : t.seqIntro,
 			body: () => h("div", { class: "slide-form seed-form" }, seedAlert(), area, status, print, h("div", { class: "row" }, tool)),
 		};
 	}
@@ -1661,12 +1662,14 @@
 	// cycle at once on arriving (at once with reduced motion). Only the arrow
 	// of the step shows whole; the ones before it stay, nearly invisible.
 	let turnFresh = null;   // a turn reached with Next: its cycle plays once
+	let turnRun = 0;        // moves on at every render: a turn's cycle still playing from an earlier one stops
 	let turnBack = false;   // a turn reached with Back: shown at its last step
 	// to another turn of the sequence; a turn explained is explained only while it is on screen
-	function turnGo(to) {
+	// still: shown as it ends, never played (a jump, not Next)
+	function turnGo(to, still = false) {
 		const m = st.make, from = m.turn || 0;
 		m.turn = Math.max(0, Math.min(m.symbols.length - 1, to));
-		turnFresh = m.turn === from + 1 ? m.turn : null;
+		turnFresh = !still && m.turn === from + 1 ? m.turn : null;
 		turnBack = m.turn === from - 1;
 		m.explain = null;
 		render();
@@ -1684,7 +1687,7 @@
 	function wholeString() {
 		const m = st.make, L = m.symbols.length, perRow = Math.max(13, Math.ceil(Math.sqrt(L * 2.6)));
 		const close = Slides.popup(h("div", { class: "seq-map" }, drawSeq(st.dict.things, m.symbols, { current: m.turn || 0, perRow, form: st.plan.form,
-			onPick: (j) => { close(); turnGo(j); } })), { label: T().seqWhole });
+			onPick: (j) => { close(); turnGo(j, true); } })), { label: T().seqWhole });
 	}
 	function turnSlide() {
 		const t = T(), m = st.make, things = st.dict.things, n = things.length, k = Math.log2(n), pad = st.mode === "pad";
@@ -1699,7 +1702,9 @@
 		turnFresh = null; turnBack = false;
 		const changed = (m.keyChanged || []).includes(i);
 		// the header (version and mask) and the padding have no squares in the QR code
-		const note = roles.includes("header") ? `${t.handHeader} ${t.handTemplate(size, qr.mask)}` : roles.includes("padding") ? t.handPadding : null;
+		const note = roles.includes("header") ? t.turnHeader : roles.includes("padding") ? t.turnPadding : null;
+		// the last turn, once whole: why it is made this way (with a key: why both strings are needed)
+		const end = i === L - 1 ? (pad ? t.endPad : t.endBasic) : null;
 
 		// the QR code: its fixed squares, the data squares of the turns so far, this turn's in blue
 		const fixed = S.functionModules(size), data = new Map(cells.map(([r, c], j) => [r * size + c, j]));
@@ -1757,12 +1762,13 @@
 			if (explaining) draw(step, true);
 			else if (fresh) {
 				// on arriving: the cycle plays, a relation at a time; the clock turns step by step, then it goes on
-				const live = () => groups.seedString.isConnected !== false;
+				// (stage 0 now, before the body is on the page; each later stage only while
+				// nothing has been drawn since: render() moves the token on)
+				const run = turnRun, later = (fn, ms) => setTimeout(() => { if (run === turnRun) fn(); }, ms);
 				const play = (p) => {
-					if (!live()) return;
 					const out = stages[p].id === "out";
-					draw(p, true, out ? () => setTimeout(() => play(p + 1), 300) : undefined);
-					if (p < last && !out) setTimeout(() => play(p + 1), 450);
+					draw(p, true, out ? () => later(() => play(p + 1), 300) : undefined);
+					if (p < last && !out) later(() => play(p + 1), 450);
 				};
 				play(0);
 			} else draw(last, false);
@@ -1777,17 +1783,18 @@
 			clock: t.turnClockOf(n), out: t.turnOut(C), dict: t.turnDict(C), slot: t.turnSlot(pos),
 		})[id];
 		const caption = explaining
-			? (s) => s === last && changed ? `${say("slot")} ${t.seqKeyChanged}` : say(stages[Math.min(s, last)].id)
-			: () => changed ? t.seqKeyChanged : note;
+			? (s) => s === last && changed ? `${say("slot")} ${t.seqKeyChanged}` : s >= last && end ? end : say(stages[Math.min(s, last)].id)
+			: () => changed ? t.seqKeyChanged : end || note;
 
 		const listName = pad ? "list-a.txt" : "sequence.txt";
 		const shortcuts = [
-			{ icon: "⏩", label: t.seeAll, go: () => turnGo(L - 1) },
+			{ icon: "⏩", label: t.seeAll, go: () => turnGo(L - 1, true) },
 			{ icon: "🧵", label: t.seqWhole, go: wholeString },
 			{ icon: "🖨", label: t.printIt, go: () => go("print") },
 			{ icon: "⤓", label: t.saveList, go: () => download(m.symbols.map((s, j) => `${j + 1}. ${things[s].name}`).join("\n") + "\n", listName, "text/plain") },
 			{ icon: "?", label: t.seqExplain, go: explainTurn },
 			...keyChangedWays(),
+			{ icon: "◀", label: t.otherSeed, go: () => { if (confirm(t.otherSeedAsk(st.mode))) otherSeed(); } },
 		];
 		return {
 			count: `${pos}/${L}`, steps: explaining ? stages.length : 1, startStep: explaining && back ? last : 0, caption, shortcuts, help: explainTurn, body,
