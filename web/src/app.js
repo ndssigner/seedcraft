@@ -345,25 +345,34 @@
 		return svg("svg", { class: "art", viewBox: "0 0 160 90", "aria-hidden": "true" }, ...g);
 	}
 
-	// ---- shell -------------------------------------------------------
+	// ---- the start page's top bar and foot ------------------------------
+	// (the slides have neither: the lectern's guide, «⋯» and foot instead)
 	// each tab's label, and its short one for phones
 	const TABS = [["intro", "tabIntro", "tabIntro"], ["make", "tabMakeFlow", "tabMakeShort"], ["read", "tabReadFlow", "tabReadShort"]];
-	const TAB_OF = { intro: "intro", make: "make", print: "make", read: "read" };
-	function shell() {
+	function topBar() {
 		const t = T();
-		document.documentElement.lang = st.lang;
-		$("draft").replaceChildren(h("span", { class: "long", text: t.draft + " " }), "v0");
-		$("draft").title = t.warnTest;
-		$("tagline").textContent = t.subtitle;
-		$("lang").textContent = t.langName;
-		$("about").textContent = t.aboutTitle;
-		$("donate").textContent = t.donateTitle;
-		$("tabs").replaceChildren(...TABS.map(([name, label, short]) => h("button", { class: TAB_OF[st.screen] === name ? "on" : "", on: { click: () => go(name) } },
-			h("span", { class: "long", text: t[label] }), h("span", { class: "short", text: t[short] }))));
+		return h("header", { class: "top" },
+			h("div", { class: "brand", id: "logo", on: { click: () => go("intro") } }, h("b", {}, "Seed", h("span", { text: "craft" })),
+				h("span", { class: "badge", id: "draft", title: t.warnTest }, h("span", { class: "long", text: t.draft + " " }), "v0"),
+				h("small", { id: "tagline", text: t.subtitle })),
+			h("nav", { class: "tabs", id: "tabs" }, TABS.map(([name, label, short]) => h("button", { class: name === "intro" ? "on" : "", on: { click: () => go(name) } },
+				h("span", { class: "long", text: t[label] }), h("span", { class: "short", text: t[short] })))),
+			h("div", { class: "net-wrap" },
+				h("button", { class: "net", id: "net", "aria-describedby": "net-why", on: { click: (e) => { e.stopPropagation(); $("net-why").classList.toggle("open"); } } }),
+				h("div", { class: "net-why", id: "net-why", role: "tooltip" })),
+			h("a", { class: "pill", id: "gh", href: REPO_URL, title: t.repo, target: "_blank", rel: "noopener noreferrer" }, "GitHub ↗"),
+			h("button", { class: "pill", id: "lang", on: { click: () => { st.lang = t.langSwitch; render(); } } }, t.langName));
 	}
-	// the connection, always in sight; the warnings themselves appear next to a seed (seedAlert)
+	function footBar() {
+		const t = T();
+		return h("footer", {}, h("div", {}, link(REPO_URL, t.repo),
+			h("button", { id: "about", on: { click: () => go("about") } }, t.aboutTitle),
+			h("button", { id: "donate", on: { click: () => go("donate") } }, t.donateTitle)));
+	}
+	// the connection, in sight on the start page; the warnings themselves appear next to a seed (seedAlert)
 	const online = () => {
 		const t = T(), on = navigator.onLine;
+		if (!$("net")) return;
 		$("net").className = "net " + (on ? "on" : "off");
 		$("net").textContent = on ? t.netOn : t.netOff;
 		$("net-why").replaceChildren(h("b", { text: on ? t.netOnTitle : t.netOffTitle }), h("div", { text: on ? t.netOnWhy : t.netOffWhy }));
@@ -379,39 +388,37 @@
 	}
 	addEventListener("online", online);
 	addEventListener("offline", online);
-	$("lang").addEventListener("click", () => { st.lang = T().langSwitch; render(); });
-	$("logo").addEventListener("click", () => go("intro"));
-	$("about").addEventListener("click", () => go("about"));
-	$("donate").addEventListener("click", () => go("donate"));
 	// the explanation of the connection: on hover (CSS), or on a tap, for touch screens
-	$("net").addEventListener("click", (e) => { e.stopPropagation(); $("net-why").classList.toggle("open"); });
-	document.addEventListener("click", () => $("net-why").classList.remove("open"));
+	document.addEventListener("click", () => { if ($("net-why")) $("net-why").classList.remove("open"); });
 	function go(screen) { st.screen = screen; render(); scrollTo(0, 0); }
 	// the repository, and the sister projects (plain links: the page itself still connects nowhere)
 	const REPO_URL = "https://github.com/ndssigner/seedcraft";
 	const SIBLINGS = [["NDS-Signer", "https://github.com/ndssigner/nds-signer", "sibNds"], ["ur-tones", "https://github.com/ndssigner/ur-tones", "sibUrTones"]];
 	const link = (href, text, tip) => h("a", { href, target: "_blank", rel: "noopener noreferrer", title: tip || null }, text);
-	function links() {
-		const t = T();
-		$("repo").href = $("gh").href = REPO_URL;
-		$("gh").title = t.repo;
-		$("repo").textContent = t.repo;
 
-	}
-	let lastView = "";
+	// ---- the lectern -----------------------------------------------------
+	// Every screen is a slide (slides.js). Until each step is redone as its
+	// own slides, the old step views are shown whole as one "legacy" slide
+	// each (the only bodies allowed to scroll inside), with the guide made
+	// from the old list of steps; the start page, about, donate and the
+	// printable sheet stay as they are, fitted into the frame.
+	const Slides = SeedcraftSlides;
+	let mounted = false, lastView = "";
 	function render() {
-		shell(); online(); links();
-		// the journeys fill the window exactly on a computer (CSS): no page to scroll
-		document.body.classList.toggle("in-flow", st.screen === "make" || st.screen === "read");
-		// what scrolls inside the page (the map, the two columns) keeps its place across a redraw
-		const SCROLLERS = ".map, .flow-body, .flow-body .tool > .panel";
+		document.documentElement.lang = st.lang;
+		if (!mounted) {
+			// another language from the «⋯» panel: the same slide, the same state, redrawn
+			Slides.mount($("app"), { lang: st.lang, onLang: (l) => { st.lang = l; render(); } });
+			mounted = true;
+		}
+		Slides.setLang(st.lang);
+		// what scrolls inside a legacy slide (the map, the two columns) keeps its place across a redraw
+		const SCROLLERS = ".slide-legacy, .map, .flow-body, .flow-body .tool > .panel";
 		const view = [st.screen, st.step[st.screen], st.make.tab, st.make.key && st.make.key.by, st.plan.sub, st.edit && st.edit.kind].join();
 		const kept = view === lastView ? [...$("app").querySelectorAll(SCROLLERS)].map((e) => e.scrollTop) : [];
 		lastView = view;
-		$("app").replaceChildren(({ intro, make: makeFlow, read: readFlow, print: printSheet, about, donate })[st.screen]());
-		// on a narrow screen the journey scrolls: keep the current step in view
-		const j = $("app").querySelector(".journey"), on = j && j.querySelector("li.on");
-		if (on && j.scrollWidth > j.clientWidth) j.scrollLeft = on.offsetLeft + on.offsetWidth / 2 - j.clientWidth / 2;
+		Slides.show(slideNow(view));
+		online();
 		[...$("app").querySelectorAll(SCROLLERS)].forEach((e, i) => { if (kept[i] !== undefined) e.scrollTop = kept[i]; });
 		// the step by step's drawing then glides from where it was to keep the current piece in the middle
 		const map = $("app").querySelector(".map"), cur = map && map.querySelector(".ring-cur, li.on");
@@ -419,6 +426,35 @@
 			const to = map.scrollTop + cur.getBoundingClientRect().top - map.getBoundingClientRect().top - map.clientHeight / 2 + cur.getBoundingClientRect().height / 2;
 			map.scrollTo({ top: to, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
 		}
+	}
+	// the slide for what is on screen now
+	function slideNow(view) {
+		const t = T(), home = { icon: "⌂", label: t.slidesHome, go: () => go("intro") };
+		const toStart = { label: "◀ " + t.tabIntro, go: () => go("intro") };
+		const page = (body, prev) => ({ id: view, legacy: true, guide: [], question: null, steps: 1, body: () => body,
+			prev, next: null, shortcuts: st.screen === "intro" ? [] : [home], help: null });
+		if (st.screen === "print") {
+			const sheet = printSheet();
+			if (sheet) return page(h("div", { class: "wrap" }, sheet), { label: "◀ " + t.back, go: () => toStep("make", "seq") });
+		}
+		if (st.screen === "make" || st.screen === "read") return flowSlide(st.screen, view, home, toStart);
+		if (st.screen === "about") return page(h("div", { class: "wrap" }, about()), toStart);
+		if (st.screen === "donate") return page(h("div", { class: "wrap" }, donate()), toStart);
+		return page(h("div", { class: "start" }, topBar(), h("div", { class: "wrap" }, intro()), footBar()), null);
+	}
+	// an old step view as one legacy slide: its guide, the old list of steps;
+	// its foot, what the view asked for with setNav (or the journey's own)
+	function flowSlide(flow, view, home, toStart) {
+		const body = flow === "make" ? makeFlow() : readFlow(), o = navOpts;
+		const steps = stepsOf(flow), i = steps.indexOf(st.step[flow]), before = steps[i - 1], after = steps[i + 1];
+		const pair = (x, ready) => x ? { label: x[0], go: x[1], ready } : null;
+		// the journey's very first view goes back to the start page (the top bar's tabs are only there now)
+		const prev = o.hidden ? null : o.prev !== undefined ? pair(o.prev) || (i === 0 ? toStart : null)
+			: before ? { label: "◀ " + stepName(flow, before), go: () => toStep(flow, before) } : toStart;
+		const next = o.hidden ? null : o.next !== undefined ? pair(o.next, o.ready !== false)
+			: after ? { label: stepName(flow, after) + " ▶", go: () => { if (o.onNext) o.onNext(); toStep(flow, after); }, ready: o.ready !== false } : null;
+		return { id: view, legacy: true, question: null, steps: 1, body: () => body, prev, next, shortcuts: [home], help: null, onKey: legacyKey,
+			guide: steps.map((step) => ({ name: stepName(flow, step), current: step === st.step[flow], count: null, go: () => toStep(flow, step) })) };
 	}
 
 	// ---- small building blocks ----------------------------------------
@@ -537,7 +573,7 @@
 		navOpts = {};
 		const body = needFirst("make", step) || ({ plan: planStep, gather: gatherStep, dict: dictStep, key: keyStep, seq: seqStep,
 			check: checkStep, store: storeStep })[step]();
-		return h("div", { class: "flow" }, journey("make"), h("div", { class: "flow-body" }, body), stepNav("make", navOpts));
+		return h("div", { class: "flow-body" }, body);
 	}
 	function readFlow() {
 		if (!stepsOf("read").includes(st.step.read)) st.step.read = "have";
@@ -545,7 +581,7 @@
 		navOpts = {};
 		if (st.read.mode && st.dict && keyGiven()) readOut(st.read);
 		const body = needFirst("read", step) || ({ have: haveStep, recover: () => turnReader(st.read), seed: seedStep })[step]();
-		return h("div", { class: "flow" }, journey("read"), h("div", { class: "flow-body" }, body), stepNav("read", navOpts));
+		return h("div", { class: "flow-body" }, body);
 	}
 
 	// ---- make, 1: the plan, one question at a time --------------------------
@@ -1461,37 +1497,42 @@
 				} } }, t.storeForget), h("span", { class: "meta", text: t.storeForgetWhy }))));
 	}
 
-	// keyboard for the step-by-step views
-	addEventListener("keydown", (e) => {
-		if (/input|textarea|select/i.test(e.target.tagName)) return;
-		const m = st.make;
+	// keyboard for the old step-by-step views (a legacy slide's onKey): the
+	// arrows (and the space bar) are theirs where they move among turns or
+	// pieces, which they say by returning true; anywhere else the lectern's
+	// own keys go to the next or previous slide
+	function legacyKey(e) {
+		if (/input|textarea|select/i.test(e.target.tagName)) return false;
+		const m = st.make, navKey = e.key === "ArrowRight" || e.key === "ArrowLeft" || e.key === " ";
 		const step = (obj, key, max) => {
 			if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); obj[key] = Math.min(max, (obj[key] || 0) + 1); render(); }
-			if (e.key === "ArrowLeft") { obj[key] = Math.max(0, (obj[key] || 0) - 1); render(); }
+			if (e.key === "ArrowLeft") { e.preventDefault(); obj[key] = Math.max(0, (obj[key] || 0) - 1); render(); }
+			return navKey;
 		};
 		// reading turn by turn: the arrows move among the turns read (the space bar is left to the buttons)
 		const rd = st.edit || !st.dict ? null : st.screen === "read" && st.step.read === "recover" && st.read.mode && keyGiven() ? st.read
 			: st.screen === "make" && st.step.make === "check" && m.symbols ? m.check : null;
 		if (rd && !rd.typing) {
-			if (e.key === "ArrowRight") readGo(rd, rd.turn + 1);
-			if (e.key === "ArrowLeft") readGo(rd, rd.turn - 1);
-			return;
+			if (e.key === "ArrowRight") { e.preventDefault(); readGo(rd, rd.turn + 1); }
+			if (e.key === "ArrowLeft") { e.preventDefault(); readGo(rd, rd.turn - 1); }
+			return navKey;
 		}
 		// the key: only moves among the pieces drawn, never draws (the space bar is left to the buttons)
 		if (st.screen === "make" && st.step.make === "key" && m.key && m.key.by && !st.edit) {
-			if (e.key === "ArrowRight") keyGo(m.key.pos + 1);
-			if (e.key === "ArrowLeft") keyGo(m.key.pos - 1);
-			return;
+			if (e.key === "ArrowRight") { e.preventDefault(); keyGo(m.key.pos + 1); }
+			if (e.key === "ArrowLeft") { e.preventDefault(); keyGo(m.key.pos - 1); }
+			return navKey;
 		}
-		if (st.screen !== "make" || !m.symbols) return;
+		if (st.screen !== "make" || !m.symbols) return false;
 		if (st.step.make === "seq" && m.tab === "turn") {
-			if (!st.seen.howTo) return;
-			if (e.key === "ArrowRight") turnGo((m.turn || 0) + 1);
-			if (e.key === "ArrowLeft") turnGo((m.turn || 0) - 1);
-			return;
+			if (!st.seen.howTo) return navKey;
+			if (e.key === "ArrowRight") { e.preventDefault(); turnGo((m.turn || 0) + 1); }
+			if (e.key === "ArrowLeft") { e.preventDefault(); turnGo((m.turn || 0) - 1); }
+			return navKey;
 		}
 		if (st.step.make === "seq" && m.tab === "walk") return step(m, "pos", m.symbols.length - 1);
-	});
+		return false;
+	}
 
 	// ---- read ------------------------------------------------------------
 	// read, 1: what you have — the mode it was made in, its dictionary and, with a key, the key
@@ -1530,15 +1571,14 @@
 	// whole: its rows, its N and its length; a mistake says its line
 	function keyFileInput(rd) {
 		const t = T(), status = h("div", { class: "status" });
-		const show = () => {
+		const show = (live) => {
 			const problem = checkKeyFile(rd);
 			status.className = "status" + (rd.keyFile ? " ok" : problem ? " bad" : "");
 			status.textContent = rd.keyFile ? t.padFileOk(rd.keyFile.length) : problem;
-			const next = $("nav-next");
-			if (next) next.disabled = !rd.keyFile;
+			if (live) Slides.setReady(!!rd.keyFile);
 		};
 		const area = h("textarea", { class: "input mono", spellcheck: "false", rows: 8, "aria-label": t.padFileTitle, placeholder: "54 16\n3A37 DFE7 0239 3E0F 6\n…",
-			on: { input: (e) => { rd.fileText = e.target.value; show(); } } });
+			on: { input: (e) => { rd.fileText = e.target.value; show(true); } } });
 		area.value = rd.fileText;
 		show();
 		const open = h("input", { type: "file", accept: ".txt,text/plain", class: "hidden", on: { change: async (e) => {
@@ -1794,7 +1834,7 @@
 	// shopping list is in alphabetical order, without numbers).
 	function printSheet() {
 		const t = T(), m = st.make, d = st.dict;
-		if (!d || !m.symbols) { st.screen = "make"; st.step.make = "seq"; return makeFlow(); }
+		if (!d || !m.symbols) { st.screen = "make"; st.step.make = "seq"; return null; }
 		const form = formOf(st.plan.form), w = t.forms[form.id], L = m.symbols.length;
 		const n = d.things.length, each = S.piecesToBuy(m.symbols, n), materials = materialsOf(form.id, L, n);
 		const shop = [...d.things].sort((a, b) => a.name.localeCompare(b.name, st.lang));

@@ -7,6 +7,10 @@ const lineOr = (line, word, msg) => line ? `${word} ${line}: ${msg}` : msg[0].to
 const SEEDCRAFT_TEXT = {
 	en: {
 		langName: "Español", langSwitch: "es",
+		// the lectern (slides.js)
+		slidesPrev: "◀ Back", slidesNext: "Next ▶", slidesStepOf: (i, n) => `step ${i} of ${n}`,
+		slidesWhere: "Where you are", slidesHelp: "Explain this", slidesMore: "Shortcuts", slidesClose: "Close",
+		slidesAwake: "Keep the screen on", slidesTurn: "Turn your phone", slidesHome: "Start page",
 		handStep: (i, n) => `Piece ${i} of ${n}`,
 		handCells: (rows) => "Squares: " + rows.map(([r, cs]) => `row ${r}, column${cs.length > 1 ? "s" : ""} ${cs.join(", ")}`).join("; "),
 		handHeader: "These bits do not go into the QR code: they are the header. 00 is the format version, and the next 3 bits are the mask (0–7): which template page to take — its format squares are already drawn.",
@@ -388,6 +392,10 @@ const SEEDCRAFT_TEXT = {
 	},
 	es: {
 		langName: "English", langSwitch: "en",
+		// the lectern (slides.js)
+		slidesPrev: "◀ Anterior", slidesNext: "Siguiente ▶", slidesStepOf: (i, n) => `paso ${i} de ${n}`,
+		slidesWhere: "Dónde estás", slidesHelp: "Explicar esto", slidesMore: "Atajos", slidesClose: "Cerrar",
+		slidesAwake: "Pantalla siempre encendida", slidesTurn: "Gira el móvil", slidesHome: "Inicio",
 		handStep: (i, n) => `Pieza ${i} de ${n}`,
 		handCells: (rows) => "Casillas: " + rows.map(([r, cs]) => `fila ${r}, columna${cs.length > 1 ? "s" : ""} ${cs.join(", ")}`).join("; "),
 		handHeader: "Estos bits no van en el QR: son la cabecera. 00 es la versión del formato, y los 3 bits siguientes son la máscara (0–7): qué página de plantilla coger; sus casillas de formato ya vienen dibujadas.",
