@@ -13,6 +13,8 @@
 	--thread: #3c4f9f; --current: #2f45a8;
 	/* the pad's thread: weld, the other old dye, never drawn with the indigo except to check both */
 	--pad: #8a7a14; --pad-soft: #f1ecc9;
+	/* the slides' vocabulary: blue comes from the QR code, amber from the key, red is an error or a ✕ */
+	--qr: #1f66c9; --qr-soft: #dce9fb; --key: #b36b00; --key-soft: #fbecd2; --err: #c0261d; --err-soft: #fbe3e1;
 	--bg: var(--paper);
 	--book: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", "URW Palladio L", Georgia, serif;
 	--sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -33,6 +35,7 @@
 		--warn-bg: #3a3112; --warn-fg: #f2dc8e;
 		--thread: #8f9de6; --current: #9aa9ff;
 		--pad: #d4c25a; --pad-soft: #2e2a12;
+		--qr: #6eaaff; --qr-soft: #17283f; --key: #f0b24a; --key-soft: #352712; --err: #ff8a80; --err-soft: #3a1a18;
 		--tray: 0 1px 0 rgba(0, 0, 0, .4), 0 12px 32px -12px rgba(0, 0, 0, .7);
 		color-scheme: dark;
 	}
@@ -644,3 +647,107 @@ pre.pad-file span.on { background: var(--pad-soft); }
 .turn-keypick .collection.pick .crow:hover { border-color: var(--pad); }
 .turn-keypick .collection.pick .crow.on { border-color: var(--pad); background: var(--pad-soft); }
 .turn-last { display: flex; flex-direction: column; gap: 6px; border-top: 1px dashed var(--line); padding-top: 8px; }
+
+/* ---- the slides' visual vocabulary (vocab.js): one look for every slide ---- */
+.v { color: var(--fg); }
+.v-c-qr { color: var(--qr); } .v-c-key { color: var(--key); } .v-c-err { color: var(--err); } .v-c-seed { color: var(--fg); }
+.v-t { fill: currentColor; font-family: var(--sans); }
+.v-mono { font-family: var(--mono); }
+.v-bold { font-weight: 700; }
+.v-pos, .v-sub { fill: var(--muted); }
+.v-pos-current { fill: var(--fg); font-weight: 700; }
+.v-name { fill: var(--fg); }
+.v-ink { fill: var(--fg); } .v-ink-dark { fill: #111111; } .v-ink-light { fill: #ffffff; }
+/* pieces: a bead on its thread; a missing one a dashed hole; the turn's ringed in the accent */
+.v-bead-bg { fill: var(--surface); }
+.v-bead-ring { stroke: var(--line-strong); stroke-width: 1.2; }
+.v-bead-ring.v-ring-current { stroke: var(--accent); stroke-width: 3; }
+.v-hole { fill: none; stroke: var(--line-strong); stroke-width: 1.2; stroke-dasharray: 3 2; }
+.v-slot { cursor: pointer; }
+.v-slot .v-hole { stroke: var(--accent); stroke-width: 1.6; }
+.v-plus { fill: var(--accent); font-weight: 700; }
+.v-slot:focus-visible { outline: none; }
+.v-slot:focus-visible .v-hole { stroke-width: 3; }
+.v-thread { stroke: var(--muted); stroke-width: 2; stroke-linecap: round; }
+.v-key .v-thread { stroke: var(--key); }
+.v-thread-build { stroke-width: 4; }
+.v-thread-ref { stroke-width: 1.5; stroke-dasharray: 1 3; }
+.v-reference .v-piece:not(.v-current) { opacity: .55; }
+.v-build .v-empty:not(.v-current) { opacity: .6; }
+.v-turn-frame { fill: none; stroke: var(--qr); stroke-width: 1.5; }
+.v-icon { fill: var(--fg); }
+/* a dictionary: a card with a book's tab; a reel's window over the rows */
+.v-dict-card { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.2; }
+.v-dict-tab { fill: var(--sunk); stroke: var(--line-strong); stroke-width: 1.2; }
+.v-dict-key .v-dict-card, .v-dict-key .v-dict-tab { stroke: var(--key); }
+.v-dict-num { fill: var(--muted); }
+.v-dict-row.on .v-dict-num, .v-dict-row.on .v-name { fill: var(--fg); font-weight: 700; }
+.v-dict-on { fill: var(--accent-soft); }
+.v-reel-window { fill: none; stroke: var(--line); }
+.v-reel-strip { transition: transform .8s cubic-bezier(.3, .1, .2, 1); }
+.v-pick { cursor: pointer; }
+.v-pick-bg { fill: var(--sunk); stroke: var(--line); }
+.v-pick:hover .v-pick-bg, .v-pick:focus-visible .v-pick-bg { stroke: var(--accent); }
+.v-pick:focus-visible { outline: none; }
+.v-pick.on .v-pick-bg { stroke: var(--accent); stroke-width: 2.5; fill: var(--accent-soft); }
+/* binary: each bit in its box, in a machine face; the header's and the padding's dashed */
+.v-bit-box { fill: var(--surface); stroke: currentColor; stroke-width: 1.2; }
+.v-bit-dashed .v-bit-box { stroke-dasharray: 3 2; }
+.v-bit-empty .v-bit-box { stroke: var(--line-strong); stroke-dasharray: 2 2; }
+.v-bit .v-t { fill: var(--fg); }
+/* the clock module */
+.v-clock-box { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.2; }
+.v-clock-cell { fill: var(--sunk); stroke: var(--line-strong); stroke-width: 1; }
+.v-clock-ring { fill: none; stroke: var(--line-strong); stroke-width: 1.5; }
+.v-clock-tick { fill: var(--line-strong); }
+.v-clock-tick.from { fill: var(--fg); }
+.v-clock-tick.to { fill: var(--accent); }
+.v-clock-n { fill: var(--muted); }
+.v-clock-n.from, .v-clock-n.to { fill: var(--fg); font-weight: 700; }
+.v-clock-arc { fill: none; stroke: var(--key); stroke-width: 2.5; }
+.v-clock-token { fill: var(--accent); stroke: var(--surface); stroke-width: 1.5; }
+.v-clock-by { fill: var(--key); }
+.v-clock-out { fill: var(--fg); }
+/* the QR code: the turn's squares blue */
+.v-qr-bg { fill: #ffffff; stroke: var(--line); }
+.v-qr-dark { fill: #1c2826; }
+.v-qr-unknown { fill: #e3e7e5; stroke: #ffffff; stroke-width: .3; }
+.v-qr-turn { fill: var(--qr-soft); stroke: var(--qr); stroke-width: .8; }
+.v-qr-turn.on { fill: var(--qr); }
+.v-qr-err { fill: var(--err); }
+/* arrows: dashed; the current one drawn along its path, the past ones nearly gone */
+.v-arrow-line { fill: none; stroke: currentColor; stroke-width: 2; stroke-dasharray: 5 4; }
+.v-arrow-head { fill: currentColor; }
+.v-arrow-draw { fill: none; stroke: #ffffff; stroke-width: 16; stroke-linecap: square; stroke-dasharray: 1 1; stroke-dashoffset: 1; animation: v-draw .6s ease-out forwards; }
+@keyframes v-draw { to { stroke-dashoffset: 0; } }
+.v-frame { fill: none; stroke: currentColor; stroke-width: 2; }
+/* a decision: a card per option, the chosen one with the accent's border */
+.v-cards { display: flex; gap: var(--sp-4); justify-content: center; align-items: stretch; flex-wrap: nowrap; }
+.v-card { flex: 1 1 0; max-width: 240px; display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); padding: var(--sp-3);
+	background: var(--surface); border: 2px solid var(--line); border-radius: var(--r-l); cursor: pointer; text-align: left; }
+.v-card:hover { border-color: var(--line-strong); }
+.v-card.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.v-card-art svg { display: block; max-width: 100%; height: auto; }
+.v-card-title { font-family: var(--book); font-size: var(--fs-l); text-align: center; }
+.v-card-list { list-style: none; margin: 0; padding: 0; align-self: stretch; font-size: var(--fs-s); }
+.v-pro .v-mark { color: var(--ok); font-weight: 700; }
+.v-con .v-mark { color: var(--err); font-weight: 700; }
+/* dice and their faces as buttons in relief: pressed, they sink */
+.v-die-body { fill: var(--surface); stroke: var(--line-strong); stroke-width: 3; }
+.v-die-edge { fill: var(--line-strong); }
+.v-die-rim { fill: none; stroke: var(--line); stroke-width: 2; }
+.v-die-face { fill: var(--fg); }
+.v-die { display: block; }
+.v-die.v-rolling { animation: v-roll .6s linear infinite; }
+@keyframes v-roll { to { transform: rotate(360deg); } }
+.v-face { padding: 0; border: 0; background: none; cursor: pointer; line-height: 0; border-radius: var(--r-m); }
+.v-face .v-die { transition: transform .08s; }
+.v-face:active .v-die { transform: translateY(3px); }
+.v-face:active .v-die-edge { opacity: 0; }
+.v-face:disabled { cursor: default; opacity: .4; }
+.v-face:disabled .v-die { transform: none; }
+@media (prefers-reduced-motion: reduce) {
+	.v-reel-strip, .v-face .v-die { transition: none; }
+	.v-arrow-draw { animation: none; stroke-dashoffset: 0; }
+	.v-die.v-rolling { animation: none; }
+}

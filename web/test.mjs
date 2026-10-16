@@ -388,5 +388,149 @@ check(Lay.keyThrow({ sides: 6 }).faces.cols === 3 && Lay.keyThrow({ sides: 6 }).
 	check(m.inputs.length === 2 && m.inputs.every(within) && within(m.output) && m.inputs[0].y === box.y && m.output.y + m.output.h === box.y + box.h, "clock module: inputs on top, output at the bottom");
 	check(m.dial.cy - m.dial.r >= m.inputs[0].y + m.inputs[0].h && m.dial.cy + m.dial.r <= m.output.y && m.dial.cx - m.dial.r >= box.x && m.dial.cx + m.dial.r <= box.x + box.w, "clock module: the dial between the bands");
 }
+// the visual vocabulary (vocab.js), drawn with a fake svg/h: { tag, attrs, children }
+{
+	const node = (tag, attrs, ...children) => ({ tag, attrs: { ...(attrs || {}) }, children: children.flat().filter((c) => c !== null && c !== undefined && c !== false),
+		listeners: {}, addEventListener(ev, fn) { this.listeners[ev] = fn; } });
+	vm.runInContext(read("src/vocab.js"), ctx, { filename: "src/vocab.js" });
+	const V = vm.runInContext("SeedcraftVocab", ctx)(node, node);
+	const walk = (n, pred, out = []) => { if (n && typeof n === "object") { if (pred(n)) out.push(n); n.children.forEach((c) => walk(c, pred, out)); } return out; };
+	const cls = (c) => (n) => (" " + (n.attrs.class || "") + " ").includes(" " + c + " ");
+	const textOf = (n) => typeof n === "string" ? n : n.children.map(textOf).join("");
+	const num = (v) => parseFloat(v);
+	// everything drawn stays inside its box (what a reel scrolls is clipped to its window, so it is left out)
+	const within = (root, b, what) => {
+		const bad = [], e = 0.01, inB = (x, y) => x >= b.x - e && x <= b.x + b.w + e && y >= b.y - e && y <= b.y + b.h + e;
+		const go = (n) => {
+			if (!n || typeof n !== "object" || cls("v-reel-strip")(n) || n.tag === "clipPath" || n.tag === "mask") return;
+			const a = n.attrs;
+			if (n.tag === "circle" && !(inB(num(a.cx) - num(a.r), num(a.cy) - num(a.r)) && inB(num(a.cx) + num(a.r), num(a.cy) + num(a.r)))) bad.push("circle " + a.cx + "," + a.cy);
+			if (n.tag === "rect" && !(inB(num(a.x), num(a.y)) && inB(num(a.x) + num(a.width), num(a.y) + num(a.height)))) bad.push("rect " + a.x + "," + a.y);
+			if (n.tag === "text" && !(inB(num(a.x), num(a.y)) && inB(num(a.x), num(a.y) - num(a["font-size"]) * 0.75))) bad.push("text " + textOf(n) + " at " + a.x + "," + a.y);
+			n.children.forEach(go);
+		};
+		go(root);
+		check(!bad.length, `${what} fits its box ${bad.slice(0, 3).join("; ")}`);
+	};
+	const things = Array.from({ length: 32 }, (_, i) => ({ name: "Piece " + i, emoji: i % 3 ? "" : "🍎", colour: i % 2 ? "#d04040" : "", photo: "", symbol: "" }));
+	const lay = Lay.makeTurn({ pad: true, n: 16 }), rlay = Lay.readTurn({ pad: true, n: 16 });
+
+	// string: 13 positions, the turn's piece bigger and ringed; holes dashed; nothing where there is no position
+	const items = Array.from({ length: 13 }, (_, i) => i < 6 ? i : null);
+	const s = V.string({ box: lay.boxes.seedString, orientation: "h", role: "build", things, items, firstPosition: 9, current: 6 });
+	const pieces = walk(s, cls("v-piece")), cur = walk(s, cls("v-current"));
+	check(pieces.length === 13 && cur.length === 1 && pieces.indexOf(cur[0]) === 6, "string: 13 pieces, the 7th marked as the turn's");
+	check(walk(s, cls("v-hole")).length === 7, "string: the empty positions are holes");
+	check(walk(s, (n) => n.tag === "text" && textOf(n) === "15").length === 1, "string: each piece's position beside it (9 + 6)");
+	const rad = (p) => Math.max(...walk(p, (n) => n.tag === "circle").map((c) => num(c.attrs.r)));
+	check(rad(cur[0]) > rad(pieces[5]), "string: the turn's piece is bigger");
+	const midCx = (p) => num(walk(p, (n) => n.tag === "circle")[0].attrs.cx), sl = lay.boxes.seedSlot;
+	check(Math.abs(midCx(cur[0]) - (sl.x + sl.w / 2)) < 1, "string: the turn's piece is in the slot's box");
+	within(s, lay.boxes.seedString, "string build");
+	const edge = V.string({ box: lay.boxes.seedString, orientation: "h", role: "build", things, items: [undefined, undefined, 3, 4, null], current: 3 });
+	check(walk(edge, cls("v-piece")).length === 3, "string: no piece where the string has no position");
+	const ref = V.string({ box: lay.boxes.keyString, orientation: "v", role: "reference", kind: "key", things, items: [1, 2, 3, 4, 5, 6, 7], firstPosition: 11, current: 3 });
+	check(walk(ref, cls("v-piece")).length === 7 && walk(ref, cls("v-turn-frame")).length === 1 && walk(ref, cls("v-thread-ref")).length === 1, "string: a reference, dotted, its turn's piece framed");
+	const refCy = num(walk(walk(ref, cls("v-current"))[0], (n) => n.tag === "circle")[0].attrs.cy);
+	check(Math.abs(refCy - 131) < 1, "string: the reference's turn piece is level with the arrow that leaves it");
+	within(ref, lay.boxes.keyString, "string reference");
+	let slotHit = null;
+	const rd = V.string({ box: rlay.boxes.keyColumn, orientation: "v", role: "read", kind: "key", things, items: [2, 9, 4, null, undefined, undefined, undefined], firstPosition: 1, current: 3, onSlot: (i) => { slotHit = i; } });
+	const vals = walk(rd, cls("v-value"));
+	check(vals.length === 3 && vals.every(cls("v-c-key")) && textOf(vals[1]) === "9", "string read: each piece's number beside it, in its string's colour");
+	const slot = walk(rd, cls("v-slot"))[0];
+	check(slot && textOf(slot).includes("+") && (slot.listeners.click(), slotHit === 3), "string read: the turn's hole is a «+» to tap");
+	const rk = rlay.boxes.keySlot, rcx = num(walk(slot, (n) => n.tag === "circle")[0].attrs.cx), rcy = num(walk(slot, (n) => n.tag === "circle")[0].attrs.cy);
+	check(rcx > rk.x && rcx < rk.x + rk.w && rcy > rk.y && rcy < rk.y + rk.h, "string read: the turn's hole is in the slot's box");
+	within(rd, rlay.boxes.keyColumn, "string read");
+	check(walk(rd, (n) => n.tag === "text" && textOf(n) === "⚿").length === 1 && walk(s, (n) => n.tag === "text" && textOf(n) === "🌱").length === 1, "string: the seed's or the key's icon beside it");
+
+	// dictionary: a reel turns until its value's row is centred in a 3-row window
+	for (const b of [lay.boxes.keyDict, lay.boxes.seedDict]) {
+		const d = V.dictionary({ box: b, things: things.slice(0, 16), mode: "reel", value: 11, icon: "key" });
+		const strip = walk(d, cls("v-reel-strip"))[0], win = walk(d, cls("v-reel-window"))[0];
+		const ty = num(/translate\(0[ ,]+(-?[\d.]+)\)/.exec(strip.attrs.transform)[1]);
+		const row11 = walk(strip, (n) => cls("v-dict-row")(n) && n.attrs["data-value"] === "11")[0];
+		const rowY = num(row11.attrs["data-y"]), rowH = num(win.attrs.height) / 3;
+		check(Math.abs(rowY + ty - (num(win.attrs.y) + rowH)) < 0.2, `dictionary ${b.h}px: the reel moves to row 11, in the window's middle`);
+		check(strip.attrs["data-value"] === "11" && walk(d, cls("v-dict-on")).length === 1, `dictionary ${b.h}px: the window frames the row`);
+		within(d, b, `dictionary reel ${b.h}px`);
+	}
+	const st16 = V.dictionary({ box: { x: 20, y: 40, w: 200, h: 290 }, things: things.slice(0, 16), mode: "static", value: 5, icon: "seed" });
+	check(walk(st16, cls("v-dict-row")).length === 16 && walk(st16, cls("v-dict-on")).length === 1, "dictionary static: every row, the turn's framed");
+	within(st16, { x: 20, y: 40, w: 200, h: 290 }, "dictionary static");
+	let picked = null;
+	const pk = V.dictionary({ box: { x: 100, y: 60, w: 480, h: 240 }, things: things.slice(0, 32), mode: "picker", value: null, icon: "seed", onPick: (v) => { picked = v; } });
+	const buttons = walk(pk, cls("v-pick"));
+	check(buttons.length === 32 && buttons.every((b) => b.attrs.role === "button" && b.attrs.tabindex === "0"), "dictionary picker: every piece a button");
+	buttons[7].listeners.click(); check(picked === 7, "dictionary picker: a tap picks the piece");
+	picked = null; buttons[9].listeners.keydown({ key: "Enter", preventDefault() {} }); check(picked === 9, "dictionary picker: Enter picks too");
+	within(pk, { x: 100, y: 60, w: 480, h: 240 }, "dictionary picker");
+
+	// bits: little boxes with «₂»; the header's and the padding's dashed
+	const bt = V.bits({ box: lay.boxes.bits, bits: [1, 0, 1, 1], orientation: "row", roles: ["header", "data", "data", "padding"] });
+	check(walk(bt, cls("v-bit")).length === 4 && walk(bt, cls("v-bit-dashed")).length === 2 && textOf(bt).includes("₂") && textOf(bt).includes("1011"), "bits: four boxes, two dashed, with ₂");
+	within(bt, lay.boxes.bits, "bits row");
+	const th = Lay.keyThrow({ sides: 6, bits: 5 }), tw = V.bits({ box: th.boxes.tower, bits: [1, 0, null, null, null], orientation: "tower", colour: "key" });
+	check(walk(tw, cls("v-bit-empty")).length === 3 && cls("v-c-key")(tw), "bits tower: the empty ones still to come, in the key's colour");
+	within(tw, th.boxes.tower, "bits tower");
+
+	// clock: the module's bands where the layout puts them; the sum mod N
+	for (const n of [2, 16, 32]) for (const [b, sign] of [[lay.boxes.clock, 1], [rlay.boxes.clock, -1]]) {
+		const from = n - 1, by = Math.min(n - 1, 9), c = V.clock({ box: b, n, from, by, sign, phase: "done" }), m = Lay.clockModule(b);
+		const out = walk(c, cls("v-clock-out"))[0];
+		check(textOf(out) === String(S.clockStep(from, by, n, sign).value), `clock n=${n} sign=${sign}: the output is the sum mod N`);
+		const ins = walk(c, cls("v-clock-in"));
+		check(ins.length === 2 && textOf(ins[0]) === String(from) && textOf(ins[1]) === (sign > 0 ? "+" : "−") + by && cls("v-c-key")(ins[1]), `clock n=${n}: «${from} | ${sign > 0 ? "+" : "−"}${by}», the key's in its colour`);
+		const cells = walk(c, cls("v-clock-cell")).map((r) => ({ x: num(r.attrs.x), y: num(r.attrs.y), w: num(r.attrs.width), h: num(r.attrs.height) }));
+		check(same(cells, [...m.inputs, m.output]), `clock n=${n}: the bands are the layout's`);
+		const ring = walk(c, cls("v-clock-ring"))[0];
+		check(num(ring.attrs.cx) === m.dial.cx && num(ring.attrs.cy) === m.dial.cy && num(ring.attrs.r) === m.dial.r, `clock n=${n}: the dial is the layout's`);
+		const labels = walk(c, cls("v-clock-n")).map(textOf), to = S.clockStep(from, by, n, sign).value;
+		check(n <= 16 ? labels.length === n : labels.includes(String(from)) && labels.includes(String(to)) && labels.length <= n / 4 + 2 && labels.includes("8"), `clock n=${n}: ${n <= 16 ? "every number" : "every 4th number and the sum's"} written`);
+		check(walk(c, cls("v-clock-tick")).length === n, `clock n=${n}: a tick per number`);
+		check(walk(c, cls("v-clock-n")).every((t) => Math.hypot(num(t.attrs.x) - m.dial.cx, num(t.attrs.y) - m.dial.cy) + 0.6 * num(t.attrs["font-size"]) <= m.dial.r), `clock n=${n}: the numbers inside the ring, clear of the bands`);
+		within(c, b, `clock n=${n}`);
+	}
+	for (const [n, from, by] of [[32, 13, 1], [32, 12, 3], [32, 31, 1], [16, 15, 9], [8, 7, 7]]) {
+		const t = walk(V.clock({ box: lay.boxes.clock, n, from, by, sign: 1, phase: "done" }), cls("v-clock-n"));
+		check(t.every((a, i) => t.slice(i + 1).every((b) => Math.hypot(num(a.attrs.x) - num(b.attrs.x), num(a.attrs.y) - num(b.attrs.y)) >= num(a.attrs["font-size"]))), `clock n=${n} ${from}+${by}: its numbers do not touch`);
+	}
+	const ci = V.clock({ box: lay.boxes.clock, n: 16, from: 11, by: 9, sign: 1, phase: "inputs" });
+	check(textOf(walk(ci, cls("v-clock-out"))[0]) === "" && textOf(walk(ci, cls("v-clock-by"))[0]) === "", "clock inputs: no output yet");
+	const cr = V.clock({ box: lay.boxes.clock, n: 16, from: 11, by: 9, sign: 1, phase: "run" });
+	check(textOf(walk(cr, cls("v-clock-out"))[0]) === "4", "clock run, without animation: the value appears directly");
+
+	// QR: a grid; the turn's squares in blue
+	const q = V.qr({ box: lay.boxes.qr, size: 21, modules: (r, c) => (r + c) % 2 === 0, turnCells: [[9, 9], [9, 10], [10, 9]], painted: new Map([[0, 1]]) });
+	check(walk(q, cls("v-qr-turn")).length === 3, "qr: the turn's squares marked");
+	within(q, lay.boxes.qr, "qr");
+
+	// arrows: dashed, right angles, the past ones nearly invisible
+	const past = V.arrow({ points: [[10, 10], [50, 10], [50, 40]], colour: "qr", state: "past" });
+	check(num(past.attrs.opacity) < 0.1, "arrow: a past one nearly invisible");
+	const now = V.arrow({ points: [[10, 10], [50, 10]], colour: "key", state: "current" });
+	check(cls("v-c-key")(now) && walk(now, cls("v-arrow-line"))[0].attrs.d === "M10 10 L50 10" && walk(now, (n) => n.tag === "mask").length === 1, "arrow: the current one drawn along its path, in its colour");
+	check(V.arrow({ points: [[0, 0], [5, 0]], colour: "qr", state: "hidden" }).attrs.visibility === "hidden", "arrow: hidden");
+	let diag = false; try { V.arrow({ points: [[0, 0], [5, 5]], colour: "qr", state: "current" }); } catch { diag = true; }
+	check(diag, "arrow: refuses a diagonal");
+
+	// cards: one per option, at most two ✓ and two ✕
+	let chose = null;
+	const cd = V.cards({ options: [{ id: "a", art: node("svg", {}), title: "A", pros: ["p1", "p2", "p3"], cons: ["c1"] }, { id: "b", art: null, title: "B", pros: ["p"], cons: ["c1", "c2"] }], chosen: "b", onChoose: (id) => { chose = id; } });
+	const cardList = walk(cd, cls("v-card"));
+	check(cardList.length === 2 && walk(cardList[0], cls("v-pro")).length === 2 && walk(cardList[0], cls("v-con")).length === 1
+		&& walk(cardList[1], cls("v-con")).length === 2 && textOf(cardList[0]).includes("✓") && textOf(cardList[1]).includes("✕"), "cards: two cards, with their ✓ and ✕ (two at most)");
+	check(cls("on")(cardList[1]) && cardList[1].attrs["aria-pressed"] === "true" && !cls("on")(cardList[0]), "cards: the chosen one marked");
+	cardList[0].attrs.on.click(); check(chose === "a", "cards: a tap chooses");
+
+	// a die, and its faces as buttons
+	check(textOf(V.die({ sides: 6, face: 3, size: 56 })) === "4" && textOf(V.die({ sides: 10, face: 3 })) === "3" && textOf(V.die({ sides: 6, face: null })) === "?", "die: its face");
+	let pressed = null;
+	const fb = V.faceButton({ sides: 20, face: 4, onPress: (f) => { pressed = f; }, size: 31 });
+	check(fb.tag === "button" && cls("v-face")(fb), "faceButton: a button");
+	fb.attrs.on.click(); check(pressed === 4, "faceButton: a press gives its face");
+	check(V.faceButton({ sides: 6, face: 1, disabled: true }).attrs.disabled === true, "faceButton: disabled");
+}
 console.log(`${failures ? "FAIL" : "ok"}: ${vectors.length} vectors, ${padVectors.length} pad vectors, ${failures} failures`);
 process.exit(failures ? 1 : 0);
