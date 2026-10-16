@@ -411,7 +411,9 @@ it, is the seed. `RISK-AUDIT.md` goes through the cases.
    same cloud account, on the same journey.
 3. **Losing either loses the seed**, for good. Keep copies of each if you
    need them, every copy as far from the other half as the original.
-4. **A copy of the dictionary with each.**
+4. **Each with its own dictionary**: the sequence with its dictionary, the
+   pad with its own if it has one (§11.4). If both use the same one, a copy
+   with each.
 5. **Check both together before storing them apart.**
 6. The web tool makes pads **for learning and testing only**; for real
    funds, an air-gapped device (§9).
