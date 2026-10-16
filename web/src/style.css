@@ -655,7 +655,7 @@ pre.pad-file span.on { background: var(--pad-soft); }
 .v-mono { font-family: var(--mono); }
 .v-bold { font-weight: 700; }
 .v-pos, .v-sub { fill: var(--muted); }
-.v-pos-current { fill: var(--fg); font-weight: 700; }
+.v-pos-current { fill: var(--qr); font-weight: 700; }
 .v-name { fill: var(--fg); }
 .v-ink { fill: var(--fg); } .v-ink-dark { fill: #111111; } .v-ink-light { fill: #ffffff; }
 /* pieces: a bead on its thread; a missing one a dashed hole; the turn's ringed in the accent */
@@ -708,7 +708,8 @@ pre.pad-file span.on { background: var(--pad-soft); }
 .v-clock-token { fill: var(--accent); stroke: var(--surface); stroke-width: 1.5; }
 .v-clock-by { fill: var(--key); }
 .v-clock-out { fill: var(--fg); }
-/* the QR code: the turn's squares blue */
+/* the QR code: the turn's squares blue. It stays light in the dark theme (to scan), so its tokens are the light ones */
+.v-qr { --qr: #1f66c9; --qr-soft: #dce9fb; --err: #c0261d; }
 .v-qr-bg { fill: #ffffff; stroke: var(--line); }
 .v-qr-dark { fill: #1c2826; }
 .v-qr-unknown { fill: #e3e7e5; stroke: #ffffff; stroke-width: .3; }

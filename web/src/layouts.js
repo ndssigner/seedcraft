@@ -43,7 +43,7 @@ const SeedcraftLayouts = (() => {
 
 	// The string being built (the seed in its turn, the key in its throw) is one
 	// element: bottom, full width, 13 pieces, the turn's slot in the middle.
-	const BUILT = box(20, 296, 640, 44), SLOT = box(316, 296, 48, 44);
+	const BUILT = box(20, 280, 640, 60), SLOT = box(316, 280, 48, 60);
 	// the slide's fixed top band, the guide on the left and «?» «⋯» on the right: nothing else goes there
 	const GUIDE = box(0, 0, VIEW.w, 26);
 
@@ -62,7 +62,7 @@ const SeedcraftLayouts = (() => {
 			guide: { ...GUIDE },
 		};
 		const arrows = [
-			arrow("position", "seedSlot", "qr", "qr", [[328, 296], [328, 284], [67, 284], [67, 140]]),
+			arrow("position", "seedSlot", "qr", "qr", [[328, 280], [328, 268], [67, 268], [67, 140]]),
 			arrow("bits", "qr", "bits", "qr", [[115, 67], [135, 67]]),
 			arrow("number", "bits", "number", "qr", [[155, 78], [155, 94]]),
 		];
@@ -70,7 +70,7 @@ const SeedcraftLayouts = (() => {
 			b.seedDict = box(297, 76, 86, 72);
 			arrows.push(
 				arrow("dict", "number", "seedDict", "qr", [[195, 112], [297, 112]]),
-				arrow("slot", "seedDict", "seedSlot", "qr", [[352, 148], [352, 296]]));
+				arrow("slot", "seedDict", "seedSlot", "qr", [[352, 148], [352, 280]]));
 			return { boxes: b, arrows };
 		}
 		// the key string is a reference: vertical, its turn piece in the middle (y 131)
@@ -78,8 +78,8 @@ const SeedcraftLayouts = (() => {
 			keyString: box(268, 40, 34, 182),
 			keyDict: box(320, 95, 86, 72),
 			keyNumber: box(320, 183, 86, 30),
-			clock: box(452, 50, 140, 146),
-			seedDict: box(479, 212, 86, 44),
+			clock: box(452, 50, 140, 136),
+			seedDict: box(479, 202, 86, 62),
 		});
 		const keyIn = clockModule(b.clock).inputs[1], keyX = keyIn.x + keyIn.w / 2;
 		arrows.push(
@@ -91,8 +91,8 @@ const SeedcraftLayouts = (() => {
 			// cell: any route over the top would cross the key's.
 			arrow("clockSeed", "number", "clock", "qr", [[165, 130], [165, 240], [436, 240], [436, 63], [452, 63]]),
 			arrow("clockKey", "keyNumber", "clock", "key", [[406, 198], [420, 198], [420, 38], [keyX, 38], [keyX, keyIn.y]]),
-			arrow("output", "clock", "seedDict", "qr", [[522, 196], [522, 212]]),
-			arrow("slot", "seedDict", "seedSlot", "qr", [[522, 256], [522, 272], [352, 272], [352, 296]]));
+			arrow("output", "clock", "seedDict", "qr", [[522, 186], [522, 202]]),
+			arrow("slot", "seedDict", "seedSlot", "qr", [[522, 264], [522, 266], [352, 266], [352, 280]]));
 		return { boxes: b, arrows };
 	}
 
@@ -168,7 +168,7 @@ const SeedcraftLayouts = (() => {
 			arrow("number", "brace", "number", "key", [[378, mid], [394, mid]]),
 			arrow("dict", "number", "keyDict", "key", [[450, mid], [466, mid]]),
 			arrow("piece", "keyDict", "piece", "key", [[552, mid], [568, mid]]),
-			arrow("slot", "piece", "keySlot", "key", [[606, mid + 25], [606, 276], [352, 276], [352, 296]]),
+			arrow("slot", "piece", "keySlot", "key", [[606, mid + 25], [606, 266], [352, 266], [352, 280]]),
 		] };
 	}
 
