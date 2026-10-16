@@ -1,0 +1,392 @@
+// Seedcraft Sequences, the web tool's slides: the visual vocabulary every
+// slide is built from (strings, dictionaries, bits, the clock module, the QR
+// code, arrows, decision cards, dice), drawn on the boxes layouts.js gives.
+// It draws with the svg() and h() it is given, so web/test.mjs can check its
+// structure without a DOM. Colours are classes (style.css: --qr blue for what
+// comes from the QR code, --key amber for what comes from the key, --err red);
+// nothing here writes a style attribute or an inline handler.
+"use strict";
+
+function SeedcraftVocab(svg, h) {
+	let uid = 0;
+	const nextId = (p) => `v-${p}-${++uid}`;
+	const live = (el) => el && typeof el.setAttribute === "function";
+	const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+	const animates = (el) => live(el) && typeof setTimeout === "function" && !reducedMotion();
+	const mod = (x, n) => ((x % n) + n) % n;
+	const r1 = (x) => Math.round(x * 10) / 10;
+	const colourClass = (c) => "v-c-" + (c || "seed");
+	const ICON = { seed: "🌱", key: "⚿" };
+	const text = (x, y, size, s, attrs = {}) => svg("text", { x: r1(x), y: r1(y), "font-size": r1(size), ...attrs, class: "v-t" + (attrs.class ? " " + attrs.class : "") }, String(s));
+	// a text cut to a width, roughly (an average glyph is about 0.56 em)
+	const fit = (s, width, size) => {
+		const chars = Array.from(String(s || "")), max = Math.max(1, Math.floor(width / (size * 0.56)));
+		return chars.length > max ? chars.slice(0, Math.max(1, max - 1)).join("") + "…" : chars.join("");
+	};
+	// a straight path that turns only at right angles
+	const pathOf = (points) => points.map(([x, y], i) => {
+		if (i && x !== points[i - 1][0] && y !== points[i - 1][1]) throw new Error(`diagonal segment ${points[i - 1]} → ${x},${y}`);
+		return (i ? "L" : "M") + x + " " + y;
+	}).join(" ");
+	const press = (el, fn) => {
+		el.addEventListener("click", fn);
+		el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); } });
+		return el;
+	};
+
+	// ---- one piece -------------------------------------------------------
+	// centred on (x, y): its photo, else its emoji, else its symbol on its
+	// colour, else its initials; no piece: a dashed hole.
+	const PICTOGRAPH = /\p{Extended_Pictographic}/u;
+	const initialsOf = (name) => {
+		const words = (name || "").trim().split(/\s+/).filter(Boolean);
+		return !words.length ? "" : words.length > 1 ? words.map((w) => w[0]).join("").slice(0, 2).toUpperCase() : words[0].slice(0, 3);
+	};
+	const lightColour = (hex) => {
+		const v = parseInt((hex || "#ffffff").slice(1), 16);
+		return ((v >> 16) * 299 + ((v >> 8) & 255) * 587 + (v & 255) * 114) / 1000 > 150;
+	};
+	function bead(thing, x, y, r, current) {
+		x = r1(x); y = r1(y); r = r1(r);
+		if (!thing) return svg("g", { class: "v-bead" }, svg("circle", { cx: x, cy: y, r, class: "v-hole" }));
+		const ring = "v-bead-ring" + (current ? " v-ring-current" : "");
+		const parts = [];
+		if (thing.photo) {
+			const id = nextId("clip");
+			parts.push(svg("clipPath", { id }, svg("circle", { cx: x, cy: y, r })),
+				svg("image", { href: thing.photo, x: x - r, y: y - r, width: 2 * r, height: 2 * r, "clip-path": `url(#${id})`, preserveAspectRatio: "xMidYMid slice" }),
+				svg("circle", { cx: x, cy: y, r, class: ring, fill: "none" }));
+		} else {
+			const fill = thing.colour || undefined, base = fill ? ring : ring + " v-bead-bg";
+			if (thing.brick) {
+				const hh = r1(r * 1.4);
+				parts.push(svg("rect", { x: x - r, y: r1(y - hh / 2), width: 2 * r, height: hh, rx: 3, fill, class: base }));
+			} else parts.push(svg("circle", { cx: x, cy: y, r, fill, class: base }));
+			const ink = fill ? (lightColour(fill) ? "v-ink-dark" : "v-ink-light") : "v-ink";
+			if (thing.emoji && PICTOGRAPH.test(thing.emoji)) parts.push(text(x, y + r * 0.36, r * 1.05, thing.emoji, { "text-anchor": "middle" }));
+			else if (thing.symbol && !thing.emoji) parts.push(text(x, y + r * 0.34, r * 0.95, thing.symbol + "︎", { "text-anchor": "middle", class: "v-mono v-bold " + ink }));
+			else {
+				const initials = thing.emoji || initialsOf(thing.name) || "?";
+				parts.push(text(x, y + r * 0.3, r * (initials.length > 3 ? 0.5 : initials.length > 2 ? 0.62 : 0.8), initials, { "text-anchor": "middle", class: "v-bold " + ink }));
+			}
+		}
+		return svg("g", { class: "v-bead" }, parts);
+	}
+
+	// ---- a string: pieces on a thread --------------------------------------
+	// items: each position's piece (an index in things), null for an empty
+	// position (a dashed hole), undefined where the string has no position
+	// (before its start, after its end). firstPosition: items[0]'s position,
+	// from 1. current: the index in items of the turn's piece. kind: "seed"
+	// (neutral) or "key" (amber). role "build": the big one, its names under the
+	// pieces, the turn's piece bigger and ringed; "reference": thin, dotted,
+	// dimmed, its turn's piece framed; "read": each piece's number beside it in
+	// its string's colour (showValues). onSlot(i): a hole is a «+» to tap.
+	function string({ box, orientation = "h", role = "build", kind = "seed", things = [], items = [], firstPosition = 1, current = -1, showValues = role === "read", onSlot, onPiece }) {
+		const n = Math.max(1, items.length), vertical = orientation === "v";
+		// the icon's room at the start, the same at the end, so the middle position stays at the box's middle
+		const pad = vertical ? Math.min(14, box.h * 0.08) : Math.min(20, box.w * 0.04);
+		const pitch = ((vertical ? box.h : box.w) - 2 * pad) / n;
+		const parts = [];
+		let place, r, label;
+		if (!vertical) {
+			const cy = box.y + (role === "build" ? box.h * 0.4 : box.h * 0.38);
+			r = Math.max(3, Math.min(pitch / 2 - 6, box.h * 0.27) * (role === "reference" ? 0.7 : 1));
+			place = (i) => [box.x + pad + pitch * (i + 0.5), cy];
+			const fs = Math.min(9, box.h * 0.2), small = Math.min(7, box.h * 0.16);
+			label = (i, x, y, thing, pos, value) => [
+				role === "build" ? text(x, box.y + box.h - 2, fs, thing ? fit(thing.name, pitch - 2, fs) : "", { "text-anchor": "middle", class: "v-name" }) : text(x, box.y + box.h - 2, fs, pos, { "text-anchor": "middle", class: "v-pos" }),
+				role === "build" ? text(x - pitch / 2 + 2, box.y + small + 1, small, pos, { class: "v-pos" }) : null,
+				value !== null && showValues ? text(x + pitch / 2 - 2, box.y + small + 1, small * 1.3, value, { "text-anchor": "end", class: "v-value " + colourClass(kind) }) : null];
+			parts.push(text(box.x + pad / 2, cy + Math.min(pad * 0.7, 14) * 0.35, Math.min(pad * 0.7, 14), ICON[kind], { "text-anchor": "middle", class: "v-icon" }));
+		} else if (role === "read") {
+			// the piece on the left, its number on the right (big, in its string's colour), its position under that
+			const cx = box.x + Math.min(22, box.w * 0.32);
+			r = Math.max(3, Math.min(pitch / 2 - 3, 16, cx - box.x - 2));
+			place = (i) => [cx, box.y + pad + pitch * (i + 0.5)];
+			const lx = (cx + r + box.x + box.w) / 2, fs = Math.min(13, pitch * 0.38), small = Math.min(8, pitch * 0.24);
+			label = (i, x, y, thing, pos, value) => [
+				value !== null && showValues ? text(lx, y + fs * 0.15, fs, value, { "text-anchor": "middle", class: "v-value v-bold " + colourClass(kind) }) : null,
+				text(lx, y + fs * 0.15 + small + 1, small, pos, { "text-anchor": "middle", class: "v-pos" })];
+			parts.push(text(cx, box.y + pad * 0.8, pad * 0.75, ICON[kind], { "text-anchor": "middle", class: "v-icon" }));
+		} else {
+			// the position on the left, the piece on the right
+			const numW = 12;
+			r = Math.max(3, Math.min(pitch / 2 - 2, (box.w - numW) / 2 - 2) * (role === "reference" ? 0.85 : 1));
+			const cx = box.x + numW + (box.w - numW) / 2;
+			place = (i) => [cx, box.y + pad + pitch * (i + 0.5)];
+			const fs = Math.min(8, pitch * 0.4);
+			label = (i, x, y, thing, pos, value) => [
+				text(box.x + numW / 2, y + fs * 0.35, fs, pos, { "text-anchor": "middle", class: "v-pos" + (i === current ? " v-pos-current" : "") }),
+				value !== null && showValues ? text(box.x + numW / 2, y + fs * 1.4, fs, value, { "text-anchor": "middle", class: "v-value " + colourClass(kind) }) : null];
+			parts.push(text(cx, box.y + pad * 0.8, pad * 0.75, ICON[kind], { "text-anchor": "middle", class: "v-icon" }));
+		}
+		// the thread, from the first position there is to the last
+		const there = items.map((x, i) => x === undefined ? -1 : i).filter((i) => i >= 0);
+		if (there.length) {
+			const a = place(there[0]), b = place(there[there.length - 1]), ext = (i) => i === 0 || i === items.length - 1 ? pitch / 2 : 0;
+			const [x1, y1] = vertical ? [a[0], a[1] - ext(there[0])] : [a[0] - ext(there[0]), a[1]];
+			const [x2, y2] = vertical ? [b[0], b[1] + ext(there[there.length - 1])] : [b[0] + ext(there[there.length - 1]), b[1]];
+			parts.push(svg("line", { x1: r1(x1), y1: r1(y1), x2: r1(x2), y2: r1(y2), class: "v-thread" + (role === "reference" ? " v-thread-ref" : role === "build" ? " v-thread-build" : "") }));
+		}
+		items.forEach((idx, i) => {
+			if (idx === undefined) return;
+			const [x, y] = place(i), pos = firstPosition + i, thing = idx === null ? null : things[idx] || null, isCur = i === current;
+			const rr = isCur && role === "build" ? Math.min(r * 1.25, (vertical ? box.w : box.h) / 2 - 1) : r;
+			const kids = [];
+			if (isCur && role === "reference") kids.push(svg("rect", { x: r1(x - rr - 2), y: r1(y - pitch / 2 + 0.5), width: r1(2 * rr + 4), height: r1(pitch - 1), rx: 3, class: "v-turn-frame" }));
+			kids.push(bead(thing, x, y, rr, isCur && role === "build"));
+			if (idx === null && onSlot) kids.push(text(x, y + rr * 0.4, rr * 1.1, "+", { "text-anchor": "middle", class: "v-plus" }));
+			if (thing) kids.push(svg("title", {}, `${pos}: ${thing.name || ""}`));
+			kids.push(...label(i, x, y, thing, pos, idx === null ? null : idx).filter(Boolean));
+			const tap = idx === null ? onSlot : thing ? onPiece : null;
+			const g = svg("g", { class: "v-piece" + (isCur ? " v-current" : "") + (idx === null ? " v-empty" : "") + (idx === null && onSlot ? " v-slot" : ""),
+				role: tap ? "button" : undefined, tabindex: tap ? "0" : undefined }, kids);
+			if (tap) press(g, () => tap(i));
+			parts.push(g);
+		});
+		return svg("g", { class: `v v-string v-${role} v-${kind}` }, parts);
+	}
+
+	// ---- a dictionary: a little card with a book's tab ----------------------
+	// rows «number · piece». "static": every row (or, if they do not fit, the
+	// ones around value), value's framed. "reel": a window of 3 rows over a
+	// strip of every row, turned (a transform) until value's row is in the
+	// middle; from: the value it turns from (animated unless reduced motion).
+	// "picker": every piece as a button; onPick(v).
+	function dictionary({ box, things = [], mode = "static", value = null, icon = "seed", onPick, from }) {
+		const N = things.length, tabH = Math.max(8, Math.min(14, Math.round(box.h * 0.18)));
+		const card = { x: box.x, y: box.y + tabH, w: box.w, h: box.h - tabH }, inner = { x: card.x + 2, y: card.y + 2, w: card.w - 4, h: card.h - 4 };
+		const tabW = Math.min(30, box.w * 0.4);
+		const parts = [
+			svg("rect", { x: box.x, y: box.y, width: r1(tabW), height: tabH + 2, rx: 3, class: "v-dict-tab" }),
+			text(box.x + tabW / 2, box.y + tabH * 0.82, tabH * 0.8, ICON[icon], { "text-anchor": "middle", class: "v-icon" }),
+			svg("rect", { x: card.x, y: card.y, width: card.w, height: card.h, rx: 4, class: "v-dict-card" }),
+		];
+		const row = (v, y, rowH, on) => {
+			const fs = Math.min(12, rowH * 0.62), numW = fs * 1.5, br = Math.max(2, rowH * 0.36), thing = things[v];
+			const bx = inner.x + numW + 4 + br;
+			return svg("g", { class: "v-dict-row" + (on ? " on" : ""), "data-value": String(v), "data-y": String(r1(y)) },
+				text(inner.x + numW, y + rowH / 2 + fs * 0.35, fs, v, { "text-anchor": "end", class: "v-mono v-dict-num" }),
+				bead(thing && (thing.name || thing.emoji || thing.photo || thing.colour) ? thing : null, bx, y + rowH / 2, br),
+				text(bx + br + 3, y + rowH / 2 + fs * 0.35, fs, thing ? fit(thing.name, inner.x + inner.w - bx - br - 4, fs) : "", { class: "v-name" }));
+		};
+		if (mode === "picker") {
+			const cols = Math.max(1, Math.min(N, Math.ceil(Math.sqrt(N * inner.w / inner.h)))), rows = Math.max(1, Math.ceil(N / cols));
+			const cw = inner.w / cols, ch = inner.h / rows, gap = 2;
+			things.forEach((thing, v) => {
+				const x = inner.x + (v % cols) * cw, y = inner.y + Math.floor(v / cols) * ch, br = Math.max(3, Math.min(cw, ch) / 2 - 8), fs = Math.min(10, ch * 0.22);
+				parts.push(press(svg("g", { class: "v-pick" + (v === value ? " on" : ""), role: "button", tabindex: "0", "aria-label": `${v}: ${thing.name || ""}`, "aria-pressed": String(v === value) },
+					svg("rect", { x: r1(x + gap / 2), y: r1(y + gap / 2), width: r1(cw - gap), height: r1(ch - gap), rx: 4, class: "v-pick-bg" }),
+					bead(thing, x + cw / 2, y + ch / 2 + fs * 0.3, br),
+					text(x + 4, y + fs + 2, fs, v, { class: "v-mono v-dict-num" }),
+					svg("title", {}, `${v}: ${thing.name || ""}`)), () => onPick && onPick(v)));
+			});
+			return svg("g", { class: `v v-dict v-dict-${icon} v-picker` }, parts);
+		}
+		if (mode === "reel") {
+			const rowH = inner.h / 3, at = (v) => inner.y + rowH - (v === null ? 0 : v) * rowH, id = nextId("reel");
+			const strip = svg("g", { class: "v-reel-strip", transform: `translate(0 ${r1(at(value))})`, "data-value": value === null ? "" : String(value) },
+				things.map((_, v) => row(v, v * rowH, rowH, v === value)));
+			parts.push(svg("clipPath", { id }, svg("rect", { x: inner.x, y: inner.y, width: inner.w, height: inner.h })),
+				svg("rect", { x: inner.x, y: r1(inner.y + rowH), width: inner.w, height: r1(rowH), rx: 3, class: "v-dict-on" }),
+				svg("g", { "clip-path": `url(#${id})` }, strip),
+				svg("rect", { x: inner.x, y: inner.y, width: inner.w, height: r1(inner.h), class: "v-reel-window" }));
+			// turning from the last value: CSS transitions the style's transform (style.css; none with reduced motion)
+			if (from !== undefined && from !== null && from !== value && live(strip) && strip.style && typeof requestAnimationFrame === "function") {
+				strip.style.transform = `translate(0px, ${r1(at(from))}px)`;
+				requestAnimationFrame(() => requestAnimationFrame(() => { strip.style.transform = `translate(0px, ${r1(at(value))}px)`; }));
+			}
+			return svg("g", { class: `v v-dict v-dict-${icon} v-reel` }, parts);
+		}
+		// static: every row if each gets 12 px, else the rows around value
+		const show = Math.max(1, Math.min(N, Math.floor(inner.h / 12))), rowH = Math.min(20, inner.h / show);
+		const first = show >= N ? 0 : Math.max(0, Math.min(N - show, (value === null ? 0 : value) - Math.floor(show / 2)));
+		for (let v = first; v < first + show && v < N; v++) {
+			const y = inner.y + (v - first) * rowH;
+			if (v === value) parts.push(svg("rect", { x: inner.x, y: r1(y), width: inner.w, height: r1(rowH), rx: 3, class: "v-dict-on" }));
+			parts.push(row(v, y, rowH, v === value));
+		}
+		return svg("g", { class: `v v-dict v-dict-${icon} v-static` }, parts);
+	}
+
+	// ---- binary: each bit in its little box, with «₂» --------------------
+	// bits: 0, 1 or null (still to come: an empty box). roles[i]: "header" and
+	// "padding" are dashed (they have no square in the QR code). colour: "qr" or
+	// "key", where they come from.
+	function bits({ box, bits = [], orientation = "row", roles = [], colour = "qr" }) {
+		const n = Math.max(1, bits.length), SUB = 8, parts = [], tower = orientation === "tower";
+		const pitch = tower ? box.h / n : (box.w - SUB) / n;
+		const size = Math.max(4, Math.min(tower ? box.w - SUB : box.h, pitch - 2));
+		bits.forEach((b, i) => {
+			const x = tower ? box.x + (box.w - SUB - size) / 2 : box.x + i * pitch + (pitch - size) / 2;
+			const y = tower ? box.y + i * pitch + (pitch - size) / 2 : box.y + (box.h - size) / 2;
+			const role = roles[i] && roles[i] !== "data" ? " v-bit-dashed v-bit-" + roles[i] : "";
+			parts.push(svg("g", { class: "v-bit" + (b === null || b === undefined ? " v-bit-empty" : "") + role },
+				svg("rect", { x: r1(x), y: r1(y), width: r1(size), height: r1(size), rx: 3, class: "v-bit-box" }),
+				b === null || b === undefined ? null : text(x + size / 2, y + size * 0.72, size * 0.62, b, { "text-anchor": "middle", class: "v-mono" })));
+		});
+		const last = n - 1, sx = tower ? box.x + box.w - SUB / 2 : box.x + box.w - SUB / 2;
+		const sy = tower ? box.y + last * pitch + (pitch + size) / 2 : box.y + (box.h + size) / 2;
+		parts.push(text(sx, Math.min(sy, box.y + box.h), 8, "₂", { "text-anchor": "middle", class: "v-sub" }));
+		return svg("g", { class: `v v-bits v-bits-${orientation} ${colourClass(colour)}` }, parts);
+	}
+
+	// ---- decimal: a big number, no box ------------------------------------
+	const number = ({ box, value, colour = "seed" }) => {
+		const fs = Math.min(box.h * 0.8, 28);
+		return svg("g", { class: `v v-number ${colourClass(colour)}` },
+			text(box.x + box.w / 2, box.y + box.h / 2 + fs * 0.36, fs, value === null || value === undefined ? "" : value, { "text-anchor": "middle", class: "v-bold" }));
+	};
+	// ---- one piece with its name under it, filling a box --------------------
+	const piece = ({ box, thing, current = false }) => {
+		const fs = Math.min(10, box.h * 0.2), r = Math.max(3, Math.min(box.w / 2, (box.h - fs - 3) / 2) - 2);
+		return svg("g", { class: "v v-one" }, bead(thing || null, box.x + box.w / 2, box.y + 2 + r, r, current),
+			text(box.x + box.w / 2, box.y + box.h - 2, fs, thing ? fit(thing.name, box.w, fs) : "", { "text-anchor": "middle", class: "v-name" }));
+	};
+	// ---- a frame around a row (the turn's, when reading) ---------------------
+	const frame = ({ box, colour = "qr" }) => svg("rect", { x: box.x, y: box.y, width: box.w, height: box.h, rx: 6, class: `v v-frame ${colourClass(colour)}` });
+
+	// ---- the clock module: inputs on top, the dial, the output at the bottom ----
+	// The bands are layouts.js's clockModule (the arrows enter its cells), the
+	// same arithmetic here so this file stands alone; web/test.mjs checks both
+	// agree. phase "inputs": the two numbers only; "run": the token goes round
+	// step by step (about 220 ms a step), then the output; directly with
+	// reduced motion; "done": the token at the result, the arc, the output.
+	// inputColour: the first number's colour ("qr" making a copy, "seed" reading).
+	function clockModule(b) {
+		const band = Math.round(b.h * 0.18), half = b.w / 2;
+		const r = Math.min(b.w, b.h - 2 * band) / 2 - 6;
+		return {
+			inputs: [{ x: b.x, y: b.y, w: half, h: band }, { x: b.x + half, y: b.y, w: half, h: band }],
+			dial: { cx: b.x + half, cy: b.y + b.h / 2, r },
+			output: { x: b.x, y: b.y + b.h - band, w: b.w, h: band },
+		};
+	}
+	function clock({ box, n, from, by, sign = 1, phase = "done", inputColour = "qr", onDone }) {
+		const m = clockModule(box), { cx, cy, r } = m.dial, to = mod(from + sign * by, n), wrapped = sign > 0 ? from + by > n - 1 : from - by < 0;
+		const angle = (v) => 2 * Math.PI * v / n - Math.PI / 2;
+		const at = (v, rr = r) => [r1(cx + rr * Math.cos(angle(v))), r1(cy + rr * Math.sin(angle(v)))];
+		const cell = (c) => svg("rect", { x: c.x, y: c.y, width: c.w, height: c.h, class: "v-clock-cell" });
+		const bandText = (c, s, cls) => text(c.x + c.w / 2, c.y + c.h / 2 + Math.min(c.h * 0.62, 18) * 0.36, Math.min(c.h * 0.62, 18), s, { "text-anchor": "middle", class: "v-bold " + cls });
+		const parts = [svg("rect", { x: box.x, y: box.y, width: box.w, height: box.h, rx: 6, class: "v-clock-box" }), ...[...m.inputs, m.output].map(cell),
+			bandText(m.inputs[0], from, "v-clock-in " + colourClass(inputColour)),
+			bandText(m.inputs[1], (sign > 0 ? "+" : "−") + by, "v-clock-in v-c-key"),
+			svg("circle", { cx, cy, r, class: "v-clock-ring" })];
+		// what shows first: everything with "done" (and "run" when it cannot or must not move), the inputs only otherwise
+		const moving = phase === "run" && by % n > 0 && animates(parts[0]), final = phase !== "inputs" && !moving;
+		// the arc from `from` round to the result, the way it goes
+		let arc = null;
+		if (by % n) {
+			const [x0, y0] = at(from), [x1, y1] = at(to);
+			arc = svg("path", { class: "v-clock-arc", d: `M${x0},${y0} A${r1(r)},${r1(r)} 0 ${by / n > 0.5 ? 1 : 0} ${sign > 0 ? 1 : 0} ${x1},${y1}`, visibility: final ? undefined : "hidden" });
+			parts.push(arc);
+		}
+		// every number has its tick; with more than 16, only every fourth is
+		// written, and the sum's two (one moved inwards if they are neighbours),
+		// leaving out a fourth that would touch them
+		const involved = [from, to], near = (a, b) => Math.min(mod(a - b, n), mod(b - a, n)) <= 1;
+		const fs = n <= 4 ? 11 : n <= 8 ? 10 : 8, lr = r - fs - 2;
+		for (let v = 0; v < n; v++) {
+			const role = v === to ? " to" : v === from ? " from" : v === 0 && wrapped ? " wrap" : "";
+			const [x, y] = at(v);
+			parts.push(svg("circle", { cx: x, cy: y, r: n > 16 ? 1.5 : 2.5, class: "v-clock-tick" + role }));
+			const write = n <= 16 || involved.includes(v) || (v % 4 === 0 && !involved.some((w) => near(v, w)));
+			if (!write) continue;
+			const inward = n > 16 && v === to && near(from, to) && from !== to ? fs + 1 : 0;
+			const [lx, ly] = at(v, lr - inward);
+			parts.push(text(lx, ly + fs * 0.35, fs, v, { "text-anchor": "middle", class: "v-clock-n" + role }));
+		}
+		const cfs = Math.min(r * 0.45, 18), ofs = Math.min(m.output.h * 0.7, 20), byText = (k) => (sign > 0 ? "+" : "−") + k;
+		const [tx, ty] = at(final ? to : from);
+		const token = svg("circle", { cx: tx, cy: ty, r: n > 16 ? 4 : 5, class: "v-clock-token" });
+		const counter = svg("text", { x: r1(cx), y: r1(cy + cfs * 0.36), "font-size": r1(cfs), "text-anchor": "middle", class: "v-t v-bold v-clock-by" }, final ? byText(by) : "");
+		const output = svg("text", { x: r1(m.output.x + m.output.w / 2), y: r1(m.output.y + m.output.h / 2 + ofs * 0.36), "font-size": r1(ofs), "text-anchor": "middle", class: "v-t v-bold v-clock-out" }, final ? String(to) : "");
+		parts.push(token, counter, output);
+		const g = svg("g", { class: "v v-clock", role: "img", "aria-label": `${from} ${byText(by)} → ${to} (mod ${n})` }, parts);
+		if (moving) {
+			// the token goes round a step at a time, the counter counting; then the arc and the output
+			let k = 0;
+			const tick = () => {
+				if (k > 0 && g.isConnected === false) return;
+				k++;
+				const [x, y] = at(mod(from + sign * k, n));
+				token.setAttribute("cx", x); token.setAttribute("cy", y); counter.textContent = byText(k);
+				if (k < by) { setTimeout(tick, 220); return; }
+				output.textContent = String(to);
+				if (arc) arc.setAttribute("visibility", "visible");
+				if (onDone) onDone();
+			};
+			setTimeout(tick, 220);
+		} else if (phase === "run" && onDone) onDone();
+		return g;
+	}
+
+	// ---- the QR code: a grid, the turn's squares in blue -----------------
+	// modules(r, c): true dark, false light, null not known yet (or a 2D array);
+	// painted: Map(r * size + c → 0 | 1), what has been painted (over modules);
+	// turnCells: [[r, c]], the turn's squares; wrong: [[r, c]], squares in red.
+	function qr({ box, size, modules, turnCells = [], painted = new Map(), wrong = [] }) {
+		const side = Math.min(box.w, box.h), cs = side / size, x0 = box.x + (box.w - side) / 2, y0 = box.y + (box.h - side) / 2;
+		const get = typeof modules === "function" ? modules : (r, c) => modules ? modules[r][c] : null;
+		const turn = new Set(turnCells.map(([r, c]) => r * size + c)), bad = new Set(wrong.map(([r, c]) => r * size + c));
+		const parts = [svg("rect", { x: r1(x0), y: r1(y0), width: r1(side), height: r1(side), class: "v-qr-bg" })];
+		for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) {
+			const k = r * size + c, v = painted.has(k) ? painted.get(k) === 1 : get(r, c);
+			const cls = bad.has(k) ? "v-qr-err" : turn.has(k) ? "v-qr-turn" + (v ? " on" : "") : v === true ? "v-qr-dark" : v === false ? null : "v-qr-unknown";
+			if (cls) parts.push(svg("rect", { x: r1(x0 + c * cs), y: r1(y0 + r * cs), width: r1(cs), height: r1(cs), class: cls }));
+		}
+		return svg("g", { class: "v v-qr" }, parts);
+	}
+
+	// ---- an arrow: dashed, straight, turning at right angles ---------------
+	// "current": drawn along its path (CSS; at once with reduced motion);
+	// "past": nearly invisible; "hidden": not shown.
+	function arrow({ points, colour = "qr", state = "current" }) {
+		const d = pathOf(points), [ex, ey] = points[points.length - 1], [px, py] = points[points.length - 2] || points[0];
+		const len = Math.hypot(ex - px, ey - py) || 1, ux = (ex - px) / len, uy = (ey - py) / len;
+		const head = [[ex, ey], [ex - 7 * ux + 4 * uy, ey - 7 * uy - 4 * ux], [ex - 7 * ux - 4 * uy, ey - 7 * uy + 4 * ux]].map((p) => p.map(r1).join(",")).join(" ");
+		const body = [svg("path", { d, class: "v-arrow-line" }), svg("polygon", { points: head, class: "v-arrow-head" })];
+		const attrs = { class: `v v-arrow v-arrow-${state} ${colourClass(colour)}` };
+		if (state === "past") attrs.opacity = "0.08";
+		if (state === "hidden") attrs.visibility = "hidden";
+		if (state !== "current") return svg("g", attrs, body);
+		const id = nextId("draw");
+		return svg("g", attrs,
+			svg("mask", { id, maskUnits: "userSpaceOnUse", x: -20, y: -20, width: 720, height: 390 }, svg("path", { d, pathLength: 1, class: "v-arrow-draw" })),
+			svg("g", { mask: `url(#${id})` }, body));
+	}
+
+	// ---- a decision: a card per option ----------------------------------
+	// options: [{ id, art (a drawing), title, pros, cons }], at most two ✓ and
+	// two ✕ each. A tap chooses (onChoose(id)); the chosen one has the accent.
+	function cards({ options = [], chosen = null, onChoose }) {
+		const list = (cls, mark, xs) => xs.length ? h("ul", { class: "v-card-list" }, xs.slice(0, 2).map((x) =>
+			h("li", { class: cls }, h("span", { class: "v-mark", "aria-hidden": "true" }, mark), " ", x))) : null;
+		return h("div", { class: "v-cards" }, options.map((o) => h("button", {
+			type: "button", class: "v-card" + (o.id === chosen ? " on" : ""), "aria-pressed": String(o.id === chosen),
+			on: { click: () => onChoose && onChoose(o.id) },
+		}, o.art ? h("div", { class: "v-card-art", "aria-hidden": "true" }, o.art) : null,
+		h("b", { class: "v-card-title" }, o.title),
+		list("v-pro", "✓", o.pros || []), list("v-con", "✕", o.cons || []))));
+	}
+
+	// ---- dice: a face in relief (a coin is round) --------------------------
+	// face: from 0 (shown as 1 … sides, a d10's 0 … 9), null: «?». label: the
+	// face's own name instead (a coin's heads and tails).
+	const faceLabel = (sides, face, label) => label !== undefined ? label : face === null || face === undefined ? "?" : String(sides === 10 ? face : face + 1);
+	function die({ sides, face = null, size = 56, label, rolling = false }) {
+		const coin = sides === 2, s = faceLabel(sides, face, label);
+		const body = coin
+			? [svg("circle", { cx: 50, cy: 53, r: 42, class: "v-die-edge" }), svg("circle", { cx: 50, cy: 48, r: 42, class: "v-die-body" }), svg("circle", { cx: 50, cy: 48, r: 33, class: "v-die-rim" })]
+			: [svg("rect", { x: 8, y: 13, width: 84, height: 84, rx: 18, class: "v-die-edge" }), svg("rect", { x: 8, y: 6, width: 84, height: 84, rx: 18, class: "v-die-body" })];
+		const fs = s.length > 2 ? 30 : 44;
+		return svg("svg", { class: "v-die" + (coin ? " v-coin" : "") + (rolling ? " v-rolling" : ""), width: size, height: size, viewBox: "0 0 100 100", "aria-hidden": "true" },
+			body, svg("text", { x: 50, y: 48 + fs * 0.36, "font-size": fs, "text-anchor": "middle", class: "v-t v-bold v-die-face" }, s));
+	}
+	const faceButton = ({ sides, face, onPress, disabled = false, label, size = 48 }) =>
+		h("button", { type: "button", class: "v-face", disabled: disabled || undefined, "aria-label": faceLabel(sides, face, label), on: { click: () => onPress && onPress(face) } },
+			die({ sides, face, size, label }));
+
+	return { string, dictionary, bits, number, piece, frame, clock, clockModule, qr, arrow, cards, die, faceButton };
+}
