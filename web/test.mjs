@@ -377,6 +377,17 @@ for (const sides of [2, 4, 6, 8, 10, 12, 16, 20]) for (const bits of [1, 2, 3, 4
 	check(g.cols * g.rows >= sides && g.cols * g.rows - sides < g.cols && g.size >= 28, `throw d${sides}: room for every face, big enough to tap`);
 	check(g.cols * g.size + (g.cols - 1) * g.gap <= lay.boxes.faces.w && g.rows * g.size + (g.rows - 1) * g.gap <= lay.boxes.faces.h, `throw d${sides}: the buttons fit their box`);
 }
+// your own dictionary: naming, checking, as it is
+check(Lay.binary(5, 16).join("") === "0101" && Lay.binary(0, 2).join("") === "0" && Lay.binary(31, 32).join("") === "11111" && Lay.binary(2, 4).join("") === "10"
+	&& [2, 4, 8, 16, 32].every((n) => Lay.binary(n - 1, n).length === Lay.bitsOf(n)), "binary: as many bits as N takes (bitsOf), the highest first");
+for (const n of [2, 4, 8, 16, 32]) {
+	const nm = Lay.dictName({ n }), ck = Lay.dictCheck({ n }), as = Lay.dictAsIs({ n });
+	checkLayout(`dictName n=${n}`, nm); checkLayout(`dictCheck n=${n}`, ck); checkLayout(`dictAsIs n=${n}`, as);
+	check(nm.boxes.bits.w >= Lay.bitsOf(n) * Lay.BIT + 8, `dictName n=${n}: room for its ${Lay.bitsOf(n)} bits and ₂`);
+	check(ck.answers.cols * ck.answers.rows >= n && ck.boxes.answers.w / ck.answers.cols >= 22 && ck.boxes.answers.h / ck.answers.rows >= 30, `dictCheck n=${n}: a button per number, each big enough to tap`);
+	check(as.boxes.dict.h / Math.ceil(n / as.columns) >= 15, `dictAsIs n=${n}: every row shows (${as.columns} column${as.columns > 1 ? "s" : ""})`);
+	check(as.boxes.actions.w >= 200 && as.boxes.actions.h >= 150, `dictAsIs n=${n}: room for its actions`);
+}
 check(Lay.keyThrow({ sides: 6 }).faces.cols === 3 && Lay.keyThrow({ sides: 6 }).faces.rows === 2, "throw d6: three by two");
 {
 	const s = Lay.makeTurn({ pad: true, n: 16 }).boxes.seedString, k = Lay.keyThrow({ sides: 6 }).boxes.keyString;
@@ -463,6 +474,10 @@ check(Lay.keyThrow({ sides: 6 }).faces.cols === 3 && Lay.keyThrow({ sides: 6 }).
 	const st16 = V.dictionary({ box: { x: 20, y: 40, w: 200, h: 290 }, things: things.slice(0, 16), mode: "static", value: 5, icon: "seed" });
 	check(walk(st16, cls("v-dict-row")).length === 16 && walk(st16, cls("v-dict-on")).length === 1, "dictionary static: every row, the turn's framed");
 	within(st16, { x: 20, y: 40, w: 200, h: 290 }, "dictionary static");
+	const two = Lay.dictAsIs({ n: 32 }), st32 = V.dictionary({ box: two.boxes.dict, things, mode: "static", value: 20, icon: "key", columns: two.columns });
+	const rows32 = walk(st32, cls("v-dict-row"));
+	check(rows32.length === 32 && walk(st32, cls("v-dict-on")).length === 1 && rows32[16].attrs["data-y"] === rows32[0].attrs["data-y"], "dictionary static in two columns: all 32 rows, 16 beside 0");
+	within(st32, two.boxes.dict, "dictionary static, two columns");
 	let picked = null;
 	const pk = V.dictionary({ box: { x: 100, y: 60, w: 480, h: 240 }, things: things.slice(0, 32), mode: "picker", value: null, icon: "seed", onPick: (v) => { picked = v; } });
 	const buttons = walk(pk, cls("v-pick"));
@@ -622,11 +637,10 @@ check(Lay.keyThrow({ sides: 6 }).faces.cols === 3 && Lay.keyThrow({ sides: 6 }).
 	check(one({ mode: "pad", padAs: "string", padForm: "book" }) === JSON.stringify({ keyFile: false, groups: [{ kinds: ["seed"], form: "necklace", each: 15, copies: 1, what: "seq" },
 		{ kinds: ["key"], form: "book", each: 15, copies: 0, what: "key" }] }), "pieces: a key of another collection, a group each");
 	check(one({ mode: "pad", padAs: "file" }) === JSON.stringify({ keyFile: true, groups: [{ kinds: ["seed"], form: "necklace", each: 15, copies: 2, what: "seq" }] }), "pieces: a key file, a copy of the dictionary for it");
-	// your own dictionary: naming each piece, its bits, the order it is checked in
+	// your own dictionary: naming each piece, the order it is checked in
 	const named = [{ name: "Red" }, { name: " red " }, { name: "" }, { name: "Blue" }];
 	check(J.nameProblem(named, 0) === "dup" && J.nameProblem(named, 1) === "dup" && J.nameProblem(named, 2) === "empty" && J.nameProblem(named, 3) === null
 		&& J.nameProblem([{ name: "   " }], 0) === "empty", "nameProblem: an empty name, and one another piece has (case and spaces aside)");
-	check(J.bitsOf(5, 16).join("") === "0101" && J.bitsOf(0, 2).join("") === "0" && J.bitsOf(31, 32).join("") === "11111" && J.bitsOf(2, 4).join("") === "10", "bitsOf: as many bits as N takes, the highest first");
 	for (const n of [2, 4, 8, 16, 32]) {
 		let x = 7;
 		const order = J.checkOrder(n, () => { x = (x * 48271) % 2147483647; return x / 2147483647; });

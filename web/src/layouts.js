@@ -172,5 +172,47 @@ const SeedcraftLayouts = (() => {
 		] };
 	}
 
-	return { VIEW, route, segmentHitsBox, clockModule, makeTurn, readTurn, keyThrow };
+	// ---- your own dictionary ---------------------------------------------
+	// v's bits, as many as a number below n takes (bitsOf), the first the highest
+	const binary = (v, n) => { const k = bitsOf(n); return Array.from({ length: k }, (_, j) => (v >> (k - 1 - j)) & 1); };
+	// the question, big and centred under the guide
+	const QUESTION = box(150, 28, 380, 32);
+	// Naming a piece: on the left the dictionary's box filling up; in the centre
+	// the number, big, and its bits under it; on the right the piece, and under
+	// it the form (its name, Colour, Photo, what is wrong).
+	function dictName({ n }) {
+		const bw = bitsOf(n) * 28 + 8;
+		return { boxes: {
+			guide: { ...GUIDE }, question: { ...QUESTION },
+			dict: box(24, 70, 196, 268),
+			number: box(244, 104, 184, 72),
+			bits: box(336 - bw / 2, 188, bw, 28),
+			piece: box(452, 66, 204, 128),
+			form: box(452, 202, 204, 140),
+		}, arrows: [] };
+	}
+	// Checking a piece: the box on the left, the piece in the centre, its
+	// number to tap on the right (a grid: cols × rows), and what is wrong under it.
+	function dictCheck({ n }) {
+		const cols = n <= 4 ? n : n <= 16 ? 4 : 8;
+		return { boxes: {
+			guide: { ...GUIDE }, question: { ...QUESTION },
+			dict: box(24, 70, 196, 268),
+			piece: box(236, 76, 196, 230),
+			answers: box(452, 70, 206, 268),
+		}, answers: { cols, rows: Math.ceil(n / cols) }, arrows: [] };
+	}
+	// The dictionary as it is: its box on the left (in two columns past 16
+	// pieces, so every row shows), then whether it is checked, and its actions.
+	function dictAsIs({ n }) {
+		const columns = n > 16 ? 2 : 1, w = 196 * columns, x = 24 + w + 24;
+		return { boxes: {
+			guide: { ...GUIDE }, question: { ...QUESTION },
+			dict: box(24, 70, w, 268),
+			status: box(x, 70, VIEW.w - 24 - x, 44),
+			actions: box(x, 126, VIEW.w - 24 - x, 212),
+		}, columns, arrows: [] };
+	}
+
+	return { VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readTurn, keyThrow, dictName, dictCheck, dictAsIs };
 })();
