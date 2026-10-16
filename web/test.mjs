@@ -379,11 +379,19 @@ for (const sides of [2, 4, 6, 8, 10, 12, 16, 20]) for (const bits of [1, 2, 3, 4
 }
 // the throw with a bag, the device, a key file; each face's button, the thrown faces' places, the file's row
 for (const bits of [1, 2, 3, 4, 5]) for (const file of [false, true]) {
-	for (const tool of ["bag", "device"]) {
-		const lay = Lay.keyThrow({ bits, tool, file });
-		checkLayout(`throw ${tool} bits=${bits} file=${file}`, lay);
-		check(tool === "bag" ? !lay.boxes.tower && !lay.boxes.faces && lay.boxes.picker.w >= 300 && lay.boxes.picker.h >= 160 && !lay.arrows.some((a) => a.id === "number")
-			: !lay.boxes.faces && lay.boxes.die.w >= 80 && lay.boxes.tower.h >= bits * 16, `throw ${tool} bits=${bits}: its own box instead of the faces`);
+	{
+		const lay = Lay.keyThrow({ bits, tool: "device", file });
+		checkLayout(`throw device bits=${bits} file=${file}`, lay);
+		check(!lay.boxes.faces && lay.boxes.die.w >= 80 && lay.boxes.tower.h >= bits * 16, `throw device bits=${bits}: one die instead of the faces`);
+	}
+	// the bag: from the piece picked, straight to its slot (a string), or to its number and then its place (a file)
+	for (let v = 0; v < 2 ** bits; v++) {
+		const n = 2 ** bits, lay = Lay.keyThrow({ bits, tool: "bag", file, n, value: v }), b = lay.boxes, cell = Lay.pickerCell(b.picker, n, v), first = lay.arrows[0].points[0];
+		checkLayout(`throw bag n=${n} v=${v} file=${file}`, lay);
+		check(!b.tower && !b.faces && !b.keyDict && !b.piece && b.picker.w >= 300 && b.picker.h >= 160, `throw bag n=${n}: the picker, no tower, no dictionary, no piece`);
+		check(file ? lay.arrows.map((a) => `${a.id}:${a.from}>${a.to}`).join() === "number:picker>number,slot:number>keySlot" && !!b.number && first[0] === b.picker.x + b.picker.w && first[1] >= cell.y && first[1] <= cell.y + cell.h
+			: lay.arrows.map((a) => `${a.id}:${a.from}>${a.to}`).join() === "slot:picker>keySlot" && !b.number && first[1] === b.picker.y + b.picker.h && first[0] >= cell.x && first[0] <= cell.x + cell.w,
+		`throw bag n=${n} v=${v} file=${file}: the arrow leaves from beside the piece picked`);
 	}
 	for (const sides of [2, 6, 20]) {
 		const lay = Lay.keyThrow({ sides, bits, file });
@@ -407,9 +415,9 @@ for (const sides of [2, 4, 6, 8, 10, 12, 16, 20]) {
 	}
 }
 for (const pos of [0, 3, 15, 16, 53, 90]) {
-	const r = Lay.fileRow(pos), x = r.xs[r.col], built = Lay.keyThrow({ sides: 6, file: true }).boxes;
+	const r = Lay.fileRow(pos, { row: S.PAD_ROW, group: S.PAD_GROUP }), x = r.xs[r.col], built = Lay.keyThrow({ sides: 6, file: true }).boxes;
 	check(r.row === Math.floor(pos / 16) && x === built.keySlot.x + built.keySlot.w / 2 && r.xs.every((v) => v - 7 >= built.keyString.x && v + 7 <= built.keyString.x + built.keyString.w)
-		&& r.xs[4] - r.xs[3] === 28 && r.xs[16] - r.xs[15] === 28, `fileRow ${pos}: its place under the slot, in groups of 4, the check after them, inside the string's box`);
+		&& r.xs.length === S.PAD_ROW + 1 && r.xs[4] - r.xs[3] === 28 && r.xs[16] - r.xs[15] === 28, `fileRow ${pos}: its place under the slot, in groups of 4, the check after them, inside the string's box`);
 }
 // your own dictionary: naming, checking, as it is
 check(Lay.binary(5, 16).join("") === "0101" && Lay.binary(0, 2).join("") === "0" && Lay.binary(31, 32).join("") === "11111" && Lay.binary(2, 4).join("") === "10"
@@ -519,6 +527,8 @@ check(Lay.keyThrow({ sides: 6 }).faces.cols === 3 && Lay.keyThrow({ sides: 6 }).
 	buttons[7].listeners.click(); check(picked === 7, "dictionary picker: a tap picks the piece");
 	picked = null; buttons[9].listeners.keydown({ key: "Enter", preventDefault() {} }); check(picked === 9, "dictionary picker: Enter picks too");
 	within(pk, { x: 100, y: 60, w: 480, h: 240 }, "dictionary picker");
+	check(buttons.every((bt, v) => { const r = walk(bt, cls("v-pick-bg"))[0], c = Lay.pickerCell({ x: 100, y: 60, w: 480, h: 240 }, 32, v);
+		return Math.abs(r.attrs.x - (c.x + 1)) < 0.2 && Math.abs(r.attrs.y - (c.y + 1)) < 0.2; }), "dictionary picker: each button on its cell of layouts.js (pickerCell)");
 
 	// bits: little boxes with «₂»; the header's and the padding's dashed
 	const bt = V.bits({ box: lay.boxes.bits, bits: [1, 0, 1, 1], orientation: "row", roles: ["header", "data", "data", "padding"] });
