@@ -792,9 +792,9 @@
 			},
 			pieces: piecesSlide,
 			dict: () => dictChoice("make"),
-			dictHave: () => makeFlow(dictScreen),
+			dictHave: () => needs("make") || asIsSlide(),
 			keyDict: () => keyDictChoice("make"),
-			keyDictHave: () => makeFlow(keyDictBlock),
+			keyDictHave: () => needs("make") || asIsSlide("pad"),
 			keyWho: () => needs("make") || keyWhoSlide(),
 			keyTool: () => needs("make") || keyToolSlide(),
 			keyThrow: () => makeFlow(keyStep),
@@ -816,7 +816,7 @@
 					choose: setSize });
 			},
 			dict: () => dictChoice("read"),
-			dictHave: () => readFlow(dictScreen),
+			dictHave: () => asIsSlide(),
 			keyAs: () => {
 				const rd = st.read;
 				return decide({ question: T().haveKeyHelp, options: keyAsOptions(kindThings(rd.form, formOf(rd.form).n)), chosen: rd.chosen.padAs ? rd.padAs : null,
@@ -830,7 +830,7 @@
 			keyForm: () => decide({ question: T().keyFormQRead, options: formOptions(FORMS.filter((f) => f.id !== st.read.form), "key"),
 				chosen: st.read.chosen.padForm ? st.read.padForm : null, choose: (id) => { if (setPadForm(id)) st.read.chosen.padForm = true; } }),
 			keyDict: () => keyDictChoice("read"),
-			keyDictHave: () => readFlow(keyDictBlock),
+			keyDictHave: () => asIsSlide("pad"),
 			keyFile: keyFileSlide,
 			recover: () => readFlow(() => turnReader(st.read)),
 			seed: () => readFlow(seedStep),
@@ -986,30 +986,6 @@
 	// for an address book with street types, the conventional order (SPEC §11.3), nothing to check.
 	const thingsOf = (set, n) => set.things.slice(0, n).map((x) => ({ name: x[st.lang], emoji: x.emoji || "", colour: x.colour || "",
 		symbol: x.symbol || "", brick: !!x.brick, photo: "" }));
-	// the dictionary as it is: its pieces, checking it, editing it, saving it (recovering: another one instead)
-	function dictScreen() {
-		const t = T(), d = seedColl().dict;
-		const json = () => JSON.stringify({ format: "seedcraft-dictionary", version: 0,
-			things: d.things.map((x) => Object.fromEntries(Object.entries({ name: x.name, emoji: x.emoji, colour: x.colour, photo: x.photo }).filter(([, v]) => v))) }, null, 1);
-		// recovering, the dictionary is only used: no warning, no saving, another one instead of forgetting
-		const reading = st.screen === "read";
-		const count = h("span", { class: "meta", text: t.dictCount(d.things.length) });
-		return tool(
-			panel(...(reading ? [h("div", { class: "row between" }, h("span", { class: "label", text: t.tabDict }), count)] : stepHead("make", null, count)),
-				h("div", { class: "dict-grid" }, d.things.map((x, i) => h("div", { class: "piece" }, h("span", { class: "num", text: String(i) }), icon(x, 34), h("span", { text: x.name }))))),
-			panel(
-				d.checked ? h("div", { class: "note ok" }, "✓ " + t.dictChecked) : reading ? null : h("div", { class: "note warn", text: t.dictNotChecked }),
-				h("div", { class: "row" },
-					h("button", { class: d.checked || reading ? "btn ghost" : "btn", on: { click: () => startCheck() } }, t.dictCheck),
-					h("button", { class: "btn ghost", on: { click: () => editDict({ kind: "name", things: editable(d.things), i: 0 }) } }, t.dictEdit),
-					reading ? h("button", { class: "btn ghost", on: { click: () => { if (changeDict(null)) { st.ways.read.dict = null; render(); } } } }, t.dictOther) : null),
-				reading ? null : field(t.dictSave, h("p", { class: "meta", text: t.dictSaveHelp }),
-					h("div", { class: "row" },
-						h("button", { class: "btn ghost small", on: { click: () => download(json(), "dictionary.json", "application/json") } }, t.dictSaveJson),
-						h("button", { class: "btn ghost small", on: { click: () => download(d.things.map((x) => x.name).join("\n") + "\n", "dictionary.txt", "text/plain") } }, t.dictSaveTxt))),
-				reading ? null : h("div", { class: "row" },
-					h("button", { class: "btn ghost small", on: { click: () => { if (confirm(t.dictForgetAsk)) { setDict(null); st.ways.make.dict = null; render(); } } } }, t.dictForget))));
-	}
 	// pad mode, the key as things of another collection: its own dictionary (SPEC §11.4)
 	function keyDictNeeded() { return st.mode === "pad" && st.plan.padAs === "string" && !!st.plan.padForm; }
 	// The key's own collection: the backup's (st.plan, st.padDict) or, recovering,
@@ -1017,68 +993,113 @@
 	const keyColl = () => st.screen === "read"
 		? { form: st.read.padForm, dict: st.read.padDict, set: (d) => { st.read.padDict = d; } }
 		: { form: st.plan.padForm, dict: st.padDict, set: (d) => { st.padDict = d; st.make.check = null; } };
-	// that dictionary as it is, once made, ready-made or opened: checked like the other, edited, or another one
-	function keyDictBlock() {
-		const t = T(), kc = keyColl(), pd = kc.dict, ways = st.ways[st.screen];
-		return h("div", { class: "field key-dict" }, h("div", { class: "label pad-label", text: t.padDictTitle + ": " + t.forms[kc.form].name }),
-			h("div", { class: "dictline" }, h("span", { class: "minis" }, pd.things.map((x) => icon(x, 22)))),
-			pd.checked ? h("div", { class: "note ok" }, "✓ " + t.dictChecked) : h("div", { class: "note warn", text: t.dictNotChecked }),
-			h("div", { class: "row" },
-				h("button", { class: pd.checked ? "btn ghost small" : "btn small", on: { click: () => startCheck("pad") } }, t.dictCheck),
-				h("button", { class: "btn ghost small", on: { click: () => editDict({ kind: "name", target: "pad", things: editable(pd.things), i: 0 }) } }, t.dictEdit),
-				h("button", { class: "btn ghost small", on: { click: () => { kc.set(null); ways.keyDict = null; render(); } } }, t.dictOther)));
-	}
 
-	// ---- your own dictionary, a slide per piece ------------------------------------
-	// Naming: «Which piece will be 5?». On the left the dictionary's little box
-	// filling up, the row of the piece being named framed; in the centre its
-	// number, big, and its bits; on the right the piece, its name, a colour and
-	// a photo. Checking: «Which number is this piece?», in a shuffled order, the
-	// box filling up as each one is answered. The key's own collection: the
-	// same slides, with ⚿. Recovering, the same, on the reading's own
-	// dictionaries (seedColl, keyColl): never the backup's.
-	const editColl = (ed) => ed.target === "pad" ? keyColl() : seedColl();
-	const editIcon = (ed) => ed.target === "pad" ? "key" : "seed";
-	// the canvas (layouts.js's 680 × 350) and where each thing goes on it
-	const DICT_BOX = { x: 24, y: 70, w: 196, h: 268 };
-	const NAME_AT = { number: { x: 244, y: 104, w: 184, h: 72 }, bits: { x: 252, y: 188, w: 168, h: 28 }, piece: { x: 452, y: 66, w: 204, h: 128 } };
-	const CHECK_AT = { piece: { x: 236, y: 76, w: 196, h: 230 } };
-	const canvas = (...kids) => svg("svg", { class: "dict-canvas", viewBox: "0 0 680 350" }, ...kids);
-	function startCheck(target) {
-		const d = (target === "pad" ? keyColl() : seedColl()).dict, rand = () => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
-		editDict({ kind: "check", target, i: 0, order: J.checkOrder(d.things.length, rand), answered: [], wrong: null });
+	// ---- your own dictionary: as it is, named and checked a slide per piece ----------
+	// The same little box everywhere (vocab.js's dictionary, 🌱 or ⚿), on the
+	// geometry of layouts.js (dictAsIs, dictName, dictCheck): the HTML over the
+	// canvas is placed on its boxes, in the lectern's units. The key's own
+	// collection: the same slides (target "pad"). Recovering: the same, on the
+	// reading's own dictionaries (seedColl, keyColl), never the backup's.
+	const Lay = SeedcraftLayouts;
+	const collOf = (target) => target === "pad" ? keyColl() : seedColl();
+	const iconOf = (target) => target === "pad" ? "key" : "seed";
+	const canvas = (...kids) => svg("svg", { class: "dict-canvas", viewBox: `0 0 ${Lay.VIEW.w} ${Lay.VIEW.h}` }, ...kids);
+	// an element over the canvas, on a box of it
+	function place(el, b) {
+		Object.assign(el.style, { left: `calc(var(--u) * ${b.x})`, top: `calc(var(--u) * ${b.y})`, width: `calc(var(--u) * ${b.w})`, height: `calc(var(--u) * ${b.h})` });
+		return el;
 	}
 	// the things of a dictionary, to edit (the symbol typed by hand, if it is not the initials)
 	const editable = (things) => things.map((x) => ({ ...x, symbolTyped: !!x.emoji && x.emoji !== initialsOf(x.name) }));
+	// Editing a dictionary already there («Edit», «Fix it here»): a draft kept in
+	// the journey's ways while it is the same dictionary, so that Back past the
+	// first piece, the guide or another language loses nothing; i: the piece to open at.
+	function editDraft(target, i) {
+		const ways = st.ways[st.screen], key = target === "pad" ? "keyEditDraft" : "editDraft", d = collOf(target).dict;
+		if (!ways[key] || ways[key].base !== d) ways[key] = { kind: "name", target, things: editable(d.things), i: 0, draft: key, base: d };
+		if (i !== undefined) ways[key].i = i;
+		return ways[key];
+	}
+	const draftOf = (target) => { const x = st.ways[st.screen][target === "pad" ? "keyEditDraft" : "editDraft"]; return x && x.base === collOf(target).dict ? x : null; };
+	const random = () => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
+	// a round of checking: every piece, shuffled; then again the ones missed, until a round has none
+	function startCheck(target) {
+		const n = collOf(target).dict.things.length;
+		editDict({ kind: "check", target, i: 0, order: J.checkOrder(n, random), answered: [], missed: [], wrong: null, round: 1 });
+	}
 
+	// The dictionary as it is: its box, whether it is checked, and what to do
+	// with it. Making one: check, edit, save (.json, .txt), forget. Recovering
+	// one, it is only used: check, edit, or another one.
+	function asIsSlide(target) {
+		const t = T(), flow = st.screen, reading = flow === "read", coll = collOf(target), d = coll.dict, ways = st.ways[flow];
+		const lay = Lay.dictAsIs({ n: d.things.length }), b = lay.boxes;
+		const json = () => JSON.stringify({ format: "seedcraft-dictionary", version: 0,
+			things: d.things.map((x) => Object.fromEntries(Object.entries({ name: x.name, emoji: x.emoji, colour: x.colour, photo: x.photo }).filter(([, v]) => v))) }, null, 1);
+		const act = (label, fn, cls = "btn ghost") => h("button", { type: "button", class: cls, on: { click: fn } }, label);
+		const forget = () => {
+			if (!confirm(t.dictForgetAsk)) return;
+			coll.set(null);
+			ways[target === "pad" ? "keyDict" : "dict"] = null;
+			render();
+		};
+		const other = () => {
+			if (target === "pad") coll.set(null); else if (!changeDict(null)) return;
+			ways[target === "pad" ? "keyDict" : "dict"] = null;
+			render();
+		};
+		const status = place(h("p", { class: "dict-status" + (d.checked ? " ok" : " warn") }, d.checked ? "✓ " + t.dictChecked : t.dictNotChecked), b.status);
+		const actions = place(h("div", { class: "dict-actions" },
+			act(t.dictCheck, () => startCheck(target), d.checked ? "btn ghost" : "btn"),
+			act(draftOf(target) ? t.dictEditOn : t.dictEdit, () => editDict(editDraft(target))),
+			...(reading ? [act(t.dictOther, other)] : [
+				h("div", { class: "dict-save" }, h("span", { text: t.dictSave }),
+					act(t.dictSaveJson, () => download(json(), "dictionary.json", "application/json"), "btn ghost small"),
+					act(t.dictSaveTxt, () => download(d.things.map((x) => x.name).join("\n") + "\n", "dictionary.txt", "text/plain"), "btn ghost small")),
+				act(t.dictForget, forget, "btn ghost dict-forget")])), b.actions);
+		return {
+			question: target === "pad" ? t.keyDictHaveQ(t.forms[coll.form].name) : t.dictHaveQ,
+			help: reading ? null : helpOf(t.dictSave, t.dictSaveHelp, []),
+			body: () => h("div", { class: "dict-slide" },
+				canvas(V.dictionary({ box: b.dict, things: d.things, mode: "static", icon: iconOf(target), columns: lay.columns })), status, actions),
+		};
+	}
+
+	// Naming a piece: «Which piece will be 5?». On the left the box filling up,
+	// the row of the piece being named framed; in the centre its number, big,
+	// and its bits; on the right the piece, its name, a colour and a photo.
 	function nameSlide(flow) {
-		const t = T(), ed = st.edit, n = ed.things.length, x = ed.things[ed.i], icon = editIcon(ed);
+		const t = T(), ed = st.edit, n = ed.things.length, x = ed.things[ed.i], icon = iconOf(ed.target), b = Lay.dictName({ n }).boxes;
 		const own = flow === "read" ? st.read.form : st.plan.form, form = ed.target === "pad" ? keyColl().form || own : own;
 		const problem = () => J.nameProblem(ed.things, ed.i);
 		// what changes as the name is typed, redrawn in place (the field keeps its focus)
 		const dict = svg("g"), piece = svg("g");
 		const draw = () => {
-			dict.replaceChildren(V.dictionary({ box: DICT_BOX, things: ed.things, mode: "static", value: ed.i, icon }));
-			piece.replaceChildren(V.piece({ box: NAME_AT.piece, thing: x }));
+			dict.replaceChildren(V.dictionary({ box: b.dict, things: ed.things, mode: "static", value: ed.i, icon }));
+			piece.replaceChildren(V.piece({ box: b.piece, thing: x }));
 		};
 		draw();
 		const err = h("p", { class: "dict-err", role: "alert" });
 		const tell = () => { const p = problem(); err.textContent = p === "dup" ? t.errDictDupOne(x.name.trim()) : ""; return p; };
 		tell();
-		// on: the next piece, or once the last is named, the dictionary, then checking it
-		function forward() {
-			if (problem()) return;
-			if (ed.i < n - 1) { ed.i++; render(); return; }
+		// done: the dictionary (or, editing one, nothing changed: as it was), then checking it
+		function finish() {
 			const bad = ed.things.findIndex((_, j) => J.nameProblem(ed.things, j));
 			if (bad >= 0 || dictProblem(ed.things)) { ed.i = Math.max(0, bad); render(); return; }
 			const things = ed.things.map(({ symbolTyped, ...y }) => ({ ...y, name: y.name.trim() }));
-			editColl(ed).set({ things, checked: false, way: "name" });
+			const keep = ["name", "emoji", "colour", "photo"], same = ed.base && ed.base.things.length === things.length
+				&& things.every((y, j) => keep.every((k) => (y[k] || "") === (ed.base.things[j][k] || "")));
 			if (ed.draft) st.ways[flow][ed.draft] = null;
+			if (same) { editDict(null); return; }
+			collOf(ed.target).set({ things, checked: false, way: "name" });
+			st.ways[flow][ed.target === "pad" ? "keyDict" : "dict"] = "name";
 			st.at[flow] = ed.target === "pad" ? "keyDictHave" : "dictHave";
 			startCheck(ed.target);
 		}
+		// on: the next piece, or once the last is named, done
+		const forward = () => { if (problem()) return; if (ed.i < n - 1) { ed.i++; render(); } else finish(); };
 		// the symbol follows the name (its initials) until it is typed by hand
-		const nameIn = h("input", { type: "text", class: "dict-name", value: x.name, placeholder: t.forms[form].namePh, autocomplete: "off", "aria-label": t.nameQ(ed.i),
+		const nameIn = h("input", { type: "text", class: "dict-name", placeholder: t.forms[form].namePh, autocomplete: "off", "aria-label": t.nameQ(ed.i),
 			on: { input: (e) => {
 				x.name = e.target.value;
 				if (!x.symbolTyped && !x.symbol) x.emoji = initialsOf(x.name);
@@ -1100,14 +1121,16 @@
 			prev: { go: () => { if (ed.i > 0) { ed.i--; render(); } else editDict(null); } },
 			next: { label: ed.i < n - 1 ? undefined : "✓ " + t.dictDone, go: forward, ready: !problem() },
 			body: () => h("div", { class: "dict-slide" },
-				canvas(dict, V.number({ box: NAME_AT.number, value: ed.i, colour: icon }), V.bits({ box: NAME_AT.bits, bits: J.bitsOf(ed.i, n), colour: icon }), piece),
-				h("div", { class: "dict-form" }, nameIn,
+				canvas(dict, V.number({ box: b.number, value: ed.i, colour: icon }), V.bits({ box: b.bits, bits: Lay.binary(ed.i, n), colour: icon }), piece),
+				place(h("div", { class: "dict-form" }, nameIn,
 					h("div", { class: "dict-buttons" },
 						h("button", { type: "button", class: "btn ghost", on: { click: () => colourPopup(x) } }, dot, t.pieceColour),
 						h("button", { type: "button", class: "btn ghost", title: t.photoTake, on: { click: () => photoIn.click() } }, x.photo ? t.photoAgain : t.piecePhoto),
 						x.photo ? h("button", { type: "button", class: "btn ghost", title: t.photoRemove, "aria-label": t.photoRemove, on: { click: () => { x.photo = ""; render(); } } }, "✕") : null,
+						// editing a dictionary already there: saved from any piece, no need to page to the end
+						ed.base && ed.i < n - 1 ? h("button", { type: "button", class: "btn", on: { click: () => { if (!problem()) finish(); } } }, "✓ " + t.dictSaveNames) : null,
 						photoIn),
-					err)),
+					err), b.form)),
 		};
 	}
 	// a piece's colour: one of the beads' colours, any other, or none (a tap chooses and closes)
@@ -1129,41 +1152,55 @@
 	// the symbol drawn on it, if not its initials («⋯»)
 	function symbolPopup(x) {
 		const t = T();
-		const input = h("input", { type: "text", class: "emoji", value: x.emoji || x.symbol || "", placeholder: "AB", maxlength: 8, "aria-label": t.thingSymbol,
+		const input = h("input", { type: "text", class: "emoji", placeholder: "AB", maxlength: 8, "aria-label": t.thingSymbol,
 			on: { input: (e) => { x.emoji = e.target.value.trim(); x.symbolTyped = !!x.emoji; if (!x.emoji && !x.symbol) x.emoji = initialsOf(x.name); },
 				keydown: (e) => { if (e.key === "Enter") { e.preventDefault(); Slides.closePopup(); } } } });
 		input.value = x.emoji || x.symbol || "";
 		Slides.popup(h("div", { class: "slide-help" }, h("h2", { text: t.thingSymbol }), h("p", { text: t.thingSymbolHelp }), input), { label: t.thingSymbol, onClose: () => render() });
 	}
 
+	// Checking a piece: «Which number is this piece?», the pieces shuffled, the
+	// box filling up as each is answered. A wrong answer says what the screen
+	// has, and the piece is asked again once the round is over: the dictionary
+	// is checked only after a round with every answer right.
 	function checkSlide(flow) {
-		const t = T(), ed = st.edit, d = editColl(ed).dict, n = d.things.length, v = ed.order[ed.i], x = d.things[v], icon = editIcon(ed);
-		const right = ed.answered.includes(v);
-		// the box fills up with the pieces answered; the rest are still empty rows
+		const t = T(), ed = st.edit, d = collOf(ed.target).dict, n = d.things.length, v = ed.order[ed.i], x = d.things[v], icon = iconOf(ed.target);
+		const lay = Lay.dictCheck({ n }), b = lay.boxes, right = ed.answered.includes(v);
+		// the box shows the pieces answered; the rest are still empty rows
 		const shown = d.things.map((y, j) => ed.answered.includes(j) ? y : { name: "" });
 		const answer = (k) => {
-			if (k === v) { if (!right) ed.answered.push(v); ed.wrong = null; } else ed.wrong = k;
+			if (k === v) { if (!right) ed.answered.push(v); ed.wrong = null; }
+			else { ed.wrong = k; if (!ed.missed.includes(v)) ed.missed.push(v); }
 			render();
 			if (k === v && $("slide-next")) $("slide-next").focus();
 		};
-		const cols = n <= 4 ? n : n <= 16 ? 4 : 8;
-		const numbers = h("div", { class: "dict-numbers c" + cols, role: "group", "aria-label": t.checkQ },
+		const numbers = h("div", { class: "dict-numbers" + (lay.answers.cols > 4 ? " dense" : ""), role: "group", "aria-label": t.checkQ },
 			Array.from({ length: n }, (_, k) => h("button", { type: "button", class: "dict-n" + (right && k === v ? " right" : "") + (ed.wrong === k ? " wrong" : ""),
 				disabled: right || undefined, "aria-pressed": String(right && k === v), on: { click: () => answer(k) } }, String(k))));
+		numbers.style.gridTemplateColumns = `repeat(${lay.answers.cols}, 1fr)`;
 		const wrong = ed.wrong !== null && !right ? h("div", { class: "dict-wrong", role: "alert" }, h("p", { text: t.checkWrong(v, ed.wrong) }),
-			h("button", { type: "button", class: "btn ghost", on: { click: () => editDict({ kind: "name", target: ed.target, things: editable(d.things), i: v }) } }, t.checkFix)) : null;
-		const last = ed.i >= n - 1;
+			h("button", { type: "button", class: "btn ghost", on: { click: () => editDict(editDraft(ed.target, v)) } }, t.checkFix)) : null;
+		const last = ed.i >= ed.order.length - 1;
 		return {
 			question: t.checkQ,
 			help: helpOf(t.dictCheck, null, t.checkTips),
+			caption: () => ed.round > 1 ? t.checkAgainNow : null,
 			prev: { go: () => { if (ed.i > 0) { ed.i--; ed.wrong = null; render(); } else editDict(null); } },
-			next: { label: last ? "✓ " + t.checkDone : undefined, ready: right, go: () => {
-				if (!last) { ed.i++; ed.wrong = null; render(); return; }
+			next: { label: !last ? undefined : ed.missed.length ? t.checkAgain(ed.missed.length) : "✓ " + t.checkDone, ready: right, go: () => {
+				ed.wrong = null;
+				if (!last) { ed.i++; render(); return; }
+				if (ed.missed.length) {
+					// another round: only the ones missed, shuffled, their rows empty again
+					const missed = ed.missed;
+					Object.assign(ed, { order: J.checkOrder(missed.length, random).map((j) => missed[j]), answered: ed.answered.filter((y) => !missed.includes(y)), missed: [], i: 0, round: ed.round + 1 });
+					render();
+					return;
+				}
 				d.checked = true; editDict(null);
 			} },
 			body: () => h("div", { class: "dict-slide" },
-				canvas(V.dictionary({ box: DICT_BOX, things: shown, mode: "static", value: right ? v : null, icon }), V.piece({ box: CHECK_AT.piece, thing: x })),
-				h("div", { class: "dict-answer" }, numbers, wrong)),
+				canvas(V.dictionary({ box: b.dict, things: shown, mode: "static", value: right ? v : null, icon }), V.piece({ box: b.piece, thing: x })),
+				place(h("div", { class: "dict-answer" }, numbers, wrong), b.answers)),
 		};
 	}
 

@@ -80,11 +80,6 @@ const SeedcraftJourneys = (() => {
 		if (!name) return "empty";
 		return things.some((y, j) => j !== i && String(y.name || "").trim().toLowerCase() === name) ? "dup" : null;
 	}
-	// v's bits, as many as a number below n takes, the first the highest
-	const bitsOf = (v, n) => {
-		const k = Math.max(1, Math.round(Math.log2(n)));
-		return Array.from({ length: k }, (_, j) => (v >> (k - 1 - j)) & 1);
-	};
 	// The order the pieces are checked in: every number below n once, shuffled
 	// (random(): [0, 1)), so the next one's number is never the obvious one.
 	function checkOrder(n, random) {
@@ -96,5 +91,5 @@ const SeedcraftJourneys = (() => {
 		return out;
 	}
 
-	return { BUY, PAD_BUY, buyFor, symbolsFor, slides, resolve, jump, pieces, nameProblem, bitsOf, checkOrder };
+	return { BUY, PAD_BUY, buyFor, symbolsFor, slides, resolve, jump, pieces, nameProblem, checkOrder };
 })();

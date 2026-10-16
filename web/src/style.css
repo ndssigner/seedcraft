@@ -193,12 +193,7 @@ pre.code { font-family: var(--mono); font-size: var(--fs-s); background: var(--s
 .qrbox svg.qr { width: 200px; height: 200px; background: #fff; border-radius: var(--r-s); flex: none; }
 
 /* pieces: the dictionary, step by step, reading */
-.dictline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--muted); font-size: var(--fs-s); }
-.dictline .minis { display: flex; flex-wrap: wrap; gap: 1px; }
-.dict-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
-.dict-grid .piece { display: flex; align-items: center; gap: 8px; background: var(--sunk); border: 1px solid var(--line); border-radius: var(--r-m); padding: 4px 8px; font-size: var(--fs-s); }
 .num { color: var(--muted); font-size: var(--fs-xs); font-weight: 700; font-variant-numeric: tabular-nums; }
-.dict-grid .num { width: 20px; text-align: right; }
 .wizard { display: grid; grid-template-columns: 1fr 1.5fr 1fr; align-items: center; gap: 8px; text-align: center;
 	background: var(--sunk); border-radius: var(--r-l); padding: 14px 8px; }
 .wizard .side { opacity: .7; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
@@ -441,8 +436,6 @@ ul.avoid li::marker { content: "✗  "; color: var(--bad); }
 .stack.tight { gap: 4px; }
 @media (max-width: 560px) { .need { grid-template-columns: 1fr; } }
 
-/* naming a piece: its name, and its symbol right beside it */
-
 /* the step by step's drawing: a window on the whole sequence that follows the current piece */
 .map { max-height: 260px; overflow: auto; border: 1px solid var(--line); border-radius: var(--r-m); background: var(--sunk); }
 /* a seed's fingerprint, to compare with the wallet's */
@@ -565,7 +558,6 @@ ol.trail .total { font-weight: 700; color: var(--pad); }
 ol.trail b { color: var(--pad); }
 ol.trail s { color: var(--muted); opacity: .7; }
 pre.pad-file span.on { background: var(--pad-soft); }
-.key-dict { border-top: 1px solid var(--line); padding-top: var(--sp-3); }
 @media (prefers-reduced-motion: reduce) { .die.rolling { animation: none; } .die.rolling .die-face { opacity: 1; } }
 
 /* the sequence turn by turn: the squares, their bits and number, the clock of N, the collection, the piece */
@@ -858,35 +850,42 @@ body { overflow: hidden; }
 .slide-form { position: absolute; left: calc(var(--u) * 150); right: calc(var(--u) * 150); top: calc(var(--u) * 70); bottom: calc(var(--u) * 10);
 	display: flex; flex-direction: column; gap: calc(var(--u) * 6); }
 .slide-form textarea { flex: 1; min-height: 0; font-size: 1em; }
-/* your own dictionary, a slide per piece: the canvas (680 × 350), and the fields over it */
+/* your own dictionary (as it is, named and checked a piece per slide): the canvas, and the
+   HTML over it, each element placed by app.js on its box of layouts.js (left, top, width, height) */
 .dict-slide { position: absolute; inset: 0; }
 .dict-slide > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.dict-form, .dict-answer, .dict-status, .dict-actions { position: absolute; z-index: 1; box-sizing: border-box; overflow: hidden; }
 .v-static .v-dict-on { stroke: var(--accent); stroke-width: 1.5; }
-.dict-form { position: absolute; left: calc(var(--u) * 452); width: calc(var(--u) * 204); top: calc(var(--u) * 202);
-	display: flex; flex-direction: column; gap: calc(var(--u) * 6); }
+.dict-form { display: flex; flex-direction: column; gap: calc(var(--u) * 6); }
 .dict-name { width: 100%; font: inherit; font-size: 1.25em; padding: .35em .6em; border: 1px solid var(--line-strong); border-radius: var(--r-m);
 	background: var(--sunk); color: var(--fg); outline: none; }
 .dict-name:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-.dict-buttons { display: flex; gap: calc(var(--u) * 6); }
-.dict-buttons .btn { font-size: .95em; padding: .4em .8em; display: inline-flex; align-items: center; gap: .4em; }
+.dict-buttons { display: flex; flex-wrap: wrap; gap: calc(var(--u) * 5); }
+.dict-buttons .btn { font-size: .9em; padding: .35em .75em; display: inline-flex; align-items: center; gap: .4em; }
 .dict-dot { width: .9em; height: .9em; border-radius: 50%; background: var(--c); border: 1px solid var(--line-strong); }
 .dict-dot.none { background: none; border-style: dashed; }
-.dict-err { margin: 0; min-height: 2.4em; color: var(--err); font-size: .9em; line-height: 1.2; }
-.dict-answer { position: absolute; left: calc(var(--u) * 452); width: calc(var(--u) * 206); top: calc(var(--u) * 70); bottom: calc(var(--u) * 10);
-	display: flex; flex-direction: column; justify-content: center; gap: calc(var(--u) * 8); }
+/* what is wrong: two lines at most, inside the form's box */
+.dict-err, .dict-wrong p { margin: 0; color: var(--err); font-size: .9em; line-height: 1.2; display: -webkit-box; -webkit-box-orient: vertical;
+	-webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.dict-err:empty { display: none; }
+.dict-answer { display: flex; flex-direction: column; justify-content: center; gap: calc(var(--u) * 8); }
 .dict-numbers { display: grid; gap: calc(var(--u) * 4); }
-.dict-numbers.c2 { grid-template-columns: repeat(2, 1fr); }
-.dict-numbers.c4 { grid-template-columns: repeat(4, 1fr); }
-.dict-numbers.c8 { grid-template-columns: repeat(8, 1fr); }
 .dict-n { font: inherit; font-size: 1.4em; font-weight: 700; font-variant-numeric: tabular-nums; padding: .3em 0; border: 1px solid var(--line-strong);
 	border-radius: var(--r-m); background: var(--surface); color: var(--fg); cursor: pointer; }
-.dict-numbers.c8 .dict-n { font-size: 1em; }
+.dict-numbers.dense .dict-n { font-size: 1em; }
 .dict-n:hover { border-color: var(--accent); }
 .dict-n.right { border-color: var(--ok); background: var(--ok-soft); color: var(--ok); }
 .dict-n.wrong { border-color: var(--err); background: var(--err-soft); color: var(--err); }
 .dict-n:disabled { cursor: default; }
 .dict-n:disabled:not(.right) { opacity: .45; }
-.dict-wrong p { margin: 0 0 .4em; color: var(--err); font-size: .9em; line-height: 1.25; }
+.dict-wrong { display: flex; flex-direction: column; align-items: flex-start; gap: .4em; }
+.dict-status { margin: 0; display: flex; align-items: center; padding: 0 .8em; border-radius: var(--r-m); font-weight: 600; }
+.dict-status.ok { background: var(--ok-soft); color: var(--ok); }
+.dict-status.warn { background: var(--warn-bg); color: var(--warn-fg); }
+.dict-actions { display: flex; flex-direction: column; align-items: flex-start; gap: calc(var(--u) * 6); }
+.dict-actions .btn { font-size: .95em; padding: .4em .9em; }
+.dict-save { display: flex; flex-wrap: wrap; align-items: center; gap: calc(var(--u) * 5); color: var(--muted); }
+.dict-actions .dict-forget { color: var(--err); margin-top: auto; }
 .dict-colours h2 { margin: 0 0 .5em; font-size: 1.2em; }
 .dict-colours .swatches { max-width: calc(var(--u) * 300); }
 /* «?»: what to think of */

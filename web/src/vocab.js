@@ -169,8 +169,9 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	// ones around value), value's framed. "reel": a window of 3 rows over a
 	// strip of every row, turned (a transform) until value's row is in the
 	// middle; from: the value it turns from (animated unless reduced motion).
-	// "picker": every piece as a button; onPick(v).
-	function dictionary({ box, things = [], mode = "static", value = null, icon = "seed", onPick, from }) {
+	// "picker": every piece as a button; onPick(v). columns ("static"): side by
+	// side, so that every row shows (the first column 0 …, the next on from there).
+	function dictionary({ box, things = [], mode = "static", value = null, icon = "seed", onPick, from, columns = 1 }) {
 		const N = things.length, tabH = Math.max(8, Math.min(14, Math.round(box.h * 0.18)));
 		const card = { x: box.x, y: box.y + tabH, w: box.w, h: box.h - tabH }, inner = { x: card.x + 2, y: card.y + 2, w: card.w - 4, h: card.h - 4 };
 		const tabW = Math.min(30, box.w * 0.4);
@@ -179,13 +180,13 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			text(box.x + tabW / 2, box.y + tabH * 0.82, Math.max(9, tabH * 0.8), ICON[icon], { "text-anchor": "middle", class: "v-icon" }),
 			svg("rect", { x: card.x, y: card.y, width: card.w, height: card.h, rx: 4, class: "v-dict-card" }),
 		];
-		const row = (v, y, rowH, on) => {
+		const row = (v, y, rowH, on, col = inner) => {
 			const fs = Math.min(12, rowH * 0.62), numW = fs * 1.5, br = Math.max(2, rowH * 0.36), thing = things[v];
-			const bx = inner.x + numW + 4 + br;
+			const bx = col.x + numW + 4 + br;
 			return svg("g", { class: "v-dict-row" + (on ? " on" : ""), "data-value": String(v), "data-y": String(r1(y)) },
-				text(inner.x + numW, y + rowH / 2 + fs * 0.35, fs, v, { "text-anchor": "end", class: "v-mono v-dict-num" }),
+				text(col.x + numW, y + rowH / 2 + fs * 0.35, fs, v, { "text-anchor": "end", class: "v-mono v-dict-num" }),
 				bead(thing && (thing.name || thing.emoji || thing.photo || thing.colour) ? thing : null, bx, y + rowH / 2, br),
-				text(bx + br + 3, y + rowH / 2 + fs * 0.35, fs, thing ? fit(thing.name, inner.x + inner.w - bx - br - 4, fs) : "", { class: "v-name" }));
+				text(bx + br + 3, y + rowH / 2 + fs * 0.35, fs, thing ? fit(thing.name, col.x + col.w - bx - br - 4, fs) : "", { class: "v-name" }));
 		};
 		if (mode === "picker") {
 			const cols = Math.max(1, Math.min(N, Math.ceil(Math.sqrt(N * inner.w / inner.h)))), rows = Math.max(1, Math.ceil(N / cols));
@@ -218,7 +219,18 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			}
 			return svg("g", { class: `v v-dict v-dict-${icon} v-reel` }, parts);
 		}
-		// static: every row if each gets 15 px (a 9 px name), else the rows around value
+		// static: every row if each gets 15 px (a 9 px name), in its columns
+		const per = Math.ceil(N / Math.max(1, columns));
+		if (columns > 1 && inner.h / per >= 15) {
+			const rowH = Math.min(20, inner.h / per), cw = inner.w / columns;
+			for (let v = 0; v < N; v++) {
+				const c = Math.floor(v / per), y = inner.y + (v % per) * rowH, col = { x: inner.x + c * cw, w: cw };
+				if (v === value) parts.push(svg("rect", { x: r1(col.x), y: r1(y), width: r1(cw), height: r1(rowH), rx: 3, class: "v-dict-on" }));
+				parts.push(row(v, y, rowH, v === value, col));
+			}
+			return svg("g", { class: `v v-dict v-dict-${icon} v-static` }, parts);
+		}
+		// else the rows around value
 		const show = Math.max(1, Math.min(N, Math.floor(inner.h / 15))), rowH = Math.min(20, inner.h / show);
 		const first = show >= N ? 0 : Math.max(0, Math.min(N - show, (value === null ? 0 : value) - Math.floor(show / 2)));
 		for (let v = first; v < first + show && v < N; v++) {
