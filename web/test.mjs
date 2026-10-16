@@ -466,6 +466,27 @@ for (const pad of [false, true]) {
 	check(m.inputs.length === 2 && m.inputs.every(within) && within(m.output) && m.inputs[0].y === box.y && m.output.y + m.output.h === box.y + box.h, "clock module: inputs on top, output at the bottom");
 	check(m.dial.cy - m.dial.r >= m.inputs[0].y + m.inputs[0].h && m.dial.cy + m.dial.r <= m.output.y && m.dial.cx - m.dial.r >= box.x && m.dial.cx + m.dial.r <= box.x + box.w, "clock module: the dial between the bands");
 }
+// a key file's column: 7 places inside it, the middle one level with the turn's row (read) or with the arrow that leaves it (make)
+for (const n of [2, 16, 32]) {
+	const rt = Lay.readTurn({ pad: true, n }).boxes, fc = Lay.fileColumn(rt.keyColumn);
+	check(fc.rows.length === 7 && fc.rows.every((r, j) => contains(rt.keyColumn, r.ring) && (j === 0 || r.y > fc.rows[j - 1].y) && r.ring.h >= 24)
+		&& fc.rows.every((r, j) => j === 0 || !overlap(r.ring, fc.rows[j - 1].ring)), `fileColumn read n=${n}: 7 places in the column, apart, each big enough to tap`);
+	check(Math.abs(fc.rows[3].y - (rt.row.y + rt.row.h / 2)) < 1 && fc.rows.every((r) => [r.digit, r.value, r.pos].every(([x, y]) => x > rt.keyColumn.x && x < rt.keyColumn.x + rt.keyColumn.w && y > rt.keyColumn.y && y < rt.keyColumn.y + rt.keyColumn.h)),
+		`fileColumn read n=${n}: the middle place on the turn's row, its texts inside the column`);
+	const mk = Lay.makeTurn({ pad: true, n, file: true }), ref = Lay.fileColumn(mk.boxes.keyString, { role: "reference" }), from = mk.arrows.find((a) => a.id === "keyNumber").points[0];
+	check(ref.rows.length === 7 && ref.rows.every((r) => contains(mk.boxes.keyString, r.frame)) && Math.abs(ref.rows[3].y - from[1]) < 1, `fileColumn reference n=${n}: the turn's place framed, level with the arrow to its number`);
+}
+// storing it: two places apart with a key, the border between them; the string's place and the dictionary apart with none
+for (const pad of [false, true]) {
+	const lay = Lay.store({ pad }), b = lay.boxes, places = pad ? ["a", "b"] : ["a", "d"];
+	checkLayout(`store pad=${pad}`, lay);
+	for (const p of places) for (const part of ["Title", "Dict", "Note", "Saved", ...(p === "d" ? [] : ["String"])])
+		check(contains(b[p], b[p + part]), `store pad=${pad}: ${p}${part} in its place`);
+	check(b.forget.y >= Math.max(...places.map((p) => b[p].y + b[p].h)) && !!b.border === pad && !!b.apart === pad, `store pad=${pad}: «Forget» at the foot, the border only with a key`);
+	if (pad) check(b.border.x >= b.a.x + b.a.w && b.border.x + b.border.w <= b.b.x && b.border.y === b.a.y && b.border.h === b.a.h && b.apart.y + b.apart.h <= b.a.y
+		&& b.apart.x < b.border.x && b.apart.x + b.apart.w > b.border.x + b.border.w && b.a.w === b.b.w, `store: the border between the two places, as tall, «never together» over it, the places alike`);
+	check(Object.entries(b).every(([id, x]) => id === "guide" || x.y >= 28), `store pad=${pad}: nothing in the guide's band`);
+}
 // the visual vocabulary (vocab.js), drawn with a fake svg/h: { tag, attrs, children }
 {
 	const node = (tag, attrs, ...children) => ({ tag, attrs: { ...(attrs || {}) }, children: children.flat().filter((c) => c !== null && c !== undefined && c !== false),
@@ -782,7 +803,10 @@ for (const pad of [false, true]) {
 	const keys = ["turnPosition", "turnBitsAre", "turnNumber", "turnKeyAt", "turnKeyFile", "turnKeyNumber", "turnClockOf", "turnOut", "turnDict", "turnSlot",
 		"turnHeader", "turnPadding", "seqKeyChanged", "endPad", "endBasic", "whyPad", "makeWarn", "seqIntro", "seqPadIntro",
 		// reading back: the turn's foot, the ends'
-		"readTap", "readTapBoth", "readTurnPad", "readTurnBasic", "readNoFit", "typeHelp", "handDone", "checkMatch", "checkFixed", "checkMismatch"];
+		"readTap", "readTapBoth", "readTurnPad", "readTurnBasic", "readNoFit", "typeHelp", "handDone", "checkMatch", "checkFixed", "checkPadding", "checkMismatch",
+		"readLockedWhy", "readLockedAhead",
+		// storing it
+		"storeForgetWhy", "storeKeyUnsaved"];
 	for (const lang of ["en", "es"]) for (const k of keys) {
 		const v = TX[lang][k], s = typeof v === "function" ? v(...(args[k] || [])) : v;
 		check(typeof s === "string" && s.length <= 110, `caption ${lang}.${k} at most 110 characters (${s && s.length}: ${s})`);

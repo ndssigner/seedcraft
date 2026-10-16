@@ -70,7 +70,10 @@ evidence.
 also in each [release](https://github.com/ndssigner/seedcraft/releases), to
 use offline. English and Spanish.
 
-Two journeys, each a sequence of steps along a thread:
+A lectern of slides: one landscape slide at a time, scaled to fit the
+window (the journeys never scroll), each asking one thing, with where you are at the
+top and Back and Next at the foot. Every slide draws the same few things the
+same way: strings, dictionaries, bits, the clock, the QR code. Two journeys:
 
 - **Back up a seed**: plan, one question at a time, with drawings (the
   mode, with what each one protects; the form, from those of [SPEC
@@ -83,7 +86,9 @@ Two journeys, each a sequence of steps along a thread:
   first, piece by piece, by chance), the sequence (turn by turn, each piece
   from the QR code's squares; a drawing in the form's shape, a list, the QR
   code it keeps, and a printable sheet for whoever makes it), check (read
-  it all back: it must give the same seed) and store (what goes where).
+  it all back: it must give the same seed) and store (with a key, two
+  places never together, each string with its dictionary; then forget
+  everything on this device).
 - **Recover a seed**: what you have (mode, form, dictionary and, in pad
   mode, how the key is kept: a sequence with its collection, or a file),
   recover (turn by turn: tap each piece in order from either end, or type

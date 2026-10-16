@@ -103,8 +103,6 @@ const SeedcraftSlides = (() => {
 		const space = e.key === " " || e.key === "Spacebar";
 		// the space bar on a focused button presses that button, whatever the slide
 		if (space && pressable(e.target)) return;
-		// a slide that still uses its own keys (an old step view) has them first
-		if (slide.onKey && slide.onKey(e)) return;
 		if (space || e.key === "ArrowRight") { e.preventDefault(); move("next"); }
 		else if (e.key === "ArrowLeft") { e.preventDefault(); move("prev"); }
 	}
@@ -174,9 +172,12 @@ const SeedcraftSlides = (() => {
 	// Shows a slide. The same slide again (the same id: a redraw, another
 	// language) keeps its step; another starts at its first step, or at
 	// startStep (a slide come back to from the one after it: its last).
+	// page: a page as it is (the start page, about, donate, the printable
+	// sheet), under the guide's band at the page's own type size; only what
+	// does not fit the frame scrolls, inside it, and keeps its place on a redraw.
 	function show(s) {
 		const same = slide && s.id !== undefined && s.id === slide.id, last = Math.max(1, s.steps || 1) - 1;
-		const keep = same && slide.legacy && el.body ? el.body.scrollTop : 0;
+		const keep = same && slide.page && el.body ? el.body.scrollTop : 0;
 		slide = s;
 		step = same ? Math.min(step, last) : Math.max(0, Math.min(last, s.startStep || 0));
 		if (!same) closePopup(true);
@@ -204,7 +205,7 @@ const SeedcraftSlides = (() => {
 				"aria-haspopup": "dialog", "aria-expanded": String(panelOpen), on: { click: () => panel(!panelOpen) } }, "⋯"));
 		const question = s.question ? h("h1", { class: "slide-question", text: s.question }) : null;
 
-		el.body = h("div", { class: "slide-body" + (s.legacy ? " slide-legacy" : "") });
+		el.body = h("div", { class: "slide-body" + (s.page ? " slide-page" : "") });
 		const content = s.body ? s.body(Math.min(step, steps - 1)) : null;
 		if (content) el.body.append(content);
 
