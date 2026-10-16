@@ -171,8 +171,6 @@ details.more summary:hover { color: var(--fg); }
 details.more > * + * { margin-top: 8px; }
 
 /* shared bits */
-.bar-track { height: 4px; background: var(--soft); border-radius: 99px; overflow: hidden; }
-.bar-track div { height: 100%; width: 0; background: var(--accent); border-radius: 99px; }
 .result { border: 1px solid var(--ok); background: var(--surface); border-radius: var(--r-m); padding: 14px; display: flex; flex-direction: column; gap: 12px; }
 .result-title { font-family: var(--book); font-size: var(--fs-l); font-weight: 600; color: var(--ok); }
 .words { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 4px 12px; }
@@ -194,12 +192,6 @@ pre.code { font-family: var(--mono); font-size: var(--fs-s); background: var(--s
 
 /* pieces: the dictionary, step by step, reading */
 .num { color: var(--muted); font-size: var(--fs-xs); font-weight: 700; font-variant-numeric: tabular-nums; }
-.wizard { display: grid; grid-template-columns: 1fr 1.5fr 1fr; align-items: center; gap: 8px; text-align: center;
-	background: var(--sunk); border-radius: var(--r-l); padding: 14px 8px; }
-.wizard .side { opacity: .7; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
-.wizard .centre { display: flex; flex-direction: column; align-items: center; }
-.wizard .name { font-family: var(--book); font-size: var(--fs-l); font-weight: 600; margin-top: 6px; }
-.wizard .small-name { font-size: var(--fs-xs); color: var(--muted); }
 .question { text-align: center; font-family: var(--book); font-size: var(--fs-l); font-weight: 600; margin: 0; }
 /* the colour of a piece: a row of bead colours, and any other */
 .swatches { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
@@ -378,8 +370,8 @@ ol.entries.paper li { color: #111; border-bottom-color: #ccc; }
 .hint::before { content: "i"; position: absolute; left: 4px; top: 3px; width: 15px; height: 15px; border-radius: 50%; border: 1.5px solid var(--muted);
 	font: italic 700 10px/12px var(--book); text-align: center; color: var(--muted); box-sizing: border-box; }
 /* small labels that use the hint's colour are not hints */
-.wizard .hint, .row.between .hint, .side .hint { padding: 0; }
-.wizard .hint::before, .row.between .hint::before, .side .hint::before { content: none; }
+.row.between .hint { padding: 0; }
+.row.between .hint::before { content: none; }
 
 /* illustrations */
 .art { width: 100%; max-width: 180px; height: auto; display: block; }
@@ -416,10 +408,6 @@ ul.avoid li::marker { content: "✗  "; color: var(--bad); }
 .substeps li.on .knot { box-shadow: 0 0 0 3px var(--paper), 0 0 0 5px var(--current); }
 
 /* a row of kinds, each with how many of it */
-.kinds { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: flex-end; }
-.kinds > span { display: flex; flex-direction: column; align-items: center; gap: 1px; }
-.kinds small { font-size: var(--fs-xs); font-weight: 700; font-variant-numeric: tabular-nums; color: var(--fg); }
-.kinds .more-kinds { font-size: var(--fs-s); color: var(--muted); align-self: center; }
 .choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
 .choice { display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: var(--r-m); background: var(--sunk); cursor: pointer; font-size: var(--fs-s); }
 .choice:hover { border-color: var(--pad); }
@@ -578,27 +566,11 @@ p.meta { margin: 0; }
 .crow .icon { width: 22px; height: 22px; margin-left: auto; }
 .crow.on { border-color: var(--accent); background: var(--accent-soft); }
 .crow.on code, .crow.on .num { color: var(--accent-ink); }
-.turn-piece { display: flex; align-items: center; gap: 12px; background: var(--sunk); border-radius: var(--r-l); padding: 6px 12px; }
-.turn-piece .name { font-family: var(--book); font-size: var(--fs-l); }
 .map.turn-map { max-height: 200px; }
 @media (min-width: 880px) and (min-height: 560px) {
 	.flow-body .tool > .panel:last-child > .map.turn-map { flex: 0 1 auto; max-height: 34%; min-height: 80px; }
 }
 /* how it goes, once, before the first turn: four boxes in a row */
-.narrow.howto { max-width: 860px; }
-.howto-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; }
-.howto-box { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 8px; text-align: center; padding: 14px 8px; background: var(--sunk); border-radius: var(--r-m); }
-.howto-box + .howto-box::before { content: "→"; position: absolute; left: -19px; top: 34px; color: var(--muted); font-size: var(--fs-l); }
-.howto-box p { margin: 0; font-size: var(--fs-s); }
-.howto-pic { width: 64px; height: 48px; }
-.howto-pic path { stroke: var(--line-strong); stroke-width: 3; stroke-linecap: round; }
-.howto-box .bits-num { font-size: 40px; line-height: 48px; }
-.howto-box .squares { height: 48px; align-items: center; }
-.howto-scanner { font-family: var(--book); font-size: var(--fs-l); text-align: center; margin: 0; }
-@media (max-width: 640px) {
-	.howto-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-	.howto-box + .howto-box::before { content: none; }
-}
 /* reading a sequence back turn by turn: the collection is the palette to tap, the key's on its own thread colour */
 .collection.pick .crow { font: inherit; color: inherit; background: var(--surface); border-color: var(--line); cursor: pointer; padding: 2px 4px; }
 .collection.pick .crow:hover { border-color: var(--line-strong); }
@@ -884,6 +856,15 @@ body { overflow: hidden; }
 .kt-file-now { fill: var(--key); }
 .kt-file-check { fill: var(--muted); font-style: italic; }
 .kt-file-slot { fill: var(--key-soft); stroke: var(--key); stroke-width: 1.4; }
+/* the sequence: the seed's words, a turn per slide (layouts.js's makeTurn), the whole string in a popup */
+.seed-form { justify-content: center; }
+.seed-form .alert { margin: 0; }
+.seed-form textarea { flex: none; font-size: 1.1em; }
+.tn-wait { opacity: .35; }
+.tn-dim { opacity: .55; }
+.seq-map ol.entries { columns: 5; column-gap: 1em; font-size: .7em; }
+.seq-map ol.entries li { padding: 1px 2px; font-size: 1em; }
+.seq-map svg.string { display: block; width: calc(var(--u) * 540); max-width: 100%; height: auto; max-height: calc(var(--u) * 270); }
 /* «?»: what to think of */
 .slide-help h2 { margin: 0 0 .5em; font-size: 1.2em; }
 .slide-help p { margin: 0 0 .5em; }

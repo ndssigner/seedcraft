@@ -368,6 +368,17 @@ for (const n of [2, 4, 8, 16, 32]) for (const pad of [false, true]) {
 	if (pad) check(contains(Lay.readTurn({ pad, n }).boxes.keyColumn, Lay.readTurn({ pad, n }).boxes.keySlot), `read n=${n}: the key's slot is in its column`);
 }
 check(Lay.makeTurn({ pad: true, n: 16 }).arrows.map((a) => a.id).join() === "position,bits,number,keyPiece,keyNumber,clockSeed,clockKey,output,slot", "make: the arrows in the cycle's order");
+// a key file: its column, its number straight from the turn's row (no key dictionary), then the same clock
+for (const n of [2, 4, 8, 16, 32]) {
+	const lay = Lay.makeTurn({ pad: true, n, file: true }), m = Lay.clockModule(lay.boxes.clock), into = (id) => ends(lay.arrows.find((a) => a.id === id));
+	checkLayout(`make n=${n} file`, lay);
+	for (const a of lay.arrows) check(onBorder(starts(a), lay.boxes[a.from]) && onBorder(ends(a), lay.boxes[a.to]), `make n=${n} file: arrow ${a.id} leaves and reaches its boxes`);
+	check(!lay.boxes.keyDict && lay.arrows.map((a) => `${a.id}:${a.from}>${a.to}`).join() === "position:seedSlot>qr,bits:qr>bits,number:bits>number,keyNumber:keyString>keyNumber,clockSeed:number>clock,clockKey:keyNumber>clock,output:clock>seedDict,slot:seedDict>seedSlot",
+		`make n=${n} file: no key dictionary, the file's row → its number → the clock`);
+	check(inCell(into("clockSeed"), m.inputs[0]) && inCell(into("clockKey"), m.inputs[1]), `make n=${n} file: each number enters its own input cell`);
+	const row = lay.boxes.keyString.y + lay.boxes.keyString.h / 2, k = lay.arrows.find((a) => a.id === "keyNumber");
+	check(Math.abs(starts(k)[1] - row) < 12, `make n=${n} file: the key's number leaves from the turn's row`);
+}
 check(Lay.makeTurn({ pad: false, n: 16 }).arrows.map((a) => a.id).join() === "position,bits,number,dict,slot", "make simple: the arrows in the cycle's order");
 for (const sides of [2, 4, 6, 8, 10, 12, 16, 20]) { const lay = Lay.keyThrow({ sides }); check(Object.values(lay.boxes).every(inside), "throw d" + sides + " fits"); }
 for (const sides of [2, 4, 6, 8, 10, 12, 16, 20]) for (const bits of [1, 2, 3, 4, 5]) {
@@ -661,11 +672,12 @@ check(Lay.keyThrow({ sides: 6 }).faces.cols === 3 && Lay.keyThrow({ sides: 6 }).
 	check(J.buyFor(12, 16, "basic") === 15 && J.buyFor(24, 16, "basic") === 20 && J.buyFor(12, 16, "pad", "string") === 20 && J.buyFor(24, 32, "pad", "string") === 20
 		&& J.buyFor(12, 2, "pad", "file") === 135 && J.buyFor(12, 2, "basic") === 130, "buyFor: SPEC §6 and §10.6");
 	check(J.symbolsFor(12, 16) === 54 && J.symbolsFor(24, 16) === 91 && J.symbolsFor(12, 32) === 43 && J.symbolsFor(24, 2) === 364, "symbolsFor: SPEC §2");
-	check(ids("make", { mode: "basic" }) === "mode form words size pieces dict seq check store", "make: the basic mode's slides");
+	check(ids("make", { mode: "basic" }) === "mode form words size pieces dict seed check store", "make: the basic mode's slides");
+	check(ids("make", { mode: "basic", made: true }) === "mode form words size pieces dict seed seq check store", "make: the turns once the sequence is made");
 	check(ids("make", { mode: null }) === ids("make", { mode: "basic" }), "make: before a mode is chosen, the basic mode's slides");
-	check(ids("make", { mode: "pad", padAs: "file", dict: true, keyWho: "me", keyBy: "d6" }) === "mode form words size keyAs pieces dict dictHave keyWho keyTool keyThrow seq check store", "make: a key file thrown by hand");
+	check(ids("make", { mode: "pad", padAs: "file", dict: true, keyWho: "me", keyBy: "d6" }) === "mode form words size keyAs pieces dict dictHave keyWho keyTool keyThrow seed check store", "make: a key file thrown by hand");
 	check(ids("make", { mode: "pad", padAs: "string", padForm: "book", dict: true, padDict: true, keyWho: "device", keyBy: "device" })
-		=== "mode form words size keyAs keyColl keyForm pieces dict dictHave keyDict keyDictHave keyWho keyThrow seq check store", "make: a key of another collection, drawn by the device");
+		=== "mode form words size keyAs keyColl keyForm pieces dict dictHave keyDict keyDictHave keyWho keyThrow seed check store", "make: a key of another collection, drawn by the device");
 	check(ids("make", { mode: "pad", padAs: "string", padForm: null }).includes("keyColl") && !ids("make", { mode: "pad", padAs: "string", padForm: null }).includes("keyForm"), "make: the same collection asks no form for the key");
 	check(J.slides("make", { mode: "pad" }).filter((x) => x.step === "plan").length === 5 && J.slides("make", { mode: "pad" }).find((x) => x.id === "keyWho").step === "key", "make: each slide under its step");
 	check(ids("read", { mode: "basic" }) === "mode form size dict recover seed", "read: the basic mode's slides");
@@ -681,6 +693,15 @@ check(Lay.keyThrow({ sides: 6 }).faces.cols === 3 && Lay.keyThrow({ sides: 6 }).
 	check(one({ mode: "pad", padAs: "string", padForm: "book" }) === JSON.stringify({ keyFile: false, groups: [{ kinds: ["seed"], form: "necklace", each: 15, copies: 1, what: "seq" },
 		{ kinds: ["key"], form: "book", each: 15, copies: 0, what: "key" }] }), "pieces: a key of another collection, a group each");
 	check(one({ mode: "pad", padAs: "file" }) === JSON.stringify({ keyFile: true, groups: [{ kinds: ["seed"], form: "necklace", each: 15, copies: 2, what: "seq" }] }), "pieces: a key file, a copy of the dictionary for it");
+	// a turn of the sequence: its stages reveal every arrow of makeTurn once, in the cycle's order
+	for (const [pad, file, count] of [[false, false, 5], [true, false, 9], [true, true, 8]]) {
+		const stages = J.turnStages({ pad, file }), arrows = Lay.makeTurn({ pad, n: 16, file }).arrows.map((a) => a.id);
+		check(stages.length === count && stages.flatMap((x) => x.arrows).join() === arrows.join(), `turnStages pad=${pad} file=${file}: ${count} steps, every arrow once, in order`);
+		check(stages[0].id === "position" && stages[stages.length - 1].id === "slot" && new Set(stages.map((x) => x.id)).size === count, `turnStages pad=${pad} file=${file}: from the position to the slot, each stage its own`);
+	}
+	check(J.turnStages({ pad: true }).map((x) => x.id).join() === "position,bits,number,key,keyNumber,clock,out,dict,slot" && J.turnStages({ pad: true }).find((x) => x.id === "out").arrows.length === 0
+		&& J.turnStages({ pad: true }).find((x) => x.id === "clock").arrows.join() === "clockSeed,clockKey", "turnStages: the spec's nine steps; both inputs one step, the output of the clock one with no arrow");
+	check(J.EXPLAINED === 3, "the first three turns are explained step by step");
 	// your own dictionary: naming each piece, the order it is checked in
 	const named = [{ name: "Red" }, { name: " red " }, { name: "" }, { name: "Blue" }];
 	check(J.nameProblem(named, 0) === "dup" && J.nameProblem(named, 1) === "dup" && J.nameProblem(named, 2) === "empty" && J.nameProblem(named, 3) === null

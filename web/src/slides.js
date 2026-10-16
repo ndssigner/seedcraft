@@ -172,12 +172,13 @@ const SeedcraftSlides = (() => {
 	}
 
 	// Shows a slide. The same slide again (the same id: a redraw, another
-	// language) keeps its step; another starts at its first step.
+	// language) keeps its step; another starts at its first step, or at
+	// startStep (a slide come back to from the one after it: its last).
 	function show(s) {
-		const same = slide && s.id !== undefined && s.id === slide.id;
+		const same = slide && s.id !== undefined && s.id === slide.id, last = Math.max(1, s.steps || 1) - 1;
 		const keep = same && slide.legacy && el.body ? el.body.scrollTop : 0;
 		slide = s;
-		step = same ? Math.min(step, Math.max(1, s.steps || 1) - 1) : 0;
+		step = same ? Math.min(step, last) : Math.max(0, Math.min(last, s.startStep || 0));
 		if (!same) closePopup(true);
 		if (root) draw();
 		if (keep && el.body) el.body.scrollTop = keep;
