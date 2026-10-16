@@ -291,21 +291,31 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			arc = svg("path", { class: "v-clock-arc", d: `M${x0},${y0} A${r1(r)},${r1(r)} 0 ${by / n > 0.5 ? 1 : 0} ${sign > 0 ? 1 : 0} ${x1},${y1}`, visibility: final ? undefined : "hidden" });
 			parts.push(arc);
 		}
-		// every number has its tick; the sum's two are written (one moved inwards
-		// if they are neighbours), and the regular ones that would not touch them
-		const involved = [from, to], near = (a, b) => Math.min(mod(a - b, n), mod(b - a, n)) <= 1;
-		// up to 8 every number is written; with 16 every 2nd, with 32 every 4th (and always the sum's two)
+		// every number has its tick. Written, in this order, each where it does
+		// not touch one already written (on the ring's inner track, else a track
+		// further in): the sum's two and, when the step goes round, the 0 (always)
+		// and N − 1 (if it fits); then the regular ones (up to 8 every number, with
+		// 16 every 2nd, with 32 every 4th) where they fit on the inner track.
 		const fs = n <= 4 ? 11 : n <= 8 ? 10 : 9, lr = r - fs - 2, every = Math.max(1, n / 8);
+		const roleOf = (v) => v === to ? " to" : v === from ? " from" : wrapped && (v === 0 || v === n - 1) ? " wrap" : "";
 		for (let v = 0; v < n; v++) {
-			const role = v === to ? " to" : v === from ? " from" : v === 0 && wrapped ? " wrap" : "";
 			const [x, y] = at(v);
-			parts.push(svg("circle", { cx: x, cy: y, r: n > 16 ? 1.5 : 2.5, class: "v-clock-tick" + role }));
-			const write = every === 1 || involved.includes(v) || (v % every === 0 && !involved.some((w) => near(v, w)));
-			if (!write) continue;
-			const inward = every > 1 && v === to && near(from, to) && from !== to ? fs + 1 : 0;
-			const [lx, ly] = at(v, lr - inward);
-			parts.push(text(lx, ly + fs * 0.35, fs, v, { "text-anchor": "middle", class: "v-clock-n" + role }));
+			parts.push(svg("circle", { cx: x, cy: y, r: n > 16 ? 1.5 : 2.5, class: "v-clock-tick" + roleOf(v) }));
 		}
+		const written = [], clear = ([x, y]) => written.every(([, wx, wy]) => Math.hypot(x - wx, y - wy) >= fs);
+		const write = (v, tracks) => {
+			if (written.some(([w]) => w === v)) return true;
+			for (const rr of tracks) { const p = at(v, rr); if (clear(p)) { written.push([v, ...p]); return true; } }
+			return false;
+		};
+		const both = [lr, lr - fs - 1];
+		write(from, both);
+		if (wrapped && !write(0, both)) written.push([0, ...at(0, both[1])]);   // the pass from N − 1 to 0 is always shown
+		write(to, both);
+		if (wrapped) write(n - 1, both);
+		for (let v = 0; v < n; v += every) write(v, [lr]);
+		for (const [v, lx, ly] of written.sort((a, b) => a[0] - b[0]))
+			parts.push(text(lx, ly + fs * 0.35, fs, v, { "text-anchor": "middle", class: "v-clock-n" + roleOf(v) }));
 		const cfs = Math.min(r * 0.45, 18), ofs = Math.min(m.output.h * 0.7, 20), byText = (k) => (sign > 0 ? "+" : "−") + k;
 		const [tx, ty] = at(final ? to : from);
 		const token = svg("circle", { cx: tx, cy: ty, r: n > 16 ? 4 : 5, class: "v-clock-token" });
