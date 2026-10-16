@@ -320,6 +320,9 @@ const tooNear = ([a, b], [c, d]) => {
 const segments = (a) => a.points.slice(1).map((p, i) => [a.points[i], p]);
 const checkLayout = (name, lay) => {
 	check(Object.values(lay.boxes).every(inside), `${name} fits`);
+	// the slide's fixed top band (the guide, «?» and «⋯») is kept free: the box tests below then keep everything off it
+	const g = lay.boxes.guide;
+	check(g && g.x === 0 && g.y === 0 && g.w === Lay.VIEW.w && g.h === 26, `${name} reserves the guide's band`);
 	// boxes never overlap, except a frame around a row and a slot in its string
 	const ids = Object.keys(lay.boxes);
 	ids.forEach((i, k) => ids.slice(k + 1).forEach((j) => {
@@ -332,6 +335,7 @@ const checkLayout = (name, lay) => {
 		check(a.points.every(([x, y]) => x >= 0 && y >= 0 && x <= Lay.VIEW.w && y <= Lay.VIEW.h), `${name} arrow ${a.id} fits`);
 		const segs = segments(a);
 		check(segs.reduce((s, g) => s + len(g), 0) >= 16 && len(segs[segs.length - 1]) >= 12, `${name} arrow ${a.id} long enough to read`);
+		check(segs.length <= 4, `${name} arrow ${a.id} turns at most three times`);
 		for (let i = 1; i < a.points.length; i++) for (const [id, b] of Object.entries(lay.boxes))
 			if (id !== a.from && id !== a.to && !overlap(b, lay.boxes[a.from]) && !overlap(b, lay.boxes[a.to]))
 				check(!Lay.segmentHitsBox(a.points[i - 1], a.points[i], b), `${name} arrow ${a.id} clear of ${id}`);

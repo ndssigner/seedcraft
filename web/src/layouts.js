@@ -44,6 +44,8 @@ const SeedcraftLayouts = (() => {
 	// The string being built (the seed in its turn, the key in its throw) is one
 	// element: bottom, full width, 13 pieces, the turn's slot in the middle.
 	const BUILT = box(20, 296, 640, 44), SLOT = box(316, 296, 48, 44);
+	// the slide's fixed top band, the guide on the left and «?» «⋯» on the right: nothing else goes there
+	const GUIDE = box(0, 0, VIEW.w, 26);
 
 	// The turn while making the copy. Bottom to top, left to right: the seed
 	// string being built, its slot's position → the QR → its bits → their
@@ -57,6 +59,7 @@ const SeedcraftLayouts = (() => {
 			number: box(135, 94, 60, 36),
 			seedString: { ...BUILT },
 			seedSlot: { ...SLOT },
+			guide: { ...GUIDE },
 		};
 		const arrows = [
 			arrow("position", "seedSlot", "qr", "qr", [[328, 296], [328, 284], [67, 284], [67, 140]]),
@@ -70,25 +73,26 @@ const SeedcraftLayouts = (() => {
 				arrow("slot", "seedDict", "seedSlot", "qr", [[352, 148], [352, 296]]));
 			return { boxes: b, arrows };
 		}
-		// the key string is a reference: vertical, its turn piece in the middle (y 145)
+		// the key string is a reference: vertical, its turn piece in the middle (y 131)
 		Object.assign(b, {
-			keyString: box(268, 45, 34, 200),
-			keyDict: box(320, 109, 86, 72),
-			keyNumber: box(320, 197, 86, 30),
-			clock: box(452, 32, 140, 154),
-			seedDict: box(479, 204, 86, 48),
+			keyString: box(268, 40, 34, 182),
+			keyDict: box(320, 95, 86, 72),
+			keyNumber: box(320, 183, 86, 30),
+			clock: box(452, 50, 140, 146),
+			seedDict: box(479, 212, 86, 44),
 		});
 		const keyIn = clockModule(b.clock).inputs[1], keyX = keyIn.x + keyIn.w / 2;
 		arrows.push(
-			arrow("keyPiece", "keyString", "keyDict", "key", [[302, 145], [320, 145]]),
-			arrow("keyNumber", "keyDict", "keyNumber", "key", [[363, 181], [363, 197]]),
-			// the seed's number goes under the key and up the outer corridor into its
-			// (left) input cell; the key's runs up the inner corridor and over the top
-			// into its own (right) cell: so the two never cross
-			arrow("clockSeed", "number", "clock", "qr", [[165, 130], [165, 260], [436, 260], [436, 46], [452, 46]]),
-			arrow("clockKey", "keyNumber", "clock", "key", [[406, 212], [420, 212], [420, 14], [keyX, 14], [keyX, keyIn.y]]),
-			arrow("output", "clock", "seedDict", "qr", [[522, 186], [522, 204]]),
-			arrow("slot", "seedDict", "seedSlot", "qr", [[522, 252], [522, 272], [352, 272], [352, 296]]));
+			arrow("keyPiece", "keyString", "keyDict", "key", [[302, 131], [320, 131]]),
+			arrow("keyNumber", "keyDict", "keyNumber", "key", [[363, 167], [363, 183]]),
+			// The key's number must reach its own (right) cell, so it goes over the
+			// top; the key string stands between the seed's number and the module, so
+			// the seed's can only go under it and up the outer corridor into the left
+			// cell: any route over the top would cross the key's.
+			arrow("clockSeed", "number", "clock", "qr", [[165, 130], [165, 240], [436, 240], [436, 63], [452, 63]]),
+			arrow("clockKey", "keyNumber", "clock", "key", [[406, 198], [420, 198], [420, 38], [keyX, 38], [keyX, keyIn.y]]),
+			arrow("output", "clock", "seedDict", "qr", [[522, 196], [522, 212]]),
+			arrow("slot", "seedDict", "seedSlot", "qr", [[522, 256], [522, 272], [352, 272], [352, 296]]));
 		return { boxes: b, arrows };
 	}
 
@@ -102,8 +106,9 @@ const SeedcraftLayouts = (() => {
 			seedColumn: box(20, top, 70, 7 * piece),
 			seedSlot: box(24, rowY + 2, 36, piece - 4),
 			qr: box(490, 75, 170, 170),
+			guide: { ...GUIDE },
 		};
-		const toQr = (x) => [[x, 40], [575, 40], [575, b.qr.y]];
+		const toQr = (x) => [[x, 40], [b.qr.x + 16, 40], [b.qr.x + 16, b.qr.y]];   // into the QR near its left edge: the shortest way over the clock
 		if (!pad) {
 			b.row = box(14, rowY, 82, piece);
 			const y = rowY + 27;
@@ -141,12 +146,13 @@ const SeedcraftLayouts = (() => {
 	// whatever N, so it never climbs into the question.
 	function keyThrow({ sides, bits = 5 }) {
 		const cols = sides <= 2 ? 2 : sides <= 6 ? 3 : sides <= 12 ? 4 : 5;
-		const rows = Math.ceil(sides / cols), gap = 6, area = { w: 180, h: 190 };
+		const rows = Math.ceil(sides / cols), gap = 6, area = { w: 180, h: 170 };
 		const size = Math.floor(Math.min(56, (area.w - gap * (cols - 1)) / cols, (area.h - gap * (rows - 1)) / rows));
-		const faces = box(20, 48, cols * size + (cols - 1) * gap, rows * size + (rows - 1) * gap);
-		const mid = 48 + 5 * BIT / 2, h = bits * BIT, y = mid - h / 2;
+		const faces = box(20, 70, cols * size + (cols - 1) * gap, rows * size + (rows - 1) * gap);
+		const mid = 70 + 5 * BIT / 2, h = bits * BIT, y = mid - h / 2;
 		const b = {
-			question: box(190, 4, 300, 34),
+			guide: { ...GUIDE },
+			question: box(190, 30, 300, 30),
 			faces,
 			instruction: box(20, faces.y + faces.h + 10, 180, 24),
 			dice: box(222, y, 100, h),
