@@ -287,12 +287,25 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	// reduced motion; "done": the token at the result, the arc, the output.
 	// inputColour: the first number's colour ("qr" making a copy, "seed" reading).
 	// onDone ("run"): called once the output shows, always after clock() has returned.
+	// from or by null: that number is not there yet (reading, a piece still to
+	// choose): its band empty, the ring with its numbers, nothing turning.
 	function clock({ box, n, from, by, sign = 1, phase = "done", inputColour = "qr", onDone }) {
-		const m = L.clockModule(box), { cx, cy, r } = m.dial, to = mod(from + sign * by, n), wrapped = sign > 0 ? from + by > n - 1 : from - by < 0;
+		const m = L.clockModule(box), { cx, cy, r } = m.dial;
 		const angle = (v) => 2 * Math.PI * v / n - Math.PI / 2;
 		const at = (v, rr = r) => [r1(cx + rr * Math.cos(angle(v))), r1(cy + rr * Math.sin(angle(v)))];
 		const cell = (c) => svg("rect", { x: c.x, y: c.y, width: c.w, height: c.h, class: "v-clock-cell" });
 		const bandText = (c, s, cls) => text(c.x + c.w / 2, c.y + c.h / 2 + Math.min(c.h * 0.62, 18) * 0.36, Math.min(c.h * 0.62, 18), s, { "text-anchor": "middle", class: "v-bold " + cls });
+		if (from === null || from === undefined || by === null || by === undefined) {
+			const fs = n <= 4 ? 11 : n <= 8 ? 10 : 9, lr = r - fs - 2, every = Math.max(1, n / 8), parts = [];
+			parts.push(svg("rect", { x: box.x, y: box.y, width: box.w, height: box.h, rx: 6, class: "v-clock-box" }), ...[...m.inputs, m.output].map(cell),
+				bandText(m.inputs[0], from === null || from === undefined ? "" : from, "v-clock-in " + colourClass(inputColour)),
+				bandText(m.inputs[1], by === null || by === undefined ? "" : (sign > 0 ? "+" : "−") + by, "v-clock-in v-c-key"),
+				svg("circle", { cx, cy, r, class: "v-clock-ring" }));
+			for (let v = 0; v < n; v++) { const [x, y] = at(v); parts.push(svg("circle", { cx: x, cy: y, r: n > 16 ? 1.5 : 2.5, class: "v-clock-tick" })); }
+			for (let v = 0; v < n; v += every) { const [x, y] = at(v, lr); parts.push(text(x, y + fs * 0.35, fs, v, { "text-anchor": "middle", class: "v-clock-n" })); }
+			return svg("g", { class: "v v-clock v-clock-waiting", role: "img", "aria-label": `mod ${n}` }, parts);
+		}
+		const to = mod(from + sign * by, n), wrapped = sign > 0 ? from + by > n - 1 : from - by < 0;
 		const parts = [svg("rect", { x: box.x, y: box.y, width: box.w, height: box.h, rx: 6, class: "v-clock-box" }), ...[...m.inputs, m.output].map(cell),
 			bandText(m.inputs[0], from, "v-clock-in " + colourClass(inputColour)),
 			bandText(m.inputs[1], (sign > 0 ? "+" : "−") + by, "v-clock-in v-c-key"),

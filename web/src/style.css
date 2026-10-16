@@ -171,11 +171,6 @@ details.more summary:hover { color: var(--fg); }
 details.more > * + * { margin-top: 8px; }
 
 /* shared bits */
-.result { border: 1px solid var(--ok); background: var(--surface); border-radius: var(--r-m); padding: 14px; display: flex; flex-direction: column; gap: 12px; }
-.result-title { font-family: var(--book); font-size: var(--fs-l); font-weight: 600; color: var(--ok); }
-.words { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 4px 12px; }
-.words div { font-family: var(--mono); font-size: var(--fs-s); padding: 2px 0; border-bottom: 1px dotted var(--line); }
-.words div span { display: inline-block; width: 24px; color: var(--muted); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
 .donate { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 12px 0; }
 .donate-box { display: flex; flex-direction: column; align-items: center; gap: 6px; background: var(--sunk); border: 1px solid var(--line); border-radius: var(--r-m); padding: 14px; text-align: center; }
 .donate-box img { background: #fff; border-radius: var(--r-s); padding: 6px; }
@@ -247,20 +242,6 @@ ul.list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; 
 .mode .points span::before { content: "• "; color: var(--muted); }
 
 /* the QR code by hand: the manual's template, on squared paper */
-.hand-qr { width: 100%; max-width: 600px; height: auto; align-self: center; }
-.hand-qr .cell { stroke: #c4cac7; stroke-width: .5; cursor: pointer; }
-.hand-qr .fn-dark { fill: #1c2826; cursor: default; }
-.hand-qr .fn-light { fill: #b9c1bd; cursor: default; }
-.hand-qr .pending { fill: #e3e7e5; cursor: default; }
-.hand-qr .empty { fill: #ffffff; }
-.hand-qr .dark { fill: #1c2826; }
-.hand-qr .light { fill: #eef1ef; }
-.hand-qr .cur-dark { fill: #2f45a8; stroke: #2f45a8; stroke-width: 1.5; }
-.hand-qr .cur-light { fill: #dfe4fb; stroke: #2f45a8; stroke-width: 1.5; }
-.hand-qr text.rc { font-size: 7px; fill: var(--muted); font-family: var(--mono); }
-.hand-qr text.rc.on { fill: var(--accent); font-weight: 700; }
-.hand-qr.done .fn-light, .hand-qr.done .light { fill: #ffffff; }
-.hand-qr.done .cell { stroke: none; }
 
 /* the printable sheet (for whoever makes the string) */
 .print-bar { margin-bottom: 16px; }
@@ -287,7 +268,7 @@ ul.list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; 
 }
 @media (prefers-reduced-motion: reduce) {
 	.net.on, .hero-string .bead-in { animation: none; }
-	.btn:active, .crow:active { transform: none; }
+	.btn:active { transform: none; }
 }
 .row.end { align-items: flex-end; }
 .swatch-any.on { color: var(--fg); font-weight: 650; }
@@ -320,8 +301,6 @@ ul.list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; 
 .journey .step-name small { display: block; font-size: var(--fs-xs); font-variant-numeric: tabular-nums; opacity: .8; }
 @media (prefers-reduced-motion: reduce) { .journey .knot { transition: none; } }
 .step-nav { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 4px; }
-.result.wrong { border-color: var(--bad); }
-.result.wrong .result-title { color: var(--bad); }
 ul.checks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 ul.checks label { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; max-width: 68ch; }
 ul.checks input { margin-top: 4px; accent-color: var(--accent); }
@@ -420,7 +399,6 @@ ul.avoid li::marker { content: "✗  "; color: var(--bad); }
 .need p { margin: 0; }
 .need b { font-family: var(--book); font-size: var(--fs-l); }
 .need-art { display: flex; justify-content: center; }
-.stack.tight { gap: 4px; }
 @media (max-width: 560px) { .need { grid-template-columns: 1fr; } }
 
 /* the step by step's drawing: a window on the whole sequence that follows the current piece */
@@ -459,7 +437,6 @@ details.more-panel summary { cursor: pointer; font-weight: 650; }
 	.flow-body .tool > .panel { min-height: 0; overflow: auto; max-height: none; position: static; }
 	.flow-body .tool > .panel:last-child { display: flex; flex-direction: column; }
 	.flow-body .tool > .panel:last-child > .map.tall { flex: 1; min-height: 120px; }
-	.flow-body .tool > .panel:last-child > .hand-qr { flex: 1; min-height: 0; width: 100%; max-width: none; }
 	.flow-body .tool > .panel:last-child > pre.code { flex: 1; overflow: auto; }
 	.flow-nav { position: static; margin: 0; padding: var(--sp-2) 0 var(--sp-3); box-shadow: none; background: none; }
 	/* compact: a thread of steps that takes one line of labels */
@@ -522,63 +499,7 @@ p.meta { margin: 0; }
 
 /* choosing the key's way of drawing */
 .choice .glyph { font-size: 30px; line-height: 1; }
-.key-method { gap: 6px; align-items: center; }
 
-/* the sequence turn by turn: the squares, their bits and number, the clock of N, the collection, the piece */
-.squares { display: inline-flex; gap: 6px; padding: 2px; }
-.sq { width: 22px; height: 22px; border: 1.5px solid #1c2826; border-radius: 3px; background: #ffffff; }
-.sq.on { background: #1c2826; }
-/* every square ringed in the theme's ink, so that a dark one shows on a dark page: 0011 is four squares */
-.sq { outline: 1px solid var(--muted); outline-offset: 1px; }
-.sq.header, .sq.padding { outline-style: dashed; }
-/* a bit of the header or of the padding: no square in the QR code */
-.sq.header, .sq.padding { border-style: dashed; border-color: var(--muted); }
-.sq.header.on, .sq.padding.on { background: var(--muted); }
-.bits-strip { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.bits-strip code { font-family: var(--mono); font-size: var(--fs-m); letter-spacing: .08em; }
-.bits-strip .arrow { color: var(--muted); }
-.bits-num { font-family: var(--book); font-size: var(--fs-xl); line-height: 1; }
-.turn-part { display: flex; flex-direction: column; gap: 4px; }
-/* a turn's back, where and on: at the top of the column, what is under it scrolling beneath
-   (on a phone the page scrolls, on a computer the column; between, the header is stuck above) */
-.turn-nav { position: sticky; top: 0; z-index: 3; background: var(--surface); padding: var(--sp-1) 0; border-bottom: 1px solid var(--line); }
-@media (min-width: 761px) { .turn-nav { top: 52px; } }
-@media (min-width: 880px) { .tool > .panel:first-child > .turn-nav { background: var(--paper); } }
-@media (min-width: 880px) and (min-height: 560px) { .flow-body .turn-nav { top: 0; } }
-.turn-key { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; align-items: center; border-left: 3px solid var(--pad); padding-left: 10px; }
-.key-line { align-items: center; gap: 8px; }
-.turn-sum { font-family: var(--mono); font-size: var(--fs-m); font-weight: 700; }
-.clock { width: 120px; height: 120px; }
-.clock-ring { fill: none; stroke: var(--line-strong); stroke-width: 1.5; }
-.clock .tick { fill: var(--line-strong); }
-.clock .tick.from { fill: var(--fg); }
-.clock .tick.to, .clock .tick.wrap { fill: var(--pad); }
-.clock-arc { fill: none; stroke: var(--pad); stroke-width: 4; stroke-linecap: round; }
-.clock-head { fill: var(--pad); }
-.clock-n { font-size: 11px; fill: var(--muted); font-family: var(--mono); }
-.clock-n.from, .clock-n.to { fill: var(--fg); font-weight: 700; font-size: 14px; }
-.clock-n.wrap { fill: var(--pad); font-weight: 700; }
-.clock-by { font-size: 28px; font-weight: 700; fill: var(--pad); font-family: var(--book); }
-.collection { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 1px 6px; }
-.crow { display: flex; align-items: center; gap: 5px; padding: 0 4px; border-radius: var(--r-s); border: 1px solid transparent; }
-.crow .num { width: 16px; text-align: right; }
-.crow code { font-family: var(--mono); font-size: var(--fs-xs); color: var(--muted); }
-.crow .icon { width: 22px; height: 22px; margin-left: auto; }
-.crow.on { border-color: var(--accent); background: var(--accent-soft); }
-.crow.on code, .crow.on .num { color: var(--accent-ink); }
-.map.turn-map { max-height: 200px; }
-@media (min-width: 880px) and (min-height: 560px) {
-	.flow-body .tool > .panel:last-child > .map.turn-map { flex: 0 1 auto; max-height: 34%; min-height: 80px; }
-}
-/* how it goes, once, before the first turn: four boxes in a row */
-/* reading a sequence back turn by turn: the collection is the palette to tap, the key's on its own thread colour */
-.collection.pick .crow { font: inherit; color: inherit; background: var(--surface); border-color: var(--line); cursor: pointer; padding: 2px 4px; }
-.collection.pick .crow:hover { border-color: var(--line-strong); }
-.collection.pick .crow:active { transform: scale(.97); }
-.collection.pick .crow.on { border-color: var(--accent); background: var(--accent-soft); }
-.turn-keypick .collection.pick .crow:hover { border-color: var(--pad); }
-.turn-keypick .collection.pick .crow.on { border-color: var(--pad); background: var(--pad-soft); }
-.turn-last { display: flex; flex-direction: column; gap: 6px; border-top: 1px dashed var(--line); padding-top: 8px; }
 
 /* ---- the slides' visual vocabulary (vocab.js): one look for every slide ---- */
 .v { color: var(--fg); }
@@ -865,6 +786,33 @@ body { overflow: hidden; }
 .seq-map ol.entries { columns: 5; column-gap: 1em; font-size: .7em; }
 .seq-map ol.entries li { padding: 1px 2px; font-size: 1em; }
 .seq-map svg.string { display: block; width: calc(var(--u) * 540); max-width: 100%; height: auto; max-height: calc(var(--u) * 270); }
+/* reading back, a turn per slide (layouts.js's readTurn): the dictionary opened to choose a piece, in a popup */
+.rt-pick { display: flex; flex-direction: column; gap: calc(var(--u) * 6); }
+.rt-pick-q { margin: 0; font-size: 1.3em; text-align: center; }
+.rt-pick-canvas { display: block; width: calc(var(--u) * 420); max-width: 100%; height: auto; }
+.rt-file { cursor: pointer; }
+.rt-file:focus-visible { outline: none; }
+.rt-lock p { margin: 0 0 .4em; }
+.type-form textarea { font-size: 1em; }
+/* the ends: the seed found (readFinal), and the copy checked (checkFinal); the HTML over the canvas, each on its box */
+.rf-title, .rf-words, .rf-print, .rf-note, .cf-result { position: absolute; z-index: 1; box-sizing: border-box; overflow: hidden; margin: 0; }
+.rf-title { display: flex; flex-direction: column; justify-content: center; }
+.rf-title b { font-family: var(--book); font-size: 1.4em; color: var(--ok); line-height: 1.1; }
+.rf-title.bad { font-family: var(--book); font-size: 1.3em; font-weight: 600; color: var(--err); }
+.rf-title small { color: var(--muted); font-size: .85em; }
+.rf-words { columns: 3; column-gap: 1em; padding: 0 0 0 1.6em; font-family: var(--mono); font-size: 1.15em; line-height: 1.6; }
+.rf-words.many { font-size: .95em; line-height: 1.5; }
+.rf-words li::marker { color: var(--muted); font-size: .8em; }
+.rf-note { display: flex; flex-wrap: wrap; align-items: center; gap: .3em; font-size: .9em; line-height: 1.2; }
+.rf-note .alert { margin: 0; padding: .3em .6em; }
+.rf-note.warn { color: var(--warn-fg); }
+.rf-note .btn { font-size: .9em; padding: .2em .6em; }
+.rf-print .fingerprint .hint, .cf-result .fingerprint .hint { font-size: .85em; }
+.cf-result { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2em 1em; }
+.cf-result > b { font-family: var(--book); font-size: 1.4em; }
+.cf-result.ok > b { color: var(--ok); }
+.cf-result.bad > b { color: var(--err); }
+.cf-exact { color: var(--muted); }
 /* «?»: what to think of */
 .slide-help h2 { margin: 0 0 .5em; font-size: 1.2em; }
 .slide-help p { margin: 0 0 .5em; }

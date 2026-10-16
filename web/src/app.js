@@ -57,21 +57,21 @@
 		mode: null,  // "basic" or "pad" (SPEC §10), chosen before making or reading
 		make: { seed: "", entropy: null, symbols: null, turn: 0 },
 		read: freshRead(),
-		seen: {},  // the one-line explanations already shown once: keyWhy, reroll, keyPart, rowCheck, whyBasic, readTap
+		seen: {},  // the one-line explanations already shown once: keyWhy, reroll, keyPart, rowCheck, readTap
 	};
-	// What is being read, turn by turn (turnReader): the turn shown (L: the
+	// What is being read, turn by turn (readTurnSlide): the turn shown (L: the
 	// end), each turn's piece of the sequence (taps) and, in pad mode, of the
 	// key (keyTaps, or keyFile: the key file's numbers, from fileText, checked
-	// in "What you have"); last, the turn a tap just completed; typing, text,
-	// keyText: everything typed at once; out, error: what decodeTurns made of
+	// in "What you have"); typing, text, keyText, typeError: everything typed
+	// at once («⋯ › Type it all»); out, error: what decodeTurns made of
 	// it, for sig (the pieces it was worked out from). What it is read as is
 	// its own, apart from the backup being made (st.mode, st.plan, st.padDict):
 	// mode, words, padAs, padForm and padDict (the key's own collection), form,
 	// n (until there is a dictionary), chosen (as the plan's) and dict, its own
 	// dictionary, kept from `keep`.
 	function freshRead(keep) {
-		return { turn: 0, taps: [], keyTaps: [], keyFile: null, fileText: "", last: null,
-			typing: false, text: "", keyText: "", out: null, error: "", sig: "",
+		return { turn: 0, taps: [], keyTaps: [], keyFile: null, fileText: "",
+			typing: false, text: "", keyText: "", typeError: "", out: null, error: "", sig: "",
 			words: keep ? keep.words : 12, padAs: keep ? keep.padAs : "string", padForm: keep ? keep.padForm : null, padDict: keep ? keep.padDict : null,
 			mode: keep ? keep.mode : null, form: keep ? keep.form : "necklace", n: keep ? keep.n : 16, chosen: keep ? keep.chosen : {}, dict: keep ? keep.dict : null };
 	}
@@ -123,7 +123,6 @@
 		for (const c of children.flat()) if (c) e.append(c instanceof Node ? c : document.createTextNode(String(c)));
 		return e;
 	}
-	const errorBox = (msg) => msg ? h("div", { class: "error", role: "alert" }, msg) : null;
 	function download(data, name, type) {
 		const url = URL.createObjectURL(new Blob([data], { type }));
 		const a = h("a", { href: url, download: name });
@@ -426,7 +425,8 @@
 		Slides.setLang(st.lang);
 		// what scrolls inside a legacy slide (the map, the two columns) keeps its place across a redraw
 		const SCROLLERS = ".slide-legacy, .map, .flow-body, .flow-body .tool > .panel";
-		const view = [st.screen, st.at[st.screen], st.at[st.screen] === "seq" ? st.make.turn : "", st.make.explain ? st.make.explain.run : "", st.make.key && st.make.key.by, st.make.key && st.make.key.pos, st.make.key && !!st.make.key.fix, st.edit && st.edit.kind, st.edit && st.edit.target, st.edit && st.edit.i].join();
+		const reading = st.screen === "read" && st.at.read === "recover" ? st.read : st.screen === "make" && st.at.make === "check" ? st.make.check : null;
+		const view = [st.screen, st.at[st.screen], st.at[st.screen] === "seq" ? st.make.turn : "", reading ? `${reading.turn}${reading.typing ? "t" : ""}` : "", st.make.explain ? st.make.explain.run : "", st.make.key && st.make.key.by, st.make.key && st.make.key.pos, st.make.key && !!st.make.key.fix, st.edit && st.edit.kind, st.edit && st.edit.target, st.edit && st.edit.i].join();
 		const kept = view === lastView ? [...$("app").querySelectorAll(SCROLLERS)].map((e) => e.scrollTop) : [];
 		lastView = view;
 		Slides.show(slideNow(view));
@@ -478,7 +478,7 @@
 			keyAs: !!p.chosen.padAs, keyColl: !!p.chosen.padColl, keyForm: !!p.chosen.padForm, dict: !!st.dict, keyDict: !!st.padDict, keyWho: !!m.keyWho,
 			keyTool: !!(m.key && m.key.by), keyThrow: stepDone("make", "key"), seed: !!m.symbols, seq: !!m.symbols })[id] !== false;
 		return ({ mode: !!rd.mode, form: !!rd.chosen.form, size: !!rd.dict || !!rd.chosen.size, dict: !!rd.dict, keyAs: !!rd.chosen.padAs,
-			keyColl: !!rd.chosen.padColl, keyForm: !!rd.chosen.padForm, keyDict: !!rd.padDict, keyFile: !!rd.keyFile, recover: !!rd.out })[id] !== false;
+			keyColl: !!rd.chosen.padColl, keyForm: !!rd.chosen.padForm, keyDict: !!rd.padDict, keyFile: !!rd.keyFile, words: !!rd.chosen.words, recover: !!rd.out })[id] !== false;
 	}
 	function journeySlide(flow, view, home, toStart) {
 		const list = journeyOf(flow), at = st.at[flow] = J.resolve(flow, list, st.at[flow]);
@@ -500,7 +500,7 @@
 		const next = d.hidden ? null : d.next !== undefined ? d.next
 			: after ? { label: d.legacy ? stepName(flow, journeyOf(flow).find((x) => x.id === after).step) + " ▶" : undefined, go: forward, ready: d.ready !== false } : null;
 		return { id: view, legacy: !!d.legacy, guide, question: d.question || null, steps: d.steps || 1, startStep: d.startStep || 0, body: d.body, caption: d.caption || null,
-			prev, next, shortcuts: [...(d.shortcuts || []), home], help: d.help || null, onKey: d.legacy ? legacyKey : null };
+			prev, next, shortcuts: [...(d.shortcuts || []), home], help: d.help || null };
 	}
 	// an old step view as a slide (R3): what it asked for with setNav (or the journey's own Back and Next)
 	function legacy(body) {
@@ -510,14 +510,9 @@
 	}
 
 	// ---- small building blocks ----------------------------------------
-	const field = (label, ...children) => h("div", { class: "field" }, h("div", { class: "label", text: label }), ...children);
 	const panel = (...children) => h("section", { class: "panel" }, ...children);
-	const tool = (...panels) => h("div", { class: "tool" }, ...panels);
 	const title = (text) => h("h2", { class: "panel-title", text });
 	const hint = (text) => h("div", { class: "hint", text });
-	// segmented control: [value, label, mark, what the mark means]
-	const seg = (items, value, set) => h("div", { class: "seg" }, items.map(([v, label, mark, why]) =>
-		h("button", { class: v === value ? "on" : "", title: mark && why ? why : null, on: { click: () => set(v) } }, label, mark ? h("small", { text: mark }) : null)));
 	// an element edged in a piece's colour (CSS var --c)
 	const tint = (e, colour) => { if (colour) e.style.setProperty("--c", colour); return e; };
 	// the two modes (SPEC §10, §11.1), chosen before making or reading: what
@@ -615,11 +610,6 @@
 	function makeFlow(view) {
 		navOpts = {};
 		return legacy(needFirst("make", st.step.make) || view());
-	}
-	function readFlow(view) {
-		navOpts = {};
-		if (st.read.mode && st.read.dict && keyGiven()) readOut(st.read);
-		return legacy(needFirst("read", st.step.read) || view());
 	}
 
 	// ---- the decisions: a question, and a card per option -------------------------
@@ -793,7 +783,7 @@
 			keyThrow: () => needs("make") || keyThrowSlide(),
 			seed: () => needs("make") || seedSlide(),
 			seq: () => needs("make") || turnSlide(),
-			check: () => makeFlow(checkStep),
+			check: () => needs("make") || checkTurns(),
 			store: () => makeFlow(storeStep),
 		},
 		read: {
@@ -826,8 +816,19 @@
 			keyDict: () => keyDictChoice("read"),
 			keyDictHave: () => asIsSlide("pad"),
 			keyFile: keyFileSlide,
-			recover: () => readFlow(() => turnReader(st.read)),
-			seed: () => readFlow(seedStep),
+			words: () => {
+				const rd = st.read;
+				return decide({ question: T().seedWords, options: wordsOptions(rd.dict ? rd.dict.things.length : rd.n), chosen: rd.chosen.words ? rd.words : null,
+					choose: (w) => {
+						const L = symbolsFor(w, rd.dict ? rd.dict.things.length : rd.n);
+						// fewer words: the pieces read past the new end go, asked first
+						if (w !== rd.words && (rd.taps.length > L || rd.keyTaps.length > L) && !confirm(T().readWordsAsk(L))) return;
+						if (w !== rd.words && rd.dict) readWords(rd, w); else rd.words = w;
+						rd.chosen.words = true;
+					} });
+			},
+			recover: () => needs("read") || recoverSlide(),
+			seed: () => needs("read") || recoverEnd(),
 		},
 	};
 
@@ -1200,108 +1201,6 @@
 	}
 
 	// ---- make --------------------------------------------------------
-
-	// ---- the QR code by hand: an interactive version of the by-hand manual ----
-	// Each piece → its number → k bits → the next k white squares of the
-	// template, row by row (SPEC §3); the last bits are the header (version,
-	// mask) and padding, which go on no square.
-	// The template drawn as squares. dark(r, c, bit): a square's colour (the QR
-	// code's, or the bits read so far); fixedDark(r, c): a fixed square's (null:
-	// not known yet); known(bit): whether a data square is filled in yet.
-	function handGrid(size, dark, fixedDark, cells, known, current, onPick, done) {
-		const cs = 14, m = 30, w = 2 * m + size * cs;
-		const fn = S.functionModules(size);
-		const owner = new Map(cells.map(([r, c], i) => [r * size + c, i]));
-		// when everything is filled in, the template's grey turns white: a QR code to scan
-		const g = svg("svg", { class: "hand-qr" + (done ? " done" : ""), viewBox: `0 0 ${w} ${w}` });
-		// finished: a white quiet zone of 2 modules and no numbers, so that it scans
-		if (done) g.append(svg("rect", { x: m - 2 * cs, y: m - 2 * cs, width: (size + 4) * cs, height: (size + 4) * cs, fill: "#ffffff" }));
-		for (let i = 0; i < size && !done; i++) {
-			g.append(svg("text", { x: m - 4, y: m + i * cs + cs * 0.72, "text-anchor": "end", class: "rc" + (current.rows.has(i) ? " on" : "") }, String(i + 1)));
-			if (i % 2 === 0 || current.cols.has(i)) g.append(svg("text", { x: m + i * cs + cs / 2, y: m - 5, "text-anchor": "middle", class: "rc" + (current.cols.has(i) ? " on" : "") }, String(i + 1)));
-		}
-		for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) {
-			const key = r * size + c;
-			let cls;
-			if (fn.has(key)) { const f = fixedDark(r, c); cls = f === null ? "pending" : f ? "fn-dark" : "fn-light"; }
-			else {
-				const bit = owner.get(key), on = dark(r, c, bit);
-				if (current.bits.has(bit)) cls = on ? "cur-dark" : "cur-light";
-				else if (known(bit)) cls = on ? "dark" : "light";
-				else cls = "empty";
-			}
-			const rect = svg("rect", { x: m + c * cs, y: m + r * cs, width: cs, height: cs, class: "cell " + cls });
-			if (!fn.has(key) && onPick) rect.addEventListener("click", () => onPick(owner.get(key)));
-			g.append(rect);
-		}
-		return g;
-	}
-
-	// ---- one turn, piece by piece: the drawings both journeys share ---------------
-	// A turn's k squares in a row, then their bits and their number. A bit of
-	// the header or of the padding has no square in the QR code: its box is dashed.
-	const squaresOf = (bits, roles) => h("span", { class: "squares", "aria-hidden": "true" },
-		bits.map((b, j) => h("span", { class: "sq" + (b ? " on" : "") + (roles[j] !== "data" ? " " + roles[j] : "") })));
-	function bitsStrip(bits, roles) {
-		return h("div", { class: "bits-strip" }, squaresOf(bits, roles),
-			h("span", { class: "arrow", text: "→" }), h("code", { text: bits.join("") }),
-			h("span", { class: "arrow", text: "→" }), h("b", { class: "bits-num", text: String(parseInt(bits.join(""), 2)) }));
-	}
-	// The clock of N: the numbers 0 to n − 1 on a ring, and the arc from `from`
-	// on by `by` steps, forwards (sign +1, making a copy) or backwards (−1,
-	// recovering), going round past n − 1 or below 0. With n = 32 only every
-	// fourth number is written, and the ones in the sum: from, the result, and
-	// by in the middle.
-	function clockSvg(n, from, by, sign) {
-		const step = S.clockStep(from, by, n, sign), to = step.value, R = 72, c = 100;
-		const angle = (v) => 2 * Math.PI * v / n - Math.PI / 2;
-		const at = (v, r = R) => [c + r * Math.cos(angle(v)), c + r * Math.sin(angle(v))];
-		const g = svg("svg", { class: "clock", viewBox: "0 0 200 200", role: "img",
-			"aria-label": `${from} ${sign > 0 ? "+" : "−"} ${by} → ${to} (${n})` }, svg("circle", { cx: c, cy: c, r: R, class: "clock-ring" }));
-		if (by % n) {
-			const [x0, y0] = at(from), [x1, y1] = at(to), a = angle(to);
-			// the arrow's head points along the ring, the way it goes
-			const dx = -Math.sin(a) * sign, dy = Math.cos(a) * sign, px = Math.cos(a), py = Math.sin(a);
-			const head = [[x1, y1], [x1 - 11 * dx + 6 * px, y1 - 11 * dy + 6 * py], [x1 - 11 * dx - 6 * px, y1 - 11 * dy - 6 * py]];
-			g.append(svg("path", { class: "clock-arc", d: `M${x0},${y0} A${R},${R} 0 ${by / n > 0.5 ? 1 : 0} ${sign > 0 ? 1 : 0} ${x1},${y1}` }),
-				svg("polygon", { class: "clock-head", points: head.map((p) => p.join(",")).join(" ") }));
-		}
-		for (let v = 0; v < n; v++) {
-			const [x, y] = at(v), role = v === to ? " to" : v === from ? " from" : v === 0 && step.wrapped ? " wrap" : "";
-			g.append(svg("circle", { cx: x, cy: y, r: n > 16 ? 2.5 : 3.5, class: "tick" + role }));
-			if (n <= 16 || v % 4 === 0 || v === from || v === to) {
-				const [lx, ly] = at(v, R + 16);
-				g.append(svg("text", { x: lx, y: ly + 4, "text-anchor": "middle", class: "clock-n" + role }, String(v)));
-			}
-		}
-		g.append(svg("text", { x: c, y: c + 10, "text-anchor": "middle", class: "clock-by" }, (sign > 0 ? "+" : "−") + by));
-		return g;
-	}
-	// The collection as a table to translate with: every piece with its number
-	// and its bits, the row of `value` marked.
-	// onPick(v): the table is the palette to tap a piece in (reading one back).
-	// only: just the row of `value`.
-	const collectionRow = (things, value, k, onPick, only) => h("div", { class: "collection" + (onPick ? " pick" : "") }, things.map((x, v) => only && v !== value ? null :
-		h(onPick ? "button" : "div", { class: "crow" + (v === value ? " on" : ""), title: x.name, "aria-label": onPick ? x.name : null,
-			"aria-pressed": onPick ? String(v === value) : null, on: onPick ? { click: () => onPick(v) } : null },
-			h("span", { class: "num", text: String(v) }), h("code", { text: v.toString(2).padStart(k, "0") }), icon(x, 24, false, v === value))));
-	// The QR code's template for a turn: the squares of `turn` (S.turnBits)
-	// marked with their row and column; those in `painted` (bit → 0 or 1)
-	// filled in. qr: the seed's QR code, if known (its format squares; once
-	// every square is painted and no turn is open, a QR code to scan).
-	// onPick(bit): a square clicked.
-	function turnGrid(size, qr, painted, turn, onPick) {
-		const cells = S.dataModulesRowMajor(size), current = { bits: new Set(), rows: new Set(), cols: new Set() };
-		for (const b of turn) if (b.cell) { current.bits.add(b.bit); current.rows.add(b.cell[0]); current.cols.add(b.cell[1]); }
-		const done = !!qr && !turn.length && cells.every((_, b) => painted.has(b));
-		const fixed = qr ? (r, c) => qr.getModule(c, r) : (r, c) => S.templateModule(size, r, c);
-		return handGrid(size, (r, c, bit) => painted.get(bit) === 1, fixed, cells, (bit) => painted.has(bit), current, onPick || null, done);
-	}
-
-	// A turn's controls: back, where it is, on (and the rest), in one row at the
-	// top of the column, stuck there while what is under it scrolls: never
-	// below the fold, and never mistaken for the journey's own back and on.
-	const turnNav = (...controls) => h("div", { class: "row turn-nav" }, ...controls);
 
 	// ---- make, 4: the key (pad mode) ----------------------------------------------
 	// The key comes first: L numbers, each pure chance, drawn one piece at a time
@@ -1804,13 +1703,68 @@
 	}
 
 	// ---- make, 6: read it back --------------------------------------------------
-	function checkStep() {
+	// The same turns as recovering (what will be done years from now), on a
+	// reading of its own (m.check), read as it was made; a key file made here
+	// is read as it is. Then the end: the QR code of your words beside the one
+	// read, = or ≠.
+	function checkTurns() {
 		const m = st.make;
 		if (!m.check) m.check = freshRead();
-		// read as it was made; a key file made here is read as it is (the key as things is read back like the sequence)
 		Object.assign(m.check, { mode: st.mode, words: st.plan.words, padAs: st.plan.padAs, padForm: st.plan.padForm, padDict: st.padDict, form: st.plan.form });
 		if (st.mode === "pad" && st.plan.padAs === "file") m.check.keyFile = m.pad;
-		return turnReader(m.check, { expect: m.entropy });
+		const rd = m.check, L = readLength(rd), pad = st.mode === "pad", done = () => { rd.turn = L; render(); };
+		readOut(rd);
+		// the copy reads back only while every piece read gives the seed made, exactly: a piece the
+		// QR code's error correction had to put right is still wrong on the string (and so is one
+		// that differs only in its padding)
+		const diff = readFrontier(rd) >= L ? J.checkRead({ taps: rd.taps.slice(0, L), keys: pad ? readKey(rd).slice(0, L) : null, symbols: m.symbols,
+			pad: pad ? m.pad : null, keyRead: pad && st.plan.padAs === "string" }) : null;
+		m.checked = !!rd.out && !rd.out.fixed && [...rd.out.entropy].join() === [...m.entropy].join() && !!diff && !diff.wrong.length;
+		if (m.checked) m.keyChanged = null;
+		if (rd.typing) return readTypingSlide(rd, done);
+		if (rd.turn >= L && diff) return checkEnd(rd, diff);
+		return readTurnSlide(rd, { checking: true, done });
+	}
+	// The end of checking (layouts.js's checkFinal): the QR code of your words
+	// and the one you read, side by side. The same: «=», «✓ It is your seed»,
+	// its fingerprint and «the N pieces, exact», and on to Store. Not: «≠», the
+	// squares that differ in red, the strings as read around the first piece
+	// that does not match, it framed in red, and Next goes to it.
+	function checkEnd(rd, diff) {
+		const t = T(), m = st.make, things = st.dict.things, n = things.length, k = Math.log2(n), pad = st.mode === "pad", L = readLength(rd);
+		const exact = !!m.checked, b = Lay.checkFinal({ pad }).boxes;
+		const qr = S.compactSeedQR(m.entropy), size = qr.size, cells = S.dataModulesRowMajor(size), made = (r, c) => qr.getModule(c, r);
+		// what was read, place by place along the strings (as it reads best), on the template
+		const plain = diff.seed.map((c, p) => pad ? S.clockStep(c, diff.key[p], n, -1).value : c);
+		const readBits = S.symbolsToBits(plain, k), painted = new Map(), differ = [];
+		cells.forEach(([r, c], j) => { painted.set(r * size + c, readBits[j]); if (readBits[j] !== (made(r, c) ? 1 : 0)) differ.push([r, c]); });
+		const w = diff.wrong[0] || { turn: L - 1, column: "seed" };
+		const label = (box, s) => svg("text", { x: box.x + box.w / 2, y: box.y + box.h - 4, "font-size": 12, "text-anchor": "middle", class: "v-t v-name" }, s);
+		const kids = [
+			V.qr({ box: b.made, size, modules: made }),
+			svg("text", { x: b.sign.x + b.sign.w / 2, y: b.sign.y + b.sign.h / 2 + 15, "font-size": 42, "text-anchor": "middle", class: "v-t v-bold " + (exact ? "v-c-seed" : "v-c-err") }, exact ? "=" : "≠"),
+			exact ? V.qr({ box: b.read, size, modules: made }) : V.qr({ box: b.read, size, modules: (r, c) => S.templateModule(size, r, c), painted, wrong: differ }),
+			label(b.madeLabel, t.checkMadeQr), label(b.readLabel, t.checkReadQr),
+		];
+		if (!exact) {
+			// the strings as read, around the turn of the piece that does not match, it framed in red
+			const keyThings = pad && rd.padAs === "string" ? keyThingsOf(rd) : null;
+			kids.push(readColumn(b.seedColumn, "seed", things, rd.taps, w.turn, L));
+			if (pad) kids.push(keyThings ? readColumn(b.keyColumn, "key", keyThings, rd.keyTaps, w.turn, L) : fileColumn(b.keyColumn, rd.keyFile, w.turn, L));
+			kids.push(V.frame({ box: w.column === "key" && b.keyRow ? b.keyRow : b.seedRow, colour: "err" }));
+		}
+		const result = exact
+			? h("div", { class: "cf-result ok" }, h("b", { text: "✓ " + t.checkSame }), h("span", { class: "cf-exact", text: t.checkExact(L) }), fingerprintLine(m.entropy))
+			: h("div", { class: "cf-result bad" }, h("b", { text: t.checkWrongPiece(w.turn + 1) }));
+		const same = !!rd.out && [...rd.out.entropy].join() === [...m.entropy].join();
+		return {
+			caption: () => exact ? t.checkMatch : same ? t.checkFixed : t.checkMismatch,
+			shortcuts: readShortcuts(rd, L, () => {}),
+			prev: { go: () => readGo(rd, L - 1) },
+			next: exact ? { label: stepName("make", "store") + " ▶", go: () => goSlide("make", "store") }
+				: { label: t.checkGo(w.turn + 1) + " ▶", go: () => readGo(rd, w.turn) },
+			body: () => h("div", { class: "dict-slide cf-slide" }, canvas(...kids), place(result, b.result)),
+		};
 	}
 
 	// ---- make, 7: store it ------------------------------------------------------
@@ -1831,24 +1785,6 @@
 					st.step.make = "plan"; st.at.make = "mode";
 					go("intro");
 				} } }, t.storeForget), h("span", { class: "meta", text: t.storeForgetWhy }))));
-	}
-
-	// keyboard for the old step-by-step views (a legacy slide's onKey): the
-	// arrows (and the space bar) are theirs where they move among turns or
-	// pieces, which they say by returning true; anywhere else the lectern's
-	// own keys go to the next or previous slide
-	function legacyKey(e) {
-		if (/input|textarea|select/i.test(e.target.tagName)) return false;
-		const m = st.make, navKey = e.key === "ArrowRight" || e.key === "ArrowLeft" || e.key === " ";
-		// reading turn by turn: the arrows move among the turns read (the space bar is left to the buttons)
-		const rd = st.edit ? null : st.screen === "read" && st.step.read === "recover" && st.read.mode && st.read.dict && keyGiven() ? st.read
-			: st.screen === "make" && st.step.make === "check" && st.dict && m.symbols ? m.check : null;
-		if (rd && !rd.typing) {
-			if (e.key === "ArrowRight") { e.preventDefault(); readGo(rd, rd.turn + 1); }
-			if (e.key === "ArrowLeft") { e.preventDefault(); readGo(rd, rd.turn - 1); }
-			return navKey;
-		}
-		return false;
 	}
 
 	// ---- read ------------------------------------------------------------
@@ -1922,9 +1858,7 @@
 		return f;
 	}
 	// to another turn: any one already read, or the first one not read yet
-	function readGo(rd, to) { rd.turn = Math.max(0, Math.min(readFrontier(rd), to)); rd.last = null; seenWhy(rd); render(); }
-	// past the first turn, the basic mode's why (shared with making one) is not shown again
-	function seenWhy(rd) { if (rd.turn > 0 && rd.mode !== "pad") st.seen.whyBasic = true; }
+	function readGo(rd, to) { rd.turn = Math.max(0, Math.min(readFrontier(rd), to)); render(); }
 	// What the L turns give, worked out again only when a piece changes:
 	// decodeTurns (both directions, both roles) or, if nothing decodes, "nofit".
 	function readOut(rd) {
@@ -1936,8 +1870,6 @@
 		try { rd.out = S.decodeTurns(taps, keys, Math.log2(n)); }
 		catch (e) { if (!(e instanceof S.DecodeError)) throw e; rd.error = "nofit"; }
 	}
-	// every data square of a QR code, as painted squares (turnGrid)
-	const qrPainted = (qr) => new Map(S.dataModulesRowMajor(qr.size).map(([r, c], b) => [b, qr.getModule(c, r) ? 1 : 0]));
 	// The turns whose piece (of the sequence, or of the key) seems wrong: their
 	// bits differ from the QR code the seed gives (its data squares and its
 	// header). Only when the good reading is the order the pieces were read in
@@ -1951,167 +1883,263 @@
 		for (let j = 0; j < L; j++) for (let b = j * k; b < (j + 1) * k && b < ndata + 5; b++) if (bits[b] !== want[b]) { wrong.push(reading(j)); break; }
 		return wrong.sort((a, b) => a - b);
 	}
-	// the seed read: its words and fingerprint; checking a copy, whether it is the one made,
-	// exactly (with no piece the QR code had to put right)
-	function seedResult(out, expect) {
-		const t = T(), same = !!expect && [...out.entropy].join() === [...expect].join(), exact = same && !out.fixed;
-		return h("div", { class: "result" + (expect && !exact ? " wrong" : "") },
-			h("div", { class: "result-title", text: expect ? (exact ? "✓ " + t.checkMatch : same ? "⚠ " + t.checkFixed : "✗ " + t.checkMismatch) : "✓ " + t.seedFound }), seedAlert(),
-			h("div", { class: "words" }, S.entropyToMnemonic(out.entropy).split(" ").map((w, i) => h("div", {}, h("span", {}, i + 1), w))),
-			fingerprintLine(out.entropy));
+
+	// an SVG drawing that is a button: a tap, Enter or the space bar
+	const tapOn = (el, fn) => {
+		el.setAttribute("role", "button"); el.setAttribute("tabindex", "0");
+		el.addEventListener("click", fn);
+		el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); } });
+		return el;
+	};
+	// A string as read, vertical (vocab.js's "read"): the 7 places around turn
+	// i, each piece with its number beside it; vals: what was read at each
+	// place. The turn's place, while it is not read: a hole (a «+» with slot).
+	// slot(): the hole tapped; piece(x): the piece of place x tapped.
+	function readColumn(box, kind, things, vals, i, L, on = {}) {
+		const items = Array.from({ length: 7 }, (_, j) => {
+			const x = i - 3 + j;
+			return x < 0 || x >= L ? undefined : vals[x] !== undefined ? vals[x] : x === i ? null : undefined;
+		});
+		return V.string({ box, orientation: "v", role: "read", kind, things, items, current: 3, firstPosition: i - 2,
+			onSlot: on.slot ? () => on.slot() : undefined, onPiece: on.piece ? (j) => on.piece(i - 3 + j) : undefined });
 	}
-	// how it was read, when not as given: backwards, or the two strings swapped
-	const readNotes = (out) => [out.reversed ? h("div", { class: "note", text: T().reversed }) : null,
-		out.swapped ? h("div", { class: "note pad", text: T().padSwapped }) : null];
+	// A key file's characters around turn i, a column like a string read: each
+	// with its number beside it (amber) and its place under that. onTap(x):
+	// place x tapped (where its number comes from).
+	function fileColumn(box, values, i, L, onTap) {
+		const top = 14, pitch = (box.h - 2 * top) / 7, cx = box.x + 22, lx = (cx + 12 + box.x + box.w) / 2;
+		const parts = [svg("text", { x: cx, y: box.y + 11, "font-size": 11, "text-anchor": "middle", class: "v-t v-icon" }, ICON.key)];
+		for (let j = 0; j < 7; j++) {
+			const x = i - 3 + j, y = box.y + top + pitch * (j + 0.5), v = values && values[x];
+			if (x < 0 || x >= L || v === undefined) continue;
+			const g = svg("g", { class: "v-piece rt-file" + (j === 3 ? " v-current" : "") },
+				svg("text", { x: cx, y: y + 6, "font-size": 17, "text-anchor": "middle", class: "v-t v-mono v-bold v-c-key" }, S.PAD_DIGITS[v]),
+				svg("text", { x: lx, y: y + 2, "font-size": 13, "text-anchor": "middle", class: "v-t v-value v-bold v-c-key" }, String(v)),
+				svg("text", { x: lx, y: y + 12, "font-size": 9, "text-anchor": "middle", class: "v-t v-pos" + (j === 3 ? " v-pos-current v-c-qr v-bold" : "") }, String(x + 1)),
+				svg("title", {}, `${x + 1}: ${S.PAD_DIGITS[v]} = ${v}`));
+			if (onTap) tapOn(g, () => onTap(x));
+			parts.push(g);
+		}
+		return svg("g", { class: "v v-file", role: "group", "aria-label": T().padFileTitle }, parts);
+	}
 
-	// Reading a sequence back, turn by turn (SPEC §4, §10.9): each turn, piece
-	// i of the sequence tapped in its collection gives a number; in pad mode,
-	// minus piece i of the key (tapped, or the file's character i) on the
-	// clock of N; that number's k bits are painted on the QR code's template.
-	// A turn just read moves on to the next, and what it gave stays in sight.
-	// After the last turn, decodeTurns: the QR code to scan, the words and the
-	// fingerprint, or what to look at again. The same reader recovers a seed
-	// and checks a copy just made (opts.expect: the seed it should give).
-	function turnReader(rd, opts = {}) {
-		const t = T(), things = dictFor(rd).things, n = things.length, k = Math.log2(n), padMode = rd.mode === "pad";
-		const checking = !!opts.expect, flow = checking ? "make" : "read", m = st.make;
-		const L = readLength(rd), size = S.sizeFor(L, k), ndata = S.dataModulesRowMajor(size).length;
-		const keyThings = padMode && rd.padAs === "string" ? keyThingsOf(rd) : null;
-		readOut(rd);
+	// The turn read back (layouts.js's readTurn), recovering and checking a
+	// copy alike. On the left the strings read, vertical and side by side with
+	// the same weight (the seed's, and the key's or its file), 7 places each;
+	// the turn's row framed in blue, with a «+» in each string: it opens that
+	// string's dictionary as buttons in a popup («Which one do you see at
+	// 14?»), closed by Esc or a tap outside (nothing chosen, the hole stays
+	// empty and Next waits). A key file gives its number by itself. The rows
+	// before are locked: a tap only says where the number comes from. With a
+	// key, the two numbers go into the clock («n | −k»); what comes out (with
+	// no key, the seed's number) gives the bits that paint the turn's squares
+	// of the QR code, on the right and the largest. Every arrow leaves from the
+	// row's frame, and only the current one shows whole. Once a turn's pieces
+	// are in, its cycle plays once (at once with reduced motion, or coming
+	// back to it). opts.done: on from the last turn.
+	let readFresh = null;   // a turn whose pieces were just chosen: its cycle plays once
+	function readTurnSlide(rd, opts) {
+		const t = T(), things = dictFor(rd).things, n = things.length, k = Math.log2(n), pad = rd.mode === "pad";
+		const file = pad && rd.padAs === "file", keyThings = pad && !file ? keyThingsOf(rd) : null, ownKey = !!(keyThings && rd.padForm && rd.padDict);
+		const L = readLength(rd), size = S.sizeFor(L, k), cells = S.dataModulesRowMajor(size);
 		const key = readKey(rd), frontier = readFrontier(rd);
-		const i = rd.turn = Math.max(0, Math.min(frontier, rd.turn || 0));
+		const i = rd.turn = Math.max(0, Math.min(frontier, L - 1, rd.turn || 0)), pos = i + 1;
+		const C = rd.taps[i], K = key ? key[i] : undefined, hasC = C !== undefined, hasK = pad && K !== undefined, whole = hasC && (!pad || hasK);
 		const plainOf = (j) => key ? S.clockStep(rd.taps[j], key[j], n, -1).value : rd.taps[j];
-		const out = i === L ? rd.out : null, qr = out && S.compactSeedQR(out.entropy);
-		// checking: the copy reads back only while every piece read gives the seed made, exactly:
-		// a piece the QR code's error correction had to put right is still wrong on the string
-		if (checking) {
-			m.checked = !!rd.out && !rd.out.fixed && [...rd.out.entropy].join() === [...opts.expect].join();
-			if (m.checked) m.keyChanged = null;
-		}
-		// the squares painted: the turns read, as read; at the end, the seed's own QR code
-		const painted = qr ? qrPainted(qr) : new Map(), read = [];
-		if (!qr) for (let j = 0; j < frontier; j++) read.push(...bitsOf(plainOf(j), k));
-		read.forEach((bit, b) => { if (b < ndata) painted.set(b, bit); });
-		const mask = qr ? qr.mask : read.length >= ndata + 5 ? parseInt(read.slice(ndata + 2, ndata + 5).join(""), 2) : "?";
+		const wholeAt = (j) => rd.taps[j] !== undefined && (!key || key[j] !== undefined);
+		const P = whole ? plainOf(i) : null;
+		const lay = Lay.readTurn({ pad, n }), b = lay.boxes, stages = J.readStages({ pad }), last = stages.length - 1;
+		const at = (id) => stages.findIndex((s) => s.id === id), stageOf = (id) => stages.findIndex((s) => s.arrows.includes(id));
+		const turn = S.turnBits(size, i, k), roles = turn.map((x) => x.role), turnCells = turn.filter((x) => x.cell).map((x) => x.cell);
+		const fresh = whole && readFresh === i && !calm();
+		readFresh = null;
+		const form = rd.form || st.plan.form;
+		// the squares painted: every other turn read; this one once its cycle reaches them
+		const paintTurn = (map, j) => bitsOf(plainOf(j), k).forEach((bit, x) => { const c = cells[j * k + x]; if (c) map.set(c[0] * size + c[1], bit); });
+		const before = new Map();
+		for (let j = 0; j < L; j++) if (j !== i && wholeAt(j)) paintTurn(before, j);
+		const template = (r, c) => S.templateModule(size, r, c);
 
-		// typing everything at once instead: names, one per line or separated by commas
-		if (rd.typing) {
-			const err = h("div");
-			const area = (prop, label) => {
-				const a = h("textarea", { class: "input", spellcheck: "false", rows: keyThings ? 6 : 10, "aria-label": label, on: { input: (e) => { rd[prop] = e.target.value; } } });
-				a.value = rd[prop];
-				return field(label, a);
+		// a «+» tapped (or the turn's piece, to change it): the string's dictionary as buttons, over the slide
+		function choose(which) {
+			const th = which === "key" ? keyThings : things, cur = which === "key" ? K : C, pl = Lay.pickerPopup({ n });
+			const pick = (v) => {
+				(which === "key" ? rd.keyTaps : rd.taps)[i] = v;
+				st.seen.readTap = true;
+				Slides.closePopup(true);
+				if (wholeAt(i)) readFresh = i;
+				render();
+				// on to what is left: the other string's «+», or Next
+				const hole = $("app").querySelector(".v-slot"), nb = $("slide-next");
+				if (hole) hole.focus(); else if (nb && !nb.disabled) nb.focus();
 			};
-			const parse = (text, th) => S.readSequence(text.split(/[\n,]/).map((s) => s.replace(/^\s*\d+\.\s*/, "").trim().toLowerCase()).filter(Boolean),
-				th.map((x) => x.name.toLowerCase()));
-			const apply = () => {
-				try {
-					// the text is what was read (typeAll starts it from the pieces tapped)
-					const taps = parse(rd.text, things), keyTaps = keyThings ? parse(rd.keyText, keyThings) : rd.keyTaps;
-					if (taps.length > L || (keyThings && keyTaps.length > L)) { err.replaceChildren(errorBox(t.errTyped(Math.max(taps.length, keyTaps.length), L))); return; }
-					Object.assign(rd, { taps, keyTaps, typing: false, text: "", keyText: "" });
-					readGo(rd, L);
-				} catch (e) {
-					if (!(e instanceof S.DecodeError)) throw e;
-					err.replaceChildren(errorBox(t.errUnknown(e.message.match(/"(.*)"/)?.[1] || "")));
-				}
-			};
-			return tool(panel(...stepHead(flow, t.typeHelp),
-				area("text", t.stringSeq), keyThings ? area("keyText", t.stringPad) : null, err,
-				h("div", { class: "row" }, h("button", { class: "btn push", on: { click: apply } }, t.typeRead),
-					h("button", { class: "btn ghost small", on: { click: () => { Object.assign(rd, { typing: false, text: "", keyText: "" }); render(); } } }, t.tapInstead))),
-				panel(turnGrid(size, null, painted, [], null)));
+			Slides.popup(h("div", { class: "rt-pick" }, h("h2", { class: "rt-pick-q" }, h("span", { "aria-hidden": "true", text: ICON[which] + " " }), t.readWhich(pos)),
+				svg("svg", { class: "rt-pick-canvas", viewBox: `0 0 ${pl.view.w} ${pl.view.h}` },
+					V.dictionary({ box: pl.boxes.picker, things: th, mode: "picker", value: cur === undefined ? null : cur, icon: which, onPick: pick }))),
+			{ label: t.readWhich(pos) });
+		}
+		// a row before (or a key file's place) tapped: only where its number comes from
+		function locked(which, x) {
+			const v = which === "key" ? key[x] : rd.taps[x];
+			const line = which === "key" && file ? t.readLockedFile(x + 1, S.PAD_DIGITS[v], v) : t.readLocked(x + 1, v, (which === "key" ? keyThings : things)[v].name, which === "key" && ownKey);
+			Slides.popup(h("div", { class: "slide-help rt-lock" }, h("p", { text: line }), x !== i ? h("p", { class: "hint", text: t.readLockedWhy }) : null), { label: line });
 		}
 
-		// a piece tapped for this turn: a turn read for the first time moves on to the next
-		const tap = (which, v) => {
-			(which === "key" ? rd.keyTaps : rd.taps)[i] = v;
-			st.seen.readTap = true;
-			if (i === frontier && readFrontier(rd) > i) { rd.turn = i + 1; rd.last = i; seenWhy(rd); } else rd.last = null;
-			render();
-		};
-		// what a turn gives: (the key's piece taken away on the clock), the number, its bits and squares
-		const turnMath = (j) => {
-			const C = rd.taps[j], K = key ? key[j] : 0, parts = [];
-			if (C === undefined || K === undefined) return parts;
-			const P = plainOf(j), turn = S.turnBits(size, j, k), roles = turn.map((b) => b.role), byRow = new Map();
-			if (key) {
-				const back = S.clockStep(C, K, n, -1), raw = C - K;
-				parts.push(h("div", { class: "turn-key" }, clockSvg(n, C, K, -1), h("div", { class: "stack tight" },
-					h("code", { class: "turn-sum", text: `${C} − ${K} = ${raw}` + (back.wrapped ? ` → ${raw} + ${n} = ${P}` : "") }),
-					hint(t.turnClockBack(C, K, n, back.wrapped)))));
+		// what each arrow shows: the pieces still being chosen, the position and the numbers already in;
+		// once they are in, stage p of the cycle (the stage's own whole, the ones before nearly gone)
+		const arrowState = (id, p) => {
+			if (!whole) {
+				if (id === "position") return hasC || (keyThings && hasK) ? "past" : "current";
+				if (id === "clockSeed") return hasC ? "current" : "hidden";
+				if (id === "clockKey") return hasK ? "current" : "hidden";
+				return "hidden";
 			}
-			for (const { cell } of turn) if (cell) { if (!byRow.has(cell[0])) byRow.set(cell[0], []); byRow.get(cell[0]).push(cell[1] + 1); }
-			parts.push(h("div", { class: "turn-part" }, hint(t.readSquares(P)), bitsStrip(bitsOf(P, k), roles),
-				byRow.size ? hint(t.handCells([...byRow].map(([r, cs]) => [r + 1, cs]))) : null));
-			// the last turns are the header (version and mask) and the padding: no squares of the QR code
-			if (roles.includes("header")) parts.push(h("div", { class: "note" }, t.handHeader, " ", h("b", { text: t.handTemplate(size, mask) })));
-			if (roles.includes("padding")) parts.push(h("div", { class: "note", text: t.handPadding }));
-			return parts;
+			const s = stageOf(id);
+			return s === p ? "current" : s < p ? "past" : "hidden";
+		};
+		const g = { frame: svg("g"), seed: svg("g"), key: svg("g"), clock: svg("g"), bits: svg("g"), qr: svg("g") }, arrowGroups = lay.arrows.map(() => svg("g"));
+		function draw(p, turning, onRun) {
+			const reached = (id) => whole && at(id) >= 0 && p >= at(id);
+			g.frame.replaceChildren(V.frame({ box: b.row, colour: "qr" }));
+			g.seed.replaceChildren(readColumn(b.seedColumn, "seed", things, rd.taps, i, L, { slot: () => choose("seed"), piece: (x) => x === i ? choose("seed") : locked("seed", x) }));
+			if (pad) {
+				g.key.replaceChildren(file ? fileColumn(b.keyColumn, key, i, L, (x) => locked("key", x))
+					: readColumn(b.keyColumn, "key", keyThings, rd.keyTaps, i, L, { slot: () => choose("key"), piece: (x) => x === i ? choose("key") : locked("key", x) }));
+				g.clock.replaceChildren(V.clock({ box: b.clock, n, from: hasC ? C : null, by: hasK ? K : null, sign: -1, inputColour: "seed",
+					phase: !whole || p < at("out") ? "inputs" : p === at("out") && turning ? "run" : "done", onDone: p === at("out") ? onRun : undefined }));
+			}
+			const pb = whole ? bitsOf(P, k) : [];
+			g.bits.replaceChildren(V.bits({ box: b.bits, bits: turn.map((x, j) => reached("bits") ? pb[j] : null), roles, colour: "qr" }));
+			const painted = new Map(before);
+			if (reached("paint")) paintTurn(painted, i);
+			g.qr.replaceChildren(V.qr({ box: b.qr, size, modules: template, turnCells, painted }));
+			lay.arrows.forEach((a, j) => arrowGroups[j].replaceChildren(V.arrow({ points: a.points, colour: a.colour, state: arrowState(a.id, p) })));
+		}
+		function body() {
+			if (fresh) {
+				// the pieces just chosen: the cycle plays from the numbers in, a relation at a time; the clock
+				// turns step by step, then it goes on (the first stage now, before the body is on the page;
+				// each later one only while nothing has been drawn since: render() moves the token on)
+				const run = turnRun, later = (fn, ms) => setTimeout(() => { if (run === turnRun) fn(); }, ms);
+				const play = (p) => {
+					const out = stages[p].id === "out";
+					draw(p, true, out ? () => later(() => play(p + 1), 300) : undefined);
+					if (p < last && !out) later(() => play(p + 1), 450);
+				};
+				play(pad ? at("in") : at("bits"));
+			} else draw(whole ? last : 0, false);
+			return h("div", { class: "dict-slide rt-slide" }, canvas(g.frame, g.seed, g.key, g.clock, g.bits, g.qr, ...arrowGroups));
+		}
+
+		// the foot: what to do now; once it is read, what it gave (the header and the padding have no squares)
+		const note = roles.includes("header") ? t.turnHeader : roles.includes("padding") ? t.turnPadding : null;
+		const caption = () => !whole ? (i === 0 && !st.seen.readTap ? t.forms[form].read : keyThings ? t.readTapBoth(pos) : t.readTap(pos))
+			: note || (pad ? t.readTurnPad(C, K, n, P) : t.readTurnBasic(P));
+		const checking = rd !== st.read;
+		return {
+			count: `${pos}/${L}`, caption, body,
+			help: helpOf(stepName(checking ? "make" : "read", checking ? "check" : "recover"), checking ? (pad ? t.checkHelpPad : t.checkReadHelp) : null,
+				[t.forms[form].read, keyThings ? t.tapPadHelp : null, pad ? null : t.whyBasic(n, k), t.readLockedWhy].filter(Boolean)),
+			shortcuts: readShortcuts(rd, L, opts.done),
+			prev: i > 0 ? { go: () => readGo(rd, i - 1) } : undefined,
+			next: { go: () => { if (i < L - 1) readGo(rd, i + 1); else opts.done(); }, ready: whole },
+		};
+	}
+	// «⋯» while reading: everything typed at once, on to the end of what is read, and starting again
+	function readShortcuts(rd, L, done) {
+		const t = T(), frontier = readFrontier(rd);
+		const typeAll = () => {
+			// the pieces as they now are, to go on from
+			const names = (taps, th) => taps.filter((v) => v !== undefined).map((v) => th[v].name).join("\n");
+			const keyThings = rd.mode === "pad" && rd.padAs === "string" ? keyThingsOf(rd) : null;
+			Object.assign(rd, { typing: true, typeError: "", text: names(rd.taps, dictFor(rd).things), keyText: keyThings ? names(rd.keyTaps, keyThings) : "" });
+			render();
 		};
 		const restart = () => {
 			if (!confirm(t.readRestartAsk)) return;
 			Object.assign(rd, freshRead(rd), { keyFile: rd.keyFile, fileText: rd.fileText });
 			render();
 		};
-		const typeAll = () => {
-			// always the pieces as they now are
-			const names = (taps, th) => taps.filter((v) => v !== undefined).map((v) => th[v].name).join("\n");
-			Object.assign(rd, { typing: true, text: names(rd.taps, things), keyText: keyThings ? names(rd.keyTaps, keyThings) : "" });
-			render();
+		return [{ icon: "⌨", label: t.typeAll, go: typeAll },
+			frontier > (rd.turn || 0) + 1 && rd.turn < L ? { icon: "⏩", label: t.readToEnd, go: () => { if (frontier >= L) done(); else readGo(rd, frontier); } } : null,
+			rd.taps.length || rd.keyTaps.length ? { icon: "↺", label: t.readRestart, go: restart } : null].filter(Boolean);
+	}
+	// «⋯ › Type it all»: the names of the pieces in order, one per line (or
+	// separated by commas), started from those chosen so far; then on as from the last turn
+	function readTypingSlide(rd, done) {
+		const t = T(), things = dictFor(rd).things, keyThings = rd.mode === "pad" && rd.padAs === "string" ? keyThingsOf(rd) : null, L = readLength(rd);
+		const area = (prop, label) => {
+			const a = h("textarea", { class: "input", spellcheck: "false", autocomplete: "off", "aria-label": label, on: { input: (e) => { rd[prop] = e.target.value; } } });
+			a.value = rd[prop];
+			return [h("div", { class: "label", text: label }), a];
 		};
-		const nav = turnNav(
-			h("button", { class: "btn ghost", disabled: i === 0 ? "" : undefined, on: { click: () => readGo(rd, i - 1) } }, "◀ " + t.prevPiece),
-			h("span", { class: "meta", text: t.handStep(Math.min(i + 1, L), L) }),
-			i < L ? h("button", { class: "btn", disabled: i < frontier ? undefined : "", on: { click: () => readGo(rd, i + 1) } }, t.nextPiece + " ▶") : null);
-		// the other ways, at the foot of the column
-		const tools = h("div", { class: "row" },
-			h("button", { class: "btn ghost small push", on: { click: typeAll } }, t.typeInstead),
-			rd.taps.length || rd.keyTaps.length ? h("button", { class: "btn ghost small", on: { click: restart } }, "↺ " + t.readRestart) : null);
-
-		// on the left, the count; at the top, how long the seed is (a key file says it)
-		const words = checking || (padMode && rd.padAs === "file") ? null
-			: seg([12, 24].map((w) => [w, t.wordsPieces(w, symbolsFor(w, n))]), rd.words, (w) => { if (w !== rd.words) readWords(rd, w); render(); });
-		const left = [...stepHead(flow, checking ? (padMode ? t.checkHelpPad : t.checkReadHelp) : null, words ? h("div", { class: "row key-method" }, words) : null), nav];
-		if (i < L) {
-			const C = rd.taps[i], K = key ? key[i] : undefined;
-			if (i === 0 && !padMode && !st.seen.whyBasic) left.push(h("div", { class: "note", text: t.whyBasic(n, k) }));
-			if (i === 0 && !st.seen.readTap) left.push(h("div", { class: "note", text: t.forms[rd.form || st.plan.form].read }), keyThings ? hint(t.tapPadHelp) : null);
-			left.push(h("div", { class: "turn-part" }, h("div", { class: "label", text: t.readSeqPiece(i + 1) }), collectionRow(things, C, k, (v) => tap("seq", v))));
-			if (keyThings) left.push(h("div", { class: "turn-part turn-keypick" }, h("div", { class: "label pad-label", text: t.readKeyPiece(i + 1) }),
-				collectionRow(keyThings, K, k, (v) => tap("key", v))));
-			else if (key) left.push(h("div", { class: "row key-line" }, h("span", { class: "pad-label", text: t.readKeyPiece(i + 1) }),
-				h("span", { class: "meta", text: t.readKeyChar(i + 1) }), h("code", { class: "turn-sum", text: S.PAD_DIGITS[K] }),
-				S.PAD_DIGITS[K] !== String(K) ? h("b", { class: "bits-num", text: "= " + K }) : null));
-			const now = turnMath(i);
-			if (now.length) left.push(...now);
-			else if (rd.last === i - 1 && i > 0) left.push(h("div", { class: "turn-last" }, h("div", { class: "label", text: t.readLast(i) }), ...turnMath(i - 1)));
-			left.push(tools);
-		} else if (out) {
-			const wrong = wrongTurns(out, L, k, padMode);
-			left.push(...readNotes(out),
-				wrong && wrong.length ? h("div", { class: "note warn" }, t.readWrong(wrong.length), " ",
-					...wrong.slice(0, 6).map((j) => h("button", { class: "btn ghost small", on: { click: () => readGo(rd, j) } }, t.readPiece(j + 1))))
-				: out.fixed ? h("div", { class: "note warn", text: t.readFixed }) : null,
-				seedResult(out, opts.expect), tools);
-		} else left.push(errorBox(rd.error === "nofit" ? t.readNoFit : ""), hint(t.readJump), tools);
-		if (!checking) setNav({ ready: !!rd.out });
-
-		// on the right, the QR code with this turn's squares, and the sequence read so far
-		const turn = i < L ? S.turnBits(size, i, k) : [];
-		const sofar = rd.taps.slice(0, frontier);
-		return tool(panel(...left),
-			panel(hint(t.handTemplate(size, mask)), turnGrid(size, qr, painted, turn, (bit) => readGo(rd, Math.floor(bit / k))),
-				sofar.length ? h("div", { class: "map turn-map" }, drawSeq(things, sofar, { current: i < L ? i : -1, onPick: (j) => readGo(rd, j), form: rd.form || st.plan.form })) : null));
+		const parse = (text, th) => S.readSequence(text.split(/[\n,]/).map((s) => s.replace(/^\s*\d+\.\s*/, "").trim().toLowerCase()).filter(Boolean),
+			th.map((x) => x.name.toLowerCase()));
+		const apply = () => {
+			try {
+				const taps = parse(rd.text, things), keyTaps = keyThings ? parse(rd.keyText, keyThings) : rd.keyTaps;
+				if (taps.length > L || (keyThings && keyTaps.length > L)) { rd.typeError = t.errTyped(Math.max(taps.length, keyTaps.length), L); render(); return; }
+				Object.assign(rd, { taps, keyTaps, typing: false, text: "", keyText: "", typeError: "", turn: L });
+				done();
+			} catch (e) {
+				if (!(e instanceof S.DecodeError)) throw e;
+				rd.typeError = t.errUnknown(e.message.match(/"(.*)"/)?.[1] || "");
+				render();
+			}
+		};
+		const cancel = () => { Object.assign(rd, { typing: false, text: "", keyText: "", typeError: "" }); render(); };
+		return {
+			question: t.typeQ, caption: () => rd.typeError || t.typeHelp,
+			prev: { label: "◀ " + t.tapInstead, go: cancel }, next: { label: t.typeRead + " ▶", go: apply },
+			body: () => h("div", { class: "slide-form type-form" }, ...area("text", t.stringSeq), ...(keyThings ? area("keyText", t.stringPad) : [])),
+		};
 	}
 
-	// read, 3: the seed — its QR code to scan, its words and its fingerprint
-	function seedStep() {
-		const t = T(), rd = st.read, qr = S.compactSeedQR(rd.out.entropy);
-		setNav({});
-		return tool(panel(...stepHead("read"), ...readNotes(rd.out), seedResult(rd.out),
-			h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => { st.read = freshRead(st.read); toStep("read", "have"); } } }, t.readAgain))),
-			panel(turnGrid(qr.size, qr, qrPainted(qr), [], null), hint(t.handTemplate(qr.size, qr.mask))));
+	// ---- read, 2: the turns; 3: the seed ---------------------------------------
+	// Recovering: a turn per slide, then the seed. Recovering never touches the
+	// backup being made (st.make, st.plan, st.dict): it reads with its own.
+	function recoverSlide() {
+		const rd = st.read, L = readLength(rd);
+		const done = () => { readOut(rd); if (rd.out) goSlide("read", "seed"); else { rd.turn = L; render(); } };
+		if (rd.typing) return readTypingSlide(rd, done);
+		readOut(rd);
+		if (rd.turn >= L && rd.out) rd.turn = L - 1;
+		if (rd.turn >= L && readFrontier(rd) >= L) return noFitSlide(rd, done);
+		return readTurnSlide(rd, { done });
+	}
+	// every piece read, and nothing decodes: the QR code as read, and back to the pieces
+	function noFitSlide(rd, done) {
+		const t = T(), n = dictFor(rd).things.length, k = Math.log2(n), L = readLength(rd), size = S.sizeFor(L, k), cells = S.dataModulesRowMajor(size), key = readKey(rd);
+		const painted = new Map(), b = Lay.readFinal().boxes;
+		for (let j = 0; j < L; j++) bitsOf(key ? S.clockStep(rd.taps[j], key[j], n, -1).value : rd.taps[j], k).forEach((bit, x) => { const c = cells[j * k + x]; if (c) painted.set(c[0] * size + c[1], bit); });
+		return {
+			caption: () => t.readLockedWhy, shortcuts: readShortcuts(rd, L, done),
+			prev: { go: () => readGo(rd, L - 1) }, next: null,
+			body: () => h("div", { class: "dict-slide rf-slide" }, canvas(V.qr({ box: b.qr, size, modules: (r, c) => S.templateModule(size, r, c), painted })),
+				place(h("p", { class: "rf-title bad", text: "✗ " + t.readNoFit }), b.title)),
+		};
+	}
+	// The seed found (layouts.js's readFinal): its QR code, whole and large, to
+	// scan; its words, its fingerprint; how it was read, if not as given; the
+	// pieces the QR code had to put right, each a way back to its turn.
+	function recoverEnd() {
+		const t = T(), rd = st.read, out = rd.out, qr = S.compactSeedQR(out.entropy), b = Lay.readFinal().boxes, L = readLength(rd), k = Math.log2(dictFor(rd).things.length);
+		const words = S.entropyToMnemonic(out.entropy).split(" ");
+		const wrong = out.fixed ? wrongTurns(out, L, k, rd.mode === "pad") : null;
+		const how = [out.reversed ? t.reversed : null, out.swapped ? t.padSwapped : null].filter(Boolean);
+		const toTurn = (j) => { rd.turn = j; goSlide("read", "recover"); };
+		const note = wrong && wrong.length ? [h("span", { text: t.readWrong(wrong.length) + " " }), ...wrong.slice(0, 4).map((j) => h("button", { type: "button", class: "btn ghost small", on: { click: () => toTurn(j) } }, t.readPiece(j + 1)))]
+			: out.fixed ? [h("span", { text: t.readFixed })] : [seedAlert()];
+		return {
+			caption: () => t.handDone, next: null,
+			prev: { go: () => toTurn(L - 1) },
+			shortcuts: [{ icon: "↺", label: t.readAgain, go: () => { st.read = freshRead(st.read); toStep("read", "have"); } }],
+			body: () => h("div", { class: "dict-slide rf-slide" }, canvas(V.qr({ box: b.qr, size: qr.size, modules: (r, c) => qr.getModule(c, r) })),
+				place(h("div", { class: "rf-title" }, h("b", { text: "✓ " + t.seedFound }), ...how.map((x) => h("small", { text: x }))), b.title),
+				place(h("ol", { class: "rf-words" + (words.length > 12 ? " many" : "") }, words.map((w) => h("li", { text: w }))), b.words),
+				place(h("div", { class: "rf-print" }, fingerprintLine(out.entropy)), b.fingerprint),
+				place(h("div", { class: "rf-note" + (out.fixed ? " warn" : "") }, ...note), b.note)),
+		};
 	}
 
 	// ---- printable sheet ----------------------------------------------
