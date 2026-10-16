@@ -755,3 +755,82 @@ pre.pad-file span.on { background: var(--pad-soft); }
 	.v-arrow-draw { animation: none; stroke-dashoffset: 0; }
 	.v-die.v-rolling { animation: none; }
 }
+
+/* ---- the lectern (slides.js) ----
+   One 16:9 slide at a time, scaled to fit the window whole: never a scroll.
+   Its unit, --u, is a 680th of its width, so the canvas of layouts.js (680 ×
+   350) fills its width, and the foot takes the 32.5 left under it. Fixed
+   places: the guide and «?» «⋯» over the canvas's top band (0–26), the
+   question under them, «Back» and «Next» at the foot's ends with the caption
+   between. Only an old step view (a legacy slide) scrolls, inside its body. */
+html, body { height: 100%; }
+body { overflow: hidden; }
+.lectern { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; overflow: hidden;
+	--fw: min(100vw, 100vh * 680 / 382.5); }
+@supports (height: 100dvh) { .lectern { --fw: min(100vw, 100dvh * 680 / 382.5); } }
+.slide-frame { --u: calc(var(--fw) / 680); position: relative; flex: none; width: calc(var(--u) * 680); height: calc(var(--u) * 382.5);
+	font-size: calc(var(--u) * 11); line-height: 1.3; background: var(--surface); box-shadow: var(--tray); overflow: hidden; }
+.slide-top { position: absolute; z-index: 3; left: 0; right: 0; top: 0; height: calc(var(--u) * 26); display: flex; align-items: center;
+	justify-content: space-between; gap: 1em; padding: 0 calc(var(--u) * 12); pointer-events: none; }
+.slide-top > * { pointer-events: auto; }
+.slide-guide { min-width: 0; overflow: hidden; }
+.slide-guide ol { list-style: none; margin: 0; padding: 0; display: flex; gap: 0 .9em; white-space: nowrap; font-size: .8em; color: var(--muted); }
+.slide-guide li.on { color: var(--fg); font-weight: 650; }
+.slide-guide li small { font-size: 1em; color: var(--accent-ink); font-variant-numeric: tabular-nums; }
+.slide-guide button { border: 0; background: none; padding: 0; color: inherit; font: inherit; cursor: pointer; }
+.slide-guide button:hover { color: var(--fg); }
+.slide-tools { display: flex; gap: .4em; flex: none; }
+.slide-tool { width: 1.9em; height: 1.9em; border-radius: 50%; border: 1px solid var(--line-strong); background: var(--surface); color: var(--muted);
+	font-size: .95em; font-weight: 700; line-height: 1; cursor: pointer; padding: 0; }
+.slide-tool:hover { color: var(--fg); border-color: var(--fg); }
+.slide-question { position: absolute; z-index: 2; left: calc(var(--u) * 150); right: calc(var(--u) * 150); top: calc(var(--u) * 28); height: calc(var(--u) * 32);
+	margin: 0; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 1.6em; line-height: 1.1; pointer-events: none; }
+.slide-body { position: absolute; z-index: 1; left: 0; top: 0; width: 100%; height: calc(var(--u) * 350); overflow: hidden; }
+.slide-body > svg { display: block; width: 100%; height: 100%; }
+/* an old step view, shown whole until it is redone as slides: under the guide, at the page's own type size, scrolling inside */
+.slide-body.slide-legacy { top: calc(var(--u) * 26); height: calc(var(--u) * 324); overflow: auto; font-size: var(--fs-m); line-height: 1.5;
+	display: flex; flex-direction: column; background: var(--paper); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.slide-legacy > .flow-body { padding: var(--sp-3) 20px 0; }
+.slide-legacy > .wrap, .slide-legacy > .start { width: 100%; }
+.slide-foot { position: absolute; z-index: 2; left: 0; right: 0; top: calc(var(--u) * 350); height: calc(var(--u) * 32.5);
+	display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2.2fr) minmax(0, 1fr); align-items: center; gap: 1em; padding: 0 calc(var(--u) * 12); }
+.slide-foot .btn { font-size: .95em; padding: .45em 1em; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.slide-prev { justify-self: start; }
+.slide-next { justify-self: end; }
+.slide-caption { text-align: center; min-width: 0; }
+.slide-caption p { margin: 0; font-size: .95em; line-height: 1.2; }
+.slide-caption small { display: block; color: var(--muted); font-size: .75em; font-variant-numeric: tabular-nums; }
+/* the «⋯» panel: on the right, over the slide, which is dimmed under it */
+.slide-scrim { position: absolute; inset: 0; z-index: 5; background: rgba(28, 40, 38, .38); }
+.slide-panel { position: absolute; z-index: 6; top: 0; right: 0; bottom: 0; width: 36%; display: flex; flex-direction: column; gap: .6em;
+	padding: calc(var(--u) * 8) calc(var(--u) * 14) calc(var(--u) * 14); background: var(--surface); border-left: 1px solid var(--line);
+	box-shadow: -8px 0 28px -14px rgba(0, 0, 0, .45); animation: slide-panel-in .18s ease-out; }
+@keyframes slide-panel-in { from { transform: translateX(30%); opacity: 0; } to { transform: none; opacity: 1; } }
+.slide-panel-top { display: flex; justify-content: flex-end; }
+.slide-shortcuts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .3em; flex: 1; min-height: 0; overflow: hidden; }
+.slide-shortcuts button { width: 100%; display: flex; align-items: center; gap: .6em; text-align: left; border: 1px solid var(--line); border-radius: var(--r-m);
+	background: var(--sunk); padding: .5em .7em; cursor: pointer; font-weight: 600; }
+.slide-shortcuts button:hover { border-color: var(--line-strong); }
+.slide-icon { width: 1.4em; text-align: center; flex: none; }
+.slide-panel-foot { display: flex; flex-direction: column; align-items: flex-start; gap: .5em; border-top: 1px solid var(--line); padding-top: .6em; font-size: .9em; }
+.slide-panel-foot .btn.small { font-size: 1em; }
+.slide-awake { display: flex; align-items: center; gap: .5em; cursor: pointer; }
+.slide-awake input { width: 1.1em; height: 1.1em; margin: 0; }
+/* a popup over the slide (a dictionary opened to choose a piece) */
+.slide-popup-layer { position: absolute; inset: 0; z-index: 7; display: flex; align-items: center; justify-content: center; }
+.slide-popup { position: relative; z-index: 6; max-width: 80%; max-height: 80%; overflow: hidden; background: var(--surface); border: 1px solid var(--line-strong);
+	border-radius: var(--r-l); box-shadow: var(--tray); padding: calc(var(--u) * 10); }
+/* a phone held upright: only «Turn your phone» */
+.slide-turn { display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; padding: 16px; }
+.slide-turn-icon { font-size: 64px; line-height: 1; }
+.slide-turn b { font-family: var(--book); font-size: var(--fs-xl); font-weight: 600; }
+.lectern.upright .slide-frame { display: none; }
+.lectern.upright .slide-turn { display: flex; }
+@media (prefers-reduced-motion: reduce) { .slide-panel { animation: none; } }
+@media print {
+	html, body { height: auto; overflow: visible; }
+	.lectern { position: static; display: block; overflow: visible; }
+	.slide-frame { width: auto; height: auto; font-size: inherit; box-shadow: none; background: none; overflow: visible; }
+	.slide-body, .slide-body.slide-legacy { position: static; width: auto; height: auto; overflow: visible; border: 0; background: none; }
+	.slide-top, .slide-question, .slide-foot, .slide-panel, .slide-scrim, .slide-popup-layer, .slide-turn { display: none !important; }
+}

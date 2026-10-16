@@ -571,5 +571,21 @@ check(Lay.keyThrow({ sides: 6 }).faces.cols === 3 && Lay.keyThrow({ sides: 6 }).
 	fb.attrs.on.click(); check(pressed === 4, "faceButton: a press gives its face");
 	check(V.faceButton({ sides: 6, face: 1, disabled: true }).attrs.disabled === true, "faceButton: disabled");
 }
+// the lectern (slides.js): what Next and Back do, within a slide's steps and between slides
+{
+	vm.runInContext(read("src/slides.js"), ctx, { filename: "src/slides.js" });
+	const Sl = vm.runInContext("SeedcraftSlides", ctx);
+	const prev = { label: "Back", go: () => "prev" }, next = { label: "Next", go: () => "next" };
+	const slide = { steps: 3, prev, next };
+	check(JSON.stringify(Sl.nextOf({ step: 1 }, slide)) === JSON.stringify({ step: 2 }), "nextOf: Next within a slide's steps gives the next step");
+	check(Sl.nextOf({ step: 2 }, slide).go === next.go, "nextOf: Next on the last step goes to the next slide");
+	check(Sl.nextOf({ step: 0, dir: "prev" }, slide).go === prev.go, "nextOf: Back on the first step goes to the previous slide");
+	check(JSON.stringify(Sl.nextOf({ step: 2, dir: "prev" }, slide)) === JSON.stringify({ step: 1 }), "nextOf: Back within a slide's steps gives the step before");
+	check(Sl.nextOf({ step: 0 }, { steps: 1, prev, next: { ...next, ready: false } }) === null, "nextOf: Next waits while the slide is not ready");
+	check(JSON.stringify(Sl.nextOf({ step: 0 }, { steps: 2, prev, next: { ...next, ready: false } })) === JSON.stringify({ step: 1 }), "nextOf: a slide not ready still walks its own steps");
+	check(Sl.nextOf({ step: 0 }, { steps: 1, prev: null, next: null }) === null && Sl.nextOf({ step: 0, dir: "prev" }, { steps: 1, prev: null, next }) === null, "nextOf: nothing to go to, nothing done");
+	check(Sl.nextOf({ step: 7 }, { steps: 3, next }).go === next.go, "nextOf: a step past the end counts as the last");
+	check(Sl.nextOf({ step: 0 }, { next }).go === next.go, "nextOf: steps default to 1");
+}
 console.log(`${failures ? "FAIL" : "ok"}: ${vectors.length} vectors, ${padVectors.length} pad vectors, ${failures} failures`);
 process.exit(failures ? 1 : 0);
