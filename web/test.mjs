@@ -9,9 +9,9 @@ import vm from "node:vm";
 const here = new URL(".", import.meta.url);
 const read = (p) => readFileSync(new URL(p, here), "utf8");
 const ctx = vm.createContext({ crypto: globalThis.crypto, TextEncoder }); // the browser's crypto.getRandomValues and TextEncoder
-for (const f of ["third_party/qrcodegen.js", "src/bip39-english.js", "src/seedcraft-sequences.js"])
+for (const f of ["third_party/qrcodegen.js", "src/bip39-english.js", "src/seedcraft-sequences.js", "src/layouts.js"])
 	vm.runInContext(read(f), ctx, { filename: f });
-vm.runInContext("globalThis.S = SeedcraftSequences;", ctx);
+vm.runInContext("globalThis.S = SeedcraftSequences; globalThis.SeedcraftLayouts = SeedcraftLayouts;", ctx); // top-level consts are not properties of the context
 const S = ctx.S;
 
 let failures = 0;
@@ -294,6 +294,56 @@ check(S.changedPieces([1, 2], [1, 2]).length === 0 && S.changedPieces([1], [1, 2
 {
 	const v = padVectors.find((x) => x.k === 4), K2 = v.pad.slice(); K2[5] = (K2[5] + 1) % v.n;
 	check(S.changedPieces(S.encrypt(v.basic, v.pad, v.n), S.encrypt(v.basic, K2, v.n)).join() === "5", "one key piece corrected changes that one piece of the sequence");
+}
+// the slides' geometry: everything fits in the canvas, no arrow crosses a box
+// (a box overlapping an arrow's own ends, like the frame around a row, is not crossed)
+const Lay = ctx.SeedcraftLayouts;
+check(Lay.route([[0, 0], [10, 0], [10, 5]]) === "M0 0 L10 0 L10 5", "route");
+let threw = false; try { Lay.route([[0, 0], [3, 4]]); } catch { threw = true; }
+check(threw, "route refuses a diagonal");
+check(Lay.segmentHitsBox([0, 5], [20, 5], { x: 5, y: 0, w: 5, h: 10 }) && !Lay.segmentHitsBox([0, 0], [20, 0], { x: 5, y: 0, w: 5, h: 10 }), "segment vs box");
+const inside = (b) => b.x >= 0 && b.y >= 0 && b.x + b.w <= Lay.VIEW.w && b.y + b.h <= Lay.VIEW.h;
+const overlap = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+// two straight segments meet (touching counts): arrows never cross nor touch each other
+const meet = ([a, b], [c, d]) => Math.max(Math.min(a[0], b[0]), Math.min(c[0], d[0])) <= Math.min(Math.max(a[0], b[0]), Math.max(c[0], d[0]))
+	&& Math.max(Math.min(a[1], b[1]), Math.min(c[1], d[1])) <= Math.min(Math.max(a[1], b[1]), Math.max(c[1], d[1]));
+const segments = (a) => a.points.slice(1).map((p, i) => [a.points[i], p]);
+const checkArrows = (name, lay) => {
+	for (const a of lay.arrows) {
+		Lay.route(a.points);
+		check(a.from in lay.boxes && a.to in lay.boxes && (a.colour === "qr" || a.colour === "key"), `${name} arrow ${a.id} joins two boxes, in a colour`);
+		check(a.points.every(([x, y]) => x >= 0 && y >= 0 && x <= Lay.VIEW.w && y <= Lay.VIEW.h), `${name} arrow ${a.id} fits`);
+		for (let i = 1; i < a.points.length; i++) for (const [id, b] of Object.entries(lay.boxes))
+			if (id !== a.from && id !== a.to && !overlap(b, lay.boxes[a.from]) && !overlap(b, lay.boxes[a.to]))
+				check(!Lay.segmentHitsBox(a.points[i - 1], a.points[i], b), `${name} arrow ${a.id} clear of ${id}`);
+	}
+	lay.arrows.forEach((a, i) => lay.arrows.slice(i + 1).forEach((b) =>
+		check(!segments(a).some((s) => segments(b).some((t) => meet(s, t))), `${name} arrows ${a.id} and ${b.id} apart`)));
+};
+for (const n of [2, 4, 8, 16, 32]) for (const pad of [false, true]) {
+	for (const [name, lay] of [["make", Lay.makeTurn({ pad, n })], ["read", Lay.readTurn({ pad, n })]]) {
+		check(Object.values(lay.boxes).every(inside), `${name} n=${n} pad=${pad} fits`);
+		checkArrows(`${name} n=${n} pad=${pad}`, lay);
+		const keyed = ["keyString", "keyDict", "keyNumber", "keyColumn", "clock"].filter((k) => k in lay.boxes);
+		check(pad ? keyed.length === (name === "make" ? 4 : 2) : keyed.length === 0, `${name} n=${n} pad=${pad} has the key only with a key`);
+	}
+	check(Lay.makeTurn({ pad, n }).boxes.bits.w >= Math.log2(n) * 16, `make n=${n} bits wide enough`);
+}
+check(Lay.makeTurn({ pad: true, n: 16 }).arrows.map((a) => a.id).join() === "position,bits,number,keyPiece,keyNumber,clockSeed,clockKey,output,slot", "make: the arrows in the cycle's order");
+check(Lay.makeTurn({ pad: false, n: 16 }).arrows.map((a) => a.id).join() === "position,bits,number,dict,slot", "make simple: the arrows in the cycle's order");
+for (const sides of [2, 4, 6, 8, 10, 12, 16, 20]) { const lay = Lay.keyThrow({ sides }); check(Object.values(lay.boxes).every(inside), "throw d" + sides + " fits"); }
+for (const sides of [2, 4, 6, 8, 10, 12, 16, 20]) {
+	const lay = Lay.keyThrow({ sides }), g = lay.faces;
+	checkArrows("throw d" + sides, lay);
+	check(g.cols * g.rows >= sides && g.cols * g.rows - sides < g.cols && g.size >= 28, `throw d${sides}: room for every face, big enough to tap`);
+	check(g.cols * g.size + (g.cols - 1) * g.gap <= lay.boxes.faces.w && g.rows * g.size + (g.rows - 1) * g.gap <= lay.boxes.faces.h, `throw d${sides}: the buttons fit their box`);
+}
+check(Lay.keyThrow({ sides: 6 }).faces.cols === 3 && Lay.keyThrow({ sides: 6 }).faces.rows === 2, "throw d6: three by two");
+{
+	const box = { x: 444, y: 32, w: 140, h: 170 }, m = Lay.clockModule(box);
+	const within = (b) => b.x >= box.x && b.y >= box.y && b.x + b.w <= box.x + box.w && b.y + b.h <= box.y + box.h;
+	check(m.inputs.length === 2 && m.inputs.every(within) && within(m.output) && m.inputs[0].y === box.y && m.output.y + m.output.h === box.y + box.h, "clock module: inputs on top, output at the bottom");
+	check(m.dial.cy - m.dial.r >= m.inputs[0].y + m.inputs[0].h && m.dial.cy + m.dial.r <= m.output.y && m.dial.cx - m.dial.r >= box.x && m.dial.cx + m.dial.r <= box.x + box.w, "clock module: the dial between the bands");
 }
 console.log(`${failures ? "FAIL" : "ok"}: ${vectors.length} vectors, ${padVectors.length} pad vectors, ${failures} failures`);
 process.exit(failures ? 1 : 0);
