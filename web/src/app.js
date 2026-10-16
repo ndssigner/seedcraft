@@ -55,10 +55,9 @@
 		dict: null,  // { things: [{ name, emoji, photo, colour, symbol }], checked }
 		edit: null,  // the dictionary being named: { kind: "name", things, i }, or checked: { kind: "check", i }
 		mode: null,  // "basic" or "pad" (SPEC §10), chosen before making or reading
-		make: { seed: "", entropy: null, symbols: null, pos: 0, tab: "turn" },
+		make: { seed: "", entropy: null, symbols: null, turn: 0 },
 		read: freshRead(),
-		seen: {},  // the one-line explanations already shown once: keyWhy, reroll, keyPart, rowCheck, howTo, whyPad, whyBasic, readTap
-		wholeTable: false,  // making a sequence in pad mode: the whole collection table open, from turn to turn (else only the piece's row)
+		seen: {},  // the one-line explanations already shown once: keyWhy, reroll, keyPart, rowCheck, whyBasic, readTap
 	};
 	// What is being read, turn by turn (turnReader): the turn shown (L: the
 	// end), each turn's piece of the sequence (taps) and, in pad mode, of the
@@ -84,7 +83,7 @@
 		const same = st.dict && d && st.dict.things.length === d.things.length;
 		st.dict = d;
 		if (d) st.plan.n = d.things.length;
-		if (!same) st.make = { seed: st.make.seed, entropy: null, symbols: null, pos: 0, tab: "turn" };
+		if (!same) st.make = { seed: st.make.seed, entropy: null, symbols: null, turn: 0 };
 	}
 	// the same for what is being read: another size, what was read with the old one goes
 	function setReadDict(d) {
@@ -101,7 +100,7 @@
 	// another number of words: what was made for the old length goes (the key, the sequence), as with a new N
 	function setWords(words) {
 		st.plan.words = words;
-		st.make = { seed: st.make.seed, entropy: null, symbols: null, pos: 0, tab: "turn" };
+		st.make = { seed: st.make.seed, entropy: null, symbols: null, turn: 0 };
 	}
 
 	// ---- tiny DOM helpers --------------------------------------------
@@ -426,7 +425,7 @@
 		Slides.setLang(st.lang);
 		// what scrolls inside a legacy slide (the map, the two columns) keeps its place across a redraw
 		const SCROLLERS = ".slide-legacy, .map, .flow-body, .flow-body .tool > .panel";
-		const view = [st.screen, st.at[st.screen], st.make.tab, st.make.key && st.make.key.by, st.make.key && st.make.key.pos, st.make.key && !!st.make.key.fix, st.edit && st.edit.kind, st.edit && st.edit.target, st.edit && st.edit.i].join();
+		const view = [st.screen, st.at[st.screen], st.at[st.screen] === "seq" ? st.make.turn : "", st.make.explain ? st.make.explain.run : "", st.make.key && st.make.key.by, st.make.key && st.make.key.pos, st.make.key && !!st.make.key.fix, st.edit && st.edit.kind, st.edit && st.edit.target, st.edit && st.edit.i].join();
 		const kept = view === lastView ? [...$("app").querySelectorAll(SCROLLERS)].map((e) => e.scrollTop) : [];
 		lastView = view;
 		Slides.show(slideNow(view));
@@ -447,7 +446,7 @@
 			prev, next: null, shortcuts: st.screen === "intro" ? [] : [home], help: null });
 		if (st.screen === "print") {
 			const sheet = printSheet();
-			if (sheet) return page(h("div", { class: "wrap" }, sheet), { label: "◀ " + t.back, go: () => toStep("make", "seq") });
+			if (sheet) return page(h("div", { class: "wrap" }, sheet), { label: "◀ " + t.back, go: () => goSlide("make", "seq") });
 		}
 		if (st.screen === "make" || st.screen === "read") return journeySlide(st.screen, view, home, toStart);
 		if (st.screen === "about") return page(h("div", { class: "wrap" }, about()), toStart);
@@ -462,7 +461,7 @@
 	// go to the slides before and after it; a step of the guide goes to its
 	// first slide, or to the first one before it that is not done yet.
 	const journeyState = (flow) => flow === "make"
-		? { mode: st.mode, padAs: st.plan.padAs, padForm: st.plan.padForm, dict: !!st.dict, padDict: !!st.padDict, keyWho: st.make.keyWho, keyBy: st.make.key && st.make.key.by }
+		? { mode: st.mode, padAs: st.plan.padAs, padForm: st.plan.padForm, dict: !!st.dict, padDict: !!st.padDict, keyWho: st.make.keyWho, keyBy: st.make.key && st.make.key.by, made: !!st.make.symbols }
 		: { mode: st.read.mode, padAs: st.read.padAs, padForm: st.read.padForm, dict: !!st.read.dict, padDict: !!st.read.padDict };
 	const journeyOf = (flow) => J.slides(flow, journeyState(flow));
 	function goSlide(flow, id) { if (id) st.at[flow] = id; st.edit = null; go(flow); }
@@ -476,7 +475,7 @@
 		const p = st.plan, rd = st.read, m = st.make;
 		if (flow === "make") return ({ mode: !!st.mode, form: !!p.chosen.form, words: !!p.chosen.words, size: !!st.dict || !!p.chosen.size,
 			keyAs: !!p.chosen.padAs, keyColl: !!p.chosen.padColl, keyForm: !!p.chosen.padForm, dict: !!st.dict, keyDict: !!st.padDict, keyWho: !!m.keyWho,
-			keyTool: !!(m.key && m.key.by), keyThrow: stepDone("make", "key"), seq: !!m.symbols })[id] !== false;
+			keyTool: !!(m.key && m.key.by), keyThrow: stepDone("make", "key"), seed: !!m.symbols, seq: !!m.symbols })[id] !== false;
 		return ({ mode: !!rd.mode, form: !!rd.chosen.form, size: !!rd.dict || !!rd.chosen.size, dict: !!rd.dict, keyAs: !!rd.chosen.padAs,
 			keyColl: !!rd.chosen.padColl, keyForm: !!rd.chosen.padForm, keyDict: !!rd.padDict, keyFile: !!rd.keyFile, recover: !!rd.out })[id] !== false;
 	}
@@ -499,7 +498,7 @@
 		const forward = () => { if (d.onNext) d.onNext(); goSlide(flow, along(flow, at, 1)); };
 		const next = d.hidden ? null : d.next !== undefined ? d.next
 			: after ? { label: d.legacy ? stepName(flow, journeyOf(flow).find((x) => x.id === after).step) + " ▶" : undefined, go: forward, ready: d.ready !== false } : null;
-		return { id: view, legacy: !!d.legacy, guide, question: d.question || null, steps: 1, body: d.body, caption: d.caption || null,
+		return { id: view, legacy: !!d.legacy, guide, question: d.question || null, steps: d.steps || 1, startStep: d.startStep || 0, body: d.body, caption: d.caption || null,
 			prev, next, shortcuts: [...(d.shortcuts || []), home], help: d.help || null, onKey: d.legacy ? legacyKey : null };
 	}
 	// an old step view as a slide (R3): what it asked for with setNav (or the journey's own Back and Next)
@@ -515,7 +514,6 @@
 	const tool = (...panels) => h("div", { class: "tool" }, ...panels);
 	const title = (text) => h("h2", { class: "panel-title", text });
 	const hint = (text) => h("div", { class: "hint", text });
-	const bar = (fraction) => { const b = h("div"); b.style.width = `${Math.round(100 * fraction)}%`; return h("div", { class: "bar-track" }, b); };
 	// segmented control: [value, label, mark, what the mark means]
 	const seg = (items, value, set) => h("div", { class: "seg" }, items.map(([v, label, mark, why]) =>
 		h("button", { class: v === value ? "on" : "", title: mark && why ? why : null, on: { click: () => set(v) } }, label, mark ? h("small", { text: mark }) : null)));
@@ -538,7 +536,7 @@
 		const m = st.make;
 		if (((m.key && m.key.pieces.length) || m.symbols) && !confirm(T().modeChangeAsk)) return false;
 		st.mode = mode;
-		st.make = { seed: m.seed, entropy: null, symbols: null, pos: 0, tab: "turn" };
+		st.make = { seed: m.seed, entropy: null, symbols: null, turn: 0 };
 		return true;
 	}
 	// ---- the two journeys ----------------------------------------------
@@ -650,13 +648,6 @@
 		if (own && own.length === n) return own;
 		const own_ = formOf(formId).set, set = SETS.find((x) => x.id === own_ && x.things.length >= n) || (own_ ? null : SETS.find((x) => x.things.length >= n));
 		return set ? thingsOf(set, n) : Array.from({ length: n }, (_, i) => ({ name: String(i), emoji: String(i) }));
-	}
-	// a row of the form's example pieces (or beads), with a count under each
-	// (own: the dictionary to show, if it is already made)
-	function kindsRow(formId, n, count, own) {
-		const things = kindThings(formId, n, own), shown = things.slice(0, 8);
-		return h("div", { class: "kinds" }, shown.map((x) => h("span", {}, icon(x, 38), count ? h("small", { text: "×" + count }) : null)),
-			things.length > shown.length ? h("span", { class: "more-kinds", text: "+" + (things.length - shown.length) }) : null);
 	}
 	// the ready-made dictionary offered for N kinds: the form's own example, else the first that has N
 	const readySet = (n, formId) => SETS.find((x) => x.id === formOf(formId).set && x.things.length >= n) || SETS.find((x) => x.things.length >= n);
@@ -799,7 +790,8 @@
 			keyWho: () => needs("make") || keyWhoSlide(),
 			keyTool: () => needs("make") || keyToolSlide(),
 			keyThrow: () => needs("make") || keyThrowSlide(),
-			seq: () => makeFlow(seqStep),
+			seed: () => needs("make") || seedSlide(),
+			seq: () => needs("make") || turnSlide(),
 			check: () => makeFlow(checkStep),
 			store: () => makeFlow(storeStep),
 		},
@@ -1310,41 +1302,6 @@
 	// below the fold, and never mistaken for the journey's own back and on.
 	const turnNav = (...controls) => h("div", { class: "row turn-nav" }, ...controls);
 
-	// One sequence to make, piece by piece, in two columns: on the left the
-	// piece in hand and the controls, on the right the whole of it (the
-	// drawing as a map that follows the piece, or the list), always in view.
-	// opts: posKey (where it is), tabKey (which view), listName (its file),
-	// help (a note above the piece), turns (offer the turn by turn view
-	// first: the caller draws it), things (its dictionary, if not the
-	// sequence's), form, pad. Returns { tabs, left, right }.
-	function stringViews(string, opts) {
-		const t = T(), m = st.make, things = opts.things || st.dict.things, L = string.length, form = opts.form || st.plan.form;
-		const views = [opts.turns ? ["turn", t.tabTurns] : null, ["walk", t.tabWalk], ["list", t.tabList]].filter(Boolean);
-		if (!views.some(([v]) => v === m[opts.tabKey])) m[opts.tabKey] = views[0][0];
-		const tab = m[opts.tabKey], left = [], right = [];
-		if (tab === "walk") {
-			const thing = (i) => things[string[i]];
-			const pos = Math.min(m[opts.posKey] || 0, L - 1);
-			const move = (to) => { m[opts.posKey] = Math.max(0, Math.min(L - 1, to)); render(); };
-			const side = (i, label) => h("div", { class: "side" }, i >= 0 && i < L ? [hint(`${label} ${i + 1}`), icon(thing(i), 44), h("div", { class: "small-name", text: thing(i).name })] : null);
-			if (opts.help) left.push(h("div", { class: "note" + (opts.pad ? " pad" : ""), text: opts.help }));
-			left.push(
-				h("div", { class: "label", text: t.walkOf(pos + 1, L) }),
-				h("div", { class: "wizard" }, side(pos - 1, t.prevPiece), h("div", { class: "centre" }, icon(thing(pos), 104), h("div", { class: "name", text: thing(pos).name })), side(pos + 1, t.nextPiece)),
-				bar((pos + 1) / L),
-				h("div", { class: "row" },
-					h("button", { class: "btn ghost", title: t.walkHelp, disabled: pos === 0 ? "" : undefined, on: { click: () => move(pos - 1) } }, "◀ " + t.prevPiece),
-					h("button", { class: "btn push", title: t.walkHelp, on: { click: () => pos < L - 1 ? move(pos + 1) : null } }, pos < L - 1 ? t.nextPiece + " ▶" : "✓ " + t.done)));
-			right.push(hint(t.forms[form].drawing), h("div", { class: "map tall" }, drawSeq(things, string, { current: pos, onPick: (i) => move(i), pad: opts.pad, form })));
-		}
-		if (tab === "list") {
-			const text = string.map((s, i) => `${i + 1}. ${things[s].name}`).join("\n");
-			left.push(hint(t.listHelp), h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => download(text + "\n", opts.listName, "text/plain") } }, t.saveList)));
-			right.push(h("pre", { class: "code", text }));
-		}
-		return { tabs: seg(views, tab, (v) => { m[opts.tabKey] = v; render(); }), left, right };
-	}
-
 	// ---- make, 4: the key (pad mode) ----------------------------------------------
 	// The key comes first: L numbers, each pure chance, drawn one piece at a time
 	// by the person (a bag, coins, a die) or by the device (SPEC §10.2). Its
@@ -1379,7 +1336,7 @@
 	// the pieces of the sequence changed by a key corrected after it was made, each a way to its turn («⋯»)
 	const keyChangedWays = () => {
 		const t = T(), m = st.make, changed = m.symbols && m.keyChanged || [];
-		const toTurn = (j) => { st.seen.howTo = true; m.tab = "turn"; m.turn = j; toStep("make", "seq"); };
+		const toTurn = (j) => { m.turn = j; m.explain = null; goSlide("make", "seq"); };
 		return changed.slice(0, 6).map((j) => ({ icon: "↪", label: t.readPiece(j + 1), go: () => toTurn(j) }));
 	};
 	// to another piece; the lines explained on the one left are not shown again
@@ -1637,147 +1594,206 @@
 	function otherSeed() {
 		const m = st.make;
 		m.seed = ""; m.symbols = m.entropy = m.basic = m.check = m.keyChanged = null;
-		m.checked = m.stored = false;
-		if (st.mode !== "pad") { render(); return; }
+		m.checked = m.stored = false; m.turn = 0; m.explain = null;
+		if (st.mode !== "pad") { goSlide("make", "seed"); return; }
 		m.key = m.pad = null; m.keyWho = null; m.padKept = false;
 		toStep("make", "key");
 	}
-	function seqStep() {
-		const t = T(), m = st.make, d = st.dict;
-		const n = d.things.length, k = Math.log2(n), padMode = st.mode === "pad";
-		if (!m.symbols) {
-			const area = h("textarea", { class: "input mono", rows: 3, spellcheck: "false", autocomplete: "off", "aria-label": t.seedTitle, placeholder: "height demise useless trap grow lion found off key clown transfer enroll" });
-			area.value = m.seed;
-			const status = h("div", { class: "status" }), err = h("div"), print = h("div");
-			let timer = 0;
-			const check = () => {
-				m.seed = area.value;
-				const words = m.seed.trim().split(/\s+/).filter(Boolean).length;
-				clearTimeout(timer);
-				print.replaceChildren();
-				try {
-					const entropy = S.mnemonicToEntropy(m.seed);
-					if (words !== st.plan.words) { status.className = "status bad"; status.textContent = t.seedNotPlanned(words, st.plan.words); return false; }
-					status.className = "status ok"; status.textContent = t.seedOk(words);
-					// the fingerprint takes a moment: once typing stops
-					timer = setTimeout(() => print.replaceChildren(fingerprintLine(entropy)), 300);
-					return true;
-				}
-				catch (e) { status.className = "status bad"; status.textContent = words ? e.message : t.seedEmpty; return false; }
-			};
-			area.addEventListener("input", check);
-			const test = (bytes) => { const e = new Uint8Array(bytes); crypto.getRandomValues(e); area.value = S.entropyToMnemonic(e); check(); };
-			check();
-			setNav({ ready: false });
-			return tool(
-				panel(...stepHead("make", t.seedHelpPlanned(st.plan.words)), seedAlert(),
-					h("div", { class: "field" }, area, status, print,
-						h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => test(st.plan.words === 12 ? 16 : 32) } }, st.plan.words === 12 ? t.seedTest12 : t.seedTest24))),
-					err,
-					h("div", { class: "row" }, h("button", { class: "btn push", on: { click: () => {
-						if (!check()) { err.replaceChildren(errorBox(t.errWordsPlanned(st.plan.words))); return; }
-						m.entropy = S.mnemonicToEntropy(m.seed);
-						if (padMode) {
-							// the basic sequence plus the key of the step before, mod N (SPEC §10.3)
-							m.basic = S.encode(m.entropy, k);
-							m.symbols = S.encrypt(m.basic, m.pad, n);
-						} else m.symbols = S.encode(m.entropy, k);
-						m.pos = m.turn = 0; m.tab = "turn";
-						m.checked = m.stored = false; m.check = null; m.keyChanged = null;
-						render();
-					} } }, t.makeIt))),
-				panel(h("p", { class: "lead", text: padMode ? t.seqPadIntro : t.seqIntro }), kindsRow(st.plan.form, n, 0, d.things)));
-		}
-		return composeStep();
+	// «What are your 12 words?»: typed, checked as they are typed, the
+	// fingerprint once typing stops. Next makes the sequence. Once made, the
+	// words stay as they are; another seed starts over.
+	function seedSlide() {
+		const t = T(), m = st.make, n = st.dict.things.length, k = Math.log2(n), padMode = st.mode === "pad", made = !!m.symbols;
+		const area = h("textarea", { class: "input mono", rows: 3, spellcheck: "false", autocomplete: "off", "aria-label": t.seedTitle,
+			readonly: made ? "" : undefined, placeholder: "height demise useless trap grow lion found off key clown transfer enroll" });
+		area.value = m.seed;
+		const status = h("div", { class: "status" }), print = h("div", { class: "seed-print" });
+		let timer = 0;
+		const check = () => {
+			if (!made) m.seed = area.value;
+			const words = m.seed.trim().split(/\s+/).filter(Boolean).length;
+			clearTimeout(timer);
+			print.replaceChildren();
+			try {
+				const entropy = S.mnemonicToEntropy(m.seed);
+				if (words !== st.plan.words) { status.className = "status bad"; status.textContent = t.seedNotPlanned(words, st.plan.words); return false; }
+				status.className = "status ok"; status.textContent = t.seedOk(words);
+				// the fingerprint takes a moment: once typing stops
+				timer = setTimeout(() => print.replaceChildren(fingerprintLine(entropy)), made ? 0 : 300);
+				return true;
+			}
+			catch (e) { status.className = "status bad"; status.textContent = words ? e.message : t.seedEmpty; return false; }
+		};
+		const ok = check();
+		area.addEventListener("input", () => Slides.setReady(check()));
+		const test = (bytes) => { const e = new Uint8Array(bytes); crypto.getRandomValues(e); area.value = S.entropyToMnemonic(e); Slides.setReady(check()); };
+		const make = () => {
+			if (made || !check()) return;
+			m.entropy = S.mnemonicToEntropy(m.seed);
+			if (padMode) {
+				// the basic sequence plus the key of the step before, mod N (SPEC §10.3)
+				m.basic = S.encode(m.entropy, k);
+				m.symbols = S.encrypt(m.basic, m.pad, n);
+			} else m.symbols = S.encode(m.entropy, k);
+			m.turn = 0; m.explain = null; turnFresh = null;
+			m.checked = m.stored = false; m.check = null; m.keyChanged = null;
+		};
+		const tool = made
+			? h("button", { type: "button", class: "btn ghost small", on: { click: () => { if (confirm(t.otherSeedAsk(st.mode))) otherSeed(); } } }, "◀ " + t.otherSeed)
+			: h("button", { type: "button", class: "btn ghost small", on: { click: () => test(st.plan.words === 12 ? 16 : 32) } }, st.plan.words === 12 ? t.seedTest12 : t.seedTest24);
+		return {
+			question: t.seedQ(st.plan.words),
+			next: made ? undefined : { label: t.makeIt + " ▶", go: () => { make(); if (m.symbols) goSlide("make", "seq"); }, ready: ok },
+			caption: () => made ? (padMode ? t.padMakeWarn : t.makeWarn) : padMode ? t.seqPadIntro : t.seqIntro,
+			body: () => h("div", { class: "slide-form seed-form" }, seedAlert(), area, status, print, h("div", { class: "row" }, tool)),
+		};
 	}
-	// to another turn of the sequence (L: all of it); the first turn's why is then not shown again
+
+	// ---- the sequence, a turn per slide --------------------------------------
+	// layouts.js's makeTurn, bottom to top and left to right: your string being
+	// built (the turn's slot in the middle of 13 positions) → its position →
+	// the QR code's squares (blue) → their bits → their number; with a key,
+	// the key string (a reference: 7 positions, the turn's framed) → its
+	// dictionary turning to the piece → its number; both numbers → the clock
+	// → the seed's dictionary turning to the result → the piece in the slot.
+	// The first turns (J.EXPLAINED), and any turn «?» explains, show one
+	// relation per step, its sentence at the foot; the others play the whole
+	// cycle at once on arriving (at once with reduced motion). Only the arrow
+	// of the step shows whole; the ones before it stay, nearly invisible.
+	let turnFresh = null;   // a turn reached with Next: its cycle plays once
+	let turnBack = false;   // a turn reached with Back: shown at its last step
+	// to another turn of the sequence; a turn explained is explained only while it is on screen
 	function turnGo(to) {
-		const m = st.make;
-		if (!(m.turn > 0) && to > 0) st.seen[st.mode === "pad" ? "whyPad" : "whyBasic"] = true;
-		m.turn = Math.max(0, Math.min(m.symbols.length, to));
+		const m = st.make, from = m.turn || 0;
+		m.turn = Math.max(0, Math.min(m.symbols.length - 1, to));
+		turnFresh = m.turn === from + 1 ? m.turn : null;
+		turnBack = m.turn === from - 1;
+		m.explain = null;
 		render();
 	}
-	// The sequence made, turn by turn (SPEC §3, §10.3): each turn takes the
-	// next k squares of the seed's QR code, reads them as bits and a number,
-	// in pad mode adds the key's piece on the clock of N, and gives the piece
-	// to put on the string. Before the first turn, once, how it goes. The map
-	// and the list stay as views, for whoever already knows.
-	function composeStep() {
-		const t = T(), m = st.make, things = st.dict.things, n = things.length, k = Math.log2(n), padMode = st.mode === "pad";
-		const L = m.symbols.length, each = S.piecesToBuy(m.symbols, n), form = st.plan.form, written = formOf(form).family === "written";
-		const head = (aside) => stepHead("make", null, h("span", { class: "meta", text: aside }));
-		if (!st.seen.howTo) {
-			// four boxes in a row, drawn the same for every seed (none of it is the seed's own)
-			const ex = "10110".slice(0, k).split("").map(Number);
-			const words = svg("svg", { class: "howto-pic", viewBox: "0 0 60 40", "aria-hidden": "true" },
-				[0, 1, 2].map((r) => svg("path", { d: `M6,${8 + r * 12} h${18 - r * 3} M30,${8 + r * 12} h${22 - r * 4}` })));
-			const qrPic = svg("svg", { class: "howto-pic", viewBox: "0 0 21 21", "aria-hidden": "true" }, svg("rect", { width: 21, height: 21, fill: "#ffffff" }),
-				[[0, 0], [0, 14], [14, 0]].flatMap(([r, c]) => [svg("rect", { x: c + 0.5, y: r + 0.5, width: 6, height: 6, fill: "none", stroke: "#1c2826" }),
-					svg("rect", { x: c + 2, y: r + 2, width: 3, height: 3, fill: "#1c2826" })]),
-				[[9, 9], [9, 11], [10, 10], [11, 8], [12, 12], [14, 15], [15, 10], [16, 13], [17, 17], [18, 11], [9, 16], [12, 18], [19, 19], [8, 3], [10, 5]]
-					.map(([r, c]) => svg("rect", { x: c, y: r, width: 1, height: 1, fill: "#1c2826" })));
-			const box = (pic, text) => h("div", { class: "howto-box" }, pic, h("p", { text }));
-			return h("div", { class: "narrow howto" }, panel(...head(t.total(L)), h("p", { class: "lead", text: t.howToLead }),
-				h("div", { class: "howto-row" }, box(words, t.howToWords(st.plan.words)), box(qrPic, t.howToQr),
-					box(squaresOf(ex, ex.map(() => "data")), t.howToBits), box(h("b", { class: "bits-num", text: String(parseInt(ex.join(""), 2)) }), t.howToNums(k, n))),
-				h("p", { class: "howto-scanner", text: t.howToScanner }),
-				h("div", { class: "row" }, h("button", { class: "btn push", on: { click: () => { st.seen.howTo = true; m.turn = 0; m.tab = "turn"; render(); } } }, t.howToGo + " ▶"))));
-		}
-		const v = stringViews(m.symbols, { posKey: "pos", tabKey: "tab", listName: padMode ? "list-a.txt" : "sequence.txt",
-			help: padMode ? t.seqStringHelp : t.forms[form].make, turns: true });
-		// the safety alert right under the step's name
-		const alert = h("div", { class: "alert", text: padMode ? t.padMakeWarn : t.makeWarn });
-		const rest = [h("details", { class: "more" }, h("summary", { text: t.seqAbout }),
-				fingerprintLine(m.entropy),
-				written ? null : h("p", { text: t.shop(each, n) }),
-				h("p", { text: materialsOf(form, L, n) }),
-				h("div", { class: "row" },
-					h("button", { class: "btn ghost small", on: { click: () => { if (confirm(t.otherSeedAsk(st.mode))) otherSeed(); } } }, "◀ " + t.otherSeed))),
-			h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => go("print") } }, "🖨 " + t.printIt))];
-		if (m.tab !== "turn") return tool(panel(...head(t.total(L)), alert, ...v.left, v.tabs, ...rest), panel(...v.right));
+	// «?» or «⋯ › Explain this turn»: this turn again, a relation at a time, from its first step
+	function explainTurn() {
+		const m = st.make;
+		m.explain = { turn: m.turn || 0, run: (m.explain ? m.explain.run : 0) + 1 };
+		turnFresh = null; turnBack = false;
+		render();
+	}
+	// the key's things, if the key is a string (its own collection's, or the seed's)
+	const keyThingsMade = () => st.mode !== "pad" || st.plan.padAs === "file" ? null : st.plan.padForm ? st.padDict.things : st.dict.things;
+	// the whole string, as the sheet draws it, in a popup: a piece tapped goes to its turn
+	function wholeString() {
+		const m = st.make, L = m.symbols.length, perRow = Math.max(13, Math.ceil(Math.sqrt(L * 2.6)));
+		const close = Slides.popup(h("div", { class: "seq-map" }, drawSeq(st.dict.things, m.symbols, { current: m.turn || 0, perRow, form: st.plan.form,
+			onPick: (j) => { close(); turnGo(j); } })), { label: T().seqWhole });
+	}
+	function turnSlide() {
+		const t = T(), m = st.make, things = st.dict.things, n = things.length, k = Math.log2(n), pad = st.mode === "pad";
+		const file = pad && st.plan.padAs === "file", keyThings = keyThingsMade();
+		const L = m.symbols.length, i = m.turn = Math.max(0, Math.min(L - 1, m.turn || 0)), pos = i + 1;
+		const plain = pad ? m.basic : m.symbols, P = plain[i], C = m.symbols[i], K = pad ? m.pad[i] : null;
+		const lay = Lay.makeTurn({ pad, n, file }), b = lay.boxes, stages = J.turnStages({ pad, file }), last = stages.length - 1;
+		const qr = S.compactSeedQR(m.entropy), size = qr.size, cells = S.dataModulesRowMajor(size), ndata = cells.length;
+		const bits = S.symbolsToBits(plain, k), turn = S.turnBits(size, i, k), roles = turn.map((x) => x.role);
+		const explaining = i < J.EXPLAINED || !!(m.explain && m.explain.turn === i);
+		const fresh = !explaining && turnFresh === i && !calm(), back = turnBack;
+		turnFresh = null; turnBack = false;
+		const changed = (m.keyChanged || []).includes(i);
+		// the header (version and mask) and the padding have no squares in the QR code
+		const note = roles.includes("header") ? `${t.handHeader} ${t.handTemplate(size, qr.mask)}` : roles.includes("padding") ? t.handPadding : null;
 
-		// the seed's own sequence (in pad mode, before the key), and its bits
-		const plain = padMode ? m.basic : m.symbols, bits = S.symbolsToBits(plain, k);
-		const qr = S.compactSeedQR(m.entropy), size = qr.size, ndata = S.dataModulesRowMajor(size).length;
-		const i = Math.max(0, Math.min(L, m.turn || 0)), done = i === L, turn = done ? [] : S.turnBits(size, i, k);
-		const painted = new Map();
-		for (let b = 0; b < Math.min(ndata, (i + 1) * k); b++) painted.set(b, bits[b]);
-		const left = [];
-		if (!done) {
-			const P = plain[i], C = m.symbols[i], roles = turn.map((b) => b.role), byRow = new Map();
-			for (const { cell } of turn) if (cell) { if (!byRow.has(cell[0])) byRow.set(cell[0], []); byRow.get(cell[0]).push(cell[1] + 1); }
-			if (i === 0 && !st.seen[padMode ? "whyPad" : "whyBasic"]) left.push(h("div", { class: "note" + (padMode ? " pad" : ""), text: padMode ? t.whyPad : t.whyBasic(n, k) }));
-			left.push(h("div", { class: "turn-part" }, hint(t.turnSquares), bitsStrip(turn.map((b) => bits[b.bit]), roles),
-				byRow.size ? hint(t.handCells([...byRow].map(([r, cs]) => [r + 1, cs]))) : null));
-			if (padMode) {
-				// + the key's piece, on the clock of N
-				const K = m.pad[i], sum = S.clockStep(P, K, n, 1), raw = P + K, keyThings = st.plan.padAs === "string" ? (!st.plan.padForm ? things : st.padDict ? st.padDict.things : null) : null;
-				left.push(h("div", { class: "turn-key" }, clockSvg(n, P, K, 1), h("div", { class: "stack tight" },
-					h("div", { class: "row key-line" }, h("span", { class: "pad-label", text: t.turnKey(i + 1) }), keyThings ? icon(keyThings[K], 30) : null, h("b", { class: "bits-num", text: String(K) })),
-					h("code", { class: "turn-sum", text: `${P} + ${K} = ${raw}` + (sum.wrapped ? ` → ${raw} − ${n} = ${sum.value}` : "") }),
-					hint(t.turnClock(P, K, n, sum.wrapped)))));
+		// the QR code: its fixed squares, the data squares of the turns so far, this turn's in blue
+		const fixed = S.functionModules(size), data = new Map(cells.map(([r, c], j) => [r * size + c, j]));
+		const upto = Math.min(ndata, (i + 1) * k);
+		const modules = (r, c) => fixed.has(r * size + c) ? qr.getModule(c, r) : data.get(r * size + c) < upto ? bits[data.get(r * size + c)] === 1 : null;
+		const turnCells = turn.filter((x) => x.cell).map((x) => x.cell);
+		const stageOf = (arrowId) => stages.findIndex((s) => s.arrows.includes(arrowId));
+		const at = (id) => stages.findIndex((s) => s.id === id);
+
+		// the slide as it is at stage p (0 … last); turning: the dictionaries reaching their row now turn to it
+		const groups = {}, arrowGroups = lay.arrows.map(() => svg("g"));
+		["qr", "bits", "number", "key", "keyDict", "keyNumber", "clock", "seedDict", "seedString"].forEach((g) => { groups[g] = svg("g"); });
+		const wait = (el, on) => on ? el : svg("g", { class: "tn-wait" }, el);
+		function draw(p, turning, onRun) {
+			const reached = (id) => at(id) >= 0 && at(id) <= p;
+			groups.qr.replaceChildren(V.qr({ box: b.qr, size, modules, turnCells }));
+			groups.bits.replaceChildren(V.bits({ box: b.bits, bits: turn.map((x) => reached("bits") ? bits[x.bit] : null), roles, colour: "qr" }));
+			groups.number.replaceChildren(V.number({ box: b.number, value: reached("number") ? P : null, colour: "qr" }));
+			if (pad) {
+				groups.key.replaceChildren(file ? keyFileColumn() : V.string({ box: b.keyString, orientation: "v", role: "reference", kind: "key", things: keyThings,
+					items: Array.from({ length: 7 }, (_, j) => { const x = i - 3 + j; return x < 0 || x >= L ? undefined : m.pad[x]; }), current: 3, firstPosition: i - 2 }));
+				const keyAt = at(file ? "key" : "keyNumber");
+				if (b.keyDict) groups.keyDict.replaceChildren(wait(V.dictionary({ box: b.keyDict, things: keyThings, mode: "reel", icon: "key",
+					value: p >= keyAt ? K : null, from: turning && p === keyAt ? 0 : undefined }), reached("key")));
+				groups.keyNumber.replaceChildren(V.number({ box: b.keyNumber, value: p >= keyAt ? K : null, colour: "key" }));
+				const clockAt = at("clock");
+				groups.clock.replaceChildren(p < clockAt ? svg("g") : V.clock({ box: b.clock, n, from: P, by: K, sign: 1, inputColour: "qr",
+					phase: p === clockAt ? "inputs" : p === at("out") && turning ? "run" : "done", onDone: p === at("out") ? onRun : undefined }));
 			}
-			// in pad mode only the piece's row, unless the whole table is asked for (and then from turn to turn)
-			const whole = !padMode || st.wholeTable;
-			left.push(h("div", { class: "turn-part" }, collectionRow(things, C, k, null, !whole), hint(t.turnCollection(C)),
-					padMode ? h("div", { class: "row" }, h("button", { class: "btn ghost small", "aria-expanded": String(whole),
-						on: { click: () => { st.wholeTable = !whole; render(); } } }, whole ? t.tableOne : t.tableAll)) : null),
-				h("div", { class: "turn-piece" }, icon(things[C], 64), h("div", { class: "stack tight" }, h("b", { class: "name", text: things[C].name }), h("span", { text: t.turnPut }))),
-				(m.keyChanged || []).includes(i) ? h("div", { class: "note warn", text: t.seqKeyChanged }) : null);
-			// the last turns are the header (version and mask) and the padding: no squares of the QR code
-			if (roles.includes("header")) left.push(h("div", { class: "note" }, t.handHeader, " ", h("b", { text: t.handTemplate(size, qr.mask) })));
-			if (roles.includes("padding")) left.push(h("div", { class: "note", text: t.handPadding }));
-		} else left.push(h("div", { class: "note ok", text: "✓ " + t.handDone }), hint(t.handTemplate(size, qr.mask)),
-			h("div", { class: "note" + (padMode ? " pad" : ""), text: padMode ? t.endPad : t.endBasic }));
-		const nav = turnNav(
-			h("button", { class: "btn ghost", disabled: i === 0 ? "" : undefined, on: { click: () => turnGo(i - 1) } }, "◀ " + t.prevPiece),
-			h("span", { class: "meta", text: t.handStep(Math.min(i + 1, L), L) }),
-			done ? null : h("button", { class: "btn", on: { click: () => turnGo(i + 1) } }, t.nextPiece + " ▶"),
-			h("button", { class: "btn ghost small push", on: { click: () => turnGo(done ? 0 : L) } }, done ? t.handRestart : t.seeAll));
-		// on the right, the QR code with this turn's squares, and the string so far
-		return tool(panel(...stepHead("make"), alert, nav, ...left, v.tabs, ...rest),
-			panel(turnGrid(size, qr, painted, turn, (bit) => turnGo(Math.floor(bit / k))),
-				h("div", { class: "map turn-map" }, drawSeq(things, done ? m.symbols : m.symbols.slice(0, i + 1), { current: done ? -1 : i, onPick: turnGo, form }))));
+			groups.seedDict.replaceChildren(wait(V.dictionary({ box: b.seedDict, things, mode: "reel", icon: "seed",
+				value: reached("dict") ? C : null, from: turning && p === at("dict") ? 0 : undefined }), reached("dict")));
+			// your string: those before the turn in place, the slot (filled at the last stage), the rest to come
+			groups.seedString.replaceChildren(V.string({ box: b.seedString, role: "build", kind: "seed", things, current: 6, firstPosition: i - 5,
+				items: Array.from({ length: 13 }, (_, j) => { const x = i - 6 + j; return x < 0 || x >= L ? undefined : x < i ? m.symbols[x] : x === i && reached("slot") ? C : null; }) }));
+			lay.arrows.forEach((a, j) => {
+				const s = stageOf(a.id);
+				arrowGroups[j].replaceChildren(V.arrow({ points: a.points, colour: a.colour, state: s === p ? "current" : s < p ? "past" : "hidden" }));
+			});
+		}
+		// the key file's characters around the turn, a column like the key string's: the turn's framed
+		function keyFileColumn() {
+			const box = b.keyString, top = 14, pitch = (box.h - top) / 7, parts = [svg("text", { x: box.x + box.w / 2, y: box.y + 11, "font-size": 11, "text-anchor": "middle", class: "v-t v-icon" }, ICON.key)];
+			for (let j = 0; j < 7; j++) {
+				const x = i - 3 + j, y = box.y + top + pitch * (j + 0.5);
+				if (x < 0 || x >= L) continue;
+				if (j === 3) parts.push(svg("rect", { x: box.x, y: y - pitch / 2 + 0.5, width: box.w, height: pitch - 1, rx: 3, class: "v-turn-frame" }));
+				parts.push(svg("text", { x: box.x + 9, y: y + 3, "font-size": j === 3 ? 10 : 8, "text-anchor": "middle", class: "v-t v-pos" + (j === 3 ? " v-pos-current v-c-qr v-bold" : "") }, x + 1),
+					svg("text", { x: box.x + 25, y: y + 5, "font-size": 14, "text-anchor": "middle", class: "v-t v-mono v-bold v-c-key" + (j === 3 ? "" : " tn-dim") }, S.PAD_DIGITS[m.pad[x]]));
+			}
+			return svg("g", { class: "v v-file", role: "img", "aria-label": t.padFileTitle }, parts);
+		}
+
+		function body(step) {
+			const kids = [groups.qr, groups.bits, groups.number, groups.key, groups.keyDict, groups.keyNumber, groups.clock, groups.seedDict, groups.seedString, ...arrowGroups];
+			if (explaining) draw(step, true);
+			else if (fresh) {
+				// on arriving: the cycle plays, a relation at a time; the clock turns step by step, then it goes on
+				const live = () => groups.seedString.isConnected !== false;
+				const play = (p) => {
+					if (!live()) return;
+					const out = stages[p].id === "out";
+					draw(p, true, out ? () => setTimeout(() => play(p + 1), 300) : undefined);
+					if (p < last && !out) setTimeout(() => play(p + 1), 450);
+				};
+				play(0);
+			} else draw(last, false);
+			return h("div", { class: "dict-slide tn-slide" }, canvas(...kids));
+		}
+
+		// the sentences: one per relation (the first turns, or «?»); else what this turn has to say
+		const bitsText = turn.map((x) => bits[x.bit]).join("");
+		const say = (id) => ({
+			position: t.turnPosition(pos), bits: note || t.turnBitsAre, number: t.turnNumber(bitsText, P),
+			key: file ? t.turnKeyFile(pos, S.PAD_DIGITS[K], K) : t.turnKeyAt(pos), keyNumber: t.turnKeyNumber(K),
+			clock: t.turnClockOf(n), out: t.turnOut(C), dict: t.turnDict(C), slot: t.turnSlot(pos),
+		})[id];
+		const caption = explaining
+			? (s) => s === last && changed ? `${say("slot")} ${t.seqKeyChanged}` : say(stages[Math.min(s, last)].id)
+			: () => changed ? t.seqKeyChanged : note;
+
+		const listName = pad ? "list-a.txt" : "sequence.txt";
+		const shortcuts = [
+			{ icon: "⏩", label: t.seeAll, go: () => turnGo(L - 1) },
+			{ icon: "🧵", label: t.seqWhole, go: wholeString },
+			{ icon: "🖨", label: t.printIt, go: () => go("print") },
+			{ icon: "⤓", label: t.saveList, go: () => download(m.symbols.map((s, j) => `${j + 1}. ${things[s].name}`).join("\n") + "\n", listName, "text/plain") },
+			{ icon: "?", label: t.seqExplain, go: explainTurn },
+			...keyChangedWays(),
+		];
+		return {
+			count: `${pos}/${L}`, steps: explaining ? stages.length : 1, startStep: explaining && back ? last : 0, caption, shortcuts, help: explainTurn, body,
+			prev: i > 0 ? { go: () => turnGo(i - 1) } : undefined,
+			next: i < L - 1 ? { go: () => turnGo(i + 1) } : undefined,
+		};
 	}
 
 	// ---- make, 6: read it back --------------------------------------------------
@@ -1803,7 +1819,7 @@
 					on: { click: () => { download(S.writePadFile(m.pad, st.dict.things.length), "numbers.txt", "text/plain"); m.padKept = true; render(); } } }, t.padFileSave)) : null,
 				h("div", { class: "row forget" }, h("button", { class: "btn", disabled: unsaved ? "" : undefined, on: { click: () => {
 					if (!confirm(t.storeForgetAsk(st.mode))) return;
-					st.make = { seed: "", entropy: null, symbols: null, pos: 0, tab: "turn" };
+					st.make = { seed: "", entropy: null, symbols: null, turn: 0 };
 					st.read = freshRead(); st.gathered = {}; fingerprints.clear();
 					st.step.make = "plan"; st.at.make = "mode";
 					go("intro");
@@ -1817,11 +1833,6 @@
 	function legacyKey(e) {
 		if (/input|textarea|select/i.test(e.target.tagName)) return false;
 		const m = st.make, navKey = e.key === "ArrowRight" || e.key === "ArrowLeft" || e.key === " ";
-		const step = (obj, key, max) => {
-			if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); obj[key] = Math.min(max, (obj[key] || 0) + 1); render(); }
-			if (e.key === "ArrowLeft") { e.preventDefault(); obj[key] = Math.max(0, (obj[key] || 0) - 1); render(); }
-			return navKey;
-		};
 		// reading turn by turn: the arrows move among the turns read (the space bar is left to the buttons)
 		const rd = st.edit ? null : st.screen === "read" && st.step.read === "recover" && st.read.mode && st.read.dict && keyGiven() ? st.read
 			: st.screen === "make" && st.step.make === "check" && st.dict && m.symbols ? m.check : null;
@@ -1830,14 +1841,6 @@
 			if (e.key === "ArrowLeft") { e.preventDefault(); readGo(rd, rd.turn - 1); }
 			return navKey;
 		}
-		if (st.screen !== "make" || !m.symbols) return false;
-		if (st.step.make === "seq" && m.tab === "turn") {
-			if (!st.seen.howTo) return navKey;
-			if (e.key === "ArrowRight") { e.preventDefault(); turnGo((m.turn || 0) + 1); }
-			if (e.key === "ArrowLeft") { e.preventDefault(); turnGo((m.turn || 0) - 1); }
-			return navKey;
-		}
-		if (st.step.make === "seq" && m.tab === "walk") return step(m, "pos", m.symbols.length - 1);
 		return false;
 	}
 
@@ -2118,7 +2121,7 @@
 			h("div", { class: "noprint panel print-bar" },
 				h("div", { class: "alert" }, st.mode === "pad" ? t.printWarnPad : t.printWarn),
 				h("div", { class: "row" },
-					h("button", { class: "btn ghost", on: { click: () => toStep("make", "seq") } }, "◀ " + t.back),
+					h("button", { class: "btn ghost", on: { click: () => goSlide("make", "seq") } }, "◀ " + t.back),
 					h("button", { class: "btn push", on: { click: () => print() } }, t.printBtn))),
 			h("div", { class: "card sheet" },
 				h("h2", { text: w.sheetTitle }), h("p", { class: "help", text: w.sheetSub }),

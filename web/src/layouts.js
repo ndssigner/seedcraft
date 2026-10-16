@@ -51,7 +51,9 @@ const SeedcraftLayouts = (() => {
 	// string being built, its slot's position → the QR → its bits → their
 	// number; with a key, the key string's piece → its dictionary → its number,
 	// both numbers → the clock → the seed's dictionary → the slot.
-	function makeTurn({ pad, n }) {
+	// file: the key is a file, so its column holds the file's characters and
+	// its number comes straight from the turn's row (no key dictionary).
+	function makeTurn({ pad, n, file = false }) {
 		const bits = bitsOf(n);
 		const b = {
 			qr: box(20, 45, 95, 95),
@@ -76,21 +78,28 @@ const SeedcraftLayouts = (() => {
 		// the key string is a reference: vertical, its turn piece in the middle (y 131)
 		Object.assign(b, {
 			keyString: box(268, 40, 34, 182),
-			keyDict: box(320, 95, 86, 72),
-			keyNumber: box(320, 183, 86, 30),
 			clock: box(452, 50, 140, 136),
 			seedDict: box(479, 202, 86, 62),
 		});
 		const keyIn = clockModule(b.clock).inputs[1], keyX = keyIn.x + keyIn.w / 2;
+		// The key's number must reach its own (right) cell, so it goes over the
+		// top; the key string stands between the seed's number and the module, so
+		// the seed's can only go under it and up the outer corridor into the left
+		// cell: any route over the top would cross the key's.
+		const clockSeed = arrow("clockSeed", "number", "clock", "qr", [[165, 130], [165, 240], [436, 240], [436, 63], [452, 63]]);
+		const clockKey = (y) => arrow("clockKey", "keyNumber", "clock", "key", [[406, y], [420, y], [420, 38], [keyX, 38], [keyX, keyIn.y]]);
+		if (file) {
+			// the file's row → its number, level with it
+			b.keyNumber = box(320, 116, 86, 30);
+			arrows.push(arrow("keyNumber", "keyString", "keyNumber", "key", [[302, 131], [320, 131]]), clockSeed, clockKey(131));
+		} else {
+			Object.assign(b, { keyDict: box(320, 95, 86, 72), keyNumber: box(320, 183, 86, 30) });
+			arrows.push(
+				arrow("keyPiece", "keyString", "keyDict", "key", [[302, 131], [320, 131]]),
+				arrow("keyNumber", "keyDict", "keyNumber", "key", [[363, 167], [363, 183]]),
+				clockSeed, clockKey(198));
+		}
 		arrows.push(
-			arrow("keyPiece", "keyString", "keyDict", "key", [[302, 131], [320, 131]]),
-			arrow("keyNumber", "keyDict", "keyNumber", "key", [[363, 167], [363, 183]]),
-			// The key's number must reach its own (right) cell, so it goes over the
-			// top; the key string stands between the seed's number and the module, so
-			// the seed's can only go under it and up the outer corridor into the left
-			// cell: any route over the top would cross the key's.
-			arrow("clockSeed", "number", "clock", "qr", [[165, 130], [165, 240], [436, 240], [436, 63], [452, 63]]),
-			arrow("clockKey", "keyNumber", "clock", "key", [[406, 198], [420, 198], [420, 38], [keyX, 38], [keyX, keyIn.y]]),
 			arrow("output", "clock", "seedDict", "qr", [[522, 186], [522, 202]]),
 			arrow("slot", "seedDict", "seedSlot", "qr", [[522, 264], [522, 266], [352, 266], [352, 280]]));
 		return { boxes: b, arrows };

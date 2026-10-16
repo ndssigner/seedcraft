@@ -22,20 +22,21 @@ const SeedcraftJourneys = (() => {
 		["pieces", "gather"],
 		["dict", "dict"], ["dictHave", "dict"], ["keyDict", "dict"], ["keyDictHave", "dict"],
 		["keyWho", "key"], ["keyTool", "key"], ["keyThrow", "key"],
-		["seq", "seq"], ["check", "check"], ["store", "store"]];
+		["seed", "seq"], ["seq", "seq"], ["check", "check"], ["store", "store"]];
 	const READ = [["mode", "have"], ["form", "have"], ["size", "have"], ["dict", "have"], ["dictHave", "have"],
 		["keyAs", "have"], ["keyColl", "have"], ["keyForm", "have"], ["keyDict", "have"], ["keyDictHave", "have"], ["keyFile", "have"],
 		["recover", "recover"], ["seed", "seed"]];
 
 	// The slides there are now. s: { mode, padAs ("string" | "file"),
 	// padForm (the key's own collection, or null), dict, padDict (whether
-	// each dictionary is there yet) and, making one, keyWho ("me" | "device")
-	// and keyBy (what the key is being drawn with, once chosen) }.
+	// each dictionary is there yet) and, making one, keyWho ("me" | "device"),
+	// keyBy (what the key is being drawn with, once chosen) and made (whether
+	// the sequence is made: its turns follow the seed's words) }.
 	function slides(flow, s) {
 		const pad = s.mode === "pad", things = pad && s.padAs === "string", own = things && !!s.padForm;
 		const there = {
 			keyAs: pad, keyColl: things, keyForm: own, dictHave: !!s.dict, keyDict: own, keyDictHave: own && !!s.padDict,
-			keyWho: pad, keyTool: pad && s.keyWho === "me", keyThrow: pad && !!s.keyBy, keyFile: pad && s.padAs === "file",
+			keyWho: pad, keyTool: pad && s.keyWho === "me", keyThrow: pad && !!s.keyBy, seq: !!s.made, keyFile: pad && s.padAs === "file",
 		};
 		return (flow === "make" ? MAKE : READ).filter(([id]) => there[id] !== false).map(([id, step]) => ({ id, step }));
 	}
@@ -110,5 +111,21 @@ const SeedcraftJourneys = (() => {
 		return { bits, used, rejected, done: bits.length >= k };
 	}
 
-	return { BUY, PAD_BUY, buyFor, symbolsFor, slides, resolve, jump, pieces, nameProblem, checkOrder, throwParts };
+	// ---- a turn of the sequence, a relation at a time ------------------------
+	// The stages of a turn being made, in the cycle's order (the spec's «first
+	// turns explained»): each its id (what its caption says) and the arrows of
+	// layouts.js's makeTurn it reveals. pad: with a key; file: the key is a file
+	// (its number is read straight from its row: no key dictionary). The clock's
+	// two inputs are one stage, and so is what comes out of it (no arrow).
+	function turnStages({ pad = false, file = false } = {}) {
+		const st = (id, ...arrows) => ({ id, arrows });
+		if (!pad) return [st("position", "position"), st("bits", "bits"), st("number", "number"), st("dict", "dict"), st("slot", "slot")];
+		return [st("position", "position"), st("bits", "bits"), st("number", "number"),
+			...(file ? [st("key", "keyNumber")] : [st("key", "keyPiece"), st("keyNumber", "keyNumber")]),
+			st("clock", "clockSeed", "clockKey"), st("out"), st("dict", "output"), st("slot", "slot")];
+	}
+	// How many first turns are explained a relation at a time
+	const EXPLAINED = 3;
+
+	return { BUY, PAD_BUY, EXPLAINED, turnStages, buyFor, symbolsFor, slides, resolve, jump, pieces, nameProblem, checkOrder, throwParts };
 })();
