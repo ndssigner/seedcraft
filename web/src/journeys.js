@@ -1,6 +1,7 @@
 // Seedcraft Sequences, the web tool's slides: the two journeys as lists of
 // slides (which ones there are, in which order, under which step of the
-// guide), and how many pieces of each kind to get. Pure: no DOM, no texts,
+// guide), how many pieces of each kind to get, and the rules of naming and
+// checking your own dictionary. Pure: no DOM, no texts,
 // so web/test.mjs can check it in Node. app.js draws each slide.
 "use strict";
 
@@ -71,5 +72,29 @@ const SeedcraftJourneys = (() => {
 		return { keyFile: pad && !things, groups };
 	}
 
-	return { BUY, PAD_BUY, buyFor, symbolsFor, slides, resolve, jump, pieces };
+	// ---- your own dictionary, a piece per slide ----------------------------
+	// What stops piece i's name: "empty", "dup" (another piece has it, case
+	// and spaces aside), or null.
+	function nameProblem(things, i) {
+		const name = String((things[i] && things[i].name) || "").trim().toLowerCase();
+		if (!name) return "empty";
+		return things.some((y, j) => j !== i && String(y.name || "").trim().toLowerCase() === name) ? "dup" : null;
+	}
+	// v's bits, as many as a number below n takes, the first the highest
+	const bitsOf = (v, n) => {
+		const k = Math.max(1, Math.round(Math.log2(n)));
+		return Array.from({ length: k }, (_, j) => (v >> (k - 1 - j)) & 1);
+	};
+	// The order the pieces are checked in: every number below n once, shuffled
+	// (random(): [0, 1)), so the next one's number is never the obvious one.
+	function checkOrder(n, random) {
+		const out = Array.from({ length: n }, (_, i) => i);
+		for (let i = n - 1; i > 0; i--) {
+			const j = Math.min(i, Math.floor(random() * (i + 1)));
+			[out[i], out[j]] = [out[j], out[i]];
+		}
+		return out;
+	}
+
+	return { BUY, PAD_BUY, buyFor, symbolsFor, slides, resolve, jump, pieces, nameProblem, bitsOf, checkOrder };
 })();

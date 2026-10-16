@@ -426,7 +426,7 @@
 		Slides.setLang(st.lang);
 		// what scrolls inside a legacy slide (the map, the two columns) keeps its place across a redraw
 		const SCROLLERS = ".slide-legacy, .map, .flow-body, .flow-body .tool > .panel";
-		const view = [st.screen, st.at[st.screen], st.make.tab, st.make.key && st.make.key.by, st.edit && st.edit.kind, st.edit && st.edit.target].join();
+		const view = [st.screen, st.at[st.screen], st.make.tab, st.make.key && st.make.key.by, st.edit && st.edit.kind, st.edit && st.edit.target, st.edit && st.edit.i].join();
 		const kept = view === lastView ? [...$("app").querySelectorAll(SCROLLERS)].map((e) => e.scrollTop) : [];
 		lastView = view;
 		Slides.show(slideNow(view));
@@ -484,11 +484,13 @@
 		const list = journeyOf(flow), at = st.at[flow] = J.resolve(flow, list, st.at[flow]);
 		const cur = list.find((x) => x.id === at), group = list.filter((x) => x.step === cur.step);
 		st.step[flow] = cur.step;
+		// naming or checking a dictionary, the count is the piece's
+		const ed = st.edit, count = ed ? `${ed.i + 1}/${ed.kind === "name" ? ed.things.length : ed.order.length}` : group.length > 1 ? `${group.indexOf(cur) + 1}/${group.length}` : null;
 		const guide = stepsOf(flow).map((step) => ({ name: stepName(flow, step), current: step === cur.step,
-			count: step === cur.step && group.length > 1 ? `${group.indexOf(cur) + 1}/${group.length}` : null,
+			count: step === cur.step ? count : null,
 			go: () => goSlide(flow, J.jump(journeyOf(flow), step, (id) => slideDone(flow, id))) }));
-		// naming or checking a dictionary: its own way on, piece by piece (an old view, Task 5's)
-		const d = st.edit ? old(dictStep) : SLIDES[flow][at]();
+		// naming or checking a dictionary: a slide per piece, with its own way on
+		const d = st.edit ? (st.edit.kind === "name" ? nameSlide(flow) : checkSlide(flow)) : SLIDES[flow][at]();
 		const before = along(flow, at, -1);
 		const prev = d.hidden ? null : d.prev !== undefined ? d.prev || (before ? null : toStart)
 			: before ? { label: d.legacy ? "◀ " + stepName(flow, journeyOf(flow).find((x) => x.id === before).step) : undefined, go: () => goSlide(flow, along(flow, at, -1)) } : toStart;
@@ -505,7 +507,6 @@
 		return { legacy: true, body: () => h("div", { class: "flow-body" }, body), hidden: !!o.hidden, ready: o.ready !== false, onNext: o.onNext,
 			prev: o.prev !== undefined ? pair(o.prev) : undefined, next: o.next !== undefined ? pair(o.next, o.ready !== false) : undefined };
 	}
-	const old = (view) => { navOpts = {}; return legacy(view()); };
 
 	// ---- small building blocks ----------------------------------------
 	const field = (label, ...children) => h("div", { class: "field" }, h("div", { class: "label", text: label }), ...children);
@@ -747,7 +748,7 @@
 		const kc = keyColl(), p = st.screen === "read" ? st.read : st.plan;
 		if (f === p.padForm) return true;
 		if (kc.dict && !confirm(T().keyCollChangeAsk)) return false;
-		p.padForm = f; p.chosen.padForm = false; kc.set(null); st.ways[st.screen].keyDict = null;
+		p.padForm = f; p.chosen.padForm = false; kc.set(null); st.ways[st.screen].keyDict = null; st.ways[st.screen].keyNameDraft = null;
 		return true;
 	}
 
@@ -837,7 +838,7 @@
 	};
 
 	// ---- the dictionary: ready-made, your own, or one saved before ----------------
-	// (naming it piece by piece, checking it: the old views, until Task 5)
+	// (naming it piece by piece, checking it: nameSlide, checkSlide)
 	// a dictionary file opened: its pieces, or what is wrong with it (n: the size it must have)
 	function dictFileInput(n, onThings, onError) {
 		const t = T();
@@ -853,6 +854,12 @@
 		} } });
 	}
 	const blankThings = (n) => Array.from({ length: n }, () => ({ name: "", emoji: "", colour: "", photo: "" }));
+	// your own dictionary, being named: kept in the journey's ways (key: nameDraft,
+	// or keyNameDraft for the key's), so leaving it half named loses nothing
+	function nameDraft(ways, key, target, n) {
+		if (!ways[key] || ways[key].things.length !== n) ways[key] = { kind: "name", target, things: blankThings(n), i: 0, draft: key };
+		return ways[key];
+	}
 	function dictChoice(flow) {
 		const t = T(), ways = st.ways[flow];
 		const dict = seedColl().dict, n = dict ? dict.things.length : flow === "read" ? st.read.n : st.plan.n, formId = flow === "read" ? st.read.form : st.plan.form;
@@ -865,7 +872,7 @@
 		return decide({ question: t.dictQ, options: dictOptions(n, formId, "seed"), chosen,
 			choose: (id) => { ways.error = ""; if (id === "ready") pick(set); else if (id === "name") ways.dict = "name"; else if (input) input.click(); },
 			ready: naming || !!dict, caption: () => ways.error || null,
-			next: naming ? { go: () => editDict({ kind: "name", things: blankThings(n), i: 0 }), ready: true } : undefined,
+			next: naming ? { go: () => editDict(nameDraft(ways, "nameDraft", undefined, n)), ready: true } : undefined,
 			extra: () => (input = dictFileInput(0, (things) => { if (changeDict({ things, checked: false, way: "open" })) ways.dict = "open"; render(); },
 				(msg) => { ways.error = msg; render(); })),
 			help: helpOf(t.dictBeforeTitle, t.dictIntro, t.dictChecks),
@@ -883,7 +890,7 @@
 		return decide({ question: t.keyDictQ, options: dictOptions(n, formId, "key"), chosen,
 			choose: (id) => { ways.keyError = ""; if (id === "ready") pick(set); else if (id === "name") ways.keyDict = "name"; else if (input) input.click(); },
 			ready: naming || !!kc.dict, caption: () => ways.keyError || null,
-			next: naming ? { go: () => editDict({ kind: "name", target: "pad", things: blankThings(n), i: 0 }), ready: true } : undefined,
+			next: naming ? { go: () => editDict(nameDraft(ways, "keyNameDraft", "pad", n)), ready: true } : undefined,
 			extra: () => (input = dictFileInput(n, (things) => { keyColl().set({ things, checked: false, way: "open" }); ways.keyDict = "open"; render(); },
 				(msg) => { ways.keyError = msg; render(); })),
 			shortcuts: SETS.filter((x) => x.things.length >= n && x !== set).map((x) => ({ icon: x.icon, label: x[st.lang], go: () => { pick(x); render(); } })) });
@@ -954,9 +961,8 @@
 
 
 	// ---- make, 3 (and read, 1): the dictionary ------------------------------
-	// naming or checking has its own way on, piece by piece: the bar waits
-	const dictStep = () => st.edit.kind === "name" ? (setNav({ hidden: true }), nameScreen()) : (setNav({ hidden: true }), checkScreen());
-	function editDict(edit) { st.edit = edit; render(); scrollTo(0, 0); }
+	// naming or checking it: a slide per piece (nameSlide, checkSlide), its own way on
+	function editDict(edit) { st.edit = edit; render(); }
 
 	// ---- dictionary ----------------------------------------------------
 	function dictFromFile(text, name) {
@@ -994,8 +1000,8 @@
 			panel(
 				d.checked ? h("div", { class: "note ok" }, "✓ " + t.dictChecked) : reading ? null : h("div", { class: "note warn", text: t.dictNotChecked }),
 				h("div", { class: "row" },
-					h("button", { class: d.checked || reading ? "btn ghost" : "btn", on: { click: () => editDict({ kind: "check", i: 0 }) } }, t.dictCheck),
-					h("button", { class: "btn ghost", on: { click: () => editDict({ kind: "name", things: d.things.map((x) => ({ ...x, symbolTyped: !!x.emoji && x.emoji !== initialsOf(x.name) })), i: 0 }) } }, t.dictEdit),
+					h("button", { class: d.checked || reading ? "btn ghost" : "btn", on: { click: () => startCheck() } }, t.dictCheck),
+					h("button", { class: "btn ghost", on: { click: () => editDict({ kind: "name", things: editable(d.things), i: 0 }) } }, t.dictEdit),
 					reading ? h("button", { class: "btn ghost", on: { click: () => { if (changeDict(null)) { st.ways.read.dict = null; render(); } } } }, t.dictOther) : null),
 				reading ? null : field(t.dictSave, h("p", { class: "meta", text: t.dictSaveHelp }),
 					h("div", { class: "row" },
@@ -1018,109 +1024,147 @@
 			h("div", { class: "dictline" }, h("span", { class: "minis" }, pd.things.map((x) => icon(x, 22)))),
 			pd.checked ? h("div", { class: "note ok" }, "✓ " + t.dictChecked) : h("div", { class: "note warn", text: t.dictNotChecked }),
 			h("div", { class: "row" },
-				h("button", { class: pd.checked ? "btn ghost small" : "btn small", on: { click: () => editDict({ kind: "check", target: "pad", i: 0 }) } }, t.dictCheck),
-				h("button", { class: "btn ghost small", on: { click: () => editDict({ kind: "name", target: "pad", things: pd.things.map((x) => ({ ...x, symbolTyped: !!x.emoji && x.emoji !== initialsOf(x.name) })), i: 0 }) } }, t.dictEdit),
+				h("button", { class: pd.checked ? "btn ghost small" : "btn small", on: { click: () => startCheck("pad") } }, t.dictCheck),
+				h("button", { class: "btn ghost small", on: { click: () => editDict({ kind: "name", target: "pad", things: editable(pd.things), i: 0 }) } }, t.dictEdit),
 				h("button", { class: "btn ghost small", on: { click: () => { kc.set(null); ways.keyDict = null; render(); } } }, t.dictOther)));
 	}
 
-	// naming the pieces one by one
-	function nameScreen() {
-		const t = T(), ed = st.edit, n = ed.things.length, x = ed.things[ed.i];
-		const own = st.screen === "read" ? st.read.form : st.plan.form, form = ed.target === "pad" ? keyColl().form || own : own;
-		const err = h("div");
+	// ---- your own dictionary, a slide per piece ------------------------------------
+	// Naming: «Which piece will be 5?». On the left the dictionary's little box
+	// filling up, the row of the piece being named framed; in the centre its
+	// number, big, and its bits; on the right the piece, its name, a colour and
+	// a photo. Checking: «Which number is this piece?», in a shuffled order, the
+	// box filling up as each one is answered. The key's own collection: the
+	// same slides, with ⚿. Recovering, the same, on the reading's own
+	// dictionaries (seedColl, keyColl): never the backup's.
+	const editColl = (ed) => ed.target === "pad" ? keyColl() : seedColl();
+	const editIcon = (ed) => ed.target === "pad" ? "key" : "seed";
+	// the canvas (layouts.js's 680 × 350) and where each thing goes on it
+	const DICT_BOX = { x: 24, y: 70, w: 196, h: 268 };
+	const NAME_AT = { number: { x: 244, y: 104, w: 184, h: 72 }, bits: { x: 252, y: 188, w: 168, h: 28 }, piece: { x: 452, y: 66, w: 204, h: 128 } };
+	const CHECK_AT = { piece: { x: 236, y: 76, w: 196, h: 230 } };
+	const canvas = (...kids) => svg("svg", { class: "dict-canvas", viewBox: "0 0 680 350" }, ...kids);
+	function startCheck(target) {
+		const d = (target === "pad" ? keyColl() : seedColl()).dict, rand = () => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
+		editDict({ kind: "check", target, i: 0, order: J.checkOrder(d.things.length, rand), answered: [], wrong: null });
+	}
+	// the things of a dictionary, to edit (the symbol typed by hand, if it is not the initials)
+	const editable = (things) => things.map((x) => ({ ...x, symbolTyped: !!x.emoji && x.emoji !== initialsOf(x.name) }));
+
+	function nameSlide(flow) {
+		const t = T(), ed = st.edit, n = ed.things.length, x = ed.things[ed.i], icon = editIcon(ed);
+		const own = flow === "read" ? st.read.form : st.plan.form, form = ed.target === "pad" ? keyColl().form || own : own;
+		const problem = () => J.nameProblem(ed.things, ed.i);
+		// what changes as the name is typed, redrawn in place (the field keeps its focus)
+		const dict = svg("g"), piece = svg("g");
+		const draw = () => {
+			dict.replaceChildren(V.dictionary({ box: DICT_BOX, things: ed.things, mode: "static", value: ed.i, icon }));
+			piece.replaceChildren(V.piece({ box: NAME_AT.piece, thing: x }));
+		};
+		draw();
+		const err = h("p", { class: "dict-err", role: "alert" });
+		const tell = () => { const p = problem(); err.textContent = p === "dup" ? t.errDictDupOne(x.name.trim()) : ""; return p; };
+		tell();
+		// on: the next piece, or once the last is named, the dictionary, then checking it
+		function forward() {
+			if (problem()) return;
+			if (ed.i < n - 1) { ed.i++; render(); return; }
+			const bad = ed.things.findIndex((_, j) => J.nameProblem(ed.things, j));
+			if (bad >= 0 || dictProblem(ed.things)) { ed.i = Math.max(0, bad); render(); return; }
+			const things = ed.things.map(({ symbolTyped, ...y }) => ({ ...y, name: y.name.trim() }));
+			editColl(ed).set({ things, checked: false, way: "name" });
+			if (ed.draft) st.ways[flow][ed.draft] = null;
+			st.at[flow] = ed.target === "pad" ? "keyDictHave" : "dictHave";
+			startCheck(ed.target);
+		}
 		// the symbol follows the name (its initials) until it is typed by hand
-		const nameIn = h("input", { type: "text", class: "big-input", value: x.name, placeholder: t.forms[form].namePh, autocomplete: "off", "aria-label": t.thingName,
+		const nameIn = h("input", { type: "text", class: "dict-name", value: x.name, placeholder: t.forms[form].namePh, autocomplete: "off", "aria-label": t.nameQ(ed.i),
 			on: { input: (e) => {
 				x.name = e.target.value;
-				if (!x.symbolTyped && !x.symbol) { x.emoji = initialsOf(x.name); symbolIn.value = x.emoji; }
-				drawStrip(); preview.replaceChildren(icon(x, 96));
-			}, keydown: (e) => { if (e.key === "Enter") next(); } } });
-		const symbolIn = h("input", { type: "text", class: "emoji", value: x.emoji || x.symbol || "", placeholder: "AB", "aria-label": t.thingSymbol, title: t.thingSymbolHelp, maxlength: 8,
-			on: { input: (e) => { x.emoji = e.target.value.trim(); x.symbolTyped = !!x.emoji; if (!x.emoji && !x.symbol) x.emoji = initialsOf(x.name); drawStrip(); preview.replaceChildren(icon(x, 96)); } } });
-		const preview = h("div", { class: "preview" }, icon(x, 96));
+				if (!x.symbolTyped && !x.symbol) x.emoji = initialsOf(x.name);
+				draw(); Slides.setReady(!tell());
+			}, keydown: (e) => { if (e.key === "Enter") { e.preventDefault(); forward(); } } } });
+		nameIn.value = x.name;
 		const photoIn = h("input", { type: "file", accept: "image/*", capture: "environment", class: "hidden", on: { change: async (e) => {
 			const f = e.target.files[0];
 			if (!f) return;
-			try { x.photo = await photoOf(f); render(); } catch (z) { err.replaceChildren(errorBox(t.errPhoto)); }
+			try { x.photo = await photoOf(f); render(); } catch (z) { err.textContent = t.errPhoto; }
 		} } });
-		// its colour: one of the beads' colours, any other, or none
-		const colours = h("div", { class: "swatches", role: "group", "aria-label": t.thingColour });
-		const setColour = (c) => { x.colour = c; drawColours(); drawStrip(); preview.replaceChildren(icon(x, 96)); };
-		function drawColours() {
-			const swatch = (c, label) => {
-				const b = h("button", { class: "swatch" + (c ? "" : " none") + (x.colour === c ? " on" : ""), title: label, "aria-label": label,
-					"aria-pressed": String(x.colour === c), on: { click: () => setColour(c) } });
-				if (c) b.style.setProperty("--c", c);
-				return b;
-			};
-			const other = x.colour && !BEAD_COLOURS.some((b) => b.colour === x.colour);
-			colours.replaceChildren(swatch("", t.colourNone), ...BEAD_COLOURS.map((b) => swatch(b.colour, b.name[st.lang])),
-				h("label", { class: "swatch-any" + (other ? " on" : "") }, h("input", { type: "color", value: x.colour || "#7f7f7f",
-					on: { input: (e) => setColour(e.target.value.toLowerCase()) } }), t.colourOther));
-		}
-		drawColours();
-		const strip = h("div", { class: "strip" });
-		function drawStrip() {
-			strip.replaceChildren(...ed.things.map((y, j) => h("button", { class: "mini" + (j === ed.i ? " on" : ""), title: y.name || "?",
-				on: { click: () => { ed.i = j; render(); } } }, h("span", { class: "num", text: String(j) }), icon(y, 28, false, j === ed.i))));
-		}
-		drawStrip();
-		const valid = () => {
-			if (!x.name.trim()) return t.errDictName;
-			if (ed.things.some((y, j) => j !== ed.i && y.name.trim().toLowerCase() === x.name.trim().toLowerCase())) return t.errDictDupOne(x.name.trim());
-			return "";
+		const dot = h("span", { class: "dict-dot" + (x.colour ? "" : " none"), "aria-hidden": "true" });
+		if (x.colour) dot.style.setProperty("--c", x.colour);
+		setTimeout(() => { if (document.activeElement !== nameIn && !document.querySelector(".slide-popup")) nameIn.focus(); }, 0);
+		return {
+			question: t.nameQ(ed.i),
+			help: helpOf(t.dictName, t.nameHelp, t.dictChecks),
+			shortcuts: [{ icon: "Aa", label: t.thingSymbol, go: () => symbolPopup(x) }],
+			prev: { go: () => { if (ed.i > 0) { ed.i--; render(); } else editDict(null); } },
+			next: { label: ed.i < n - 1 ? undefined : "✓ " + t.dictDone, go: forward, ready: !problem() },
+			body: () => h("div", { class: "dict-slide" },
+				canvas(dict, V.number({ box: NAME_AT.number, value: ed.i, colour: icon }), V.bits({ box: NAME_AT.bits, bits: J.bitsOf(ed.i, n), colour: icon }), piece),
+				h("div", { class: "dict-form" }, nameIn,
+					h("div", { class: "dict-buttons" },
+						h("button", { type: "button", class: "btn ghost", on: { click: () => colourPopup(x) } }, dot, t.pieceColour),
+						h("button", { type: "button", class: "btn ghost", title: t.photoTake, on: { click: () => photoIn.click() } }, x.photo ? t.photoAgain : t.piecePhoto),
+						x.photo ? h("button", { type: "button", class: "btn ghost", title: t.photoRemove, "aria-label": t.photoRemove, on: { click: () => { x.photo = ""; render(); } } }, "✕") : null,
+						photoIn),
+					err)),
 		};
-		function next() {
-			const problem = valid();
-			if (problem) { err.replaceChildren(errorBox(problem)); return; }
-			if (ed.i < n - 1) { ed.i++; render(); return; }
-			const all = dictProblem(ed.things);
-			if (all) { err.replaceChildren(errorBox(all)); return; }
-			const things = ed.things.map(({ symbolTyped, ...y }) => ({ ...y, name: y.name.trim() }));
-			if (ed.target === "pad") keyColl().set({ things, checked: false, way: "name" });
-			else seedColl().set({ things, checked: false, way: "name" });
-			// once checked, the dictionary as it is
-			st.at[st.screen] = ed.target === "pad" ? "keyDictHave" : "dictHave";
-			editDict({ kind: "check", i: 0, target: ed.target });
-		}
-		const side = (j) => j >= 0 && j < n
-			? h("div", { class: "side" }, hint(j < ed.i ? t.prevPiece : t.nextPiece), icon(ed.things[j], 44), h("div", { class: "num", text: `${j} · ${ed.things[j].name || "?"}` }))
-			: h("div", { class: "side" });
-		setTimeout(() => nameIn.focus(), 0);
-		return tool(
-			panel(
-				h("div", { class: "row between" }, title(t.dictName), h("span", { class: "meta", text: t.pieceOf(ed.i, n) })),
-				h("p", { class: "lead", text: t.nameHelp }),
-				h("div", { class: "wizard" }, side(ed.i - 1), h("div", { class: "centre" }, preview), side(ed.i + 1)),
-				h("div", { class: "name-row" }, field(t.thingName, nameIn), field(t.thingSymbol, symbolIn)),
-				field(t.thingColour, colours),
-				h("div", { class: "row end" },
-					h("button", { class: "btn ghost small", on: { click: () => photoIn.click() } }, x.photo ? t.photoAgain : t.photoTake),
-					x.photo ? h("button", { class: "btn ghost small", on: { click: () => { x.photo = ""; render(); } } }, t.photoRemove) : null, photoIn),
-				err,
-				h("div", { class: "row" },
-					h("button", { class: "btn ghost", on: { click: () => { if (ed.i > 0) { ed.i--; render(); } else editDict(null); } } }, "◀ " + (ed.i > 0 ? t.back : t.tabDict)),
-					h("button", { class: "btn push", on: { click: next } }, ed.i < n - 1 ? t.next + " ▶" : "✓ " + t.dictDone))),
-			panel(field(t.wholeDict, strip)));
+	}
+	// a piece's colour: one of the beads' colours, any other, or none (a tap chooses and closes)
+	function colourPopup(x) {
+		const t = T();
+		const pick = (c) => { x.colour = c; Slides.closePopup(); };
+		const swatch = (c, label) => {
+			const b = h("button", { type: "button", class: "swatch" + (c ? "" : " none") + (x.colour === c ? " on" : ""), title: label, "aria-label": label,
+				"aria-pressed": String(x.colour === c), on: { click: () => pick(c) } });
+			if (c) b.style.setProperty("--c", c);
+			return b;
+		};
+		const other = !!x.colour && !BEAD_COLOURS.some((b) => b.colour === x.colour);
+		Slides.popup(h("div", { class: "dict-colours" }, h("h2", { text: t.thingColour }),
+			h("div", { class: "swatches", role: "group", "aria-label": t.thingColour }, swatch("", t.colourNone), ...BEAD_COLOURS.map((b) => swatch(b.colour, b.name[st.lang])),
+				h("label", { class: "swatch-any" + (other ? " on" : "") }, h("input", { type: "color", value: x.colour || "#7f7f7f",
+					on: { change: (e) => pick(e.target.value.toLowerCase()) } }), t.colourOther))), { label: t.thingColour, onClose: () => render() });
+	}
+	// the symbol drawn on it, if not its initials («⋯»)
+	function symbolPopup(x) {
+		const t = T();
+		const input = h("input", { type: "text", class: "emoji", value: x.emoji || x.symbol || "", placeholder: "AB", maxlength: 8, "aria-label": t.thingSymbol,
+			on: { input: (e) => { x.emoji = e.target.value.trim(); x.symbolTyped = !!x.emoji; if (!x.emoji && !x.symbol) x.emoji = initialsOf(x.name); },
+				keydown: (e) => { if (e.key === "Enter") { e.preventDefault(); Slides.closePopup(); } } } });
+		input.value = x.emoji || x.symbol || "";
+		Slides.popup(h("div", { class: "slide-help" }, h("h2", { text: t.thingSymbol }), h("p", { text: t.thingSymbolHelp }), input), { label: t.thingSymbol, onClose: () => render() });
 	}
 
-	// a round of checking against the real thing
-	function checkScreen() {
-		const t = T(), ed = st.edit, d = ed.target === "pad" ? keyColl().dict : seedColl().dict, n = d.things.length, x = d.things[ed.i];
-		return h("div", { class: "narrow" }, panel(
-			h("div", { class: "row between" }, title(t.dictCheck), h("span", { class: "meta", text: t.pieceOf(ed.i, n) })),
-			h("div", { class: "wizard" },
-				h("div", { class: "side" }, ed.i > 0 ? [hint(t.prevPiece), icon(d.things[ed.i - 1], 44)] : null),
-				h("div", { class: "centre" }, icon(x, 96), h("div", { class: "name", text: x.name })),
-				h("div", { class: "side" }, ed.i < n - 1 ? [hint(t.nextPiece), icon(d.things[ed.i + 1], 44)] : null)),
-			h("p", { class: "question", text: t.checkAsk(ed.i) }),
-			bar((ed.i + 1) / n),
-			h("div", { class: "row" },
-				h("button", { class: "btn ghost", on: { click: () => editDict({ kind: "name", target: ed.target, things: d.things.map((y) => ({ ...y, symbolTyped: !!y.emoji && y.emoji !== initialsOf(y.name) })), i: ed.i }) } }, "✗ " + t.checkNo),
-				h("button", { class: "btn push", on: { click: () => {
-					if (ed.i < n - 1) { ed.i++; render(); return; }
-					d.checked = true; editDict(null);
-				} } }, "✓ " + t.checkYes))));
+	function checkSlide(flow) {
+		const t = T(), ed = st.edit, d = editColl(ed).dict, n = d.things.length, v = ed.order[ed.i], x = d.things[v], icon = editIcon(ed);
+		const right = ed.answered.includes(v);
+		// the box fills up with the pieces answered; the rest are still empty rows
+		const shown = d.things.map((y, j) => ed.answered.includes(j) ? y : { name: "" });
+		const answer = (k) => {
+			if (k === v) { if (!right) ed.answered.push(v); ed.wrong = null; } else ed.wrong = k;
+			render();
+			if (k === v && $("slide-next")) $("slide-next").focus();
+		};
+		const cols = n <= 4 ? n : n <= 16 ? 4 : 8;
+		const numbers = h("div", { class: "dict-numbers c" + cols, role: "group", "aria-label": t.checkQ },
+			Array.from({ length: n }, (_, k) => h("button", { type: "button", class: "dict-n" + (right && k === v ? " right" : "") + (ed.wrong === k ? " wrong" : ""),
+				disabled: right || undefined, "aria-pressed": String(right && k === v), on: { click: () => answer(k) } }, String(k))));
+		const wrong = ed.wrong !== null && !right ? h("div", { class: "dict-wrong", role: "alert" }, h("p", { text: t.checkWrong(v, ed.wrong) }),
+			h("button", { type: "button", class: "btn ghost", on: { click: () => editDict({ kind: "name", target: ed.target, things: editable(d.things), i: v }) } }, t.checkFix)) : null;
+		const last = ed.i >= n - 1;
+		return {
+			question: t.checkQ,
+			help: helpOf(t.dictCheck, null, t.checkTips),
+			prev: { go: () => { if (ed.i > 0) { ed.i--; ed.wrong = null; render(); } else editDict(null); } },
+			next: { label: last ? "✓ " + t.checkDone : undefined, ready: right, go: () => {
+				if (!last) { ed.i++; ed.wrong = null; render(); return; }
+				d.checked = true; editDict(null);
+			} },
+			body: () => h("div", { class: "dict-slide" },
+				canvas(V.dictionary({ box: DICT_BOX, things: shown, mode: "static", value: right ? v : null, icon }), V.piece({ box: CHECK_AT.piece, thing: x })),
+				h("div", { class: "dict-answer" }, numbers, wrong)),
+		};
 	}
 
 	// ---- make --------------------------------------------------------

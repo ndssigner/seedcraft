@@ -156,9 +156,9 @@ footer a:hover, footer button:hover { color: var(--fg); }
 .btn.big { padding: 11px 20px; font-size: var(--fs-m); }
 .btn.small { padding: 5px 11px; font-size: var(--fs-s); border-radius: var(--r-s); }
 .btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
-textarea.input, input.pin, input.big-input { width: 100%; border: 1px solid var(--line-strong); background: var(--sunk); border-radius: var(--r-m); padding: 9px 11px; outline: none; }
+textarea.input, input.pin { width: 100%; border: 1px solid var(--line-strong); background: var(--sunk); border-radius: var(--r-m); padding: 9px 11px; outline: none; }
 textarea.input { font-family: var(--mono); font-size: var(--fs-s); resize: vertical; }
-textarea.input:focus, input.pin:focus, input.big-input:focus, input.emoji:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+textarea.input:focus, input.pin:focus, input.emoji:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 input.pin { width: 230px; font-family: var(--mono); font-size: var(--fs-m); letter-spacing: 1px; text-transform: uppercase; }
 .seg { display: inline-flex; flex-wrap: wrap; background: var(--soft); border-radius: var(--r-m); padding: 3px; gap: 2px; }
 .seg button { border: 0; background: none; padding: 5px 13px; border-radius: 7px; cursor: pointer; font-weight: 600; color: var(--muted); white-space: nowrap; }
@@ -185,7 +185,6 @@ details.more > * + * { margin-top: 8px; }
 .mono { font-family: var(--mono); }
 .count-badge { margin-left: 6px; font-size: var(--fs-xs); padding: 0 6px; border-radius: 99px; background: var(--accent-soft); color: var(--accent-ink); font-variant-numeric: tabular-nums; }
 .big-total { font-family: var(--book); font-size: var(--fs-l); font-weight: 600; line-height: 1.25; }
-input.big-input { font-size: var(--fs-l); }
 input.emoji { width: 72px; border: 1px solid var(--line-strong); background: var(--sunk); border-radius: var(--r-m); padding: 6px; text-align: center; font-size: var(--fs-l); outline: none; }
 ol.how-to { margin: 4px 0; padding-left: 22px; }
 ol.how-to li { margin: 6px 0; }
@@ -207,11 +206,6 @@ pre.code { font-family: var(--mono); font-size: var(--fs-s); background: var(--s
 .wizard .name { font-family: var(--book); font-size: var(--fs-l); font-weight: 600; margin-top: 6px; }
 .wizard .small-name { font-size: var(--fs-xs); color: var(--muted); }
 .question { text-align: center; font-family: var(--book); font-size: var(--fs-l); font-weight: 600; margin: 0; }
-.strip { display: flex; flex-wrap: wrap; gap: 4px; }
-.mini { display: flex; flex-direction: column; align-items: center; border: 1px solid var(--line); background: var(--surface); border-radius: var(--r-m); padding: 2px 4px; cursor: pointer; }
-.mini:hover { border-color: var(--line-strong); }
-.mini.on { border-color: var(--accent); background: var(--accent-soft); }
-.mini .num { font-size: var(--fs-xs); }
 /* the colour of a piece: a row of bead colours, and any other */
 .swatches { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .swatch { width: 28px; height: 28px; border-radius: 50%; border: 1px solid rgba(0, 0, 0, .25); cursor: pointer; padding: 0; background: var(--c); }
@@ -448,8 +442,6 @@ ul.avoid li::marker { content: "✗  "; color: var(--bad); }
 @media (max-width: 560px) { .need { grid-template-columns: 1fr; } }
 
 /* naming a piece: its name, and its symbol right beside it */
-.name-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end; }
-.name-row input.emoji { width: 84px; height: 46px; font-size: var(--fs-l); }
 
 /* the step by step's drawing: a window on the whole sequence that follows the current piece */
 .map { max-height: 260px; overflow: auto; border: 1px solid var(--line); border-radius: var(--r-m); background: var(--sunk); }
@@ -866,6 +858,37 @@ body { overflow: hidden; }
 .slide-form { position: absolute; left: calc(var(--u) * 150); right: calc(var(--u) * 150); top: calc(var(--u) * 70); bottom: calc(var(--u) * 10);
 	display: flex; flex-direction: column; gap: calc(var(--u) * 6); }
 .slide-form textarea { flex: 1; min-height: 0; font-size: 1em; }
+/* your own dictionary, a slide per piece: the canvas (680 × 350), and the fields over it */
+.dict-slide { position: absolute; inset: 0; }
+.dict-slide > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.v-static .v-dict-on { stroke: var(--accent); stroke-width: 1.5; }
+.dict-form { position: absolute; left: calc(var(--u) * 452); width: calc(var(--u) * 204); top: calc(var(--u) * 202);
+	display: flex; flex-direction: column; gap: calc(var(--u) * 6); }
+.dict-name { width: 100%; font: inherit; font-size: 1.25em; padding: .35em .6em; border: 1px solid var(--line-strong); border-radius: var(--r-m);
+	background: var(--sunk); color: var(--fg); outline: none; }
+.dict-name:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.dict-buttons { display: flex; gap: calc(var(--u) * 6); }
+.dict-buttons .btn { font-size: .95em; padding: .4em .8em; display: inline-flex; align-items: center; gap: .4em; }
+.dict-dot { width: .9em; height: .9em; border-radius: 50%; background: var(--c); border: 1px solid var(--line-strong); }
+.dict-dot.none { background: none; border-style: dashed; }
+.dict-err { margin: 0; min-height: 2.4em; color: var(--err); font-size: .9em; line-height: 1.2; }
+.dict-answer { position: absolute; left: calc(var(--u) * 452); width: calc(var(--u) * 206); top: calc(var(--u) * 70); bottom: calc(var(--u) * 10);
+	display: flex; flex-direction: column; justify-content: center; gap: calc(var(--u) * 8); }
+.dict-numbers { display: grid; gap: calc(var(--u) * 4); }
+.dict-numbers.c2 { grid-template-columns: repeat(2, 1fr); }
+.dict-numbers.c4 { grid-template-columns: repeat(4, 1fr); }
+.dict-numbers.c8 { grid-template-columns: repeat(8, 1fr); }
+.dict-n { font: inherit; font-size: 1.4em; font-weight: 700; font-variant-numeric: tabular-nums; padding: .3em 0; border: 1px solid var(--line-strong);
+	border-radius: var(--r-m); background: var(--surface); color: var(--fg); cursor: pointer; }
+.dict-numbers.c8 .dict-n { font-size: 1em; }
+.dict-n:hover { border-color: var(--accent); }
+.dict-n.right { border-color: var(--ok); background: var(--ok-soft); color: var(--ok); }
+.dict-n.wrong { border-color: var(--err); background: var(--err-soft); color: var(--err); }
+.dict-n:disabled { cursor: default; }
+.dict-n:disabled:not(.right) { opacity: .45; }
+.dict-wrong p { margin: 0 0 .4em; color: var(--err); font-size: .9em; line-height: 1.25; }
+.dict-colours h2 { margin: 0 0 .5em; font-size: 1.2em; }
+.dict-colours .swatches { max-width: calc(var(--u) * 300); }
 /* «?»: what to think of */
 .slide-help h2 { margin: 0 0 .5em; font-size: 1.2em; }
 .slide-help p { margin: 0 0 .5em; }
