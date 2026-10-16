@@ -426,6 +426,8 @@ check(Lay.keyThrow({ sides: 6 }).faces.cols === 3 && Lay.keyThrow({ sides: 6 }).
 	check(rad(cur[0]) >= 1.5 * rad(pieces[5]) && rad(cur[0]) >= 20, "string: the turn's piece is by far the biggest (1.5 × a neighbour)");
 	const names = walk(s, cls("v-name"));
 	check(names.length === 1 && walk(cur[0], cls("v-name")).length === 1, "string build: only the turn's piece has its name under it");
+	// a hole at the turn: its position (blue) under it, no name
+	check(textOf(names[0]) === "15" && walk(names[0], cls("v-pos-current")).length === 1 && walk(cur[0], cls("v-hole")).length === 1, "string build: a hole at the turn shows its position and no name");
 	const midCx = (p) => num(walk(p, (n) => n.tag === "circle")[0].attrs.cx), sl = lay.boxes.seedSlot;
 	check(Math.abs(midCx(cur[0]) - (sl.x + sl.w / 2)) < 1, "string: the turn's piece is in the slot's box");
 	within(s, lay.boxes.seedString, "string build");
@@ -493,6 +495,18 @@ check(Lay.keyThrow({ sides: 6 }).faces.cols === 3 && Lay.keyThrow({ sides: 6 }).
 	for (const [n, from, by] of [[32, 13, 1], [32, 12, 3], [32, 31, 1], [16, 15, 9], [8, 7, 7]]) {
 		const t = walk(V.clock({ box: lay.boxes.clock, n, from, by, sign: 1, phase: "done" }), cls("v-clock-n"));
 		check(t.every((a, i) => t.slice(i + 1).every((b) => Math.hypot(num(a.attrs.x) - num(b.attrs.x), num(a.attrs.y) - num(b.attrs.y)) >= num(a.attrs["font-size"]))), `clock n=${n} ${from}+${by}: its numbers do not touch`);
+	}
+	// going round: the 0 always written (N − 1 when it fits), in the wrap's class, and nothing touches
+	for (const n of [16, 32]) for (const [from, by, sign] of [[n - 1, 2, 1], [n - 2, 3, 1], [n - 1, 1, 1], [n - 3, 9, 1], [1, 2, -1], [0, 1, -1], [2, 9, -1]]) {
+		const c = V.clock({ box: lay.boxes.clock, n, from, by, sign, phase: "done" }), t = walk(c, cls("v-clock-n")), to = S.clockStep(from, by, n, sign).value;
+		const zero = t.find((x) => textOf(x) === "0");
+		check(S.clockStep(from, by, n, sign).wrapped && zero && (to === 0 || from === 0 || cls("wrap")(zero)), `clock n=${n} ${from}${sign > 0 ? "+" : "−"}${by}: the pass to 0 written`);
+		check(t.every((a, i) => t.slice(i + 1).every((b) => Math.hypot(num(a.attrs.x) - num(b.attrs.x), num(a.attrs.y) - num(b.attrs.y)) >= num(a.attrs["font-size"]))), `clock n=${n} ${from}${sign > 0 ? "+" : "−"}${by}: its numbers do not touch`);
+		check([String(from), String(to)].every((v) => t.some((x) => textOf(x) === v)) && (walk(c, (x) => cls("v-clock-tick")(x) && cls("wrap")(x)).length >= 1 || [from, to].sort((p, q) => p - q).join() === "0," + (n - 1)), `clock n=${n} ${from}${sign > 0 ? "+" : "−"}${by}: the sum's numbers written, the wrap's tick marked`);
+		// a text's box, roughly: 0.6 em a glyph, 0.75 em above its baseline
+		const tbox = (x) => { const f = num(x.attrs["font-size"]), w = 0.6 * f * textOf(x).length; return { x: num(x.attrs.x) - w / 2, y: num(x.attrs.y) - 0.75 * f, w, h: 0.75 * f }; };
+		const counter = tbox(walk(c, cls("v-clock-by"))[0]);
+		check(t.every((x) => !overlap(tbox(x), counter)), `clock n=${n} ${from}${sign > 0 ? "+" : "−"}${by}: the numbers clear of the counter`);
 	}
 	const ci = V.clock({ box: lay.boxes.clock, n: 16, from: 11, by: 9, sign: 1, phase: "inputs" });
 	check(textOf(walk(ci, cls("v-clock-out"))[0]) === "" && textOf(walk(ci, cls("v-clock-by"))[0]) === "", "clock inputs: no output yet");
