@@ -13,15 +13,9 @@
 	// the colours offered for a piece: the first 16 example beads' (their names without "bead")
 	const BEAD_COLOURS = SETS.find((set) => set.id === "beads").things.slice(0, 16).map((b) => ({ colour: b.colour,
 		name: { en: b.en.replace(/ bead$/, ""), es: b.es.replace(/^Cuenta /, "") } }));
-	// pieces of each kind that cover 99.9 % of seeds, plus one spare, in
-	// packs of 5 (SPEC §6; simulated with the reference implementation)
-	const BUY = { 12: { 2: 130, 4: 45, 8: 25, 16: 15, 32: 10 }, 24: { 2: 215, 4: 70, 8: 35, 16: 20, 32: 15 } };
-	// the same for both strings of pad mode (SPEC §10.6); for a pad-mode
-	// sequence alone, the table above, except N = 2 with 12 words: 135
-	const PAD_BUY = { 12: { 2: 250, 4: 80, 8: 35, 16: 20, 32: 15 }, 24: { 2: 410, 4: 125, 8: 55, 16: 30, 32: 20 } };
-	const buyFor = (words, n, mode, padAs) => mode === "pad" && padAs === "string" ? PAD_BUY[words][n]
-		: mode === "pad" && words === 12 && n === 2 ? 135 : BUY[words][n];
-	const symbolsFor = (words, n) => Math.ceil((words === 12 ? 213 : 364) / Math.log2(n));
+	// how long a seed is, what to buy, and the journeys as lists of slides (journeys.js)
+	const J = SeedcraftJourneys;
+	const { symbolsFor } = J;
 	// The forms of SPEC §11.2, as data: the recommended N, how the pieces are
 	// drawn (strung on a thread, in rows, or written as entries), the example
 	// dictionary, whether the form keeps its order, centimetres per piece for
@@ -50,7 +44,13 @@
 		screen: "intro",  // intro, make, read, print, about, donate
 		// the two journeys, each a sequence of steps (see MAKE_STEPS, READ_STEPS)
 		step: { make: "plan", read: "have" },
-		plan: { words: 12, n: 16, padAs: "string", form: "necklace", padForm: null },  // padForm: the pad's own form, if another
+		// the slide each journey is at (journeys.js's ids); step above is its step in the guide
+		at: { make: "mode", read: "mode" },
+		// what was picked on a slide before it has any other trace: the dictionary to be named (dict, keyDict: "name")
+		ways: { make: {}, read: {} },
+		gathered: {},  // the pieces slide's «I have them», per group
+		// padForm: the pad's own form, if another; chosen: which of these the person has chosen (a card is marked only then)
+		plan: { words: 12, n: 16, padAs: "string", form: "necklace", padForm: null, chosen: {} },
 		padDict: null,  // the pad's own dictionary, when it is another collection (SPEC §11.4)
 		dict: null,  // { things: [{ name, emoji, photo, colour, symbol }], checked }
 		edit: null,  // the dictionary being named: { kind: "name", things, i }, or checked: { kind: "check", i }
@@ -67,25 +67,36 @@
 	// keyText: everything typed at once; out, error: what decodeTurns made of
 	// it, for sig (the pieces it was worked out from). What it is read as is
 	// its own, apart from the backup being made (st.mode, st.plan, st.padDict):
-	// mode, words, padAs, padForm and padDict (the key's own collection), kept from `keep`.
+	// mode, words, padAs, padForm and padDict (the key's own collection), form,
+	// n (until there is a dictionary), chosen (as the plan's) and dict, its own
+	// dictionary, kept from `keep`.
 	function freshRead(keep) {
 		return { turn: 0, taps: [], keyTaps: [], keyFile: null, fileText: "", last: null,
 			typing: false, text: "", keyText: "", out: null, error: "", sig: "",
 			words: keep ? keep.words : 12, padAs: keep ? keep.padAs : "string", padForm: keep ? keep.padForm : null, padDict: keep ? keep.padDict : null,
-			mode: keep ? keep.mode : null };
+			mode: keep ? keep.mode : null, form: keep ? keep.form : "necklace", n: keep ? keep.n : 16, chosen: keep ? keep.chosen : {}, dict: keep ? keep.dict : null };
 	}
 	const T = () => SEEDCRAFT_TEXT[st.lang];
-	// a dictionary of another size: what was made or read with the old one
-	// goes (a renamed piece changes nothing: the sequence is numbers)
+	// a dictionary of another size: what was made with the old one goes (a
+	// renamed piece changes nothing: the sequence is numbers). Recovering has
+	// its own (st.read.dict, setReadDict): reading never touches the backup.
 	function setDict(d) {
 		const same = st.dict && d && st.dict.things.length === d.things.length;
 		st.dict = d;
 		if (d) st.plan.n = d.things.length;
-		if (!same) {
-			st.make = { seed: st.make.seed, entropy: null, symbols: null, pos: 0, tab: "turn" };
-			st.read = { ...freshRead(st.read), padDict: null };
-		}
+		if (!same) st.make = { seed: st.make.seed, entropy: null, symbols: null, pos: 0, tab: "turn" };
 	}
+	// the same for what is being read: another size, what was read with the old one goes
+	function setReadDict(d) {
+		const rd = st.read, same = rd.dict && d && rd.dict.things.length === d.things.length;
+		if (!same) st.read = { ...freshRead(rd), padDict: null };
+		st.read.dict = d;
+		if (d) st.read.n = d.things.length;
+	}
+	// the dictionary of the journey on screen, and how to replace it
+	const seedColl = () => st.screen === "read" ? { dict: st.read.dict, set: setReadDict } : { dict: st.dict, set: setDict };
+	// the dictionary something is read with: recovering, the reading's own; checking a copy, the backup's
+	const dictFor = (rd) => rd === st.read ? st.read.dict : st.dict;
 
 	// another number of words: what was made for the old length goes (the key, the sequence), as with a new N
 	function setWords(words) {
@@ -390,7 +401,8 @@
 	addEventListener("offline", online);
 	// the explanation of the connection: on hover (CSS), or on a tap, for touch screens
 	document.addEventListener("click", () => { if ($("net-why")) $("net-why").classList.remove("open"); });
-	function go(screen) { st.screen = screen; render(); scrollTo(0, 0); }
+	// (a dictionary being named or checked is left behind: it belongs to the journey it was in)
+	function go(screen) { if (screen !== st.screen) st.edit = null; st.screen = screen; render(); scrollTo(0, 0); }
 	// the repository, and the sister projects (plain links: the page itself still connects nowhere)
 	const REPO_URL = "https://github.com/ndssigner/seedcraft";
 	const SIBLINGS = [["NDS-Signer", "https://github.com/ndssigner/nds-signer", "sibNds"], ["ur-tones", "https://github.com/ndssigner/ur-tones", "sibUrTones"]];
@@ -414,7 +426,7 @@
 		Slides.setLang(st.lang);
 		// what scrolls inside a legacy slide (the map, the two columns) keeps its place across a redraw
 		const SCROLLERS = ".slide-legacy, .map, .flow-body, .flow-body .tool > .panel";
-		const view = [st.screen, st.step[st.screen], st.make.tab, st.make.key && st.make.key.by, st.plan.sub, st.have && st.have.sub, st.edit && st.edit.kind].join();
+		const view = [st.screen, st.at[st.screen], st.make.tab, st.make.key && st.make.key.by, st.edit && st.edit.kind, st.edit && st.edit.target].join();
 		const kept = view === lastView ? [...$("app").querySelectorAll(SCROLLERS)].map((e) => e.scrollTop) : [];
 		lastView = view;
 		Slides.show(slideNow(view));
@@ -437,25 +449,63 @@
 			const sheet = printSheet();
 			if (sheet) return page(h("div", { class: "wrap" }, sheet), { label: "◀ " + t.back, go: () => toStep("make", "seq") });
 		}
-		if (st.screen === "make" || st.screen === "read") return flowSlide(st.screen, view, home, toStart);
+		if (st.screen === "make" || st.screen === "read") return journeySlide(st.screen, view, home, toStart);
 		if (st.screen === "about") return page(h("div", { class: "wrap" }, about()), toStart);
 		if (st.screen === "donate") return page(h("div", { class: "wrap" }, donate()), toStart);
 		return page(h("div", { class: "start" }, topBar(), h("div", { class: "wrap" }, intro()), footBar()), null);
 	}
-	// an old step view as one legacy slide: its guide, the old list of steps;
-	// its foot, what the view asked for with setNav (or the journey's own)
-	function flowSlide(flow, view, home, toStart) {
-		const body = flow === "make" ? makeFlow() : readFlow(), o = navOpts;
-		const steps = stepsOf(flow), i = steps.indexOf(st.step[flow]), before = steps[i - 1], after = steps[i + 1];
-		const pair = (x, ready) => x ? { label: x[0], go: x[1], ready } : null;
-		// the journey's very first view goes back to the start page (the top bar's tabs are only there now)
-		const prev = o.hidden ? null : o.prev !== undefined ? pair(o.prev) || (i === 0 ? toStart : null)
-			: before ? { label: "◀ " + stepName(flow, before), go: () => toStep(flow, before) } : toStart;
-		const next = o.hidden ? null : o.next !== undefined ? pair(o.next, o.ready !== false)
-			: after ? { label: stepName(flow, after) + " ▶", go: () => { if (o.onNext) o.onNext(); toStep(flow, after); }, ready: o.ready !== false } : null;
-		return { id: view, legacy: true, question: null, steps: 1, body: () => body, prev, next, shortcuts: [home], help: null, onKey: legacyKey,
-			guide: steps.map((step) => ({ name: stepName(flow, step), current: step === st.step[flow], count: null, go: () => toStep(flow, step) })) };
+	// ---- the journeys, slide by slide ----------------------------------------
+	// Each journey is a list of slides (journeys.js: which there are now, in
+	// order, each under its step of the guide); st.at[flow] says which one is
+	// shown. A slide is drawn by SLIDES[flow][id](): a decision (cards), the
+	// pieces, or, until it is redone, an old step view (legacy). Back and Next
+	// go to the slides before and after it; a step of the guide goes to its
+	// first slide, or to the first one before it that is not done yet.
+	const journeyState = (flow) => flow === "make"
+		? { mode: st.mode, padAs: st.plan.padAs, padForm: st.plan.padForm, dict: !!st.dict, padDict: !!st.padDict, keyWho: st.make.keyWho, keyBy: st.make.key && st.make.key.by }
+		: { mode: st.read.mode, padAs: st.read.padAs, padForm: st.read.padForm, dict: !!st.read.dict, padDict: !!st.read.padDict };
+	const journeyOf = (flow) => J.slides(flow, journeyState(flow));
+	function goSlide(flow, id) { if (id) st.at[flow] = id; st.edit = null; go(flow); }
+	// the slide after (or before) this one, as the journey is once its choice is made
+	function along(flow, id, by) {
+		const list = journeyOf(flow), i = list.findIndex((x) => x.id === id);
+		return list[i + by] ? list[i + by].id : null;
 	}
+	// whether a slide has done its job: what a later one needs first
+	function slideDone(flow, id) {
+		const p = st.plan, rd = st.read, m = st.make;
+		if (flow === "make") return ({ mode: !!st.mode, form: !!p.chosen.form, words: !!p.chosen.words, size: !!st.dict || !!p.chosen.size,
+			keyAs: !!p.chosen.padAs, keyColl: !!p.chosen.padColl, dict: !!st.dict, keyDict: !!st.padDict, keyWho: !!m.keyWho,
+			keyTool: !!(m.key && m.key.by), keyThrow: stepDone("make", "key"), seq: !!m.symbols })[id] !== false;
+		return ({ mode: !!rd.mode, form: !!rd.chosen.form, size: !!rd.dict || !!rd.chosen.size, dict: !!rd.dict, keyAs: !!rd.chosen.padAs,
+			keyColl: !!rd.chosen.padColl, keyDict: !!rd.padDict, keyFile: !!rd.keyFile, recover: !!rd.out })[id] !== false;
+	}
+	function journeySlide(flow, view, home, toStart) {
+		const list = journeyOf(flow), at = st.at[flow] = J.resolve(flow, list, st.at[flow]);
+		const cur = list.find((x) => x.id === at), group = list.filter((x) => x.step === cur.step);
+		st.step[flow] = cur.step;
+		const guide = stepsOf(flow).map((step) => ({ name: stepName(flow, step), current: step === cur.step,
+			count: step === cur.step && group.length > 1 ? `${group.indexOf(cur) + 1}/${group.length}` : null,
+			go: () => goSlide(flow, J.jump(journeyOf(flow), step, (id) => slideDone(flow, id))) }));
+		// naming or checking a dictionary: its own way on, piece by piece (an old view, Task 5's)
+		const d = st.edit ? old(dictStep) : SLIDES[flow][at]();
+		const before = along(flow, at, -1);
+		const prev = d.hidden ? null : d.prev !== undefined ? d.prev || (before ? null : toStart)
+			: before ? { label: d.legacy ? "◀ " + stepName(flow, journeyOf(flow).find((x) => x.id === before).step) : undefined, go: () => goSlide(flow, along(flow, at, -1)) } : toStart;
+		const after = along(flow, at, 1);
+		const forward = () => { if (d.onNext) d.onNext(); goSlide(flow, along(flow, at, 1)); };
+		const next = d.hidden ? null : d.next !== undefined ? d.next
+			: after ? { label: d.legacy ? stepName(flow, journeyOf(flow).find((x) => x.id === after).step) + " ▶" : undefined, go: forward, ready: d.ready !== false } : null;
+		return { id: view, legacy: !!d.legacy, guide, question: d.question || null, steps: 1, body: d.body, caption: d.caption || null,
+			prev, next, shortcuts: [...(d.shortcuts || []), home], help: d.help || null, onKey: d.legacy ? legacyKey : null };
+	}
+	// an old step view as a slide (R3): what it asked for with setNav (or the journey's own Back and Next)
+	function legacy(body) {
+		const o = navOpts, pair = (x, ready) => x ? { label: x[0], go: x[1], ready } : null;
+		return { legacy: true, body: () => h("div", { class: "flow-body" }, body), hidden: !!o.hidden, ready: o.ready !== false, onNext: o.onNext,
+			prev: o.prev !== undefined ? pair(o.prev) : undefined, next: o.next !== undefined ? pair(o.next, o.ready !== false) : undefined };
+	}
+	const old = (view) => { navOpts = {}; return legacy(view()); };
 
 	// ---- small building blocks ----------------------------------------
 	const field = (label, ...children) => h("div", { class: "field" }, h("div", { class: "label", text: label }), ...children);
@@ -478,6 +528,8 @@
 	function setMode(mode) {
 		if (mode === modeNow()) return true;
 		if (st.screen === "read") {
+			// what was read so far goes: asked first
+			if ((st.read.taps.length || st.read.keyTaps.length) && !confirm(T().modeChangeAskRead)) return false;
 			st.read = { ...freshRead(st.read), mode };
 			return true;
 		}
@@ -487,16 +539,6 @@
 		st.make = { seed: m.seed, entropy: null, symbols: null, pos: 0, tab: "turn" };
 		return true;
 	}
-	function modeChoice(then) {
-		const t = T();
-		const option = (mode, name, points) => h("button", { class: "mode" + (modeNow() === mode ? " on" : ""), "aria-pressed": String(modeNow() === mode),
-			on: { click: () => { if (!setMode(mode)) return; if (then) then(); else render(); } } },
-			art(mode), h("b", { text: name }), h("span", { class: "points" }, points.map((x) => h("span", { text: x }))));
-		return panel(h("p", { class: "lead", text: st.screen === "read" ? t.modeHelpRead : t.modeHelp }),
-			h("div", { class: "modes" }, option("basic", t.modeBasic, t.modeBasicPoints), option("pad", t.modePad, t.modePadPoints)));
-	}
-
-
 	// ---- the two journeys ----------------------------------------------
 	// Making a backup and reading one: each a sequence of steps along a thread,
 	// a knot per step, filled once that step has done its job. The key's step
@@ -509,12 +551,13 @@
 	const keyThread = (step) => step === "key";
 	const stepsOf = (flow) => (flow === "make" ? MAKE_STEPS : READ_STEPS).filter((x) => !keyThread(x) || st.mode === "pad");
 	const stepName = (flow, step) => (flow === "make" ? T().makeSteps[MAKE_STEPS.indexOf(step)] : T().readSteps[READ_STEPS.indexOf(step)])[0];
-	function toStep(flow, step) { st.step[flow] = step; st.edit = null; go(flow); }
+	// to a step: its first slide
+	function toStep(flow, step) { const x = journeyOf(flow).find((y) => y.step === step); goSlide(flow, x && x.id); }
 	function stepDone(flow, step) {
 		const m = st.make, rd = st.read;
-		if (flow === "make") return ({ plan: !!st.mode, gather: !!st.gathered, dict: !!st.dict && st.dict.checked && (!keyDictNeeded() || !!st.padDict),
+		if (flow === "make") return ({ plan: !!st.mode, gather: Object.values(st.gathered).some(Boolean), dict: !!st.dict && st.dict.checked && (!keyDictNeeded() || !!st.padDict),
 			key: keyReady() && (st.plan.padAs === "string" || !!m.padKept), seq: !!m.symbols, check: !!m.checked, store: !!m.stored })[step];
-		return ({ have: !!rd.mode && !!st.dict && keyGiven(), recover: !!rd.out, seed: !!rd.out })[step];
+		return ({ have: !!rd.mode && !!rd.dict && keyGiven(), recover: !!rd.out, seed: !!rd.out })[step];
 	}
 	function journey(flow) {
 		const t = T(), steps = stepsOf(flow);
@@ -560,174 +603,357 @@
 			// a key file is saved before a sequence is made with it, and before it is checked: this page forgets it
 			else if ((step === "check" || (step === "seq" && !st.make.symbols)) && st.mode === "pad" && st.plan.padAs === "file" && !st.make.padKept) need = "key";
 			else if (step === "check" && !st.make.symbols) need = "seq";
-		} else if (step !== "have" && (!st.read.mode || !st.dict || !keyGiven())) need = "have";
+		} else if (step !== "have" && (!st.read.mode || !st.read.dict || !keyGiven())) need = "have";
 		else if (step === "seed" && !st.read.out) need = "recover";
 		if (!need) return null;
 		setNav({ hidden: true });
 		return h("div", { class: "narrow" }, panel(title(stepName(flow, step)), h("p", { text: T().needFirst(stepName(flow, need)) }),
 			h("div", { class: "row" }, h("button", { class: "btn push", on: { click: () => toStep(flow, need) } }, stepName(flow, need) + " ▶"))));
 	}
-	function makeFlow() {
-		if (!stepsOf("make").includes(st.step.make)) st.step.make = "plan";
-		const step = st.step.make;
+	// the old views of the steps not redone yet, each after what it needs first
+	function makeFlow(view) {
 		navOpts = {};
-		const body = needFirst("make", step) || ({ plan: planStep, gather: gatherStep, dict: dictStep, key: keyStep, seq: seqStep,
-			check: checkStep, store: storeStep })[step]();
-		return h("div", { class: "flow-body" }, body);
+		return legacy(needFirst("make", st.step.make) || view());
 	}
-	function readFlow() {
-		if (!stepsOf("read").includes(st.step.read)) st.step.read = "have";
-		const step = st.step.read;
+	function readFlow(view) {
 		navOpts = {};
-		if (st.read.mode && st.dict && keyGiven()) readOut(st.read);
-		const body = needFirst("read", step) || ({ have: haveStep, recover: () => turnReader(st.read), seed: seedStep })[step]();
-		return h("div", { class: "flow-body" }, body);
+		if (st.read.mode && st.read.dict && keyGiven()) readOut(st.read);
+		return legacy(needFirst("read", st.step.read) || view());
 	}
 
-	// ---- make, 1: the plan, one question at a time --------------------------
-	// Which mode, which form, how big: three little steps on their own short
-	// thread. A form whose order can be undone (books, cards) is not offered:
-	// it shows up only as what to avoid, under "something else".
-	function setForm(id) { st.plan.form = id; if (!st.dict) st.plan.n = formOf(id).n; }
-	const PLAN_SUBS = ["mode", "form", "size"];
+	// ---- the decisions: a question, and a card per option -------------------------
+	// Every choice looks the same (vocab.js's cards): each card's drawing in
+	// the one visual vocabulary, its name, at most two ✓ and two ✕ (SPEC §11,
+	// RISK-AUDIT.md). A tap chooses, and the chosen card has the accent; Next
+	// waits until one is chosen. A choice that would undo work asks first.
+	const V = SeedcraftVocab(svg, h);
+	function decide({ question, options, chosen, choose, ready, help, shortcuts, next, caption, extra }) {
+		return { question, help, shortcuts, next, caption, ready: ready !== undefined ? ready : chosen !== null && chosen !== undefined,
+			body: () => h("div", { class: "decision" + (options.length > 5 ? " lots" : options.length > 4 ? " many" : "") },
+				V.cards({ options, chosen, onChoose: (id) => {
+					// a card chosen from the keyboard keeps the focus on the chosen one, drawn anew
+					const keyed = document.activeElement && document.activeElement.classList && document.activeElement.classList.contains("v-card");
+					choose(id); render();
+					const on = keyed && $("app").querySelector(".v-card.on");
+					if (on) on.focus();
+				} }), extra ? extra() : null) };
+	}
+	// «?»: a few lines on what to think of, over the slide
+	const helpOf = (title, lead, items) => () => Slides.popup(h("div", { class: "slide-help" }, h("h2", { text: title }),
+		lead ? h("p", { text: lead }) : null, h("ul", {}, items.map((x) => h("li", { text: x })))), { label: title });
+
+	// the kinds of a form, as its example shows them (own: the dictionary, if it
+	// is made); a form whose example has fewer kinds than N: numbered pieces
+	function kindThings(formId, n, own) {
+		if (own && own.length === n) return own;
+		const own_ = formOf(formId).set, set = SETS.find((x) => x.id === own_ && x.things.length >= n) || (own_ ? null : SETS.find((x) => x.things.length >= n));
+		return set ? thingsOf(set, n) : Array.from({ length: n }, (_, i) => ({ name: String(i), emoji: String(i) }));
+	}
 	// a row of the form's example pieces (or beads), with a count under each
 	// (own: the dictionary to show, if it is already made)
 	function kindsRow(formId, n, count, own) {
-		// the form's own example; if it has fewer kinds than N, plain numbered pieces rather than another material
-		const own_ = formOf(formId).set, set = SETS.find((x) => x.id === own_ && x.things.length >= n) || (own_ ? null : SETS.find((x) => x.things.length >= n));
-		const things = own && own.length === n ? own : set ? thingsOf(set, n) : Array.from({ length: n }, (_, i) => ({ name: String(i), emoji: String(i) })), shown = things.slice(0, 8);
+		const things = kindThings(formId, n, own), shown = things.slice(0, 8);
 		return h("div", { class: "kinds" }, shown.map((x) => h("span", {}, icon(x, 38), count ? h("small", { text: "×" + count }) : null)),
 			things.length > shown.length ? h("span", { class: "more-kinds", text: "+" + (things.length - shown.length) }) : null);
 	}
-	// Choosing a form: a compact selector on the left (drawing and name),
-	// what the chosen one is on the right; it is accepted with the bar, after
-	// reading, not by the click itself.
-	function formPicker(forms, pick) {
-		const t = T();
-		return h("div", { class: "forms two compact", role: "group", "aria-label": t.formTitle }, forms.map((f) => {
-			const on = st.plan.form === f.id;
-			return h("button", { class: "form" + (on ? " on" : "") + (f.keeps ? "" : " loose"), "aria-pressed": String(on), on: { click: () => pick(f.id) } },
-				art(f.id), h("b", { text: t.forms[f.id].name }));
-		}));
+	// the ready-made dictionary offered for N kinds: the form's own example, else the first that has N
+	const readySet = (n, formId) => SETS.find((x) => x.id === formOf(formId).set && x.things.length >= n) || SETS.find((x) => x.things.length >= n);
+	// another form than this one, for the key's own collection (keeps: only those that keep their order)
+	const otherForm = (form, keeps) => FORMS.find((f) => f.id !== form && (!keeps || f.keeps)).id;
+
+	// ---- the cards' drawings: the same strings, dictionaries and dice as everywhere ----
+	const ART_W = 160, ART_H = 56;
+	const artOf = (...kids) => svg("svg", { class: "card-art", viewBox: `0 0 ${ART_W} ${ART_H}`, "aria-hidden": "true" }, ...kids);
+	// a few pieces of these kinds (indices into things, any size) on a thread: the seed's, or the key's (thin, dotted)
+	const artString = (things, items, kind = "seed", box = { x: 0, y: 4, w: ART_W, h: ART_H - 8 }) =>
+		V.string({ box, orientation: "h", role: kind === "key" ? "reference" : "read", kind, things, items: items.map((i) => i === null ? null : i % things.length), showValues: false, room: 20 });
+	const seedAndKey = (seed, key) => artOf(artString(seed, [3, 0, 2, 1], "seed", { x: 0, y: 0, w: ART_W, h: 28 }), artString(key, [1, 3, 0, 2], "key", { x: 0, y: 28, w: ART_W, h: 28 }));
+	const dictArt = (things, icon, extra) => artOf(extra || null, V.dictionary({ box: { x: 34, y: 2, w: 92, h: 52 }, things, icon }));
+	const keyFileArt = () => artOf(svg("text", { x: 22, y: 34, "font-size": 14, "text-anchor": "middle", class: "v-t v-icon" }, "⚿"),
+		svg("rect", { x: 40, y: 3, width: 84, height: 50, rx: 4, class: "card-file" }),
+		...["54 16", "3A37 DFE7 6", "A6C8 BBC2 2", "413D F4 5"].map((x, i) => svg("text", { x: 46, y: 15 + i * 11, "font-size": 8.5, class: "v-t v-mono v-c-key" }, x)));
+	const dieArt = (opts) => V.die({ size: 56, ...opts });
+	function deviceArt() {
+		const die = V.die({ sides: 6, face: null, size: 34 });
+		die.setAttribute("x", 63); die.setAttribute("y", 6);
+		return artOf(svg("rect", { x: 48, y: 2, width: 64, height: 42, rx: 4, class: "card-device" }), svg("rect", { x: 70, y: 46, width: 20, height: 6, rx: 2, class: "card-device" }), die);
 	}
-	// for "something else": what not to do, the forms that lose their order among it (SPEC §11.5)
-	function avoidBlock() {
-		const t = T();
-		const bad = (x) => h("div", { class: "form bad" }, art(x.id), h("b", { text: t.forms[x.id].name }),
-			h("span", { class: "facts" }, h("span", {}, h("i", { text: t.formOrder }), t.forms[x.id].order)));
-		return {
-			forms: [h("h3", { class: "avoid-title", text: t.formAvoidTitle }), hint(t.formAvoidHelp), h("div", { class: "forms two compact" }, FORMS.filter((x) => !x.keeps).map(bad))],
-			list: h("ul", { class: "list avoid" }, t.formAvoid.map((x) => h("li", { text: x }))),
-		};
+	const bagArt = () => artOf(svg("path", { d: "M54 22 Q80 12 106 22 L114 50 Q80 57 46 50 Z", class: "card-bag" }), svg("path", { d: "M66 20 Q80 2 94 20", class: "card-bag-tie" }));
+
+	// the options of each decision
+	function modeOptions() {
+		const c = T().cards, beads = kindThings("necklace", 16);
+		return [{ id: "basic", art: artOf(artString(beads, [3, 0, 2, 1])), ...c.basic }, { id: "pad", art: seedAndKey(beads, beads), ...c.pad }];
 	}
-	// what a form is: its drawing, what it keeps, whether it blends in and keeps its order, its note
-	function formDetail(id, ...more) {
-		const t = T(), f = formOf(id), w = t.forms[id];
-		return panel(h("div", { class: "form-detail" }, art(id),
-			h("div", { class: "stack tight" }, title(w.name), h("p", { class: "what", text: w.what }),
-				h("dl", { class: "facts" }, h("dt", { text: t.formBlends }), h("dd", { text: w.blends }), h("dt", { text: t.formOrder }), h("dd", { text: w.order })))),
-			h("div", { class: "note" + (f.keeps ? "" : " warn"), text: w.note }), ...more);
+	const formOptions = (forms, kind = "seed") => forms.map((f) => ({ id: f.id, art: artOf(artString(kindThings(f.id, f.n), [0, 1, 2, 3], kind)),
+		title: T().forms[f.id].name, pros: T().forms[f.id].pros, cons: T().forms[f.id].cons }));
+	const wordsOptions = (n) => [12, 24].map((w) => {
+		const L = symbolsFor(w, n);
+		return { id: w, title: T().cards.wordsTitle(w), pros: [], cons: [],
+			// the string's last positions: how long it is
+			art: artOf(V.string({ box: { x: 0, y: 4, w: ART_W, h: ART_H - 8 }, orientation: "h", role: "read", kind: "seed", items: [null, null, null, null], firstPosition: L - 3, showValues: false, room: 20 })) };
+	});
+	function sizeOptions(formId, words) {
+		const c = T().cards, rec = formOf(formId).n;
+		return SIZES.map((n) => {
+			const L = symbolsFor(words, n);
+			return { id: n, title: c.sizeTitle(n), art: artOf(artString(kindThings(formId, n), [0, n - 1, 1, n - 2])),
+				pros: [n <= 8 ? c.sizeEasy : c.sizeShort(L), n === rec ? c.sizeRecommended : null].filter(Boolean),
+				cons: [n <= 8 ? c.sizeLong(L) : c.sizeKinds(n)] };
+		});
+	}
+	const keyAsOptions = (things) => [{ id: "string", art: artOf(artString(things, [1, 3, 0, 2], "key")), ...T().cards.keyString },
+		{ id: "file", art: keyFileArt(), ...T().cards.keyFile }];
+	const keyCollOptions = (form, other) => {
+		const seed = kindThings(form, formOf(form).n);
+		return [{ id: "same", art: seedAndKey(seed, seed), ...T().cards.same }, { id: "other", art: seedAndKey(seed, kindThings(other, formOf(other).n)), ...T().cards.other }];
+	};
+	function dictOptions(n, formId, icon) {
+		const c = T().cards, set = readySet(n, formId), conv = formId === "book" && n === 8 && set.id === "streets";
+		const blank = Array.from({ length: n }, () => ({ name: "" }));
+		const ready = { id: "ready", art: dictArt(thingsOf(set, n), icon), ...(conv ? c.conventional : { ...c.ready, title: set.icon + " " + set[st.lang] }) };
+		const name = { id: "name", art: dictArt(blank, icon), ...c.name };
+		const open = { id: "open", art: dictArt(blank, icon, svg("text", { x: 17, y: 36, "font-size": 18, "text-anchor": "middle", class: "v-t" }, "📂")), ...c.open };
+		return formOf(formId).exampleFirst ? [ready, name, open] : [name, ready, open];
 	}
 
-	// a step's own little steps, on a short thread: keys, their names, the current one, which are done, go(key)
-	// (the first one, the mode, opens the others)
-	const subSteps = (keys, names, current, done, go) => h("ol", { class: "substeps" }, keys.map((x, i) =>
-		h("li", { class: [x === current ? "on" : "", done[x] ? "done" : ""].filter(Boolean).join(" ") },
-			h("button", { disabled: x !== keys[0] && !modeNow() ? "" : undefined, "aria-current": x === current ? "step" : null, on: { click: () => go(x) } },
-				h("span", { class: "knot", "aria-hidden": "true" }), names[i]))));
-	function planStep() {
-		const t = T(), p = st.plan, d = st.dict;
-		if (!PLAN_SUBS.includes(p.sub) || (!st.mode && p.sub !== "mode")) p.sub = "mode";
-		const goSub = (x) => { p.sub = x; render(); scrollTo(0, 0); };
-		const subDone = { mode: !!st.mode, form: !!st.mode && p.formChosen, size: !!st.mode && p.formChosen && p.sizeSeen };
-		const subs = subSteps(PLAN_SUBS, t.planSubs, p.sub, subDone, goSub);
-		const back = (x) => ["◀ " + t.planSubs[PLAN_SUBS.indexOf(x)], () => goSub(x)];
-		const on = (x) => [t.planSubs[PLAN_SUBS.indexOf(x)] + " ▶", () => goSub(x)];
-		let body;
-		if (p.sub === "mode") { body = [modeChoice(() => goSub("form"))]; setNav({ prev: null, next: on("form"), ready: !!st.mode }); }
-		else if (p.sub === "form") {
-			if (!formOf(p.form).keeps) p.form = "other";
-			const avoid = p.form === "other" ? avoidBlock() : null;
-			body = [tool(panel(h("p", { class: "lead", text: t.formHelp }), formPicker(FORMS.filter((x) => x.keeps), (id) => { setForm(id); p.formChosen = true; render(); }),
-				avoid ? avoid.forms : null), formDetail(p.form, avoid ? avoid.list : null))];
-			setNav({ prev: back("mode"), next: [on("size")[0], () => { p.formChosen = true; goSub("size"); }] });
-		} else {
-			const n = d ? d.things.length : p.n, L = symbolsFor(p.words, n);
-			const written = formOf(p.form).family === "written";
-			p.sizeSeen = true;
-			// how many of each to get is the next step's: here only how long it is, and of which kinds
-			body = [tool(
-				panel(
-					field(t.seedWords, seg([[12, "12"], [24, "24"]], p.words, (v) => { if (v !== p.words) setWords(v); render(); })),
-					field(t.howMany, d ? h("div", { class: "meta", text: t.planNFixed(n) })
-						: seg(SIZES.map((v) => [v, String(v), v === formOf(p.form).n ? "★" : "", t.recommended]), p.n, (v) => { p.n = v; render(); }),
-						kindsRow(p.form, n, 0, d && d.things))),
-				panel(h("div", { class: "big-total", text: t.planSummary(st.mode, p.padAs, L) }),
-					written ? h("p", { text: t.planWrite(L) }) : null,
-					st.mode === "pad" ? keyAsFields(p, () => { st.padDict = null; }) : null))];
-			setNav({ prev: back("form") });
+	// ---- what a choice changes, and what it asks first ---------------------------
+	function setForm(id) { st.plan.form = id; if (!st.dict) st.plan.n = formOf(id).n; }
+	const madeWork = () => !!(st.make.symbols || (st.make.key && st.make.key.pieces.length));
+	const readWork = () => !!(st.read.taps.length || st.read.keyTaps.length);
+	// another dictionary (of the journey on screen): one of another size undoes
+	// what was made or read with the old one, which is asked first
+	function changeDict(d) {
+		const c = seedColl(), same = c.dict && d && c.dict.things.length === d.things.length;
+		if (!same && c.dict && (st.screen === "read" ? readWork() : madeWork()) && !confirm(T().dictChangeAsk)) return false;
+		c.set(d);
+		return true;
+	}
+	// another number of kinds: the dictionary of the old one goes, asked first
+	function setSize(v) {
+		const c = seedColl();
+		if (c.dict && v !== c.dict.things.length) {
+			if (!confirm(T().sizeChangeAsk)) return;
+			c.set(null);
+			st.ways[st.screen].dict = null;
 		}
-		return h("div", { class: "stack" }, subs, ...body.flat().filter(Boolean));
+		const p = st.screen === "read" ? st.read : st.plan;
+		p.n = v; p.chosen.size = true;
+	}
+	// the key's own collection (null: the same as the sequence's): its dictionary goes, asked first
+	function setPadForm(f) {
+		const kc = keyColl(), p = st.screen === "read" ? st.read : st.plan;
+		if (f === p.padForm) return true;
+		if (kc.dict && !confirm(T().keyCollChangeAsk)) return false;
+		p.padForm = f; kc.set(null); st.ways[st.screen].keyDict = null;
+		return true;
 	}
 
-	// pad mode: the key as things or as a file and, as things, in the same
-	// collection as the sequence or in another one: p is the plan's choice, or
-	// what is being read's; forget() drops the key's own dictionary
-	function keyAsFields(p, forget) {
-		const t = T(), form = st.plan.form;
-		const choice = (value, picture, label, help) => h("button", { class: "choice" + (p.padAs === value ? " on" : ""), "aria-pressed": String(p.padAs === value),
-			on: { click: () => { p.padAs = value; render(); } } }, art(picture), h("b", { text: label }), h("span", { text: help }));
-		return [field(t.planPadAs, h("div", { class: "choices" },
-				choice("string", "keyThings", t.padAsString, t.planPadString), choice("file", "keyFile", t.padAsFile, t.planPadFile))),
-			p.padAs === "string" ? field(t.formPadForm, seg([["same", t.formPadSame], ["other", t.formPadOther]], p.padForm ? "other" : "same",
-				(v) => { p.padForm = v === "other" ? FORMS.find((f) => f.id !== form && f.keeps).id : null; forget(); render(); }),
-				p.padForm ? h("select", { class: "input", "aria-label": t.formPadForm, on: { change: (e) => { p.padForm = e.target.value; forget(); render(); } } },
-					FORMS.filter((f) => f.id !== form && f.keeps).map((f) => h("option", { value: f.id, selected: f.id === p.padForm ? "" : null }, t.forms[f.id].name))) : null) : null];
+	// ---- the slides of each journey ------------------------------------------
+	const ICON = { seed: "🌱", key: "⚿" };
+	// what an old view of the key needs first (the dictionary, the key's own)
+	const needs = (flow) => { navOpts = {}; const v = needFirst(flow, st.step[flow]); return v ? legacy(v) : null; };
+	const SLIDES = {
+		make: {
+			mode: () => decide({ question: T().modeHelp, options: modeOptions(), chosen: st.mode, choose: setMode }),
+			form: () => {
+				const t = T(), p = st.plan;
+				return decide({ question: t.formTitle, options: formOptions(FORMS.filter((f) => f.keeps)), chosen: p.chosen.form ? p.form : null,
+					choose: (id) => { if (id === p.padForm && !setPadForm(otherForm(id, true))) return; setForm(id); p.chosen.form = true; },
+					help: helpOf(t.formAvoidTitle, null, t.formAvoid) });
+			},
+			words: () => {
+				const t = T(), p = st.plan;
+				return decide({ question: t.seedWords, options: wordsOptions(st.dict ? st.dict.things.length : p.n), chosen: p.chosen.words ? p.words : null,
+					choose: (w) => { if (w !== p.words) { if (madeWork() && !confirm(t.wordsChangeAsk)) return; setWords(w); } p.chosen.words = true; } });
+			},
+			size: () => {
+				const p = st.plan;
+				return decide({ question: T().howMany, options: sizeOptions(p.form, p.words), chosen: st.dict ? st.dict.things.length : p.chosen.size ? p.n : null,
+					choose: setSize });
+			},
+			keyAs: () => {
+				const p = st.plan;
+				return decide({ question: T().keyAsQ, options: keyAsOptions(kindThings(p.form, formOf(p.form).n)), chosen: p.chosen.padAs ? p.padAs : null,
+					choose: (v) => { p.padAs = v; p.chosen.padAs = true; } });
+			},
+			keyColl: () => {
+				const p = st.plan, other = p.padForm || otherForm(p.form, true);
+				return decide({ question: T().keyCollQ, options: keyCollOptions(p.form, other), chosen: p.chosen.padColl ? (p.padForm ? "other" : "same") : null,
+					choose: (v) => { if (setPadForm(v === "same" ? null : other)) p.chosen.padColl = true; } });
+			},
+			keyForm: () => {
+				const p = st.plan;
+				return decide({ question: T().keyFormQ, options: formOptions(FORMS.filter((f) => f.keeps && f.id !== p.form), "key"), chosen: p.padForm,
+					choose: (id) => setPadForm(id), help: helpOf(T().formAvoidTitle, null, T().formAvoid) });
+			},
+			pieces: piecesSlide,
+			dict: () => dictChoice("make"),
+			dictHave: () => makeFlow(dictScreen),
+			keyDict: () => keyDictChoice("make"),
+			keyDictHave: () => makeFlow(keyDictBlock),
+			keyWho: () => needs("make") || keyWhoSlide(),
+			keyTool: () => needs("make") || keyToolSlide(),
+			keyThrow: () => makeFlow(keyStep),
+			seq: () => makeFlow(seqStep),
+			check: () => makeFlow(checkStep),
+			store: () => makeFlow(storeStep),
+		},
+		read: {
+			mode: () => decide({ question: T().modeHelpRead, options: modeOptions(), chosen: st.read.mode, choose: setMode }),
+			form: () => {
+				const rd = st.read;
+				// any form: a backup to read back may have been made in one that is not recommended
+				return decide({ question: T().haveFormQ, options: formOptions(FORMS), chosen: rd.chosen.form ? rd.form : null,
+					choose: (id) => { if (id === rd.padForm && !setPadForm(otherForm(id))) return; st.read.form = id; st.read.chosen.form = true; } });
+			},
+			size: () => {
+				const rd = st.read;
+				return decide({ question: T().howMany, options: sizeOptions(rd.form, rd.words), chosen: rd.dict ? rd.dict.things.length : rd.chosen.size ? rd.n : null,
+					choose: setSize });
+			},
+			dict: () => dictChoice("read"),
+			dictHave: () => readFlow(dictScreen),
+			keyAs: () => {
+				const rd = st.read;
+				return decide({ question: T().haveKeyHelp, options: keyAsOptions(kindThings(rd.form, formOf(rd.form).n)), chosen: rd.chosen.padAs ? rd.padAs : null,
+					choose: (v) => { st.read.padAs = v; st.read.chosen.padAs = true; } });
+			},
+			keyColl: () => {
+				const rd = st.read, other = rd.padForm || otherForm(rd.form);
+				return decide({ question: T().keyCollQRead, options: keyCollOptions(rd.form, other), chosen: rd.chosen.padColl ? (rd.padForm ? "other" : "same") : null,
+					choose: (v) => { if (setPadForm(v === "same" ? null : other)) st.read.chosen.padColl = true; } });
+			},
+			keyForm: () => decide({ question: T().keyFormQRead, options: formOptions(FORMS.filter((f) => f.id !== st.read.form), "key"), chosen: st.read.padForm,
+				choose: (id) => setPadForm(id) }),
+			keyDict: () => keyDictChoice("read"),
+			keyDictHave: () => readFlow(keyDictBlock),
+			keyFile: keyFileSlide,
+			recover: () => readFlow(() => turnReader(st.read)),
+			seed: () => readFlow(seedStep),
+		},
+	};
+
+	// ---- the dictionary: ready-made, your own, or one saved before ----------------
+	// (naming it piece by piece, checking it: the old views, until Task 5)
+	// a dictionary file opened: its pieces, or what is wrong with it (n: the size it must have)
+	function dictFileInput(n, onThings, onError) {
+		const t = T();
+		return h("input", { type: "file", accept: ".json,.txt,application/json,text/plain", class: "hidden", on: { change: async (e) => {
+			const f = e.target.files[0];
+			if (!f) return;
+			try {
+				const things = dictFromFile(await f.text(), f.name), problem = dictProblem(things);
+				if (problem) onError(problem);
+				else if (n && things.length !== n) onError(t.errPadDictSize(things.length, n));
+				else onThings(things);
+			} catch (x) { onError(t.errDictFile); }
+		} } });
+	}
+	const blankThings = (n) => Array.from({ length: n }, () => ({ name: "", emoji: "", colour: "", photo: "" }));
+	function dictChoice(flow) {
+		const t = T(), ways = st.ways[flow];
+		const dict = seedColl().dict, n = dict ? dict.things.length : flow === "read" ? st.read.n : st.plan.n, formId = flow === "read" ? st.read.form : st.plan.form;
+		const set = readySet(n, formId);
+		let input = null;
+		const pick = (x) => { if (changeDict({ things: thingsOf(x, n), checked: x.id === "streets" && formId === "book", way: "ready" })) { ways.dict = "ready"; ways.error = ""; } };
+		const chosen = ways.dict || (dict ? dict.way || "ready" : null);
+		// your own: named piece by piece once Next is pressed; then the dictionary as it is
+		const naming = chosen === "name" && !(dict && dict.way === "name");
+		return decide({ question: t.dictQ, options: dictOptions(n, formId, "seed"), chosen,
+			choose: (id) => { ways.error = ""; if (id === "ready") pick(set); else if (id === "name") ways.dict = "name"; else if (input) input.click(); },
+			ready: naming || !!dict, caption: () => ways.error || null,
+			next: naming ? { go: () => editDict({ kind: "name", things: blankThings(n), i: 0 }), ready: true } : undefined,
+			extra: () => (input = dictFileInput(0, (things) => { if (changeDict({ things, checked: false, way: "open" })) ways.dict = "open"; render(); },
+				(msg) => { ways.error = msg; render(); })),
+			help: helpOf(t.dictBeforeTitle, t.dictIntro, t.dictChecks),
+			shortcuts: SETS.filter((x) => x.things.length >= n && x !== set).map((x) => ({ icon: x.icon, label: x[st.lang], go: () => { pick(x); render(); } })) });
+	}
+	// pad mode, the key as things of another collection: its own dictionary (SPEC §11.4), as many kinds as the sequence's
+	function keyDictChoice(flow) {
+		const t = T(), ways = st.ways[flow], kc = keyColl(), dict = seedColl().dict, n = dict ? dict.things.length : flow === "read" ? st.read.n : st.plan.n;
+		const formId = kc.form || otherForm(flow === "read" ? st.read.form : st.plan.form);
+		const set = readySet(n, formId);
+		let input = null;
+		const pick = (x) => { kc.set({ things: thingsOf(x, n), checked: x.id === "streets" && formId === "book", way: "ready" }); ways.keyDict = "ready"; ways.keyError = ""; };
+		const chosen = ways.keyDict || (kc.dict ? kc.dict.way || "ready" : null);
+		const naming = chosen === "name" && !(kc.dict && kc.dict.way === "name");
+		return decide({ question: t.keyDictQ, options: dictOptions(n, formId, "key"), chosen,
+			choose: (id) => { ways.keyError = ""; if (id === "ready") pick(set); else if (id === "name") ways.keyDict = "name"; else if (input) input.click(); },
+			ready: naming || !!kc.dict, caption: () => ways.keyError || null,
+			next: naming ? { go: () => editDict({ kind: "name", target: "pad", things: blankThings(n), i: 0 }), ready: true } : undefined,
+			extra: () => (input = dictFileInput(n, (things) => { keyColl().set({ things, checked: false, way: "open" }); ways.keyDict = "open"; render(); },
+				(msg) => { ways.keyError = msg; render(); })),
+			shortcuts: SETS.filter((x) => x.things.length >= n && x !== set).map((x) => ({ icon: x.icon, label: x[st.lang], go: () => { pick(x); render(); } })) });
 	}
 
-	// ---- make, 2: what you need -----------------------------------------------
-	// Two things to gather. The pieces: how many of each kind in all, and what
-	// that number is made of (the sequence, and the key if it has the same
-	// kinds; one of each per copy of the dictionary). What holds them: for the
-	// sequence, its dictionary, and in pad mode the key and its dictionary (or
-	// the key's file). A key in another collection has pieces of its own.
-	function gatherStep() {
+	// ---- the key: who draws it, and with what --------------------------------
+	function keyWhoSlide() {
+		const c = T().cards, m = st.make, key = m.key || { by: null, pieces: [], pos: 0, draft: [], fix: null };
+		const choose = (who) => {
+			m.keyWho = who;
+			if (who === "device") setKey({ ...key, by: "device", draft: [], fix: null });
+			else if (key.by === "device" || !m.key) setKey({ ...key, by: null, draft: [], fix: null });
+		};
+		return decide({ question: T().keyWhoQ, chosen: m.keyWho || null, choose,
+			options: [{ id: "device", art: deviceArt(), ...c.device }, { id: "me", art: dieArt({ sides: 6, face: 3 }), ...c.me }] });
+	}
+	function keyToolSlide() {
+		const t = T(), c = t.cards, m = st.make, key = m.key, k = Math.log2(st.dict.things.length);
+		const form = st.plan.padAs === "string" && st.plan.padForm ? st.plan.padForm : st.plan.form;
+		// a die gives b bits a throw (SPEC §10.2): the throws a piece takes, and whether some faces are thrown again
+		const die = (sides) => {
+			const { b, keep } = S.diceBits(sides), per = Math.ceil(k / b);
+			return { id: "d" + sides, art: dieArt({ sides, label: "d" + sides }), title: "d" + sides,
+				pros: per === 1 ? [c.dieOne] : [], cons: [per > 1 ? c.dieMany(per) : null, keep < sides ? c.dieAgain : null].filter(Boolean) };
+		};
+		// a bag only of pieces you can hold
+		const options = [formOf(form).family !== "written" ? { id: "bag", art: bagArt(), ...c.bag } : null,
+			{ id: "coin", art: dieArt({ sides: 2, label: t.coinHeads }), title: c.coin.title, pros: c.coin.pros, cons: [c.coinMany(k)] },
+			...S.DICE.filter((x) => x !== 2).map(die)].filter(Boolean);
+		return decide({ question: t.keyTools, options, chosen: key && key.by !== "device" ? key.by : null,
+			choose: (by) => setKey({ ...m.key, by, draft: [], fix: null }) });
+	}
+
+	// ---- recovering: the key file, typed, pasted or opened --------------------------
+	function keyFileSlide() {
+		const rd = st.read;
+		if (!rd.dict) return { question: T().keyFileQ, ready: false, body: () => null };
+		checkKeyFile(rd);
+		return { question: T().keyFileQ, ready: !!rd.keyFile, body: () => h("div", { class: "slide-form" }, ...keyFileInput(rd)) };
+	}
+
+	// ---- make, 2: the pieces ------------------------------------------------------
+	// A group per collection, with its icon: the kinds of piece, how many of
+	// each, what holds them, where that number comes from, and «I have them».
+	// A key of the same collection is one group with more of each.
+	function piecesSlide() {
 		const t = T(), p = st.plan, n = st.dict ? st.dict.things.length : p.n, L = symbolsFor(p.words, n);
-		const pad = st.mode === "pad", things = pad && p.padAs === "string", same = things && !p.padForm, keyForm = things ? p.padForm || p.form : null;
-		const written = (id) => formOf(id).family === "written";
 		// an address book's conventional order needs no dictionary of pieces (SPEC §11.3)
 		const dictPieces = (id) => id === "book" && n === 8 ? 0 : 1;
-		// for: what the pieces are for ("seq", "both" halves, or the "key" alone)
-		const pieces = (id, label, each, forWhat, copies, own) => written(id) ? null : h("div", { class: "need-block" },
-			label ? h("div", { class: "label" + (label === t.stringPad ? " pad-label" : ""), text: label }) : null,
-			kindsRow(id, n, each + copies, own),
-			h("p", { class: "need-total", text: t.gatherPiecesTotal(each + copies, n) }),
-			h("p", { class: "meta", text: t.gatherPiecesSplit(each, copies, forWhat) }));
-		const blocks = same
-			? [pieces(p.form, null, buyFor(p.words, n, "pad", "string"), "both", 2 * dictPieces(p.form), st.dict && st.dict.things)]
-			: [pieces(p.form, things ? t.stringSeq : null, buyFor(p.words, n, st.mode, "file"), "seq", (pad && !things ? 2 : 1) * dictPieces(p.form), st.dict && st.dict.things),
-				things ? pieces(keyForm, t.stringPad, buyFor(p.words, n, "pad", "file"), "key", dictPieces(keyForm), st.padDict && st.padDict.things) : null];
-		const support = (picture, label, text, key) => h("div", { class: "need" + (key ? " need-key" : "") },
-			h("div", { class: "need-art" }, picture), h("div", { class: "stack tight" }, h("b", { text: label }), text ? h("p", { text }) : null));
-		const supports = [
-			support(art(p.form), t.gatherForSeq(L), materialsOf(p.form, L, n)),
-			support(art(p.form), t.gatherForDict(dictPieces(p.form) && n), t.forms[p.form].dictSupport(n)),
-			things ? support(art(keyForm === p.form && !p.padForm ? "keyThings" : keyForm), t.gatherForKey(L), materialsOf(keyForm, L, n), true) : null,
-			things ? support(art(keyForm), t.gatherForKeyDict(dictPieces(keyForm) && n), t.forms[keyForm].dictSupport(n), true) : null,
-			pad && !things ? support(art("keyFile"), t.gatherForKeyFile, t.gatherFile, true) : null,
-			pad && !things ? support(art(p.form), t.gatherForKeyDict(dictPieces(p.form) && n), t.forms[p.form].dictSupport(n), true) : null];
-		setNav({ onNext: () => { st.gathered = true; } });
-		return tool(
-			panel(title(t.gatherPiecesTitle), h("p", { class: "lead", text: t.gatherLead }),
-				...(blocks.some(Boolean) ? blocks : [h("p", { text: t.gatherNoPieces })])),
-			panel(title(t.gatherSupportsTitle), ...supports));
+		const { groups, keyFile } = J.pieces({ words: p.words, n, mode: st.mode, padAs: p.padAs, form: p.form, padForm: p.padForm }, dictPieces);
+		const group = (g) => {
+			const written = formOf(g.form).family === "written", own = g.kinds[0] === "key" ? st.padDict : st.dict;
+			const materials = materialsOf(g.form, L, n);
+			return h("section", { class: "pieces-group" + (g.kinds[0] === "key" ? " key" : "") },
+				h("h2", {}, h("span", { class: "pieces-icon", "aria-hidden": "true", text: g.kinds.map((x) => ICON[x]).join(" ") }),
+					h("span", { text: t.piecesFor[g.what] }), h("small", { text: t.forms[g.form].name })),
+				h("div", { class: "pieces-kinds" + (n > 16 ? " many" : "") }, kindThings(g.form, n, own && own.things).map((x) => h("span", { class: "pieces-kind" },
+					svg("svg", { viewBox: "0 0 24 24", role: "img", "aria-label": x.name }, V.piece({ box: { x: 0, y: 0, w: 24, h: 24 }, thing: x, named: false })),
+					written ? null : h("small", { text: "×" + (g.each + g.copies) })))),
+				materials ? h("p", { class: "pieces-thread", text: g.what === "both" ? t.piecesTwice(materials) : materials }) : null,
+				h("p", { class: "pieces-split", text: written ? t.gatherNoPieces : t.piecesSplit(g.each, g.copies, g.what) }),
+				h("label", { class: "pieces-have" }, h("input", { type: "checkbox", checked: st.gathered[g.what] ? "" : null,
+					on: { change: (e) => { st.gathered[g.what] = e.target.checked; } } }), h("span", { text: t.piecesHave })));
+		};
+		return { question: t.piecesQ, body: () => h("div", { class: "pieces" + (groups.length > 1 ? " two" : "") }, ...groups.map(group),
+			keyFile ? h("p", { class: "pieces-file" }, h("span", { class: "pieces-icon", "aria-hidden": "true", text: ICON.key }), t.gatherFile) : null) };
 	}
 
 
 	// ---- make, 3 (and read, 1): the dictionary ------------------------------
 	// naming or checking has its own way on, piece by piece: the bar waits
-	const dictStep = () => st.edit && st.edit.kind === "name" ? (setNav({ hidden: true }), nameScreen())
-		: st.edit && st.edit.kind === "check" ? (setNav({ hidden: true }), checkScreen()) : dictScreen();
+	const dictStep = () => st.edit.kind === "name" ? (setNav({ hidden: true }), nameScreen()) : (setNav({ hidden: true }), checkScreen());
 	function editDict(edit) { st.edit = edit; render(); scrollTo(0, 0); }
 
 	// ---- dictionary ----------------------------------------------------
@@ -752,63 +978,9 @@
 	// for an address book with street types, the conventional order (SPEC §11.3), nothing to check.
 	const thingsOf = (set, n) => set.things.slice(0, n).map((x) => ({ name: x[st.lang], emoji: x.emoji || "", colour: x.colour || "",
 		symbol: x.symbol || "", brick: !!x.brick, photo: "" }));
-	function readyDicts(n, formId, pick) {
-		const f = formOf(formId);
-		const sets = SETS.filter((set) => set.things.length >= n).sort((a, b) => (b.id === f.set) - (a.id === f.set));
-		return h("div", { class: "row" }, sets.map((set) => h("button", { class: set.id === f.set ? "btn small" : "btn ghost small",
-			on: { click: () => pick(thingsOf(set, n), set.id === "streets" && f.id === "book") } }, set.icon + " " + set[st.lang])));
-	}
-	const conventional = (n, formId, pick) => formId === "book" && n === 8
-		? field(T().dictConventional, hint(T().dictConventionalHelp), h("div", { class: "row" },
-			h("button", { class: "btn", on: { click: () => pick(thingsOf(SETS.find((x) => x.id === "streets"), 8), true) } }, "📒 " + T().dictConventional)))
-		: null;
+	// the dictionary as it is: its pieces, checking it, editing it, saving it (recovering: another one instead)
 	function dictScreen() {
-		const t = T(), d = st.dict, form = formOf(st.plan.form);
-		const err = h("div");
-		const open = h("input", { type: "file", accept: ".json,.txt,application/json,text/plain", class: "hidden", on: { change: async (e) => {
-			const f = e.target.files[0];
-			if (!f) return;
-			try {
-				const things = dictFromFile(await f.text(), f.name), problem = dictProblem(things);
-				if (problem) { err.replaceChildren(errorBox(problem)); return; }
-				setDict({ things, checked: false });
-				render();
-			} catch (x) { err.replaceChildren(errorBox(t.errDictFile)); }
-		} } });
-		if (!d) {
-			let n = st.plan.n;
-			const sizes = h("div");
-			const pick = (things, checked) => { setDict({ things, checked }); render(); };
-			// three ways to get it, side by side and alike: name the pieces, take an
-			// example (this form's own; for an address book, the conventional order),
-			// or open a saved one. Where the example is the natural choice, it comes first.
-			const options = h("div", { class: "dict-ways" });
-			const drawOptions = () => {
-				const set = SETS.find((x) => x.id === form.set && x.things.length >= n), conv = form.id === "book" && n === 8;
-				const way = (icon_, label, help, click, extra) => h("div", { class: "way" },
-					h("button", { class: "btn way-btn", on: { click } }, h("span", { class: "way-icon", text: icon_ }), label), h("p", { class: "meta", text: help }), extra || null);
-				const name = way("✏️", t.dictName, t.dictNameWay, () => editDict({ kind: "name", things: Array.from({ length: n }, () => ({ name: "", emoji: "", colour: "", photo: "" })), i: 0 }));
-				const example = set ? way(set.icon, conv ? t.dictConventional : t.dictExampleOf(set[st.lang]), conv ? t.dictConventionalHelp : t.dictExampleWay,
-					() => pick(thingsOf(set, n), conv),
-					h("details", { class: "more" }, h("summary", { text: t.dictOtherExamples }), readyDicts(n, "other", pick)))
-					: way("🎨", t.dictExample, t.dictExampleWay, () => {}, readyDicts(n, form.id, pick));
-				const saved = way("📂", t.dictOpen, t.dictOpenWay, () => open.click());
-				options.replaceChildren(...(form.exampleFirst ? [example, name, saved] : [name, example, saved]));
-			};
-			const drawSizes = () => {
-				sizes.replaceChildren(seg(SIZES.map((v) => [v, String(v), v === form.n ? "★" : "", t.recommended]), n, (v) => { n = st.plan.n = v; drawSizes(); }));
-				drawOptions();
-			};
-			drawSizes();
-			// when making, N was chosen in the plan; when recovering, it is asked here
-			const reading = st.screen === "read";
-			return h("div", { class: "stack" },
-				panel(...(reading ? [h("p", { class: "lead", text: t.dictIntroShort })] : stepHead("make", t.dictIntroShort)),
-					reading ? field(t.howMany, sizes) : null,
-					options, open, err),
-				h("details", { class: "panel more-panel" }, h("summary", { text: t.dictBeforeTitle }),
-					h("p", { text: t.dictIntro }), h("ol", { class: "how-to" }, t.dictChecks.map((x) => h("li", { text: x })))));
-		}
+		const t = T(), d = seedColl().dict;
 		const json = () => JSON.stringify({ format: "seedcraft-dictionary", version: 0,
 			things: d.things.map((x) => Object.fromEntries(Object.entries({ name: x.name, emoji: x.emoji, colour: x.colour, photo: x.photo }).filter(([, v]) => v))) }, null, 1);
 		// recovering, the dictionary is only used: no warning, no saving, another one instead of forgetting
@@ -822,14 +994,13 @@
 				h("div", { class: "row" },
 					h("button", { class: d.checked || reading ? "btn ghost" : "btn", on: { click: () => editDict({ kind: "check", i: 0 }) } }, t.dictCheck),
 					h("button", { class: "btn ghost", on: { click: () => editDict({ kind: "name", things: d.things.map((x) => ({ ...x, symbolTyped: !!x.emoji && x.emoji !== initialsOf(x.name) })), i: 0 }) } }, t.dictEdit),
-					reading ? h("button", { class: "btn ghost", on: { click: () => { setDict(null); render(); } } }, t.dictOther) : null),
+					reading ? h("button", { class: "btn ghost", on: { click: () => { if (changeDict(null)) { st.ways.read.dict = null; render(); } } } }, t.dictOther) : null),
 				reading ? null : field(t.dictSave, h("p", { class: "meta", text: t.dictSaveHelp }),
 					h("div", { class: "row" },
 						h("button", { class: "btn ghost small", on: { click: () => download(json(), "dictionary.json", "application/json") } }, t.dictSaveJson),
 						h("button", { class: "btn ghost small", on: { click: () => download(d.things.map((x) => x.name).join("\n") + "\n", "dictionary.txt", "text/plain") } }, t.dictSaveTxt))),
 				reading ? null : h("div", { class: "row" },
-					h("button", { class: "btn ghost small", on: { click: () => { if (confirm(t.dictForgetAsk)) { setDict(null); render(); } } } }, t.dictForget)),
-				!reading && keyDictNeeded() ? keyDictBlock() : null));
+					h("button", { class: "btn ghost small", on: { click: () => { if (confirm(t.dictForgetAsk)) { setDict(null); st.ways.make.dict = null; render(); } } } }, t.dictForget))));
 	}
 	// pad mode, the key as things of another collection: its own dictionary (SPEC §11.4)
 	function keyDictNeeded() { return st.mode === "pad" && st.plan.padAs === "string" && !!st.plan.padForm; }
@@ -838,41 +1009,22 @@
 	const keyColl = () => st.screen === "read"
 		? { form: st.read.padForm, dict: st.read.padDict, set: (d) => { st.read.padDict = d; } }
 		: { form: st.plan.padForm, dict: st.padDict, set: (d) => { st.padDict = d; st.make.check = null; } };
-	// that dictionary, below the sequence's: made, ready-made or from a file; then checked like the other
+	// that dictionary as it is, once made, ready-made or opened: checked like the other, edited, or another one
 	function keyDictBlock() {
-		const t = T(), n = st.dict.things.length, kc = keyColl(), padForm = kc.form, pd = kc.dict;
-		const label = h("div", { class: "label pad-label", text: t.padDictTitle + ": " + t.forms[padForm].name });
-		const pick = (things, checked) => { kc.set({ things, checked: !!checked }); render(); };
-		const name = (things) => editDict({ kind: "name", target: "pad", things, i: 0 });
-		if (pd) return h("div", { class: "field key-dict" }, label,
+		const t = T(), kc = keyColl(), pd = kc.dict, ways = st.ways[st.screen];
+		return h("div", { class: "field key-dict" }, h("div", { class: "label pad-label", text: t.padDictTitle + ": " + t.forms[kc.form].name }),
 			h("div", { class: "dictline" }, h("span", { class: "minis" }, pd.things.map((x) => icon(x, 22)))),
 			pd.checked ? h("div", { class: "note ok" }, "✓ " + t.dictChecked) : h("div", { class: "note warn", text: t.dictNotChecked }),
 			h("div", { class: "row" },
 				h("button", { class: pd.checked ? "btn ghost small" : "btn small", on: { click: () => editDict({ kind: "check", target: "pad", i: 0 }) } }, t.dictCheck),
-				h("button", { class: "btn ghost small", on: { click: () => name(pd.things.map((x) => ({ ...x, symbolTyped: !!x.emoji && x.emoji !== initialsOf(x.name) }))) } }, t.dictEdit),
-				h("button", { class: "btn ghost small", on: { click: () => { kc.set(null); render(); } } }, t.dictOther)));
-		const err = h("div");
-		const open = h("input", { type: "file", accept: ".json,.txt,application/json,text/plain", class: "hidden", on: { change: async (e) => {
-			const f = e.target.files[0];
-			if (!f) return;
-			try {
-				const own = dictFromFile(await f.text(), f.name), problem = dictProblem(own);
-				if (problem) { err.replaceChildren(errorBox(problem)); return; }
-				if (own.length !== n) { err.replaceChildren(errorBox(t.errPadDictSize(own.length, n))); return; }
-				pick(own);
-			} catch (x) { err.replaceChildren(errorBox(t.errDictFile)); }
-		} } });
-		return h("div", { class: "field key-dict" }, label, h("p", { class: "meta", text: t.padDictHelp(n) }),
-			h("div", { class: "row" }, h("button", { class: "btn small", on: { click: () => name(Array.from({ length: n }, () => ({ name: "", emoji: "", colour: "", photo: "" }))) } }, t.dictName),
-				h("button", { class: "btn ghost small", on: { click: () => open.click() } }, t.dictOpen), open),
-			conventional(n, padForm, pick),
-			field(t.padDictReady, readyDicts(n, padForm, pick)), err);
+				h("button", { class: "btn ghost small", on: { click: () => editDict({ kind: "name", target: "pad", things: pd.things.map((x) => ({ ...x, symbolTyped: !!x.emoji && x.emoji !== initialsOf(x.name) })), i: 0 }) } }, t.dictEdit),
+				h("button", { class: "btn ghost small", on: { click: () => { kc.set(null); ways.keyDict = null; render(); } } }, t.dictOther)));
 	}
 
 	// naming the pieces one by one
 	function nameScreen() {
 		const t = T(), ed = st.edit, n = ed.things.length, x = ed.things[ed.i];
-		const form = ed.target === "pad" ? keyColl().form || st.plan.form : st.plan.form;
+		const own = st.screen === "read" ? st.read.form : st.plan.form, form = ed.target === "pad" ? keyColl().form || own : own;
 		const err = h("div");
 		// the symbol follows the name (its initials) until it is typed by hand
 		const nameIn = h("input", { type: "text", class: "big-input", value: x.name, placeholder: t.forms[form].namePh, autocomplete: "off", "aria-label": t.thingName,
@@ -923,8 +1075,10 @@
 			const all = dictProblem(ed.things);
 			if (all) { err.replaceChildren(errorBox(all)); return; }
 			const things = ed.things.map(({ symbolTyped, ...y }) => ({ ...y, name: y.name.trim() }));
-			if (ed.target === "pad") keyColl().set({ things, checked: false });
-			else setDict({ things, checked: false });
+			if (ed.target === "pad") keyColl().set({ things, checked: false, way: "name" });
+			else seedColl().set({ things, checked: false, way: "name" });
+			// once checked, the dictionary as it is
+			st.at[st.screen] = ed.target === "pad" ? "keyDictHave" : "dictHave";
 			editDict({ kind: "check", i: 0, target: ed.target });
 		}
 		const side = (j) => j >= 0 && j < n
@@ -950,7 +1104,7 @@
 
 	// a round of checking against the real thing
 	function checkScreen() {
-		const t = T(), ed = st.edit, d = ed.target === "pad" ? keyColl().dict : st.dict, n = d.things.length, x = d.things[ed.i];
+		const t = T(), ed = st.edit, d = ed.target === "pad" ? keyColl().dict : seedColl().dict, n = d.things.length, x = d.things[ed.i];
 		return h("div", { class: "narrow" }, panel(
 			h("div", { class: "row between" }, title(t.dictCheck), h("span", { class: "meta", text: t.pieceOf(ed.i, n) })),
 			h("div", { class: "wizard" },
@@ -1224,23 +1378,6 @@
 				on: { click: () => { download(S.writePadFile(m.pad, n), "numbers.txt", "text/plain"); m.padKept = true; render(); } } }, t.padFileSave)));
 		}
 
-		// who draws: the person, with what; or the device
-		if (!key.by) {
-			const who = m.keyWho;
-			const option = (value, glyph, label, help) => h("button", { class: "choice" + (who === value ? " on" : ""), "aria-pressed": String(who === value),
-				on: { click: () => { m.keyWho = value; if (value === "device") update({ ...key, by: "device", draft: [] }); else render(); } } },
-				h("span", { class: "glyph", "aria-hidden": "true", text: glyph }), h("b", { text: label }), h("span", { text: help }));
-			// a bag only of pieces you can hold
-			const tools = [formOf(form).family !== "written" ? ["bag", t.toolBag] : null, ["coin", t.toolCoin],
-				...S.DICE.filter((s) => s !== 2).map((s) => ["d" + s, "🎲 d" + s])].filter(Boolean);
-			return tool(panel(...stepHead("make", t.keyLead), keyChangedNote(),
-				h("div", { class: "choices" }, option("me", "✋", t.keyMe, t.keyMeHelp), option("device", "🖥️", t.keyDevice, t.keyDeviceHelp)),
-				who === "me" ? field(t.keyTools, h("div", { class: "row" }, tools.map(([by, label]) =>
-					h("button", { class: "btn ghost", on: { click: () => update({ ...key, by, draft: [] }) } }, label)))) : null,
-				h("div", { class: "note warn", text: t.keyOffline })),
-			panel(...right));
-		}
-
 		// piece by piece: the piece at pos, drawn or to draw (or being marked again)
 		const pos = key.pos, piece = key.fix ? null : key.pieces[pos];
 		const markBy = key.fix ? key.pieces[key.fix.at].by : key.by, sides = sidesOf(markBy);
@@ -1472,7 +1609,7 @@
 		const m = st.make;
 		if (!m.check) m.check = freshRead();
 		// read as it was made; a key file made here is read as it is (the key as things is read back like the sequence)
-		Object.assign(m.check, { mode: st.mode, words: st.plan.words, padAs: st.plan.padAs, padForm: st.plan.padForm, padDict: st.padDict });
+		Object.assign(m.check, { mode: st.mode, words: st.plan.words, padAs: st.plan.padAs, padForm: st.plan.padForm, padDict: st.padDict, form: st.plan.form });
 		if (st.mode === "pad" && st.plan.padAs === "file") m.check.keyFile = m.pad;
 		return turnReader(m.check, { expect: m.entropy });
 	}
@@ -1491,8 +1628,8 @@
 				h("div", { class: "row forget" }, h("button", { class: "btn", disabled: unsaved ? "" : undefined, on: { click: () => {
 					if (!confirm(t.storeForgetAsk(st.mode))) return;
 					st.make = { seed: "", entropy: null, symbols: null, pos: 0, tab: "turn" };
-					st.read = freshRead(); st.gathered = false; fingerprints.clear();
-					st.step.make = "plan";
+					st.read = freshRead(); st.gathered = {}; fingerprints.clear();
+					st.step.make = "plan"; st.at.make = "mode";
 					go("intro");
 				} } }, t.storeForget), h("span", { class: "meta", text: t.storeForgetWhy }))));
 	}
@@ -1510,8 +1647,8 @@
 			return navKey;
 		};
 		// reading turn by turn: the arrows move among the turns read (the space bar is left to the buttons)
-		const rd = st.edit || !st.dict ? null : st.screen === "read" && st.step.read === "recover" && st.read.mode && keyGiven() ? st.read
-			: st.screen === "make" && st.step.make === "check" && m.symbols ? m.check : null;
+		const rd = st.edit ? null : st.screen === "read" && st.step.read === "recover" && st.read.mode && st.read.dict && keyGiven() ? st.read
+			: st.screen === "make" && st.step.make === "check" && st.dict && m.symbols ? m.check : null;
 		if (rd && !rd.typing) {
 			if (e.key === "ArrowRight") { e.preventDefault(); readGo(rd, rd.turn + 1); }
 			if (e.key === "ArrowLeft") { e.preventDefault(); readGo(rd, rd.turn - 1); }
@@ -1535,38 +1672,7 @@
 	}
 
 	// ---- read ------------------------------------------------------------
-	// read, 1: what you have — the mode it was made in, its dictionary and, with a key, the key
-	function haveStep() {
-		const t = T(), rd = st.read, padMode = rd.mode === "pad";
-		if (st.edit) return dictStep();
-		const r = st.have || (st.have = { sub: "mode" });
-		if (!rd.mode && r.sub !== "mode") r.sub = "mode";
-		if (!padMode && r.sub === "key") r.sub = "dict";
-		const goSub = (x) => { r.sub = x; render(); scrollTo(0, 0); };
-		const KEYS = ["mode", "form", "dict", padMode ? "key" : null].filter(Boolean), names = [t.planSubs[0], t.planSubs[1], t.haveDictSub, t.haveKeySub];
-		const subs = subSteps(KEYS, names, r.sub, { mode: !!rd.mode, form: !!r.formChosen, dict: !!st.dict, key: !!st.dict && keyGiven() }, goSub);
-		const back = (x) => ["◀ " + names[KEYS.indexOf(x)], () => goSub(x)], on = (x) => [names[KEYS.indexOf(x)] + " ▶", () => goSub(x)];
-		let body;
-		if (r.sub === "mode") { body = modeChoice(() => goSub("form")); setNav({ prev: null, next: on("form"), ready: !!rd.mode }); }
-		else if (r.sub === "form") {
-			// any form: a backup to read back may have been made in one that is not recommended
-			body = tool(panel(h("p", { class: "lead", text: t.haveFormHelp }), formPicker(FORMS, (id) => { st.plan.form = id; r.formChosen = true; render(); })),
-				formDetail(st.plan.form));
-			setNav({ prev: back("mode"), next: [on("dict")[0], () => { r.formChosen = true; goSub("dict"); }] });
-		} else if (r.sub === "dict" || !st.dict) {
-			body = dictScreen();
-			setNav(padMode ? { prev: back("form"), next: on("key"), ready: !!st.dict } : { prev: back("form"), ready: !!st.dict });
-		} else {
-			// the key: as things (the same collection, or another with its own
-			// dictionary), or as a file, checked whole here before the first turn
-			const file = rd.padAs === "file";
-			body = tool(panel(h("p", { class: "lead", text: t.haveKeyHelp }), ...keyAsFields(rd, () => { rd.padDict = null; })),
-				panel(...(file ? keyFileInput(rd) : rd.padForm ? [keyDictBlock()]
-					: [h("div", { class: "key-empty" }, art("keyThings"), hint(t.haveKeySame))])));
-			setNav({ prev: back("dict"), ready: keyGiven() });
-		}
-		return h("div", { class: "stack" }, subs, body);
-	}
+	// read, 1: what you have — the mode it was made in, its form, its dictionary and, with a key, the key: decisions (SLIDES.read)
 	// the key file, typed, pasted or opened (it stays on this computer), checked
 	// whole: its rows, its N and its length; a mistake says its line
 	function keyFileInput(rd) {
@@ -1593,7 +1699,7 @@
 	// rd.keyFile from rd.fileText, or why not (a PadFileError's code and line,
 	// in words). Its length tells the seed's number of words.
 	function checkKeyFile(rd) {
-		const n = st.dict.things.length;
+		const n = dictFor(rd).things.length;
 		rd.keyFile = null;
 		if (!rd.fileText.trim()) return "";
 		try {
@@ -1611,7 +1717,7 @@
 	}
 	// another number of words while reading: the pieces past the new length go
 	function readWords(rd, words) {
-		const L = symbolsFor(words, st.dict.things.length);
+		const L = symbolsFor(words, dictFor(rd).things.length);
 		Object.assign(rd, { words, taps: rd.taps.slice(0, L), keyTaps: rd.keyTaps.slice(0, L) });
 	}
 	// the key is given: in pad mode, its file checked, or its collection known
@@ -1625,8 +1731,8 @@
 	// The key's numbers so far (null in the basic mode): its file's, or its pieces tapped
 	const readKey = (rd) => rd.mode !== "pad" ? null : rd.padAs === "file" ? rd.keyFile || [] : rd.keyTaps;
 	// a key as things: its own collection, or the sequence's
-	const keyThingsOf = (rd) => rd.padForm && rd.padDict ? rd.padDict.things : st.dict.things;
-	const readLength = (rd) => symbolsFor(rd.words, st.dict.things.length);
+	const keyThingsOf = (rd) => rd.padForm && rd.padDict ? rd.padDict.things : dictFor(rd).things;
+	const readLength = (rd) => symbolsFor(rd.words, dictFor(rd).things.length);
 	const bitsOf = (v, k) => v.toString(2).padStart(k, "0").split("").map(Number);
 	// the first turn not read yet (L: all of them are)
 	function readFrontier(rd) {
@@ -1642,7 +1748,7 @@
 	// What the L turns give, worked out again only when a piece changes:
 	// decodeTurns (both directions, both roles) or, if nothing decodes, "nofit".
 	function readOut(rd) {
-		const n = st.dict.things.length, L = readLength(rd), key = readKey(rd);
+		const n = dictFor(rd).things.length, L = readLength(rd), key = readKey(rd);
 		const taps = rd.taps.slice(0, L), keys = key && key.slice(0, L), sig = JSON.stringify([n, taps, keys]);
 		if (sig === rd.sig) return;
 		Object.assign(rd, { sig, out: null, error: "" });
@@ -1687,7 +1793,7 @@
 	// fingerprint, or what to look at again. The same reader recovers a seed
 	// and checks a copy just made (opts.expect: the seed it should give).
 	function turnReader(rd, opts = {}) {
-		const t = T(), things = st.dict.things, n = things.length, k = Math.log2(n), padMode = rd.mode === "pad";
+		const t = T(), things = dictFor(rd).things, n = things.length, k = Math.log2(n), padMode = rd.mode === "pad";
 		const checking = !!opts.expect, flow = checking ? "make" : "read", m = st.make;
 		const L = readLength(rd), size = S.sizeFor(L, k), ndata = S.dataModulesRowMajor(size).length;
 		const keyThings = padMode && rd.padAs === "string" ? keyThingsOf(rd) : null;
@@ -1790,7 +1896,7 @@
 		if (i < L) {
 			const C = rd.taps[i], K = key ? key[i] : undefined;
 			if (i === 0 && !padMode && !st.seen.whyBasic) left.push(h("div", { class: "note", text: t.whyBasic(n, k) }));
-			if (i === 0 && !st.seen.readTap) left.push(h("div", { class: "note", text: t.forms[st.plan.form].read }), keyThings ? hint(t.tapPadHelp) : null);
+			if (i === 0 && !st.seen.readTap) left.push(h("div", { class: "note", text: t.forms[rd.form || st.plan.form].read }), keyThings ? hint(t.tapPadHelp) : null);
 			left.push(h("div", { class: "turn-part" }, h("div", { class: "label", text: t.readSeqPiece(i + 1) }), collectionRow(things, C, k, (v) => tap("seq", v))));
 			if (keyThings) left.push(h("div", { class: "turn-part turn-keypick" }, h("div", { class: "label pad-label", text: t.readKeyPiece(i + 1) }),
 				collectionRow(keyThings, K, k, (v) => tap("key", v))));
@@ -1816,7 +1922,7 @@
 		const sofar = rd.taps.slice(0, frontier);
 		return tool(panel(...left),
 			panel(hint(t.handTemplate(size, mask)), turnGrid(size, qr, painted, turn, (bit) => readGo(rd, Math.floor(bit / k))),
-				sofar.length ? h("div", { class: "map turn-map" }, drawSeq(things, sofar, { current: i < L ? i : -1, onPick: (j) => readGo(rd, j), form: st.plan.form })) : null));
+				sofar.length ? h("div", { class: "map turn-map" }, drawSeq(things, sofar, { current: i < L ? i : -1, onPick: (j) => readGo(rd, j), form: rd.form || st.plan.form })) : null));
 	}
 
 	// read, 3: the seed — its QR code to scan, its words and its fingerprint
@@ -1824,7 +1930,7 @@
 		const t = T(), rd = st.read, qr = S.compactSeedQR(rd.out.entropy);
 		setNav({});
 		return tool(panel(...stepHead("read"), ...readNotes(rd.out), seedResult(rd.out),
-			h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => { st.read = { ...freshRead(), mode: st.read.mode }; toStep("read", "have"); } } }, t.readAgain))),
+			h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => { st.read = freshRead(st.read); toStep("read", "have"); } } }, t.readAgain))),
 			panel(turnGrid(qr.size, qr, qrPainted(qr), [], null), hint(t.handTemplate(qr.size, qr.mask))));
 	}
 
@@ -1895,7 +2001,7 @@
 			h("b", { text: name + " ↗" }), h("span", { text: desc }));
 		const tryExample = () => {
 			const set = SETS[0];
-			setDict({ things: set.things.slice(0, st.plan.n).map((x) => ({ name: x[st.lang], emoji: x.emoji || "", colour: x.colour || "", symbol: x.symbol || "", brick: !!x.brick, photo: "" })), checked: false });
+			setDict({ things: thingsOf(set, st.plan.n), checked: false, way: "ready" }); st.ways.make.dict = "ready";
 			toStep("make", "plan");
 		};
 		// the two journeys, as they will go: one door each

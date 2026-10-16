@@ -554,6 +554,13 @@ check(Lay.keyThrow({ sides: 6 }).faces.cols === 3 && Lay.keyThrow({ sides: 6 }).
 	let diag = false; try { V.arrow({ points: [[0, 0], [5, 5]], colour: "qr", state: "current" }); } catch { diag = true; }
 	check(diag, "arrow: refuses a diagonal");
 
+	// a kind of piece alone (no name), and a string drawn small on a card (its icon's room given)
+	const alone = V.piece({ box: { x: 0, y: 0, w: 24, h: 24 }, thing: things[1], named: false });
+	check(!walk(alone, cls("v-name")).length && walk(alone, (n) => n.tag === "circle").length === 1, "piece: named false draws the piece alone");
+	within(alone, { x: 0, y: 0, w: 24, h: 24 }, "piece alone");
+	const small = V.string({ box: { x: 0, y: 4, w: 160, h: 48 }, orientation: "h", role: "read", kind: "seed", things, items: [3, 0, 2, 1], showValues: false, room: 20 });
+	check(num(walk(small, cls("v-icon"))[0].attrs.x) === 10 && num(walk(small, cls("v-icon"))[0].attrs["font-size"]) === 14, "string: room sets the icon's room");
+	within(small, { x: 0, y: 4, w: 160, h: 48 }, "string on a card");
 	// cards: one per option, at most two ✓ and two ✕
 	let chose = null;
 	const cd = V.cards({ options: [{ id: "a", art: node("svg", {}), title: "A", pros: ["p1", "p2", "p3"], cons: ["c1"] }, { id: "b", art: null, title: "B", pros: ["p"], cons: ["c1", "c2"] }], chosen: "b", onChoose: (id) => { chose = id; } });
@@ -586,6 +593,35 @@ check(Lay.keyThrow({ sides: 6 }).faces.cols === 3 && Lay.keyThrow({ sides: 6 }).
 	check(Sl.nextOf({ step: 0 }, { steps: 1, prev: null, next: null }) === null && Sl.nextOf({ step: 0, dir: "prev" }, { steps: 1, prev: null, next }) === null, "nextOf: nothing to go to, nothing done");
 	check(Sl.nextOf({ step: 7 }, { steps: 3, next }).go === next.go, "nextOf: a step past the end counts as the last");
 	check(Sl.nextOf({ step: 0 }, { next }).go === next.go, "nextOf: steps default to 1");
+}
+// the journeys (journeys.js): which slides there are, and how many pieces to get
+{
+	vm.runInContext(read("src/journeys.js"), ctx, { filename: "src/journeys.js" });
+	const J = vm.runInContext("SeedcraftJourneys", ctx);
+	const ids = (flow, s) => J.slides(flow, s).map((x) => x.id).join(" ");
+	check(J.buyFor(12, 16, "basic") === 15 && J.buyFor(24, 16, "basic") === 20 && J.buyFor(12, 16, "pad", "string") === 20 && J.buyFor(24, 32, "pad", "string") === 20
+		&& J.buyFor(12, 2, "pad", "file") === 135 && J.buyFor(12, 2, "basic") === 130, "buyFor: SPEC §6 and §10.6");
+	check(J.symbolsFor(12, 16) === 54 && J.symbolsFor(24, 16) === 91 && J.symbolsFor(12, 32) === 43 && J.symbolsFor(24, 2) === 364, "symbolsFor: SPEC §2");
+	check(ids("make", { mode: "basic" }) === "mode form words size pieces dict seq check store", "make: the basic mode's slides");
+	check(ids("make", { mode: null }) === ids("make", { mode: "basic" }), "make: before a mode is chosen, the basic mode's slides");
+	check(ids("make", { mode: "pad", padAs: "file", dict: true, keyWho: "me", keyBy: "d6" }) === "mode form words size keyAs pieces dict dictHave keyWho keyTool keyThrow seq check store", "make: a key file thrown by hand");
+	check(ids("make", { mode: "pad", padAs: "string", padForm: "book", dict: true, padDict: true, keyWho: "device", keyBy: "device" })
+		=== "mode form words size keyAs keyColl keyForm pieces dict dictHave keyDict keyDictHave keyWho keyThrow seq check store", "make: a key of another collection, drawn by the device");
+	check(ids("make", { mode: "pad", padAs: "string", padForm: null }).includes("keyColl") && !ids("make", { mode: "pad", padAs: "string", padForm: null }).includes("keyForm"), "make: the same collection asks no form for the key");
+	check(J.slides("make", { mode: "pad" }).filter((x) => x.step === "plan").length === 5 && J.slides("make", { mode: "pad" }).find((x) => x.id === "keyWho").step === "key", "make: each slide under its step");
+	check(ids("read", { mode: "basic" }) === "mode form size dict recover seed", "read: the basic mode's slides");
+	check(ids("read", { mode: "pad", padAs: "file", dict: true }) === "mode form size dict dictHave keyAs keyFile recover seed", "read: a key file");
+	check(ids("read", { mode: "pad", padAs: "string", padForm: "necklace", dict: true }) === "mode form size dict dictHave keyAs keyColl keyForm keyDict recover seed", "read: a key of another collection");
+	const list = J.slides("make", { mode: "pad", padAs: "string", dict: false, keyWho: "me" });
+	check(J.resolve("make", list, "keyTool") === "keyTool" && J.resolve("make", list, "dictHave") === "dict" && J.resolve("make", list, "keyThrow") === "keyTool"
+		&& J.resolve("make", J.slides("make", { mode: "pad", padAs: "string" }), "keyThrow") === "keyWho" && J.resolve("make", list, "nowhere") === "mode", "resolve: a slide that went gives the one before it");
+	check(J.jump(list, "dict", () => true) === "dict" && J.jump(list, "key", (id) => id !== "words") === "words" && J.jump(list, "nowhere", () => true) === null, "jump: a step's first slide, or what it needs first");
+	const one = (p) => JSON.stringify(J.pieces({ words: 12, n: 16, form: "necklace", padForm: null, ...p }, (f) => f === "book" ? 0 : 1));
+	check(one({ mode: "basic" }) === JSON.stringify({ keyFile: false, groups: [{ kinds: ["seed"], form: "necklace", each: 15, copies: 1, what: "seq" }] }), "pieces: the basic mode, one group");
+	check(one({ mode: "pad", padAs: "string" }) === JSON.stringify({ keyFile: false, groups: [{ kinds: ["seed", "key"], form: "necklace", each: 20, copies: 2, what: "both" }] }), "pieces: a key of the same collection, one group with more of each");
+	check(one({ mode: "pad", padAs: "string", padForm: "book" }) === JSON.stringify({ keyFile: false, groups: [{ kinds: ["seed"], form: "necklace", each: 15, copies: 1, what: "seq" },
+		{ kinds: ["key"], form: "book", each: 15, copies: 0, what: "key" }] }), "pieces: a key of another collection, a group each");
+	check(one({ mode: "pad", padAs: "file" }) === JSON.stringify({ keyFile: true, groups: [{ kinds: ["seed"], form: "necklace", each: 15, copies: 2, what: "seq" }] }), "pieces: a key file, a copy of the dictionary for it");
 }
 console.log(`${failures ? "FAIL" : "ok"}: ${vectors.length} vectors, ${padVectors.length} pad vectors, ${failures} failures`);
 process.exit(failures ? 1 : 0);

@@ -85,10 +85,11 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	// pieces, the turn's piece bigger and ringed; "reference": thin, dotted,
 	// dimmed, its turn's piece framed; "read": each piece's number beside it in
 	// its string's colour (showValues). onSlot(i): a hole is a «+» to tap.
-	function string({ box, orientation = "h", role = "build", kind = "seed", things = [], items = [], firstPosition = 1, current = -1, showValues = role === "read", onSlot, onPiece }) {
+	// room: the icon's room at each end, if not the usual (a small drawing on a card).
+	function string({ box, orientation = "h", role = "build", kind = "seed", things = [], items = [], firstPosition = 1, current = -1, showValues = role === "read", onSlot, onPiece, room }) {
 		const n = Math.max(1, items.length), vertical = orientation === "v";
 		// the icon's room at the start, the same at the end, so the middle position stays at the box's middle
-		const pad = vertical ? Math.min(14, box.h * 0.08) : Math.min(20, box.w * 0.04);
+		const pad = room !== undefined ? room : vertical ? Math.min(14, box.h * 0.08) : Math.min(20, box.w * 0.04);
 		const pitch = ((vertical ? box.h : box.w) - 2 * pad) / n;
 		const parts = [];
 		let place, r, label, curR = null;
@@ -257,7 +258,9 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			text(box.x + box.w / 2, box.y + box.h / 2 + fs * 0.36, fs, value === null || value === undefined ? "" : value, { "text-anchor": "middle", class: "v-bold" }));
 	};
 	// ---- one piece with its name under it, filling a box --------------------
-	const piece = ({ box, thing, current = false }) => {
+	// named false: the piece alone, as big as the box allows (a kind of piece, with its count beside it)
+	const piece = ({ box, thing, current = false, named = true }) => {
+		if (!named) return svg("g", { class: "v v-one" }, bead(thing || null, box.x + box.w / 2, box.y + box.h / 2, Math.max(3, Math.min(box.w, box.h) / 2 - 2), current));
 		const fs = Math.min(10, box.h * 0.2), r = Math.max(3, Math.min(box.w / 2, (box.h - fs - 3) / 2) - 2);
 		return svg("g", { class: "v v-one" }, bead(thing || null, box.x + box.w / 2, box.y + 2 + r, r, current),
 			text(box.x + box.w / 2, box.y + box.h - 2, fs, thing ? fit(thing.name, box.w, fs) : "", { "text-anchor": "middle", class: "v-name" }));
