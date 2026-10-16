@@ -475,10 +475,10 @@
 	function slideDone(flow, id) {
 		const p = st.plan, rd = st.read, m = st.make;
 		if (flow === "make") return ({ mode: !!st.mode, form: !!p.chosen.form, words: !!p.chosen.words, size: !!st.dict || !!p.chosen.size,
-			keyAs: !!p.chosen.padAs, keyColl: !!p.chosen.padColl, dict: !!st.dict, keyDict: !!st.padDict, keyWho: !!m.keyWho,
+			keyAs: !!p.chosen.padAs, keyColl: !!p.chosen.padColl, keyForm: !!p.chosen.padForm, dict: !!st.dict, keyDict: !!st.padDict, keyWho: !!m.keyWho,
 			keyTool: !!(m.key && m.key.by), keyThrow: stepDone("make", "key"), seq: !!m.symbols })[id] !== false;
 		return ({ mode: !!rd.mode, form: !!rd.chosen.form, size: !!rd.dict || !!rd.chosen.size, dict: !!rd.dict, keyAs: !!rd.chosen.padAs,
-			keyColl: !!rd.chosen.padColl, keyDict: !!rd.padDict, keyFile: !!rd.keyFile, recover: !!rd.out })[id] !== false;
+			keyColl: !!rd.chosen.padColl, keyForm: !!rd.chosen.padForm, keyDict: !!rd.padDict, keyFile: !!rd.keyFile, recover: !!rd.out })[id] !== false;
 	}
 	function journeySlide(flow, view, home, toStart) {
 		const list = journeyOf(flow), at = st.at[flow] = J.resolve(flow, list, st.at[flow]);
@@ -693,13 +693,14 @@
 			// the string's last positions: how long it is
 			art: artOf(V.string({ box: { x: 0, y: 4, w: ART_W, h: ART_H - 8 }, orientation: "h", role: "read", kind: "seed", items: [null, null, null, null], firstPosition: L - 3, showValues: false, room: 20 })) };
 	});
+	// words: the seed's; null (recovering: it is not asked) gives both lengths, 12 and 24 words
 	function sizeOptions(formId, words) {
 		const c = T().cards, rec = formOf(formId).n;
 		return SIZES.map((n) => {
-			const L = symbolsFor(words, n);
+			const L = symbolsFor(words || 12, n), L2 = words ? undefined : symbolsFor(24, n);
 			return { id: n, title: c.sizeTitle(n), art: artOf(artString(kindThings(formId, n), [0, n - 1, 1, n - 2])),
-				pros: [n <= 8 ? c.sizeEasy : c.sizeShort(L), n === rec ? c.sizeRecommended : null].filter(Boolean),
-				cons: [n <= 8 ? c.sizeLong(L) : c.sizeKinds(n)] };
+				pros: [n <= 8 ? c.sizeEasy : c.sizeShort(L, L2), n === rec ? c.sizeRecommended : null].filter(Boolean),
+				cons: [n <= 8 ? c.sizeLong(L, L2) : c.sizeKinds(n)] };
 		});
 	}
 	const keyAsOptions = (things) => [{ id: "string", art: artOf(artString(things, [1, 3, 0, 2], "key")), ...T().cards.keyString },
@@ -718,7 +719,8 @@
 	}
 
 	// ---- what a choice changes, and what it asks first ---------------------------
-	function setForm(id) { st.plan.form = id; if (!st.dict) st.plan.n = formOf(id).n; }
+	// a form proposes its N, until the size is chosen (or a dictionary fixes it)
+	function setForm(id) { st.plan.form = id; if (!st.dict && !st.plan.chosen.size) st.plan.n = formOf(id).n; }
 	const madeWork = () => !!(st.make.symbols || (st.make.key && st.make.key.pieces.length));
 	const readWork = () => !!(st.read.taps.length || st.read.keyTaps.length);
 	// another dictionary (of the journey on screen): one of another size undoes
@@ -745,7 +747,7 @@
 		const kc = keyColl(), p = st.screen === "read" ? st.read : st.plan;
 		if (f === p.padForm) return true;
 		if (kc.dict && !confirm(T().keyCollChangeAsk)) return false;
-		p.padForm = f; kc.set(null); st.ways[st.screen].keyDict = null;
+		p.padForm = f; p.chosen.padForm = false; kc.set(null); st.ways[st.screen].keyDict = null;
 		return true;
 	}
 
@@ -784,8 +786,8 @@
 			},
 			keyForm: () => {
 				const p = st.plan;
-				return decide({ question: T().keyFormQ, options: formOptions(FORMS.filter((f) => f.keeps && f.id !== p.form), "key"), chosen: p.padForm,
-					choose: (id) => setPadForm(id), help: helpOf(T().formAvoidTitle, null, T().formAvoid) });
+				return decide({ question: T().keyFormQ, options: formOptions(FORMS.filter((f) => f.keeps && f.id !== p.form), "key"), chosen: p.chosen.padForm ? p.padForm : null,
+					choose: (id) => { if (setPadForm(id)) p.chosen.padForm = true; }, help: helpOf(T().formAvoidTitle, null, T().formAvoid) });
 			},
 			pieces: piecesSlide,
 			dict: () => dictChoice("make"),
@@ -809,7 +811,7 @@
 			},
 			size: () => {
 				const rd = st.read;
-				return decide({ question: T().howMany, options: sizeOptions(rd.form, rd.words), chosen: rd.dict ? rd.dict.things.length : rd.chosen.size ? rd.n : null,
+				return decide({ question: T().howMany, options: sizeOptions(rd.form, null), chosen: rd.dict ? rd.dict.things.length : rd.chosen.size ? rd.n : null,
 					choose: setSize });
 			},
 			dict: () => dictChoice("read"),
@@ -824,8 +826,8 @@
 				return decide({ question: T().keyCollQRead, options: keyCollOptions(rd.form, other), chosen: rd.chosen.padColl ? (rd.padForm ? "other" : "same") : null,
 					choose: (v) => { if (setPadForm(v === "same" ? null : other)) st.read.chosen.padColl = true; } });
 			},
-			keyForm: () => decide({ question: T().keyFormQRead, options: formOptions(FORMS.filter((f) => f.id !== st.read.form), "key"), chosen: st.read.padForm,
-				choose: (id) => setPadForm(id) }),
+			keyForm: () => decide({ question: T().keyFormQRead, options: formOptions(FORMS.filter((f) => f.id !== st.read.form), "key"),
+				chosen: st.read.chosen.padForm ? st.read.padForm : null, choose: (id) => { if (setPadForm(id)) st.read.chosen.padForm = true; } }),
 			keyDict: () => keyDictChoice("read"),
 			keyDictHave: () => readFlow(keyDictBlock),
 			keyFile: keyFileSlide,
@@ -944,7 +946,7 @@
 				materials ? h("p", { class: "pieces-thread", text: g.what === "both" ? t.piecesTwice(materials) : materials }) : null,
 				h("p", { class: "pieces-split", text: written ? t.gatherNoPieces : t.piecesSplit(g.each, g.copies, g.what) }),
 				h("label", { class: "pieces-have" }, h("input", { type: "checkbox", checked: st.gathered[g.what] ? "" : null,
-					on: { change: (e) => { st.gathered[g.what] = e.target.checked; } } }), h("span", { text: t.piecesHave })));
+					on: { change: (e) => { st.gathered[g.what] = e.target.checked; render(); } } }), h("span", { text: t.piecesHave })));
 		};
 		return { question: t.piecesQ, body: () => h("div", { class: "pieces" + (groups.length > 1 ? " two" : "") }, ...groups.map(group),
 			keyFile ? h("p", { class: "pieces-file" }, h("span", { class: "pieces-icon", "aria-hidden": "true", text: ICON.key }), t.gatherFile) : null) };
