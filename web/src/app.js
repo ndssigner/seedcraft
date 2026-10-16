@@ -39,8 +39,8 @@
 	};
 
 	// ---- state -------------------------------------------------------
-	const st = {
-		lang: (navigator.language || "en").toLowerCase().startsWith("es") ? "es" : "en",
+	// everything but the language, as on opening the page (and after «Forget everything»)
+	const freshState = () => ({
 		screen: "intro",  // intro, make, read, print, about, donate
 		// the two journeys, each a sequence of steps (see MAKE_STEPS, READ_STEPS)
 		step: { make: "plan", read: "have" },
@@ -58,7 +58,8 @@
 		make: { seed: "", entropy: null, symbols: null, turn: 0 },
 		read: freshRead(),
 		seen: {},  // the one-line explanations already shown once: keyWhy, reroll, keyPart, rowCheck, readTap
-	};
+	});
+	const st = { lang: (navigator.language || "en").toLowerCase().startsWith("es") ? "es" : "en", ...freshState() };
 	// What is being read, turn by turn (readTurnSlide): the turn shown (L: the
 	// end), each turn's piece of the sequence (taps) and, in pad mode, of the
 	// key (keyTaps, or keyFile: the key file's numbers, from fileText, checked
@@ -263,97 +264,6 @@
 		});
 	}
 
-	// ---- illustrations ---------------------------------------------------
-	// Small drawings that show what each choice is: the modes, the forms, the
-	// key as things or as a file. Line work in the page's ink and threads;
-	// the pieces in the example beads' colours. Decorative to a screen reader:
-	// the text next to each says the same.
-	const ART_COLOURS = ["#d32f2f", "#1e4fd8", "#fbc02d", "#2e7d32", "#7b1fa2", "#f57c00", "#00897b", "#d81b60"];
-	const artCol = (i) => ART_COLOURS[i % ART_COLOURS.length];
-	function art(name) {
-		const g = [];
-		const S = (tag, a, ...c) => svg(tag, a, ...c);
-		const beads = (y, n, x0, dx, r, cls) => { for (let i = 0; i < n; i++) g.push(S("circle", { cx: x0 + i * dx, cy: y, r, fill: artCol(i * 3 + (cls ? 1 : 0)), class: "art-piece" })); };
-		const lock = (x, y) => g.push(S("rect", { x: x - 7, y: y - 2, width: 14, height: 11, rx: 2, class: "art-ink-fill" }),
-			S("path", { d: `M${x - 4},${y - 2} v-4 a4,4 0 0 1 8,0 v4`, class: "art-ink" }));
-		const key = (x, y) => g.push(S("circle", { cx: x - 6, cy: y, r: 5, class: "art-pad-line" }),
-			S("path", { d: `M${x - 1},${y} h12 m-4,0 v4 m-4,-4 v3`, class: "art-pad-line" }));
-		switch (name) {
-			case "basic":
-				g.push(S("path", { d: "M18,45 C50,20 110,20 142,45", class: "art-thread" }));
-				for (let i = 0; i < 7; i++) { const t = (i + 0.5) / 7, x = 18 + t * 124, y = 45 - Math.sin(t * Math.PI) * 19; g.push(S("circle", { cx: x, cy: y, r: 7, fill: artCol(i), class: "art-piece" })); }
-				lock(12, 50);
-				g.push(S("text", { x: 80, y: 74, class: "art-label", "text-anchor": "middle" }, "= 🌱"));
-				break;
-			case "pad":
-				g.push(S("path", { d: "M20,26 H128", class: "art-thread" }), S("path", { d: "M20,62 H128", class: "art-thread pad" }));
-				beads(26, 7, 30, 15, 6, 0); beads(62, 7, 30, 15, 6, 1);
-				lock(142, 22); key(146, 62);
-				g.push(S("text", { x: 80, y: 49, class: "art-label", "text-anchor": "middle" }, "+"));
-				break;
-			case "book":
-				g.push(S("path", { d: "M80,14 C66,8 40,8 22,12 V78 C40,74 66,74 80,80 C94,74 120,74 138,78 V12 C120,8 94,8 80,14 Z", class: "art-paper" }),
-					S("path", { d: "M80,14 V80", class: "art-ink" }));
-				for (let i = 0; i < 6; i++) g.push(S("path", { d: `M30,${24 + i * 9} H${70 - (i % 2) * 10}`, class: "art-line" }), S("path", { d: `M90,${24 + i * 9} H${130 - (i % 3) * 8}`, class: "art-line" }));
-				g.push(S("rect", { x: 138, y: 18, width: 7, height: 10, rx: 2, fill: artCol(1) }), S("rect", { x: 138, y: 32, width: 7, height: 10, rx: 2, fill: artCol(2) }),
-					S("path", { d: "M52,42 H70", class: "art-mark" }));
-				break;
-			case "stickers":
-				g.push(S("rect", { x: 34, y: 8, width: 92, height: 76, rx: 4, class: "art-paper" }));
-				for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) g.push(S("rect", { x: 42 + c * 20, y: 16 + r * 22, width: 15, height: 15, rx: 4, fill: artCol(r * 4 + c), class: "art-piece" }));
-				break;
-			case "necklace":
-				g.push(S("path", { d: "M30,14 C30,90 130,90 130,14", class: "art-thread" }));
-				for (let i = 0; i < 9; i++) { const t = (i + 0.5) / 9, a = Math.PI * t, x = 80 - Math.cos(a) * 50, y = 14 + Math.sin(a) * 56; g.push(S("circle", { cx: x, cy: y, r: 6.5, fill: artCol(i), class: "art-piece" })); }
-				lock(30, 12);
-				break;
-			case "gems":
-				g.push(S("path", { d: "M14,46 H146", class: "art-thread" }));
-				for (let i = 0; i < 7; i++) { const x = 24 + i * 19; g.push(S("path", { d: `M${x},36 l7,4 v12 l-7,4 l-7,-4 v-12 z`, fill: artCol(i + 2), class: "art-piece" }), S("path", { d: `M${x - 7},40 l7,4 l7,-4 M${x},44 v12`, class: "art-facet" })); }
-				break;
-			case "bricks":
-				for (let r = 0; r < 4; r++) for (let c = 0; c < 3 - (r % 2); c++) {
-					const x = 44 + c * 26 + (r % 2) * 13, y = 70 - r * 16;
-					g.push(S("rect", { x, y, width: 24, height: 13, rx: 2, fill: artCol(r * 3 + c), class: "art-piece" }),
-						S("rect", { x: x + 4, y: y - 3, width: 5, height: 3, fill: artCol(r * 3 + c) }), S("rect", { x: x + 15, y: y - 3, width: 5, height: 3, fill: artCol(r * 3 + c) }));
-				}
-				break;
-			case "photos":
-				g.push(S("rect", { x: 22, y: 8, width: 116, height: 76, rx: 4, class: "art-paper" }));
-				for (let r = 0; r < 2; r++) for (let c = 0; c < 3; c++) {
-					const x = 30 + c * 36, y = 16 + r * 34;
-					g.push(S("rect", { x, y, width: 30, height: 26, rx: 2, fill: artCol(r * 3 + c), opacity: ".22" }), S("rect", { x, y, width: 30, height: 26, rx: 2, class: "art-frame" }),
-						S("path", { d: `M${x + 3},${y + 22} l8,-9 l6,6 l4,-4 l6,7`, class: "art-ink" }), S("circle", { cx: x + 22, cy: y + 7, r: 3, fill: artCol(r * 3 + c) }));
-				}
-				break;
-			case "other":
-				g.push(S("path", { d: "M14,46 H146", class: "art-thread" }),
-					S("circle", { cx: 34, cy: 46, r: 9, fill: artCol(0), class: "art-piece" }), S("rect", { x: 52, y: 37, width: 18, height: 18, rx: 3, fill: artCol(1), class: "art-piece" }),
-					S("path", { d: "M90,36 l10,19 h-20 z", fill: artCol(2), class: "art-piece" }), S("text", { x: 124, y: 54, class: "art-label", "text-anchor": "middle" }, "?"));
-				break;
-			case "books":
-				g.push(S("path", { d: "M14,78 H146", class: "art-ink" }));
-				[[24, 14, 0], [40, 10, 0], [52, 16, 0], [70, 12, 18], [92, 14, 0], [108, 10, -12], [124, 14, 0]].forEach(([x, w, rot], i) =>
-					g.push(S("rect", { x, y: 26, width: w, height: 52, rx: 2, fill: artCol(i), class: "art-piece", transform: rot ? `rotate(${rot} ${x + w / 2} 78)` : null })));
-				break;
-			case "cards":
-				[-24, -8, 8, 24].forEach((rot, i) => g.push(S("rect", { x: 66, y: 16, width: 30, height: 44, rx: 4, class: "art-card", transform: `rotate(${rot} 81 80)` }),
-					S("text", { x: 72, y: 32, class: "art-suit", fill: i % 2 ? "#d32f2f" : "currentColor", transform: `rotate(${rot} 81 80)` }, ["♣", "♦", "♥", "♠"][i])));
-				break;
-			case "keyThings":
-				g.push(S("path", { d: "M14,46 H130", class: "art-thread pad" }));
-				beads(46, 7, 26, 15, 6.5, 1);
-				key(144, 46);
-				break;
-			case "keyFile":
-				g.push(S("path", { d: "M50,8 H100 L114,22 V84 H50 Z", class: "art-paper" }), S("path", { d: "M100,8 V22 H114", class: "art-ink" }));
-				for (let i = 0; i < 5; i++) g.push(S("text", { x: 57, y: 34 + i * 11, class: "art-mono" }, ["3A37 DFE7 6", "A6C8 BBC2 2", "BBED 2CF3 2", "413D F4 5", ""][i]));
-				key(130, 70);
-				break;
-		}
-		return svg("svg", { class: "art", viewBox: "0 0 160 90", "aria-hidden": "true" }, ...g);
-	}
-
 	// ---- the start page's top bar and foot ------------------------------
 	// (the slides have neither: the lectern's guide, «⋯» and foot instead)
 	// each tab's label, and its short one for phones
@@ -407,13 +317,12 @@
 	const link = (href, text, tip) => h("a", { href, target: "_blank", rel: "noopener noreferrer", title: tip || null }, text);
 
 	// ---- the lectern -----------------------------------------------------
-	// Every screen is a slide (slides.js). Until each step is redone as its
-	// own slides, the old step views are shown whole as one "legacy" slide
-	// each (the only bodies allowed to scroll inside), with the guide made
-	// from the old list of steps; the start page, about, donate and the
-	// printable sheet stay as they are, fitted into the frame.
+	// Every screen is a slide (slides.js): the journeys' slides, and the
+	// start page, about, donate and the printable sheet as they are, each a
+	// page fitted into the frame (slides.js's page: under the guide's band,
+	// scrolling inside only what does not fit).
 	const Slides = SeedcraftSlides;
-	let mounted = false, lastView = "";
+	let mounted = false;
 	function render() {
 		turnRun++;
 		document.documentElement.lang = st.lang;
@@ -423,27 +332,16 @@
 			mounted = true;
 		}
 		Slides.setLang(st.lang);
-		// what scrolls inside a legacy slide (the map, the two columns) keeps its place across a redraw
-		const SCROLLERS = ".slide-legacy, .map, .flow-body, .flow-body .tool > .panel";
 		const reading = st.screen === "read" && st.at.read === "recover" ? st.read : st.screen === "make" && st.at.make === "check" ? st.make.check : null;
 		const view = [st.screen, st.at[st.screen], st.at[st.screen] === "seq" ? st.make.turn : "", reading ? `${reading.turn}${reading.typing ? "t" : ""}` : "", st.make.explain ? st.make.explain.run : "", st.make.key && st.make.key.by, st.make.key && st.make.key.pos, st.make.key && !!st.make.key.fix, st.edit && st.edit.kind, st.edit && st.edit.target, st.edit && st.edit.i].join();
-		const kept = view === lastView ? [...$("app").querySelectorAll(SCROLLERS)].map((e) => e.scrollTop) : [];
-		lastView = view;
 		Slides.show(slideNow(view));
 		online();
-		[...$("app").querySelectorAll(SCROLLERS)].forEach((e, i) => { if (kept[i] !== undefined) e.scrollTop = kept[i]; });
-		// the step by step's drawing then glides from where it was to keep the current piece in the middle
-		const map = $("app").querySelector(".map"), cur = map && map.querySelector(".ring-cur, li.on");
-		if (cur) {
-			const to = map.scrollTop + cur.getBoundingClientRect().top - map.getBoundingClientRect().top - map.clientHeight / 2 + cur.getBoundingClientRect().height / 2;
-			map.scrollTo({ top: to, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
-		}
 	}
 	// the slide for what is on screen now
 	function slideNow(view) {
 		const t = T(), home = { icon: "⌂", label: t.slidesHome, go: () => go("intro") };
 		const toStart = { label: "◀ " + t.tabIntro, go: () => go("intro") };
-		const page = (body, prev) => ({ id: view, legacy: true, guide: [], question: null, steps: 1, body: () => body,
+		const page = (body, prev) => ({ id: view, page: true, guide: [], question: null, steps: 1, body: () => body,
 			prev, next: null, shortcuts: st.screen === "intro" ? [] : [home], help: null });
 		if (st.screen === "print") {
 			const sheet = printSheet();
@@ -458,7 +356,7 @@
 	// Each journey is a list of slides (journeys.js: which there are now, in
 	// order, each under its step of the guide); st.at[flow] says which one is
 	// shown. A slide is drawn by SLIDES[flow][id](): a decision (cards), the
-	// pieces, or, until it is redone, an old step view (legacy). Back and Next
+	// pieces, a dictionary, a throw, a turn, an end, storing it. Back and Next
 	// go to the slides before and after it; a step of the guide goes to its
 	// first slide, or to the first one before it that is not done yet.
 	const journeyState = (flow) => flow === "make"
@@ -476,7 +374,7 @@
 		const p = st.plan, rd = st.read, m = st.make;
 		if (flow === "make") return ({ mode: !!st.mode, form: !!p.chosen.form, words: !!p.chosen.words, size: !!st.dict || !!p.chosen.size,
 			keyAs: !!p.chosen.padAs, keyColl: !!p.chosen.padColl, keyForm: !!p.chosen.padForm, dict: !!st.dict, keyDict: !!st.padDict, keyWho: !!m.keyWho,
-			keyTool: !!(m.key && m.key.by), keyThrow: stepDone("make", "key"), seed: !!m.symbols, seq: !!m.symbols })[id] !== false;
+			keyTool: !!(m.key && m.key.by), keyThrow: keyDone(), seed: !!m.symbols, seq: !!m.symbols })[id] !== false;
 		return ({ mode: !!rd.mode, form: !!rd.chosen.form, size: !!rd.dict || !!rd.chosen.size, dict: !!rd.dict, keyAs: !!rd.chosen.padAs,
 			keyColl: !!rd.chosen.padColl, keyForm: !!rd.chosen.padForm, keyDict: !!rd.padDict, keyFile: !!rd.keyFile, words: !!rd.chosen.words, recover: !!rd.out })[id] !== false;
 	}
@@ -494,27 +392,16 @@
 			go: () => goSlide(flow, J.jump(journeyOf(flow), step, (id) => slideDone(flow, id))) }));
 		const before = along(flow, at, -1);
 		const prev = d.hidden ? null : d.prev !== undefined ? d.prev || (before ? null : toStart)
-			: before ? { label: d.legacy ? "◀ " + stepName(flow, journeyOf(flow).find((x) => x.id === before).step) : undefined, go: () => goSlide(flow, along(flow, at, -1)) } : toStart;
+			: before ? { go: () => goSlide(flow, along(flow, at, -1)) } : toStart;
 		const after = along(flow, at, 1);
 		const forward = () => { if (d.onNext) d.onNext(); goSlide(flow, along(flow, at, 1)); };
 		const next = d.hidden ? null : d.next !== undefined ? d.next
-			: after ? { label: d.legacy ? stepName(flow, journeyOf(flow).find((x) => x.id === after).step) + " ▶" : undefined, go: forward, ready: d.ready !== false } : null;
-		return { id: view, legacy: !!d.legacy, guide, question: d.question || null, steps: d.steps || 1, startStep: d.startStep || 0, body: d.body, caption: d.caption || null,
+			: after ? { go: forward, ready: d.ready !== false } : null;
+		return { id: view, guide, question: d.question || null, steps: d.steps || 1, startStep: d.startStep || 0, body: d.body, caption: d.caption || null,
 			prev, next, shortcuts: [...(d.shortcuts || []), home], help: d.help || null };
 	}
-	// an old step view as a slide (R3): what it asked for with setNav (or the journey's own Back and Next)
-	function legacy(body) {
-		const o = navOpts, pair = (x, ready) => x ? { label: x[0], go: x[1], ready } : null;
-		return { legacy: true, body: () => h("div", { class: "flow-body" }, body), hidden: !!o.hidden, ready: o.ready !== false, onNext: o.onNext,
-			prev: o.prev !== undefined ? pair(o.prev) : undefined, next: o.next !== undefined ? pair(o.next, o.ready !== false) : undefined };
-	}
-
 	// ---- small building blocks ----------------------------------------
 	const panel = (...children) => h("section", { class: "panel" }, ...children);
-	const title = (text) => h("h2", { class: "panel-title", text });
-	const hint = (text) => h("div", { class: "hint", text });
-	// an element edged in a piece's colour (CSS var --c)
-	const tint = (e, colour) => { if (colour) e.style.setProperty("--c", colour); return e; };
 	// the two modes (SPEC §10, §11.1), chosen before making or reading: what
 	// each one keeps safe, and what it doesn't. Recovering, it is what is read's
 	// (st.read.mode), apart from the backup being made (st.mode). Choosing the
@@ -536,12 +423,10 @@
 		return true;
 	}
 	// ---- the two journeys ----------------------------------------------
-	// Making a backup and reading one: each a sequence of steps along a thread,
-	// a knot per step, filled once that step has done its job. The key's step
-	// (the pad's) is on its own thread colour, as the pad is drawn everywhere.
-	// Making one, the key comes first: the sequence is made with it. Reading
-	// one, the key is given with the rest of what you have, and both strings
-	// are read together, turn by turn.
+	// Making a backup and reading one: each a sequence of steps, the guide's.
+	// The key's step is there only with a key. Making one, the key comes
+	// first: the sequence is made with it. Reading one, the key is given with
+	// the rest of what you have, and both strings are read together, turn by turn.
 	const MAKE_STEPS = ["plan", "gather", "dict", "key", "seq", "check", "store"];
 	const READ_STEPS = ["have", "recover", "seed"];
 	const keyThread = (step) => step === "key";
@@ -549,68 +434,29 @@
 	const stepName = (flow, step) => (flow === "make" ? T().makeSteps[MAKE_STEPS.indexOf(step)] : T().readSteps[READ_STEPS.indexOf(step)])[0];
 	// to a step: its first slide
 	function toStep(flow, step) { const x = journeyOf(flow).find((y) => y.step === step); goSlide(flow, x && x.id); }
-	function stepDone(flow, step) {
-		const m = st.make, rd = st.read;
-		if (flow === "make") return ({ plan: !!st.mode, gather: Object.values(st.gathered).some(Boolean), dict: !!st.dict && st.dict.checked && (!keyDictNeeded() || !!st.padDict),
-			key: keyReady() && (st.plan.padAs === "string" || !!m.padKept), seq: !!m.symbols, check: !!m.checked, store: !!m.stored })[step];
-		return ({ have: !!rd.mode && !!rd.dict && keyGiven(), recover: !!rd.out, seed: !!rd.out })[step];
-	}
-	function journey(flow) {
-		const t = T(), steps = stepsOf(flow);
-		return h("nav", { class: "journey" + (flow === "read" ? " short" : ""), "aria-label": flow === "make" ? t.tabMakeFlow : t.tabReadFlow },
-			h("ol", {}, steps.map((step, i) => {
-				const cur = st.step[flow] === step;
-				return h("li", { class: [cur ? "on" : "", stepDone(flow, step) ? "done" : "", keyThread(step) ? "pad" : ""].filter(Boolean).join(" ") },
-					h("button", { "aria-current": cur ? "step" : null, on: { click: () => toStep(flow, step) } },
-						h("span", { class: "knot", "aria-hidden": "true" }),
-						h("span", { class: "step-name" }, h("small", { text: String(i + 1) }), stepName(flow, step))));
-			})),
-			// on a phone, only the knots, and the current step's name under them
-			h("div", { class: "journey-now", "aria-hidden": "true" }, h("small", { text: t.stepOf(steps.indexOf(st.step[flow]) + 1, steps.length) + " · " }), stepName(flow, st.step[flow])));
-	}
-	// every step opens the same way: its name, then one plain sentence (lead) and anything beside the name (aside)
-	const stepHead = (flow, lead, aside) => [h("div", { class: "row between step-head" }, h("h2", { class: "step-title", text: stepName(flow, st.step[flow]) }), aside || null),
-		lead ? h("p", { class: "lead", text: lead }) : null];
-	// Back and on along the journey, always in the same place: a bar at the
-	// foot of the page. Each step says, while it is drawn, how the bar
-	// behaves: setNav({ ready (false: next waits), onNext, prev / next:
-	// [label, go] instead of the journey's own, hidden }).
-	let navOpts = {};
-	const setNav = (opts) => { navOpts = opts; return null; };
-	function stepNav(flow, opts = {}) {
-		if (opts.hidden) return null;
-		const s = stepsOf(flow), i = s.indexOf(st.step[flow]), prev = s[i - 1], next = s[i + 1];
-		const back = opts.prev !== undefined ? opts.prev : prev ? ["◀ " + stepName(flow, prev), () => toStep(flow, prev)] : null;
-		const on = opts.next !== undefined ? opts.next : next ? [stepName(flow, next) + " ▶", () => { if (opts.onNext) opts.onNext(); toStep(flow, next); }] : null;
-		// on a phone the buttons say only back and next: the step names would not fit
-		const label = (long, short) => [h("span", { class: "long", text: long }), h("span", { class: "short", text: short })];
-		return h("nav", { class: "flow-nav", "aria-label": T().stepsNav }, h("div", { class: "flow-nav-in" },
-			back ? h("button", { class: "btn ghost", on: { click: back[1] } }, label(back[0], "◀ " + T().back)) : h("span"),
-			on ? h("button", { class: "btn", id: "nav-next", disabled: opts.ready === false ? "" : undefined, on: { click: on[1] } }, label(on[0], T().next + " ▶")) : h("span")));
-	}
-	// a step that cannot start yet says which one comes first
+	// the key's step has done its job: the key is whole and, as a file, saved
+	const keyDone = () => keyReady() && (st.plan.padAs === "string" || !!st.make.padKept);
+	// The step a slide needs done first, if any: a slide that cannot start
+	// yet says which one comes first, and Next goes there.
 	function needFirst(flow, step) {
-		let need = null;
+		const m = st.make, later = ["key", "seq", "check", "store"].includes(step);
 		if (flow === "make") {
-			if (step !== "plan" && step !== "store" && !st.mode) need = "plan";
-			else if (["key", "seq", "check"].includes(step) && !st.dict) need = "dict";
-			else if (["key", "seq", "check"].includes(step) && keyDictNeeded() && !st.padDict) need = "dict";
-			else if (["seq", "check"].includes(step) && st.mode === "pad" && !keyReady()) need = "key";
+			if (step !== "plan" && !st.mode) return "plan";
+			if (later && (!st.dict || (keyDictNeeded() && !st.padDict))) return "dict";
+			if (["seq", "check", "store"].includes(step) && st.mode === "pad" && !keyReady()) return "key";
 			// a key file is saved before a sequence is made with it, and before it is checked: this page forgets it
-			else if ((step === "check" || (step === "seq" && !st.make.symbols)) && st.mode === "pad" && st.plan.padAs === "file" && !st.make.padKept) need = "key";
-			else if (step === "check" && !st.make.symbols) need = "seq";
-		} else if (step !== "have" && (!st.read.mode || !st.read.dict || !keyGiven())) need = "have";
-		else if (step === "seed" && !st.read.out) need = "recover";
-		if (!need) return null;
-		setNav({ hidden: true });
-		return h("div", { class: "narrow" }, panel(title(stepName(flow, step)), h("p", { text: T().needFirst(stepName(flow, need)) }),
-			h("div", { class: "row" }, h("button", { class: "btn push", on: { click: () => toStep(flow, need) } }, stepName(flow, need) + " ▶"))));
+			if ((step === "check" || (step === "seq" && !m.symbols)) && st.mode === "pad" && st.plan.padAs === "file" && !m.padKept) return "key";
+			if ((step === "check" || step === "store") && !m.symbols) return "seq";
+			return null;
+		}
+		if (step !== "have" && (!st.read.mode || !st.read.dict || !keyGiven())) return "have";
+		if (step === "seed" && !st.read.out) return "recover";
+		return null;
 	}
-	// the old views of the steps not redone yet, each after what it needs first
-	function makeFlow(view) {
-		navOpts = {};
-		return legacy(needFirst("make", st.step.make) || view());
-	}
+	const needs = (flow) => {
+		const need = needFirst(flow, st.step[flow]);
+		return need ? { question: T().needFirst(stepName(flow, need)), body: () => null, next: { label: stepName(flow, need) + " ▶", go: () => toStep(flow, need) } } : null;
+	};
 
 	// ---- the decisions: a question, and a card per option -------------------------
 	// Every choice looks the same (vocab.js's cards): each card's drawing in
@@ -737,8 +583,6 @@
 
 	// ---- the slides of each journey ------------------------------------------
 	const ICON = { seed: "🌱", key: "⚿" };
-	// what an old view of the key needs first (the dictionary, the key's own)
-	const needs = (flow) => { navOpts = {}; const v = needFirst(flow, st.step[flow]); return v ? legacy(v) : null; };
 	const SLIDES = {
 		make: {
 			mode: () => decide({ question: T().modeHelp, options: modeOptions(), chosen: st.mode, choose: setMode }),
@@ -784,7 +628,7 @@
 			seed: () => needs("make") || seedSlide(),
 			seq: () => needs("make") || turnSlide(),
 			check: () => needs("make") || checkTurns(),
-			store: () => makeFlow(storeStep),
+			store: () => needs("make") || storeSlide(),
 		},
 		read: {
 			mode: () => decide({ question: T().modeHelpRead, options: modeOptions(), chosen: st.read.mode, choose: setMode }),
@@ -954,7 +798,6 @@
 		return { question: t.piecesQ, body: () => h("div", { class: "pieces" + (groups.length > 1 ? " two" : "") }, ...groups.map(group),
 			keyFile ? h("p", { class: "pieces-file" }, h("span", { class: "pieces-icon", "aria-hidden": "true", text: ICON.key }), t.gatherFile) : null) };
 	}
-
 
 	// ---- make, 3 (and read, 1): the dictionary ------------------------------
 	// naming or checking it: a slide per piece (nameSlide, checkSlide), its own way on
@@ -1645,14 +1488,14 @@
 		}
 		// the key file's characters around the turn, a column like the key string's: the turn's framed
 		function keyFileColumn() {
-			const box = b.keyString, top = 14, pitch = (box.h - top) / 7, parts = [svg("text", { x: box.x + box.w / 2, y: box.y + 11, "font-size": 11, "text-anchor": "middle", class: "v-t v-icon" }, ICON.key)];
-			for (let j = 0; j < 7; j++) {
-				const x = i - 3 + j, y = box.y + top + pitch * (j + 0.5);
-				if (x < 0 || x >= L) continue;
-				if (j === 3) parts.push(svg("rect", { x: box.x, y: y - pitch / 2 + 0.5, width: box.w, height: pitch - 1, rx: 3, class: "v-turn-frame" }));
-				parts.push(svg("text", { x: box.x + 9, y: y + 3, "font-size": j === 3 ? 10 : 8, "text-anchor": "middle", class: "v-t v-pos" + (j === 3 ? " v-pos-current v-c-qr v-bold" : "") }, x + 1),
-					svg("text", { x: box.x + 25, y: y + 5, "font-size": 14, "text-anchor": "middle", class: "v-t v-mono v-bold v-c-key" + (j === 3 ? "" : " tn-dim") }, S.PAD_DIGITS[m.pad[x]]));
-			}
+			const col = Lay.fileColumn(b.keyString, { role: "reference" }), parts = [svg("text", { x: col.icon[0], y: col.icon[1], "font-size": 11, "text-anchor": "middle", class: "v-t v-icon" }, ICON.key)];
+			col.rows.forEach((r, j) => {
+				const x = i - 3 + j;
+				if (x < 0 || x >= L) return;
+				if (j === 3) parts.push(svg("rect", { x: r.frame.x, y: r.frame.y, width: r.frame.w, height: r.frame.h, rx: 3, class: "v-turn-frame" }));
+				parts.push(svg("text", { x: r.pos[0], y: r.pos[1], "font-size": j === 3 ? 10 : 8, "text-anchor": "middle", class: "v-t v-pos" + (j === 3 ? " v-pos-current v-c-qr v-bold" : "") }, x + 1),
+					svg("text", { x: r.digit[0], y: r.digit[1], "font-size": 14, "text-anchor": "middle", class: "v-t v-mono v-bold v-c-key" + (j === 3 ? "" : " tn-dim") }, S.PAD_DIGITS[m.pad[x]]));
+			});
 			return svg("g", { class: "v v-file", role: "img", "aria-label": t.padFileTitle }, parts);
 		}
 
@@ -1747,10 +1590,12 @@
 			label(b.madeLabel, t.checkMadeQr), label(b.readLabel, t.checkReadQr),
 		];
 		if (!exact) {
-			// the strings as read, around the turn of the piece that does not match, it framed in red
-			const keyThings = pad && rd.padAs === "string" ? keyThingsOf(rd) : null;
-			kids.push(readColumn(b.seedColumn, "seed", things, rd.taps, w.turn, L));
-			if (pad) kids.push(keyThings ? readColumn(b.keyColumn, "key", keyThings, rd.keyTaps, w.turn, L) : fileColumn(b.keyColumn, rd.keyFile, w.turn, L));
+			// the strings as read, around the turn of the piece that does not match, it framed in red;
+			// the two strings swapped, each column is drawn as the string read in it (its icon, its dictionary)
+			const keyThings = pad && rd.padAs === "string" ? keyThingsOf(rd) : null, swapped = !!(keyThings && diff.swapped);
+			kids.push(swapped ? readColumn(b.seedColumn, "key", keyThings, rd.taps, w.turn, L) : readColumn(b.seedColumn, "seed", things, rd.taps, w.turn, L));
+			if (pad) kids.push(!keyThings ? fileColumn(b.keyColumn, rd.keyFile, w.turn, L)
+				: swapped ? readColumn(b.keyColumn, "seed", things, rd.keyTaps, w.turn, L) : readColumn(b.keyColumn, "key", keyThings, rd.keyTaps, w.turn, L));
 			kids.push(V.frame({ box: w.column === "key" && b.keyRow ? b.keyRow : b.seedRow, colour: "err" }));
 		}
 		const result = exact
@@ -1758,7 +1603,8 @@
 			: h("div", { class: "cf-result bad" }, h("b", { text: t.checkWrongPiece(w.turn + 1) }));
 		const same = !!rd.out && [...rd.out.entropy].join() === [...m.entropy].join();
 		return {
-			caption: () => exact ? t.checkMatch : same ? t.checkFixed : t.checkMismatch,
+			// the same seed: put right by the QR code, or wrong only in the padding (bits with no square)
+			caption: () => exact ? t.checkMatch : same && rd.out.fixed ? t.checkFixed : same ? t.checkPadding : t.checkMismatch,
 			shortcuts: readShortcuts(rd, L, () => {}),
 			prev: { go: () => readGo(rd, L - 1) },
 			next: exact ? { label: stepName("make", "store") + " ▶", go: () => goSlide("make", "store") }
@@ -1768,23 +1614,69 @@
 	}
 
 	// ---- make, 7: store it ------------------------------------------------------
-	function storeStep() {
-		const t = T(), m = st.make, padMode = st.mode === "pad";
-		const items = padMode ? t.storePad : t.storeBasic;
-		// a key file made here and never saved: forgetting would lose the seed, so it is saved first
-		const unsaved = padMode && st.plan.padAs === "file" && !!m.pad && !m.padKept;
-		// one column: what to do, then forgetting the seed here
-		return h("div", { class: "narrow" }, panel(...stepHead("make"),
-				h("ul", { class: "checks" }, items.map((x) => h("li", {}, h("label", {}, h("input", { type: "checkbox" }), h("span", { text: x }))))),
-				unsaved ? h("div", { class: "note warn" }, t.storeKeyUnsaved, " ", h("button", { class: "btn small",
-					on: { click: () => { download(S.writePadFile(m.pad, st.dict.things.length), "numbers.txt", "text/plain"); m.padKept = true; render(); } } }, t.padFileSave)) : null,
-				h("div", { class: "row forget" }, h("button", { class: "btn", disabled: unsaved ? "" : undefined, on: { click: () => {
-					if (!confirm(t.storeForgetAsk(st.mode))) return;
-					st.make = { seed: "", entropy: null, symbols: null, turn: 0 };
-					st.read = freshRead(); st.gathered = {}; fingerprints.clear();
-					st.step.make = "plan"; st.at.make = "mode";
-					go("intro");
-				} } }, t.storeForget), h("span", { class: "meta", text: t.storeForgetWhy }))));
+	// layouts.js's store. With a key, two places, A and B, a red dashed border
+	// between them, «never together»: in A your string and its dictionary, in
+	// B the key and its own (the same one: a copy in each, SPEC §10.8), each
+	// with «Saved». With no key, the string in one place and the dictionary
+	// apart. At the foot, in red, forgetting everything here; a key file not
+	// saved yet is saved first, and until then nothing is forgotten.
+	function storeSlide() {
+		const t = T(), m = st.make, pad = st.mode === "pad", file = pad && st.plan.padAs === "file", n = st.dict.things.length;
+		const b = Lay.store({ pad }).boxes, saved = m.storedAt || (m.storedAt = {});
+		const unsaved = file && !m.padKept, shared = pad && !st.plan.padForm;
+		const first = (vals) => Array.from({ length: Math.min(vals.length, pad ? 8 : 11) }, (_, j) => vals[j]);
+		const seedString = V.string({ box: b.aString, orientation: "h", role: "read", kind: "seed", things: st.dict.things, items: first(m.symbols), showValues: false });
+		// the key file as it starts: its first line, and its first rows
+		const keyFile = () => {
+			const box = b.bString, lines = S.writePadFile(m.pad, n).split("\n").slice(0, 3);
+			return svg("g", { class: "v v-file", role: "img", "aria-label": t.padFileTitle },
+				svg("text", { x: box.x + 8, y: box.y + box.h / 2 + 5, "font-size": 14, "text-anchor": "middle", class: "v-t v-icon" }, ICON.key),
+				svg("rect", { x: box.x + 20, y: box.y + 1, width: box.w - 22, height: box.h - 2, rx: 4, class: "card-file" }),
+				...lines.map((x, j) => svg("text", { x: box.x + 28, y: box.y + 14 + j * 13, "font-size": 10, class: "v-t v-mono v-c-key" }, x)));
+		};
+		const kids = [
+			svg("rect", { x: b.a.x, y: b.a.y, width: b.a.w, height: b.a.h, rx: 8, class: "st-place" }), seedString,
+			V.dictionary({ box: b.aDict, things: st.dict.things, mode: "static", icon: "seed" }),
+		];
+		const over = [];
+		const note = (box, ...lines) => over.push(place(h("div", { class: "st-note" }, lines.filter(Boolean).map((x) => h("p", { text: x }))), box));
+		const titled = (box, icon, text) => over.push(place(h("p", { class: "st-title" }, h("span", { "aria-hidden": "true", text: icon + " " }), text), box));
+		const savedBox = (id, box) => over.push(place(h("label", { class: "st-saved" }, h("input", { type: "checkbox", checked: saved[id] ? "" : null,
+			on: { change: (e) => { saved[id] = e.target.checked; m.stored = (pad ? ["a", "b"] : ["a", "d"]).every((x) => saved[x]); } } }), h("span", { text: t.storeSaved })), box));
+		const saveFile = () => { download(S.writePadFile(m.pad, n), "numbers.txt", "text/plain"); m.padKept = true; render(); };
+		if (pad) {
+			const keyThings = file ? null : keyThingsMade();
+			kids.push(svg("rect", { x: b.b.x, y: b.b.y, width: b.b.w, height: b.b.h, rx: 8, class: "st-place st-key" }),
+				file ? keyFile() : V.string({ box: b.bString, orientation: "h", role: "read", kind: "key", things: keyThings, items: first(m.pad), showValues: false }),
+				V.dictionary({ box: b.bDict, things: st.plan.padForm ? st.padDict.things : st.dict.things, mode: "static", icon: "key" }),
+				svg("line", { x1: b.border.x + b.border.w / 2, y1: b.border.y, x2: b.border.x + b.border.w / 2, y2: b.border.y + b.border.h, class: "st-border" }),
+				svg("text", { x: b.apart.x + b.apart.w / 2, y: b.apart.y + 12, "font-size": 12, "text-anchor": "middle", class: "v-t v-bold v-c-err" }, t.storeApart));
+			titled(b.aTitle, ICON.seed, t.storeA); titled(b.bTitle, ICON.key, t.storeB);
+			note(b.aNote, t.storeMarkStart, shared || file ? t.storeCopy : null);
+			note(b.bNote, file ? t.storeFileNote : t.storeMarkStart, shared || file ? t.storeCopy : null);
+			savedBox("a", b.aSaved);
+			if (unsaved) over.push(place(h("div", { class: "st-saved" }, h("button", { type: "button", class: "btn small", on: { click: saveFile } }, "⤓ " + t.padFileSave)), b.bSaved));
+			else savedBox("b", b.bSaved);
+		} else {
+			kids.push(svg("rect", { x: b.d.x, y: b.d.y, width: b.d.w, height: b.d.h, rx: 8, class: "st-place" }),
+				V.dictionary({ box: b.dDict, things: st.dict.things, mode: "static", icon: "seed" }));
+			titled(b.aTitle, ICON.seed, t.storeHere); titled(b.dTitle, ICON.seed, t.storeDictApart);
+			note(b.aNote, t.storeAmong); note(b.dNote, t.storeDictWhy);
+			savedBox("a", b.aSaved); savedBox("d", b.dSaved);
+		}
+		// forgetting everything here, as on opening the page (the language aside)
+		const forget = () => {
+			if (unsaved || !confirm(t.storeForgetAsk)) return;
+			Object.assign(st, freshState());
+			fingerprints.clear();
+			go("intro");
+		};
+		over.push(place(h("div", { class: "st-forget" }, h("button", { type: "button", class: "btn ghost st-forget-btn", disabled: unsaved || undefined, on: { click: forget } }, t.storeForget)), b.forget));
+		return {
+			question: t.storeQ(pad), caption: () => unsaved ? t.storeKeyUnsaved : t.storeForgetWhy, next: null,
+			help: helpOf(stepName("make", "store"), null, pad ? t.storePad : t.storeBasic),
+			body: () => h("div", { class: "dict-slide st-slide" }, canvas(...kids), ...over),
+		};
 	}
 
 	// ---- read ------------------------------------------------------------
@@ -1809,7 +1701,7 @@
 			rd.fileText = await f.text();
 			render();
 		} } });
-		return [h("div", { class: "label pad-label", text: t.padFileTitle }), hint(t.padFileReadHelp), area, status,
+		return [h("div", { class: "label pad-label", text: t.padFileTitle }), h("div", { class: "hint", text: t.padFileReadHelp }), area, status,
 			h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => open.click() } }, t.padFileOpen), open)];
 	}
 	// rd.keyFile from rd.fileText, or why not (a PadFileError's code and line,
@@ -1894,32 +1786,34 @@
 	// A string as read, vertical (vocab.js's "read"): the 7 places around turn
 	// i, each piece with its number beside it; vals: what was read at each
 	// place. The turn's place, while it is not read: a hole (a «+» with slot).
-	// slot(): the hole tapped; piece(x): the piece of place x tapped.
+	// slot(): the hole tapped; piece(x): the piece of place x tapped;
+	// title(x): what hovering the piece of place x says (a locked one: where its number comes from).
 	function readColumn(box, kind, things, vals, i, L, on = {}) {
 		const items = Array.from({ length: 7 }, (_, j) => {
 			const x = i - 3 + j;
 			return x < 0 || x >= L ? undefined : vals[x] !== undefined ? vals[x] : x === i ? null : undefined;
 		});
 		return V.string({ box, orientation: "v", role: "read", kind, things, items, current: 3, firstPosition: i - 2,
-			onSlot: on.slot ? () => on.slot() : undefined, onPiece: on.piece ? (j) => on.piece(i - 3 + j) : undefined });
+			onSlot: on.slot ? () => on.slot() : undefined, onPiece: on.piece ? (j) => on.piece(i - 3 + j) : undefined, titleOf: on.title ? (j) => on.title(i - 3 + j) : undefined });
 	}
 	// A key file's characters around turn i, a column like a string read: each
-	// with its number beside it (amber) and its place under that. onTap(x):
-	// place x tapped (where its number comes from).
+	// with its number beside it (amber) and its place under that, on
+	// layouts.js's fileColumn; hovering one says where its number comes
+	// from. onTap(x): place x tapped (the same, in a popup).
 	function fileColumn(box, values, i, L, onTap) {
-		const top = 14, pitch = (box.h - 2 * top) / 7, cx = box.x + 22, lx = (cx + 12 + box.x + box.w) / 2;
-		const parts = [svg("text", { x: cx, y: box.y + 11, "font-size": 11, "text-anchor": "middle", class: "v-t v-icon" }, ICON.key)];
-		for (let j = 0; j < 7; j++) {
-			const x = i - 3 + j, y = box.y + top + pitch * (j + 0.5), v = values && values[x];
-			if (x < 0 || x >= L || v === undefined) continue;
+		const col = Lay.fileColumn(box), parts = [svg("text", { x: col.icon[0], y: col.icon[1], "font-size": 11, "text-anchor": "middle", class: "v-t v-icon" }, ICON.key)];
+		col.rows.forEach((r, j) => {
+			const x = i - 3 + j, v = values && values[x];
+			if (x < 0 || x >= L || v === undefined) return;
 			const g = svg("g", { class: "v-piece rt-file" + (j === 3 ? " v-current" : "") },
-				svg("text", { x: cx, y: y + 6, "font-size": 17, "text-anchor": "middle", class: "v-t v-mono v-bold v-c-key" }, S.PAD_DIGITS[v]),
-				svg("text", { x: lx, y: y + 2, "font-size": 13, "text-anchor": "middle", class: "v-t v-value v-bold v-c-key" }, String(v)),
-				svg("text", { x: lx, y: y + 12, "font-size": 9, "text-anchor": "middle", class: "v-t v-pos" + (j === 3 ? " v-pos-current v-c-qr v-bold" : "") }, String(x + 1)),
-				svg("title", {}, `${x + 1}: ${S.PAD_DIGITS[v]} = ${v}`));
+				svg("rect", { x: r.ring.x, y: r.ring.y, width: r.ring.w, height: r.ring.h, rx: 4, class: "rt-file-ring" }),
+				svg("text", { x: r.digit[0], y: r.digit[1], "font-size": 17, "text-anchor": "middle", class: "v-t v-mono v-bold v-c-key" }, S.PAD_DIGITS[v]),
+				svg("text", { x: r.value[0], y: r.value[1], "font-size": 13, "text-anchor": "middle", class: "v-t v-value v-bold v-c-key" }, String(v)),
+				svg("text", { x: r.pos[0], y: r.pos[1], "font-size": 9, "text-anchor": "middle", class: "v-t v-pos" + (j === 3 ? " v-pos-current v-c-qr v-bold" : "") }, String(x + 1)),
+				svg("title", {}, T().readLockedFile(x + 1, S.PAD_DIGITS[v], v)));
 			if (onTap) tapOn(g, () => onTap(x));
 			parts.push(g);
-		}
+		});
 		return svg("g", { class: "v v-file", role: "group", "aria-label": T().padFileTitle }, parts);
 	}
 
@@ -1979,10 +1873,14 @@
 			{ label: t.readWhich(pos) });
 		}
 		// a row before (or a key file's place) tapped: only where its number comes from
-		function locked(which, x) {
+		const lockLine = (which, x) => {
 			const v = which === "key" ? key[x] : rd.taps[x];
-			const line = which === "key" && file ? t.readLockedFile(x + 1, S.PAD_DIGITS[v], v) : t.readLocked(x + 1, v, (which === "key" ? keyThings : things)[v].name, which === "key" && ownKey);
-			Slides.popup(h("div", { class: "slide-help rt-lock" }, h("p", { text: line }), x !== i ? h("p", { class: "hint", text: t.readLockedWhy }) : null), { label: line });
+			return which === "key" && file ? t.readLockedFile(x + 1, S.PAD_DIGITS[v], v) : t.readLocked(x + 1, v, (which === "key" ? keyThings : things)[v].name, which === "key" && ownKey);
+		};
+		// (to change it: back to its turn with ◀, or on to it with ▶)
+		function locked(which, x) {
+			const line = lockLine(which, x);
+			Slides.popup(h("div", { class: "slide-help rt-lock" }, h("p", { text: line }), x !== i ? h("p", { class: "hint", text: x > i ? t.readLockedAhead : t.readLockedWhy }) : null), { label: line });
 		}
 
 		// what each arrow shows: the pieces still being chosen, the position and the numbers already in;
@@ -2001,10 +1899,12 @@
 		function draw(p, turning, onRun) {
 			const reached = (id) => whole && at(id) >= 0 && p >= at(id);
 			g.frame.replaceChildren(V.frame({ box: b.row, colour: "qr" }));
-			g.seed.replaceChildren(readColumn(b.seedColumn, "seed", things, rd.taps, i, L, { slot: () => choose("seed"), piece: (x) => x === i ? choose("seed") : locked("seed", x) }));
+			g.seed.replaceChildren(readColumn(b.seedColumn, "seed", things, rd.taps, i, L, { slot: () => choose("seed"), piece: (x) => x === i ? choose("seed") : locked("seed", x),
+				title: (x) => x === i ? null : lockLine("seed", x) }));
 			if (pad) {
 				g.key.replaceChildren(file ? fileColumn(b.keyColumn, key, i, L, (x) => locked("key", x))
-					: readColumn(b.keyColumn, "key", keyThings, rd.keyTaps, i, L, { slot: () => choose("key"), piece: (x) => x === i ? choose("key") : locked("key", x) }));
+					: readColumn(b.keyColumn, "key", keyThings, rd.keyTaps, i, L, { slot: () => choose("key"), piece: (x) => x === i ? choose("key") : locked("key", x),
+						title: (x) => x === i ? null : lockLine("key", x) }));
 				g.clock.replaceChildren(V.clock({ box: b.clock, n, from: hasC ? C : null, by: hasK ? K : null, sign: -1, inputColour: "seed",
 					phase: !whole || p < at("out") ? "inputs" : p === at("out") && turning ? "run" : "done", onDone: p === at("out") ? onRun : undefined }));
 			}

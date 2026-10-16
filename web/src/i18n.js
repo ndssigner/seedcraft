@@ -51,7 +51,7 @@ const SEEDCRAFT_TEXT = {
 		carriers: "📿 necklace · 🧱 brick tower · 🃏 cards by suit · 🏷️ stickers in a row · 📚 books on a shelf · 🔩 marks on metal — anything, if the order can never change and no piece can come off",
 		honestTitle: "What protects what",
 		honest: "Keeping the dictionary apart hides that your sequence is a seed at all: without it, it is just a necklace, an address book or a collection. But it is not a lock: someone who knows this method can read the seed from the sequence alone, in seconds (SPEC §9). Keep it as safe as the words themselves, and use a BIP-39 passphrase if you want real protection. Or choose a key when you make it: then the sequence alone says nothing, and the key, kept somewhere else, is the other half (SPEC §10, where the key is called the pad).",
-		back: "Back", next: "Next",
+		back: "Back",
 		clasp: "start", end: "end",
 		seedWords: "How many words has your seed?", howMany: "How many kinds of piece?",
 
@@ -87,7 +87,6 @@ const SEEDCRAFT_TEXT = {
 		seedTest12: "Test seed (12 words)", seedTest24: "Test seed (24 words)",
 		seedOk: (n) => `✅ ${n} correct words`, seedEmpty: "Waiting for the words…",
 		makeIt: "Make my sequence",
-		shop: (each, n) => `Get ${each} of each of the ${n} kinds (enough for this seed, with spares).`,
 		makeWarn: "⚠️ This order is your seed. Keep it as safe as the words.",
 		whyBasic: (n, k) => `Your collection has ${n} pieces because ${k} bit${k > 1 ? "s" : ""} make${k > 1 ? "" : "s"} ${n} numbers: each piece tells ${k} square${k > 1 ? "s" : ""} of the QR code.`,
 		saveList: "Save as text",
@@ -104,10 +103,6 @@ const SEEDCRAFT_TEXT = {
 		sheetDrawing: "🎨 The drawing",
 		sheetMagic: "But the magic only works if every piece is in its exact place. Follow the numbers carefully, one by one, without skipping any: that's what makes it one of a kind!",
 		modeHelp: "How do you want to keep it?", modeHelpRead: "How was it made?",
-
-
-
-
 		padFileHelp: "Neither its name nor its contents say what it is. Each row ends in a check, so a copying mistake shows.",
 		padFileSave: "Save the key as a file",
 		keyTools: "With what?",
@@ -147,7 +142,6 @@ const SEEDCRAFT_TEXT = {
 		}[code]),
 		padSwapped: "The key was the sequence and the other way round — that's fine.",
 		tabMakeFlow: "Back up a seed", tabReadFlow: "Recover a seed", tabMakeShort: "Back up", tabReadShort: "Recover",
-		stepOf: (i, n) => `${i} of ${n}`,
 		makeSteps: [
 			["Plan", "Choose the mode, the number of words and how many kinds of pieces."],
 			["Get the pieces", "How many of each kind, before you start."],
@@ -185,7 +179,15 @@ const SEEDCRAFT_TEXT = {
 			"Leave your heirs a note: what they are, where the other half is, and where to find SPEC-sequences.md.",
 		],
 		storeForgetWhy: "Closing the page forgets everything too.",
-		storeForget: "Forget the seed", storeForgetAsk: (mode) => mode === "pad" ? "Forget the seed, the sequence and the key on this page? Save the key file first if you need it." : "Forget the seed and the sequence on this page?",
+		storeForget: "Forget everything on this device", storeForgetAsk: "Forget everything on this device: the words, the sequence, the key and the dictionaries? Save what you need first.",
+		// storing it: two places with a key, never together; with none, the dictionary apart
+		storeQ: (pad) => pad ? "Where does each half go?" : "Where does each thing go?",
+		storeA: "Place A: your string", storeB: "Place B: your key", storeApart: "never together",
+		storeHere: "Your string", storeDictApart: "The dictionary, apart",
+		storeMarkStart: "Mark its start, so you know which half is which.", storeCopy: "With a copy of the dictionary.",
+		storeFileNote: "On paper or a memory stick: never on a device that travels with the string.",
+		storeAmong: "Among things like it, where it belongs.", storeDictWhy: "Apart: it only hides that it is a seed.",
+		storeSaved: "Saved",
 		storeKeyUnsaved: "The key file is not saved yet: without it the seed is lost.",
 		modeChangeAsk: "Change the mode? The key and the sequence made so far are forgotten.",
 		keySaveFirst: "Save the file to go on: it is the key, and this page forgets it.",
@@ -210,6 +212,7 @@ const SEEDCRAFT_TEXT = {
 		endBasic: "That is your whole QR code: whoever has the string and the collection has your seed.",
 		endPad: "Each string alone is chance: each needs the other. Keep them apart, and lose neither.",
 		checkFixed: "Same seed, but some piece is wrong (the QR code put it right): fix it before storing.",
+		checkPadding: "Same seed, but a piece differs in its padding bits (they have no square): fix it before storing.",
 		readAgain: "Read another",
 		formTitle: "Which form?",
 		// the decisions' cards (their ✓ and ✕: SPEC §11, RISK-AUDIT.md), and the slides' questions
@@ -335,7 +338,7 @@ const SEEDCRAFT_TEXT = {
 		readTurnBasic: (p) => `${p} in bits paints these squares of the QR code.`,
 		readLocked: (i, v, name, key) => `🔒 Piece ${i}: in ${key ? "the key's" : "your"} dictionary, ${v} = ${name}.`,
 		readLockedFile: (i, c, v) => `🔒 Place ${i} of your key file: ${c} is the number ${v}.`,
-		readLockedWhy: "To change it, go back to its turn with ◀.",
+		readLockedWhy: "To change it, go back to its turn with ◀.", readLockedAhead: "To change it, go on to its turn with ▶.",
 		readWordsAsk: (L) => `Change the number of words? The pieces read after ${L} are forgotten.`,
 		typeAll: "Type it all", typeQ: "Which pieces, in order?",
 		readToEnd: "On to the last piece read",
@@ -344,7 +347,6 @@ const SEEDCRAFT_TEXT = {
 		checkMadeQr: "Your words", checkReadQr: "What you read",
 		checkSame: "It is your seed", checkExact: (L) => `the ${L} pieces, exact`,
 		checkWrongPiece: (i) => `Piece ${i} doesn't match`, checkGo: (i) => `Go to piece ${i}`,
-		stepsNav: "Back and on",
 		dictBeforeTitle: "Before you make it: three questions",
 		gatherNoPieces: "No pieces to get: the entries are written by hand.",
 		donateTitle: "Donate", copy: "Copy", copied: "Copied",
@@ -403,7 +405,7 @@ const SEEDCRAFT_TEXT = {
 		carriers: "📿 collar · 🧱 torre de piezas · 🃏 cartas por palos · 🏷️ pegatinas en fila · 📚 libros en una estantería · 🔩 marcas en metal: cualquier cosa, si el orden no puede cambiar nunca y ninguna pieza se puede soltar",
 		honestTitle: "Qué protege qué",
 		honest: "Guardar el diccionario aparte oculta que tu secuencia sea una semilla: sin él es solo un collar, una agenda o una colección. Pero no es un candado: quien conozca este método puede leer la semilla solo con la secuencia, en segundos (SPEC §9). Guárdala tan bien como las palabras, y usa una passphrase BIP-39 si quieres protección de verdad. O elige una llave al hacerla: entonces la secuencia sola no dice nada, y la llave, guardada en otro sitio, es la otra mitad (SPEC §10, donde la llave se llama pad).",
-		back: "Atrás", next: "Siguiente",
+		back: "Atrás",
 		clasp: "inicio", end: "fin",
 		seedWords: "¿Cuántas palabras tiene tu semilla?", howMany: "¿Cuántas clases de pieza?",
 
@@ -439,7 +441,6 @@ const SEEDCRAFT_TEXT = {
 		seedTest12: "Semilla de prueba (12 palabras)", seedTest24: "Semilla de prueba (24 palabras)",
 		seedOk: (n) => `✅ ${n} palabras correctas`, seedEmpty: "Esperando las palabras…",
 		makeIt: "Hacer mi secuencia",
-		shop: (each, n) => `Consigue ${each} de cada una de las ${n} clases (bastan para esta semilla, con repuesto).`,
 		makeWarn: "⚠️ Este orden es tu semilla. Guárdalo como las propias palabras.",
 		whyBasic: (n, k) => `Tu colección tiene ${n} piezas porque ${k} bit${k > 1 ? "s dan" : " da"} ${n} números: cada pieza dice ${k} cuadrito${k > 1 ? "s" : ""} del QR.`,
 		saveList: "Guardar como texto",
@@ -456,10 +457,6 @@ const SEEDCRAFT_TEXT = {
 		sheetDrawing: "🎨 El dibujo",
 		sheetMagic: "Pero la magia solo funciona si cada pieza está en su sitio exacto. Sigue los números con cuidado, uno a uno, sin saltarte ninguno: ¡eso es lo que lo hace único e inconfundible!",
 		modeHelp: "¿Cómo quieres guardarla?", modeHelpRead: "¿Cómo se hizo?",
-
-
-
-
 		padFileHelp: "Ni su nombre ni su contenido dicen qué es. Cada fila acaba en un control: un error al copiarla se nota.",
 		padFileSave: "Guardar la llave como archivo",
 		keyTools: "¿Con qué?",
@@ -499,7 +496,6 @@ const SEEDCRAFT_TEXT = {
 		}[code]),
 		padSwapped: "La llave era la secuencia y al revés; no pasa nada.",
 		tabMakeFlow: "Guardar una semilla", tabReadFlow: "Recuperar una semilla", tabMakeShort: "Guardar", tabReadShort: "Recuperar",
-		stepOf: (i, n) => `${i} de ${n}`,
 		makeSteps: [
 			["Planear", "Elige el modo, cuántas palabras y cuántas clases de piezas."],
 			["Reunir las piezas", "Cuántas de cada clase, antes de empezar."],
@@ -537,7 +533,15 @@ const SEEDCRAFT_TEXT = {
 			"Deja una nota a tus herederos: qué son, dónde está la otra mitad y dónde encontrar SPEC-sequences.md.",
 		],
 		storeForgetWhy: "Cerrar la página también lo olvida todo.",
-		storeForget: "Olvidar la semilla", storeForgetAsk: (mode) => mode === "pad" ? "¿Olvidar la semilla, la secuencia y la llave en esta página? Guarda antes el archivo de la llave si lo necesitas." : "¿Olvidar la semilla y la secuencia en esta página?",
+		storeForget: "Olvidar todo en este aparato", storeForgetAsk: "¿Olvidar todo en este aparato: las palabras, la secuencia, la llave y los diccionarios? Guarda antes lo que necesites.",
+		// guardarla: dos sitios con llave, nunca juntas; sin llave, el diccionario aparte
+		storeQ: (pad) => pad ? "¿Dónde va cada mitad?" : "¿Dónde va cada cosa?",
+		storeA: "Sitio A: tu ristra", storeB: "Sitio B: tu llave", storeApart: "nunca juntas",
+		storeHere: "Tu ristra", storeDictApart: "El diccionario, aparte",
+		storeMarkStart: "Marca su principio, para saber cuál es cuál.", storeCopy: "Con una copia del diccionario.",
+		storeFileNote: "En papel o en una memoria USB: nunca en un aparato que viaje con la ristra.",
+		storeAmong: "Entre cosas como ella, donde no desentone.", storeDictWhy: "Aparte: solo oculta que es una semilla.",
+		storeSaved: "Guardado",
 		storeKeyUnsaved: "El archivo de la llave aún no está guardado: sin él, la semilla se pierde.",
 		modeChangeAsk: "¿Cambiar el modo? Se olvidan la llave y la secuencia hechas hasta ahora.",
 		keySaveFirst: "Guarda el archivo para seguir: es la llave, y esta página la olvida.",
@@ -562,6 +566,7 @@ const SEEDCRAFT_TEXT = {
 		endBasic: "Ese es tu QR entero: quien tenga la ristra y la colección tiene tu semilla.",
 		endPad: "Cada ristra sola es azar: cada una necesita la otra. Guárdalas por separado y no pierdas ninguna.",
 		checkFixed: "La misma semilla, pero alguna pieza está mal (el QR la ha arreglado): corrígela antes de guardar.",
+		checkPadding: "La misma semilla, pero una pieza difiere en sus bits de relleno (sin cuadrito): corrígela antes de guardar.",
 		readAgain: "Leer otra",
 		formTitle: "¿Qué forma?",
 		// the decisions' cards (their ✓ and ✕: SPEC §11, RISK-AUDIT.md), and the slides' questions
@@ -687,7 +692,7 @@ const SEEDCRAFT_TEXT = {
 		readTurnBasic: (p) => `El ${p} en bits pinta estos cuadritos del QR.`,
 		readLocked: (i, v, name, key) => `🔒 Pieza ${i}: en ${key ? "el diccionario de la llave" : "tu diccionario"}, ${v} = ${name}.`,
 		readLockedFile: (i, c, v) => `🔒 Lugar ${i} de tu archivo de llave: ${c} es el número ${v}.`,
-		readLockedWhy: "Para cambiarla, vuelve a su turno con ◀.",
+		readLockedWhy: "Para cambiarla, vuelve a su turno con ◀.", readLockedAhead: "Para cambiarla, avanza a su turno con ▶.",
 		readWordsAsk: (L) => `¿Cambiar el número de palabras? Se olvidan las piezas leídas después de la ${L}.`,
 		typeAll: "Escribirlo todo", typeQ: "¿Qué piezas, en orden?",
 		readToEnd: "Hasta la última pieza leída",
@@ -696,7 +701,6 @@ const SEEDCRAFT_TEXT = {
 		checkMadeQr: "Tus palabras", checkReadQr: "Lo que has leído",
 		checkSame: "Es tu semilla", checkExact: (L) => `las ${L} piezas, exactas`,
 		checkWrongPiece: (i) => `La pieza ${i} no coincide`, checkGo: (i) => `Ir a la pieza ${i}`,
-		stepsNav: "Atrás y adelante",
 		dictBeforeTitle: "Antes de hacerlo: tres preguntas",
 		gatherNoPieces: "No hay piezas que conseguir: las entradas se escriben a mano.",
 		donateTitle: "Donar", copy: "Copiar", copied: "Copiado",

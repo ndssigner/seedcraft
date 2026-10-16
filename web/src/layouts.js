@@ -293,6 +293,58 @@ const SeedcraftLayouts = (() => {
 		return { row: Math.floor(pos / row), col, xs: Array.from({ length: row + 1 }, (_, j) => x0 + gx(j)) };
 	}
 
+	// A key file's characters around the turn, a column of 7 places like a
+	// vertical string's (the same room at each end, so the middle place is
+	// level with the turn's row): the icon on top; role "read" (recovering,
+	// checking): each character on the left, its number beside it and its
+	// place under that, and a ring to show the focus (ring); role
+	// "reference" (making the copy): the place on the left, the character on
+	// the right, the turn's place framed (frame).
+	function fileColumn(b, { role = "read" } = {}) {
+		const top = 14, pitch = (b.h - 2 * top) / 7, rows = [];
+		if (role === "read") {
+			const cx = b.x + 22, lx = (cx + 12 + b.x + b.w) / 2;
+			for (let j = 0; j < 7; j++) {
+				const y = b.y + top + pitch * (j + 0.5);
+				rows.push({ y, digit: [cx, y + 6], value: [lx, y + 2], pos: [lx, y + 12], ring: box(b.x + 2, y - pitch / 2 + 1, b.w - 4, pitch - 2) });
+			}
+			return { icon: [cx, b.y + 11], pitch, rows };
+		}
+		for (let j = 0; j < 7; j++) {
+			const y = b.y + top + pitch * (j + 0.5);
+			rows.push({ y, pos: [b.x + 9, y + 3], digit: [b.x + 25, y + 5], frame: box(b.x, y - pitch / 2 + 0.5, b.w, pitch - 1) });
+		}
+		return { icon: [b.x + b.w / 2, b.y + 11], pitch, rows };
+	}
+
+	// Storing it. With a key, two places (a, b) apart, a red dashed border
+	// between them (border) and «never together» over it (apart); each place
+	// its title, its string (or the key file), its dictionary, a note and
+	// «Saved». With no key, the string's place (a) and the dictionary's,
+	// apart (d: no string, its dictionary under its title). At the foot,
+	// «Forget everything on this device» (forget).
+	function store({ pad }) {
+		const top = 82, h = 214;
+		const b = { guide: { ...GUIDE }, question: box(150, 28, 380, 32), forget: box(190, 314, 300, 28) };
+		const place = (id, p) => Object.assign(b, { [id]: p,
+			[id + "Title"]: box(p.x + 10, p.y + 6, p.w - 20, 20),
+			[id + "String"]: box(p.x + 10, p.y + 30, p.w - 20, 46),
+			[id + "Dict"]: box(p.x + 10, p.y + 84, 110, 96),
+			[id + "Note"]: box(p.x + 130, p.y + 84, p.w - 140, 96),
+			[id + "Saved"]: box(p.x + 10, p.y + h - 30, p.w - 20, 24) });
+		if (pad) {
+			place("a", box(20, top, 300, h));
+			place("b", box(360, top, 300, h));
+			Object.assign(b, { border: box(338, top, 4, h), apart: box(280, 62, 120, 16) });
+			return { boxes: b, arrows: [] };
+		}
+		place("a", box(20, top, 400, h));
+		const d = box(450, top, 210, h);
+		Object.assign(b, { d, dTitle: box(d.x + 10, d.y + 6, d.w - 20, 20), dDict: box(d.x + 10, d.y + 30, d.w - 20, 110),
+			dNote: box(d.x + 10, d.y + 146, d.w - 20, 34), dSaved: box(d.x + 10, d.y + h - 30, d.w - 20, 24) });
+		return { boxes: b, arrows: [] };
+	}
+
 	// ---- your own dictionary ---------------------------------------------
 	// v's bits, as many as a number below n takes (bitsOf), the first the highest
 	const binary = (v, n) => { const k = bitsOf(n); return Array.from({ length: k }, (_, j) => (v >> (k - 1 - j)) & 1); };
@@ -335,5 +387,5 @@ const SeedcraftLayouts = (() => {
 		}, columns, arrows: [] };
 	}
 
-	return { VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readTurn, pickerPopup, readFinal, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, fileRow, dictName, dictCheck, dictAsIs };
+	return { VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readTurn, pickerPopup, readFinal, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, fileRow, fileColumn, store, dictName, dictCheck, dictAsIs };
 })();

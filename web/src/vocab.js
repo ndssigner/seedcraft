@@ -86,7 +86,8 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	// dimmed, its turn's piece framed; "read": each piece's number beside it in
 	// its string's colour (showValues). onSlot(i): a hole is a «+» to tap.
 	// room: the icon's room at each end, if not the usual (a small drawing on a card).
-	function string({ box, orientation = "h", role = "build", kind = "seed", things = [], items = [], firstPosition = 1, current = -1, showValues = role === "read", onSlot, onPiece, room }) {
+	// titleOf(i): what hovering piece i says, if not its position and name.
+	function string({ box, orientation = "h", role = "build", kind = "seed", things = [], items = [], firstPosition = 1, current = -1, showValues = role === "read", onSlot, onPiece, room, titleOf }) {
 		const n = Math.max(1, items.length), vertical = orientation === "v";
 		// the icon's room at the start, the same at the end, so the middle position stays at the box's middle
 		const pad = room !== undefined ? room : vertical ? Math.min(14, box.h * 0.08) : Math.min(20, box.w * 0.04);
@@ -153,7 +154,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			if (isCur && role === "reference") kids.push(svg("rect", { x: r1(x - rr - 2), y: r1(y - pitch / 2 + 0.5), width: r1(2 * rr + 4), height: r1(pitch - 1), rx: 3, class: "v-turn-frame" }));
 			kids.push(bead(thing, x, y, rr, isCur && role === "build"));
 			if (idx === null && onSlot) kids.push(text(x, y + rr * 0.4, rr * 1.1, "+", { "text-anchor": "middle", class: "v-plus" }));
-			if (thing) kids.push(svg("title", {}, `${pos}: ${thing.name || ""}`));
+			if (thing) kids.push(svg("title", {}, (titleOf && titleOf(i)) || `${pos}: ${thing.name || ""}`));
 			kids.push(...label(i, x, y, thing, pos, idx === null ? null : idx).filter(Boolean));
 			const tap = idx === null ? onSlot : thing ? onPiece : null;
 			const g = svg("g", { class: "v-piece" + (isCur ? " v-current" : "") + (idx === null ? " v-empty" : "") + (idx === null && onSlot ? " v-slot" : ""),
