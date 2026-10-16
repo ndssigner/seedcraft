@@ -172,7 +172,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	// "picker": every piece as a button; onPick(v). columns ("static"): side by
 	// side, so that every row shows (the first column 0 …, the next on from there).
 	function dictionary({ box, things = [], mode = "static", value = null, icon = "seed", onPick, from, columns = 1 }) {
-		const N = things.length, tabH = Math.max(8, Math.min(14, Math.round(box.h * 0.18)));
+		const N = things.length, tabH = L.pickerGrid(box, N).tabH;
 		const card = { x: box.x, y: box.y + tabH, w: box.w, h: box.h - tabH }, inner = { x: card.x + 2, y: card.y + 2, w: card.w - 4, h: card.h - 4 };
 		const tabW = Math.min(30, box.w * 0.4);
 		const parts = [
@@ -189,8 +189,8 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 				text(bx + br + 3, y + rowH / 2 + fs * 0.35, fs, thing ? fit(thing.name, col.x + col.w - bx - br - 4, fs) : "", { class: "v-name" }));
 		};
 		if (mode === "picker") {
-			const cols = Math.max(1, Math.min(N, Math.ceil(Math.sqrt(N * inner.w / inner.h)))), rows = Math.max(1, Math.ceil(N / cols));
-			const cw = inner.w / cols, ch = inner.h / rows, gap = 2;
+			// the grid is layouts.js's, so an arrow can leave from the piece picked
+			const { cols, cw, ch } = L.pickerGrid(box, N), gap = 2;
 			things.forEach((thing, v) => {
 				// its number on top, the piece, its name under it
 				const x = inner.x + (v % cols) * cw, y = inner.y + Math.floor(v / cols) * ch, fs = Math.max(9, Math.min(11, ch * 0.2));

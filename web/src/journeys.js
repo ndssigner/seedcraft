@@ -93,13 +93,13 @@ const SeedcraftJourneys = (() => {
 
 	// ---- the key's throw ----------------------------------------------------
 	// The throws of a piece as they are read (SPEC §10.2; the same reading as
-	// throwsToNumber): a die of `sides` gives b bits a throw, b the largest
-	// with 2^b ≤ sides, and a face from 2^b up is thrown again. bits: those
+	// throwsToNumber): a die of `sides` gives b bits a throw and a face from
+	// keep up is thrown again (S.diceBits). bits: those
 	// given so far (at most k); used: [{ at, face, from, to }], each throw that
 	// counts and the bits it gave (from … to − 1); rejected: the throws thrown
 	// again; done: k bits. Throws after the piece is done are ignored.
 	function throwParts(throws, sides, k) {
-		const b = Math.floor(Math.log2(sides)), keep = 2 ** b, bits = [], used = [], rejected = [];
+		const { b, keep } = SeedcraftSequences.diceBits(sides), bits = [], used = [], rejected = [];
 		throws.forEach((face, at) => {
 			if (bits.length >= k) return;
 			if (face >= keep) { rejected.push(at); return; }

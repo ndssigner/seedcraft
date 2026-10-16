@@ -790,7 +790,7 @@ const SeedcraftSequences = (() => {
 		sha256, mnemonicToEntropy, entropyToMnemonic,
 		functionModules, templateModule, dataModulesRowMajor, compactSeedQR, encode, decode,
 		symbolsToBits, readSequence, decodeObjects, physicalSequence, piecesToBuy, rsCorrect,
-		PAD_DIGITS, PadFileError, newPad, DICE, diceBits, throwsToNumber, keyMove, keyAddPiece, keyAddThrow, keyUndoThrow, keyFix, changedPieces, addPads, encrypt, decrypt, encodePad, decodePad, decodePadObjects,
+		PAD_DIGITS, PAD_ROW, PAD_GROUP, PadFileError, newPad, DICE, diceBits, throwsToNumber, keyMove, keyAddPiece, keyAddThrow, keyUndoThrow, keyFix, changedPieces, addPads, encrypt, decrypt, encodePad, decodePad, decodePadObjects,
 		checkCharacter, writePadFile, readPadFile,
 		sizeFor, turnBits, clockStep, decodeTurns,
 	};

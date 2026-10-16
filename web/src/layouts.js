@@ -149,36 +149,68 @@ const SeedcraftLayouts = (() => {
 	// instead of faces, and no tower; "device": one die (die) instead of the
 	// faces. file: the key is a file, so the number goes straight to its slot
 	// in the file (no dictionary, no piece).
-	function keyThrow({ sides = 6, bits = 5, tool = "dice", file = false }) {
+	function keyThrow({ sides = 6, bits = 5, tool = "dice", file = false, n = 2 ** bits, value = null }) {
 		const mid = 70 + 5 * BIT / 2, h = bits * BIT, y = mid - h / 2;
-		const b = { guide: { ...GUIDE }, question: box(190, 30, 300, 30), number: box(394, mid - 20, 56, 40), keyString: { ...BUILT }, keySlot: { ...SLOT } };
+		const b = { guide: { ...GUIDE }, question: box(190, 30, 300, 30), keyString: { ...BUILT }, keySlot: { ...SLOT } };
+		const number = () => { b.number = box(394, mid - 20, 56, 40); };
 		let faces = null;
-		if (tool === "bag") Object.assign(b, { picker: box(20, 64, 320, 172), instruction: box(20, 240, 320, 16), tools: box(20, 258, 320, 20) });
-		else {
-			Object.assign(b, { tower: box(330, y, 28, h), brace: box(362, y, 16, h) });
-			if (tool === "device") Object.assign(b, { die: box(60, 72, 100, 100), instruction: box(20, 182, 180, 24), tools: box(20, 210, 180, 24) });
-			else {
-				const cols = sides <= 2 ? 2 : sides <= 6 ? 3 : sides <= 12 ? 4 : 5;
-				const rows = Math.ceil(sides / cols), gap = 6, area = { w: 180, h: 170 };
-				const size = Math.floor(Math.min(56, (area.w - gap * (cols - 1)) / cols, (area.h - gap * (rows - 1)) / rows));
-				faces = { cols, rows, size, gap };
-				b.faces = box(20, 70, cols * size + (cols - 1) * gap, rows * size + (rows - 1) * gap);
-				b.instruction = box(20, b.faces.y + b.faces.h + 10, 180, 24);
-				b.tools = box(20, b.instruction.y + b.instruction.h + 4, 180, 24);
-				b.dice = box(270, y, 52, h);
-				b.rejected = box(222, Math.min(y, mid - 33), 44, Math.max(h, 66));
-				b.info = box(222, Math.max(y + h, b.rejected.y + b.rejected.h) + 6, 136, 14);
-			}
-		}
-		if (!file) Object.assign(b, { keyDict: box(466, mid - 36, 86, 72), piece: box(568, mid - 25, 76, 50) });
 		const arrows = [];
-		if (tool !== "bag") arrows.push(arrow("number", "brace", "number", "key", [[378, mid], [394, mid]]));
+		if (tool === "bag") {
+			// the bag: the key's dictionary as buttons; from the piece picked (value's
+			// cell), a key as a string takes it straight to its slot (down from under
+			// its column); a key file takes its number (right from its row), then
+			// the number to its place in the file. What to do now, on the right.
+			b.picker = box(20, 64, 320, 172);
+			const cell = pickerCell(b.picker, n, value === null ? 0 : value), cx = Math.round(cell.x + cell.w / 2), cy = Math.round(cell.y + cell.h / 2);
+			const bottom = b.picker.y + b.picker.h, right = b.picker.x + b.picker.w;
+			if (file) {
+				number();
+				b.instruction = box(460, 170, 190, 24); b.tools = box(460, 200, 190, 24);
+				arrows.push(arrow("number", "picker", "number", "key", cy === mid ? [[right, mid], [394, mid]] : [[right, cy], [370, cy], [370, mid], [394, mid]]),
+					arrow("slot", "number", "keySlot", "key", [[422, mid + 20], [422, 266], [352, 266], [352, 280]]));
+			} else {
+				b.instruction = box(380, 120, 260, 24); b.tools = box(380, 150, 260, 24);
+				arrows.push(arrow("slot", "picker", "keySlot", "key", [[cx, bottom], [cx, 266], [352, 266], [352, 280]]));
+			}
+			return { boxes: b, faces, arrows };
+		}
+		number();
+		Object.assign(b, { tower: box(330, y, 28, h), brace: box(362, y, 16, h) });
+		if (tool === "device") Object.assign(b, { die: box(60, 72, 100, 100), instruction: box(20, 182, 180, 24), tools: box(20, 210, 180, 24) });
+		else {
+			const cols = sides <= 2 ? 2 : sides <= 6 ? 3 : sides <= 12 ? 4 : 5;
+			const rows = Math.ceil(sides / cols), gap = 6, area = { w: 180, h: 170 };
+			const size = Math.floor(Math.min(56, (area.w - gap * (cols - 1)) / cols, (area.h - gap * (rows - 1)) / rows));
+			faces = { cols, rows, size, gap };
+			b.faces = box(20, 70, cols * size + (cols - 1) * gap, rows * size + (rows - 1) * gap);
+			b.instruction = box(20, b.faces.y + b.faces.h + 10, 180, 24);
+			b.tools = box(20, b.instruction.y + b.instruction.h + 4, 180, 24);
+			b.dice = box(270, y, 52, h);
+			b.rejected = box(222, Math.min(y, mid - 33), 44, Math.max(h, 66));
+			b.info = box(222, Math.max(y + h, b.rejected.y + b.rejected.h) + 6, 136, 14);
+		}
+		arrows.push(arrow("number", "brace", "number", "key", [[378, mid], [394, mid]]));
 		if (file) arrows.push(arrow("slot", "number", "keySlot", "key", [[422, mid + 20], [422, 266], [352, 266], [352, 280]]));
-		else arrows.push(
-			arrow("dict", "number", "keyDict", "key", [[450, mid], [466, mid]]),
-			arrow("piece", "keyDict", "piece", "key", [[552, mid], [568, mid]]),
-			arrow("slot", "piece", "keySlot", "key", [[606, mid + 25], [606, 266], [352, 266], [352, 280]]));
+		else {
+			Object.assign(b, { keyDict: box(466, mid - 36, 86, 72), piece: box(568, mid - 25, 76, 50) });
+			arrows.push(
+				arrow("dict", "number", "keyDict", "key", [[450, mid], [466, mid]]),
+				arrow("piece", "keyDict", "piece", "key", [[552, mid], [568, mid]]),
+				arrow("slot", "piece", "keySlot", "key", [[606, mid + 25], [606, 266], [352, 266], [352, 280]]));
+		}
 		return { boxes: b, faces, arrows };
+	}
+	// A dictionary opened as buttons (vocab.js's picker): inside its card, under
+	// its book's tab, a grid as square as the box allows; pickerCell: piece v's.
+	function pickerGrid(b, N) {
+		const tabH = Math.max(8, Math.min(14, Math.round(b.h * 0.18)));
+		const inner = box(b.x + 2, b.y + tabH + 2, b.w - 4, b.h - tabH - 4);
+		const cols = Math.max(1, Math.min(N, Math.ceil(Math.sqrt(N * inner.w / inner.h)))), rows = Math.max(1, Math.ceil(N / cols));
+		return { tabH, inner, cols, rows, cw: inner.w / cols, ch: inner.h / rows };
+	}
+	function pickerCell(b, N, v) {
+		const g = pickerGrid(b, N);
+		return box(g.inner.x + (v % g.cols) * g.cw, g.inner.y + Math.floor(v / g.cols) * g.ch, g.cw, g.ch);
 	}
 	// face i's button in the faces' grid (row by row)
 	function faceBox(lay, i) {
@@ -206,13 +238,14 @@ const SeedcraftLayouts = (() => {
 		return out;
 	}
 	// The key file's row with position pos in it, as it grows (the format of
-	// writePadFile: 16 numbers a row in groups of 4, then its check
-	// character): the x of each of its 16 places and of its check (the 17th),
-	// so that pos's place is under the middle of the slot. pitch: one place.
-	function fileRow(pos, pitch = 14) {
-		const col = pos % 16, gx = (j) => (j + Math.floor(j / 4)) * pitch;
+	// writePadFile: `row` numbers a row in groups of `group`, then its check
+	// character; S.PAD_ROW and S.PAD_GROUP): the x of each of its places and of
+	// its check (the last), so that pos's place is under the middle of the
+	// slot. pitch: one place; a space between groups and before the check.
+	function fileRow(pos, { row = 16, group = 4, pitch = 14 } = {}) {
+		const col = pos % row, gx = (j) => (j + Math.floor(j / group)) * pitch;
 		const x0 = SLOT.x + SLOT.w / 2 - gx(col);
-		return { row: Math.floor(pos / 16), col, xs: Array.from({ length: 17 }, (_, j) => x0 + gx(j)) };
+		return { row: Math.floor(pos / row), col, xs: Array.from({ length: row + 1 }, (_, j) => x0 + gx(j)) };
 	}
 
 	// ---- your own dictionary ---------------------------------------------
@@ -257,5 +290,5 @@ const SeedcraftLayouts = (() => {
 		}, columns, arrows: [] };
 	}
 
-	return { VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readTurn, keyThrow, faceBox, throwMarks, fileRow, dictName, dictCheck, dictAsIs };
+	return { VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readTurn, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, fileRow, dictName, dictCheck, dictAsIs };
 })();

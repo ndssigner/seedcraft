@@ -1352,7 +1352,7 @@
 	// are there. A piece once drawn stays: moving only shows it again, and only
 	// the first missing one is drawn. One set by hand can be marked again
 	// ("Fix"), never thrown again.
-	const KEY_ROW = 16;  // numbers per row of the key file, each row closed by its check character
+	const KEY_ROW = S.PAD_ROW;  // numbers per row of the key file, each row closed by its check character
 	const keyLength = () => symbolsFor(st.plan.words, st.dict.things.length);
 	// a coin is a die of 2 sides; the bag and the device throw nothing
 	const sidesOf = (by) => by === "coin" ? 2 : /^d\d+$/.test(by || "") ? Number(by.slice(1)) : 0;
@@ -1429,7 +1429,7 @@
 		// what this piece was (or is being) drawn with: its own, once drawn or while it is marked again
 		const by = key.fix ? key.pieces[key.fix.at].by : piece ? piece.by : key.by;
 		const sides = sidesOf(by), coin = sides === 2, tool = by === "bag" ? "bag" : by === "device" ? "device" : "dice";
-		const lay = Lay.keyThrow({ sides: sides || 6, bits: k, tool, file: !asString }), b = lay.boxes;
+		const lay = Lay.keyThrow({ sides: sides || 6, bits: k, tool, file: !asString, n, value }), b = lay.boxes;
 		const throws = piece ? piece.throws : key.draft, parts = sides ? J.throwParts(throws, sides, k) : null;
 		const update = (next) => { setKey(next); render(); };
 		const fresh = keyFresh === pos && !!piece && !calm();
@@ -1509,7 +1509,8 @@
 				marks.rejected.forEach((r) => kids.push(svg("g", { class: "kt-again" }, faceOf(throws[r.at], r.face, "kt-small"),
 					svg("text", { x: r.label[0], y: r.label[1], "font-size": 7, "text-anchor": "middle", class: "v-t kt-order" }, circled(r.at + 1) + "↻"),
 					svg("title", {}, t.keyNoCount))));
-				kids.push(svg("text", { x: b.info.x, y: b.info.y + 10, "font-size": 9, class: "v-t kt-info" }, coin ? t.keyCoinBits : t.keyFirstZero));
+				// (a d10's faces are already numbered from 0)
+				if (sides !== 10) kids.push(svg("text", { x: b.info.x, y: b.info.y + 10, "font-size": 9, class: "v-t kt-info" }, coin ? t.keyCoinBits : t.keyFirstZero));
 			}
 			// the bag: the key's dictionary as buttons
 			if (b.picker) {
@@ -1517,15 +1518,15 @@
 				if (piece) pk.classList.add("kt-off");
 				kids.push(pk);
 			}
-			// brace → number → dictionary → piece → slot, each shown with its arrow
-			const stages = ["number", ...lay.arrows.map((a) => a.id).filter((id) => id !== "number")];
+			// brace → number → dictionary → piece → slot (the bag: from the piece picked), each shown with its arrow
+			const stages = lay.arrows.map((a) => a.id);
 			const at = (id) => stages.indexOf(id);
 			const groups = { number: svg("g"), dict: svg("g"), piece: svg("g"), slot: svg("g") };
 			const arrows = lay.arrows.map((a) => ({ a, g: svg("g") }));
 			kids.push(...arrows.map((x) => x.g), groups.number, groups.dict, groups.piece, groups.slot);
 			const stage = (p, turning) => {
 				const shown = (id) => !!piece && at(id) < p;
-				groups.number.replaceChildren(V.number({ box: b.number, value: shown("number") ? value : null, colour: "key" }));
+				if (b.number) groups.number.replaceChildren(V.number({ box: b.number, value: shown("number") ? value : null, colour: "key" }));
 				if (b.keyDict) {
 					const reel = V.dictionary({ box: b.keyDict, things, mode: "reel", value: shown("dict") ? value : null, icon: "key", from: turning ? 0 : undefined });
 					groups.dict.replaceChildren(svg("g", { class: shown("dict") ? null : "kt-wait" }, reel));
@@ -1538,7 +1539,7 @@
 			if (fresh) {
 				// it arrives: the number, the dictionary turning to it, the piece, its slot
 				stage(1);
-				const live = () => groups.number.isConnected !== false;
+				const live = () => groups.slot.isConnected !== false;
 				const steps = stages.slice(1).map((id, i) => [id, 450 * (i + 1) + (at("dict") >= 0 && at(id) > at("dict") ? 450 : 0)]);
 				steps.forEach(([id, ms]) => setTimeout(() => { if (live()) stage(at(id) + 1, id === "dict"); }, ms));
 			} else stage(stages.length);
@@ -1562,8 +1563,8 @@
 			over.push(place(h("p", { class: "kt-instr" + (piece ? " ready" : ""), "aria-live": "polite", text: instruction }), b.instruction));
 			const act = (label, fn, cls = "btn ghost small") => h("button", { type: "button", class: cls, on: { click: fn } }, label);
 			const tools = [];
+			if (!piece && throws.length && tool === "dice") tools.push(act("↶ " + t.keyUndo, () => update(S.keyUndoThrow(m.key))));
 			if (key.fix) tools.push(act(t.keyFixCancel, () => keyGo(pos)));
-			else if (!piece && throws.length && tool === "dice") tools.push(act("↶ " + t.keyUndo, () => update(S.keyUndoThrow(m.key))));
 			if (piece && piece.by !== "device") tools.push(act(t.keyFix, () => update(S.keyFix(key))));
 			if (piece && !asString && have === L && pos === L - 1) tools.push(act("⤓ " + t.padFileSave, saveFile, m.padKept ? "btn ghost small" : "btn small"));
 			over.push(place(h("div", { class: "kt-tools" }, tools), b.tools));
@@ -1584,7 +1585,7 @@
 		// the key file growing (writePadFile's format): the line before (its first line, «L N», or
 		// the row before), then the row with this piece, its place framed under the slot, its check once the row is whole
 		function keyFile(withPiece) {
-			const r = Lay.fileRow(pos), start = r.row * 16, len = Math.min(16, L - start), box = b.keyString, slot = b.keySlot;
+			const ROW = S.PAD_ROW, r = Lay.fileRow(pos, { row: ROW, group: S.PAD_GROUP }), start = r.row * ROW, len = Math.min(ROW, L - start), box = b.keyString, slot = b.keySlot;
 			const at = (i) => i === pos ? (withPiece ? value : null) : i < have ? values[i] : null;
 			const row = Array.from({ length: len }, (_, j) => at(start + j));
 			const whole = row.every((v) => v !== null);
@@ -1592,12 +1593,12 @@
 			const parts = [svg("text", { x: box.x + 8, y: box.y + 48, "font-size": 14, "text-anchor": "middle", class: "v-t v-icon" }, ICON.key)];
 			const y1 = box.y + 16, y2 = box.y + 48;
 			if (r.row === 0) parts.push(svg("text", { x: r.xs[0] - 5, y: y1, "font-size": 11, class: "v-t v-mono kt-file-before" }, `${L} ${n}`));
-			else Array.from(lineOf(values.slice(start - 16, start))[1].replace(/ /g, "")).forEach((c, j) =>
+			else Array.from(lineOf(values.slice(start - ROW, start))[1].replace(/ /g, "")).forEach((c, j) =>
 				parts.push(svg("text", { x: r.xs[j], y: y1, "font-size": 11, "text-anchor": "middle", class: "v-t v-mono kt-file-before" }, c)));
 			parts.push(svg("rect", { x: slot.x + slot.w / 2 - 13, y: y2 - 21, width: 26, height: 28, rx: 4, class: "kt-file-slot" }));
 			row.forEach((v, j) => parts.push(svg("text", { x: r.xs[j], y: y2, "font-size": 20, "text-anchor": "middle",
 				class: "v-t v-mono v-bold" + (start + j === pos ? " kt-file-now" : "") + (v === null ? " kt-file-hole" : "") }, v === null ? "·" : S.PAD_DIGITS[v])));
-			if (whole) parts.push(svg("text", { x: r.xs[16], y: y2, "font-size": 20, "text-anchor": "middle", class: "v-t v-mono kt-file-check" }, lineOf(row)[1].split(" ").pop()));
+			if (whole) parts.push(svg("text", { x: r.xs[ROW], y: y2, "font-size": 20, "text-anchor": "middle", class: "v-t v-mono kt-file-check" }, lineOf(row)[1].split(" ").pop()));
 			return svg("g", { class: "v v-file", role: "img", "aria-label": t.padFileTitle }, parts);
 		}
 
@@ -1612,8 +1613,9 @@
 		}
 		// one line, when there is something to say: what changed, what to do first, why
 		const changed = m.symbols && m.keyChanged || [];
-		const caption = changed.length ? t.keyChanged(changed.length) : key.fix ? t.keyFixing(pos + 1)
+		const caption = key.fix ? t.keyFixing(pos + 1)
 			: !asString && have === L && !m.padKept ? t.keySaveFirst
+			: changed.length ? t.keyChanged(changed.length)
 			: parts && parts.rejected.length && !st.seen.reroll ? t.keyRerollWhy
 			: sides && lastPart(throws, sides, k) && !st.seen.keyPart ? t.keyPartUsed(k)
 			: !asString && piece && closesRow(pos, L) && !st.seen.rowCheck ? t.keyRowCheck
@@ -1621,7 +1623,8 @@
 		const shortcuts = keyChangedWays();
 		if (key.by === "device" && have < L) shortcuts.push({ icon: "⏩", label: t.seeAll, go: all });
 		if (have === L) shortcuts.push(asString ? { icon: "⤓", label: t.saveList, go: saveList } : { icon: "⤓", label: t.padFileSave, go: saveFile });
-		const why = tool === "bag" ? [t.keyBagPutBack] : tool === "device" ? [] : coin ? [t.keyCoinBits] : [t.keyFirstZero, t.keyRerollWhy, t.keyPartUsed(k)];
+		const why = tool === "bag" ? [t.keyBagPutBack] : tool === "device" ? [] : coin ? [t.keyCoinBits]
+			: [sides === 10 ? null : t.keyFirstZero, t.keyRerollWhy, t.keyPartUsed(k)].filter(Boolean);
 		return {
 			question: t.keyThrowQ, count: `${pos + 1}/${L}`, caption: () => caption, shortcuts,
 			help: helpOf(stepName("make", "key"), t.keyWhy, asString ? why : [...why, t.padFileHelp]),
