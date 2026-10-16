@@ -276,6 +276,17 @@ try {
 	const bagFull = S.keyAddPiece(S.keyFix(S.keyAddPiece({ by: "bag", pieces: [], pos: 0, draft: [] }, 3, "bag", [], 1)), 6, "bag", [], 1);
 	check(bagFull.pieces.length === 1 && bagFull.pieces[0].value === 6 && !bagFull.fix, "a full key's piece is still corrected in place");
 	check(S.keyAddPiece(dev, 1, "device").pieces.length === 4, "with no L, keyAddPiece adds as before");
+	// a face tapped by mistake: only the last throw of the draft goes
+	const half = S.keyAddThrow(S.keyAddThrow(S.keyMove(key, 1, 54), 4, 6, 4), 1, 6, 4);   // after piece 0: 4 (again), 1
+	const halfWas = JSON.stringify(half), undone = S.keyUndoThrow(half);
+	check(undone.draft.join() === "4" && JSON.stringify(undone.pieces) === JSON.stringify(half.pieces) && undone.pos === half.pos, "undo removes only the last throw");
+	check(JSON.stringify(half) === halfWas && undone !== half && undone.draft !== half.draft, "undo returns a new key");
+	const empty = S.keyUndoThrow(S.keyUndoThrow(undone));
+	check(empty.draft.length === 0 && JSON.stringify(empty.pieces) === JSON.stringify(half.pieces), "undo on an empty draft does nothing");
+	let fixing = S.keyAddThrow(S.keyFix(S.keyMove(fix, 0, 54)), 2, 6, 4);              // correcting piece 0, the draft "3" held aside
+	fixing = S.keyUndoThrow(fixing);
+	check(fixing.fix && fixing.fix.at === 0 && fixing.fix.held.join() === "3" && fixing.draft.length === 0 && JSON.stringify(fixing.pieces) === JSON.stringify(fix.pieces),
+		"undo while correcting a piece touches only that piece's throws");
 } catch (e) { check(false, "key state functions: " + e); }
 // the pieces of a sequence a corrected key changed
 check(S.changedPieces([1, 2, 3, 4], [1, 5, 3, 0]).join() === "1,3", "changedPieces: the places that differ");

@@ -57,7 +57,8 @@
 		mode: null,  // "basic" or "pad" (SPEC §10), chosen before making or reading
 		make: { seed: "", entropy: null, symbols: null, pos: 0, tab: "turn" },
 		read: freshRead(),
-		seen: {},  // the one-line explanations already shown once: keyWhy, reroll, rowCheck, howTo, whyPad, whyBasic, readTap
+		seen: {},  // the one-line explanations already shown once: keyWhy, reroll, keyPart, rowCheck, howTo, whyPad, whyBasic, readTap
+		wholeTable: false,  // making a sequence in pad mode: the whole collection table open, from turn to turn (else only the piece's row)
 	};
 	// What is being read, turn by turn (turnReader): the turn shown (L: the
 	// end), each turn's piece of the sequence (taps) and, in pad mode, of the
@@ -1011,7 +1012,8 @@
 	// The collection as a table to translate with: every piece with its number
 	// and its bits, the row of `value` marked.
 	// onPick(v): the table is the palette to tap a piece in (reading one back).
-	const collectionRow = (things, value, k, onPick) => h("div", { class: "collection" + (onPick ? " pick" : "") }, things.map((x, v) =>
+	// only: just the row of `value`.
+	const collectionRow = (things, value, k, onPick, only) => h("div", { class: "collection" + (onPick ? " pick" : "") }, things.map((x, v) => only && v !== value ? null :
 		h(onPick ? "button" : "div", { class: "crow" + (v === value ? " on" : ""), title: x.name, "aria-label": onPick ? x.name : null,
 			"aria-pressed": onPick ? String(v === value) : null, on: onPick ? { click: () => onPick(v) } : null },
 			h("span", { class: "num", text: String(v) }), h("code", { text: v.toString(2).padStart(k, "0") }), icon(x, 24, false, v === value))));
@@ -1027,6 +1029,11 @@
 		const fixed = qr ? (r, c) => qr.getModule(c, r) : (r, c) => S.templateModule(size, r, c);
 		return handGrid(size, (r, c, bit) => painted.get(bit) === 1, fixed, cells, (bit) => painted.has(bit), current, onPick || null, done);
 	}
+
+	// A turn's controls: back, where it is, on (and the rest), in one row at the
+	// top of the column, stuck there while what is under it scrolls: never
+	// below the fold, and never mistaken for the journey's own back and on.
+	const turnNav = (...controls) => h("div", { class: "row turn-nav" }, ...controls);
 
 	// One sequence to make, piece by piece, in two columns: on the left the
 	// piece in hand and the controls, on the right the whole of it (the
@@ -1108,6 +1115,7 @@
 		const key = st.make.key, p = key.pieces[key.pos], L = keyLength();
 		st.seen.keyWhy = true;
 		if (p && hasReroll(p.throws, p.by)) st.seen.reroll = true;
+		if (p && lastPart(p.throws, sidesOf(p.by), Math.log2(st.dict.things.length))) st.seen.keyPart = true;
 		if (p && st.plan.padAs === "file" && closesRow(key.pos, L)) st.seen.rowCheck = true;
 		setKey(S.keyMove(key, to, L));
 		render();
@@ -1117,17 +1125,29 @@
 		svg("rect", { x: 10, y: 10, width: 80, height: 80, rx: 18, class: "die-body" }),
 		svg("text", { x: 50, y: 64, "text-anchor": "middle", class: "die-face" }, face === null ? "?" : String(face)));
 	let keyRolling = false;
-	// one throw as it is read: the face marked, its number from 0, its bits or "again"
-	function throwText(f, sides) {
-		const t = T(), { b, keep } = S.diceBits(sides), out = f < keep ? f.toString(2).padStart(b, "0") : t.keyAgain;
-		if (sides === 2) return `${f ? t.coinHeads : t.coinTails} → ${out}`;
-		if (sides === 10) return `${t.keyFace} ${f} → ${out}`;  // a d10 is marked 0–9: already from 0
-		return `${t.keyFace} ${f + 1} → ${f} → ${out}`;
+	// The throw that closes a piece giving more bits than it still needs (a
+	// d20 for N = 32: 4 bits, then 4 again, but only 1 left): { at, part }, the
+	// throw and how many of its first bits count; null if every bit counts.
+	// Which throws count is throwsToNumber's (used); only its bits are split here
+	function lastPart(throws, sides, k) {
+		const r = sides && throws.length ? S.throwsToNumber(throws, sides, k) : null;
+		if (!r) return null;
+		const b = S.diceBits(sides).b, part = r.bits.length - b * (r.used.length - 1);
+		return part < b ? { at: r.used[r.used.length - 1], part } : null;
+	}
+	// one throw as it is read: the face marked, its number from 0, its bits or
+	// "again"; part: only its first bits count, the rest struck out
+	function throwText(f, sides, part) {
+		const t = T(), { b, keep } = S.diceBits(sides), bits = f.toString(2).padStart(b, "0");
+		const out = f >= keep ? t.keyAgain : part ? [h("b", { text: bits.slice(0, part) }), h("s", { text: bits.slice(part) })] : bits;
+		if (sides === 2) return [`${f ? t.coinHeads : t.coinTails} → `, out];
+		if (sides === 10) return [`${t.keyFace} ${f} → `, out];  // a d10 is marked 0–9: already from 0
+		return [`${t.keyFace} ${f + 1} → ${f} → `, out];
 	}
 	// the throws of a piece, and once it is complete its bits and number
 	function throwTrail(throws, sides, k) {
-		const r = throws.length ? S.throwsToNumber(throws, sides, k) : null, keep = S.diceBits(sides).keep;
-		return h("ol", { class: "trail" }, throws.map((f) => h("li", { class: f >= keep ? "again" : null, text: throwText(f, sides) })),
+		const r = throws.length ? S.throwsToNumber(throws, sides, k) : null, keep = S.diceBits(sides).keep, cut = lastPart(throws, sides, k);
+		return h("ol", { class: "trail" }, throws.map((f, j) => h("li", { class: f >= keep ? "again" : null }, ...throwText(f, sides, cut && cut.at === j ? cut.part : 0))),
 			r ? h("li", { class: "total", text: `${r.bits.join("")} → ${r.value}` }) : null);
 	}
 	function keyStep() {
@@ -1236,7 +1256,10 @@
 			const faces = sides === 2 ? [[1, t.coinHeads], [0, t.coinTails]] : Array.from({ length: sides }, (_, f) => [f, String(sides === 10 ? f : f + 1)]);
 			controls.push(hint(sides === 2 ? t.keyThrowCoin : t.keyThrowDie),
 				h("div", { class: "faces" }, faces.map(([f, label]) => h("button", { class: "btn ghost face", on: { click: () => mark(f) } }, label))),
-				throws.length ? throwTrail(throws, sides, k) : null);
+				throws.length ? throwTrail(throws, sides, k) : null,
+				// a face tapped by mistake: take it back (not a throw made again)
+				throws.length ? h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => update(S.keyUndoThrow(m.key)) } }, "↶ " + t.keyUndo),
+					h("span", { class: "meta", text: t.keyUndoHelp })) : null);
 		}
 		// Next on the first missing piece draws it (device) or waits for the throws
 		const onNext = !piece && !key.fix ? (key.by === "device" ? draw : null) : pos < L - 1 ? () => keyGo(pos + 1) : null;
@@ -1250,6 +1273,7 @@
 				st.seen.keyWhy ? null : hint(t.keyWhy),
 				...controls,
 				hasReroll(throws, throwsBy) && !st.seen.reroll ? h("div", { class: "note pad", text: t.keyRerollWhy }) : null,
+				lastPart(throws, sidesOf(throwsBy), k) && !st.seen.keyPart ? h("div", { class: "note pad", text: t.keyPartUsed(k) }) : null,
 				h("div", { class: "row" },
 					h("button", { class: "btn ghost", disabled: pos === 0 ? "" : undefined, on: { click: () => keyGo(pos - 1) } }, "◀ " + t.prevPiece),
 					key.by === "device" && have < L ? waits(h("button", { class: "btn ghost small", on: { click: all } }, t.seeAll)) : null,
@@ -1384,7 +1408,11 @@
 					h("code", { class: "turn-sum", text: `${P} + ${K} = ${raw}` + (sum.wrapped ? ` → ${raw} − ${n} = ${sum.value}` : "") }),
 					hint(t.turnClock(P, K, n, sum.wrapped)))));
 			}
-			left.push(h("div", { class: "turn-part" }, collectionRow(things, C, k), hint(t.turnCollection(C))),
+			// in pad mode only the piece's row, unless the whole table is asked for (and then from turn to turn)
+			const whole = !padMode || st.wholeTable;
+			left.push(h("div", { class: "turn-part" }, collectionRow(things, C, k, null, !whole), hint(t.turnCollection(C)),
+					padMode ? h("div", { class: "row" }, h("button", { class: "btn ghost small", "aria-expanded": String(whole),
+						on: { click: () => { st.wholeTable = !whole; render(); } } }, whole ? t.tableOne : t.tableAll)) : null),
 				h("div", { class: "turn-piece" }, icon(things[C], 64), h("div", { class: "stack tight" }, h("b", { class: "name", text: things[C].name }), h("span", { text: t.turnPut }))),
 				(m.keyChanged || []).includes(i) ? h("div", { class: "note warn", text: t.seqKeyChanged }) : null);
 			// the last turns are the header (version and mask) and the padding: no squares of the QR code
@@ -1392,12 +1420,13 @@
 			if (roles.includes("padding")) left.push(h("div", { class: "note", text: t.handPadding }));
 		} else left.push(h("div", { class: "note ok", text: "✓ " + t.handDone }), hint(t.handTemplate(size, qr.mask)),
 			h("div", { class: "note" + (padMode ? " pad" : ""), text: padMode ? t.endPad : t.endBasic }));
-		left.push(h("div", { class: "row" },
+		const nav = turnNav(
 			h("button", { class: "btn ghost", disabled: i === 0 ? "" : undefined, on: { click: () => turnGo(i - 1) } }, "◀ " + t.prevPiece),
+			h("span", { class: "meta", text: t.handStep(Math.min(i + 1, L), L) }),
 			done ? null : h("button", { class: "btn", on: { click: () => turnGo(i + 1) } }, t.nextPiece + " ▶"),
-			h("button", { class: "btn ghost small push", on: { click: () => turnGo(done ? 0 : L) } }, done ? t.handRestart : t.seeAll)));
+			h("button", { class: "btn ghost small push", on: { click: () => turnGo(done ? 0 : L) } }, done ? t.handRestart : t.seeAll));
 		// on the right, the QR code with this turn's squares, and the string so far
-		return tool(panel(...head(t.handStep(Math.min(i + 1, L), L)), alert, ...left, v.tabs, ...rest),
+		return tool(panel(...stepHead("make"), alert, nav, ...left, v.tabs, ...rest),
 			panel(turnGrid(size, qr, painted, turn, (bit) => turnGo(Math.floor(bit / k))),
 				h("div", { class: "map turn-map" }, drawSeq(things, done ? m.symbols : m.symbols.slice(0, i + 1), { current: done ? -1 : i, onPick: turnGo, form }))));
 	}
@@ -1705,17 +1734,19 @@
 			Object.assign(rd, { typing: true, text: names(rd.taps, things), keyText: keyThings ? names(rd.keyTaps, keyThings) : "" });
 			render();
 		};
-		const tools = h("div", { class: "row" },
+		const nav = turnNav(
 			h("button", { class: "btn ghost", disabled: i === 0 ? "" : undefined, on: { click: () => readGo(rd, i - 1) } }, "◀ " + t.prevPiece),
-			i < L ? h("button", { class: "btn", disabled: i < frontier ? undefined : "", on: { click: () => readGo(rd, i + 1) } }, t.nextPiece + " ▶") : null,
+			h("span", { class: "meta", text: t.handStep(Math.min(i + 1, L), L) }),
+			i < L ? h("button", { class: "btn", disabled: i < frontier ? undefined : "", on: { click: () => readGo(rd, i + 1) } }, t.nextPiece + " ▶") : null);
+		// the other ways, at the foot of the column
+		const tools = h("div", { class: "row" },
 			h("button", { class: "btn ghost small push", on: { click: typeAll } }, t.typeInstead),
 			rd.taps.length || rd.keyTaps.length ? h("button", { class: "btn ghost small", on: { click: restart } }, "↺ " + t.readRestart) : null);
 
 		// on the left, the count; at the top, how long the seed is (a key file says it)
 		const words = checking || (padMode && rd.padAs === "file") ? null
 			: seg([12, 24].map((w) => [w, t.wordsPieces(w, symbolsFor(w, n))]), rd.words, (w) => { if (w !== rd.words) readWords(rd, w); render(); });
-		const left = [...stepHead(flow, checking ? (padMode ? t.checkHelpPad : t.checkReadHelp) : null,
-			h("div", { class: "row key-method" }, words, h("span", { class: "meta", text: t.handStep(Math.min(i + 1, L), L) })))];
+		const left = [...stepHead(flow, checking ? (padMode ? t.checkHelpPad : t.checkReadHelp) : null, words ? h("div", { class: "row key-method" }, words) : null), nav];
 		if (i < L) {
 			const C = rd.taps[i], K = key ? key[i] : undefined;
 			if (i === 0 && !padMode && !st.seen.whyBasic) left.push(h("div", { class: "note", text: t.whyBasic(n, k) }));
