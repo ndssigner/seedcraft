@@ -471,8 +471,7 @@ for (const n of [2, 4, 8, 16, 32]) {
 	check(p.x >= 0 && p.y >= 0 && p.x + p.w <= pp.view.w && p.y + p.h <= pp.view.h && pp.view.w <= 440 && pp.view.h <= 250, `pickerPopup n=${n}: the picker in its canvas, which fits a popup`);
 	check(g.cols * g.rows >= n && g.cw >= 40 && g.ch >= 40, `pickerPopup n=${n}: a button per piece, each at least 40 × 40 (${Math.round(g.cw)} × ${Math.round(g.ch)})`);
 }
-checkLayout("readFinal", Lay.readFinal());
-{ const f = Lay.readFinal().boxes, area = (b) => b.w * b.h; check(f.qr.w === f.qr.h && f.qr.w >= 250 && Object.entries(f).every(([id, b]) => id === "qr" || id === "guide" || area(b) < area(f.qr)), "readFinal: the QR code square, the largest"); }
+check(typeof Lay.readFinal === "undefined", "readFinal gone: recovering ends on seedQr");
 for (const pad of [false, true]) {
 	const cf = Lay.checkFinal({ pad }), b = cf.boxes, rt = Lay.readTurn({ pad, n: 16 }).boxes;
 	checkLayout(`checkFinal pad=${pad}`, cf);

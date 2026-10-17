@@ -1452,8 +1452,9 @@
 	// seedQr): { kids: for the canvas, over: HTML placed on its boxes }. Step 0
 	// the first thing, step 1 the arrow to the number and the number, step 2
 	// the arrow on to the last thing. toWords: the other way round (QR, then
-	// number, then words: recovering's end). reveal: the QR filling in.
-	function seedQrParts(lay, { words, entropy, qr, step, toWords = false, reveal = null }) {
+	// number, then words: recovering's end). reveal: the QR filling in; fade: the
+	// number fading in (only when its step was just reached with Next).
+	function seedQrParts(lay, { words, entropy, qr, step, toWords = false, reveal = null, fade = false }) {
 		const t = T(), b = lay.boxes, kids = [], over = [];
 		const digits = S.groupDigits(S.entropyNumber(entropy), 5);
 		const showWords = toWords ? step >= 2 : true, showNumber = step >= 1, showQr = toWords ? true : step >= 2;
@@ -1462,7 +1463,8 @@
 			over.push(place(h("ol", { class: "qr-words" + (words.length > 12 ? " many" : "") }, words.map((w) => h("li", { text: w }))), b.words));
 		}
 		if (showNumber) {
-			over.push(V.fadeIn(place(h("div", { class: "qr-number" + (digits.length > 4 ? " many" : ""), role: "text" }, digits.map((x) => h("div", { text: x }))), b.number)));
+			const num = place(h("div", { class: "qr-number" + (digits.length > 4 ? " many" : "") }, digits.map((x) => h("div", { text: x }))), b.number);
+			over.push(fade ? V.fadeIn(num) : num);
 			over.push(place(h("div", { class: "qr-bits", text: t.qrBits(entropy.length * 8) }), { x: b.number.x, y: b.number.y + b.number.h + 4, w: b.number.w, h: 18 }));
 		}
 		if (showQr) {
@@ -1484,7 +1486,7 @@
 				const grew = step > qrSeen && !calm();
 				qrSeen = step;
 				const reveal = step === 2 && grew ? { order: S.dataModulesRowMajor(qr.size), ms: 1000 } : null;
-				const parts = seedQrParts(lay, { words, entropy: m.entropy, qr, step, reveal });
+				const parts = seedQrParts(lay, { words, entropy: m.entropy, qr, step, reveal, fade: step === 1 && grew });
 				return h("div", { class: "dict-slide" }, canvas(...parts.kids), ...parts.over);
 			},
 		};
@@ -2120,20 +2122,21 @@
 	// every piece read, and nothing decodes: the QR code as read, and back to the pieces
 	function noFitSlide(rd, done) {
 		const t = T(), n = dictFor(rd).things.length, k = Math.log2(n), L = readLength(rd), size = S.sizeFor(L, k), cells = S.dataModulesRowMajor(size), key = readKey(rd);
-		const painted = new Map(), b = Lay.readFinal().boxes;
+		const painted = new Map(), b = Lay.seedQr({ toWords: true }).boxes;
 		for (let j = 0; j < L; j++) bitsOf(key ? S.clockStep(rd.taps[j], key[j], n, -1).value : rd.taps[j], k).forEach((bit, x) => { const c = cells[j * k + x]; if (c) painted.set(c[0] * size + c[1], bit); });
 		return {
-			caption: () => t.readLockedWhy, shortcuts: readShortcuts(rd, L, done),
+			question: "✗ " + t.readNoFit, caption: () => t.readLockedWhy, shortcuts: readShortcuts(rd, L, done),
 			prev: { go: () => readGo(rd, L - 1) }, next: null,
-			body: () => h("div", { class: "dict-slide rf-slide" }, canvas(V.qr({ box: b.qr, size, modules: (r, c) => S.templateModule(size, r, c), painted })),
-				place(h("p", { class: "rf-title bad", text: "✗ " + t.readNoFit }), b.title)),
+			body: () => h("div", { class: "dict-slide" }, canvas(V.qr({ box: b.qr, size, modules: (r, c) => S.templateModule(size, r, c), painted }))),
 		};
 	}
-	// The seed found (layouts.js's readFinal): its QR code, whole and large, to
-	// scan; its words, its fingerprint; how it was read, if not as given; the
-	// pieces the QR code had to put right, each a way back to its turn.
+	// The seed found: the same path as «Your QR» backwards (layouts.js's seedQr):
+	// the QR code painted from the pieces, its number, its words, with the
+	// fingerprint; how it was read, if not as given; the pieces the QR code had
+	// to put right, each a way back to its turn.
+	let recSeen = 0;   // the step the end was last drawn at: the number fades in only when a step grew
 	function recoverEnd() {
-		const t = T(), rd = st.read, out = rd.out, qr = S.compactSeedQR(out.entropy), b = Lay.readFinal().boxes, L = readLength(rd), k = Math.log2(dictFor(rd).things.length);
+		const t = T(), rd = st.read, out = rd.out, qr = S.compactSeedQR(out.entropy), lay = Lay.seedQr({ toWords: true, end: true }), b = lay.boxes, L = readLength(rd), k = Math.log2(dictFor(rd).things.length);
 		const words = S.entropyToMnemonic(out.entropy).split(" ");
 		const wrong = out.fixed ? wrongTurns(out, L, k, rd.mode === "pad") : null;
 		const how = [out.reversed ? t.reversed : null, out.swapped ? t.padSwapped : null].filter(Boolean);
@@ -2148,15 +2151,19 @@
 		const note = wrong && wrong.length ? [h("span", { text: t.readWrong(wrong.length) + " " }), ...wrong.slice(0, 4).map((j) => h("button", { type: "button", class: "btn ghost small", on: { click: () => toTurn(j) } }, t.readPiece(j + 1)))]
 			: out.fixed ? [h("span", { text: t.readFixed })] : [seedAlert()];
 		return {
-			caption: () => t.handDone, next: null,
+			question: "✓ " + t.seedFound, steps: 3, caption: (s) => [t.qrBackStepQr, t.qrBackStepNumber, t.handDone][s], next: null,
 			prev: { go: () => toTurn(L - 1) },
 			shortcuts: [{ icon: "↺", label: t.readAgain, go: () => { st.read = freshRead(st.read); toStep("read", "have"); } },
 				{ icon: "✕", label: t.readForget, go: forget }],
-			body: () => h("div", { class: "dict-slide rf-slide" }, canvas(V.qr({ box: b.qr, size: qr.size, modules: (r, c) => qr.getModule(c, r) })),
-				place(h("div", { class: "rf-title" }, h("b", { text: "✓ " + t.seedFound }), ...how.map((x) => h("small", { text: x }))), b.title),
-				place(h("ol", { class: "rf-words" + (words.length > 12 ? " many" : "") }, words.map((w) => h("li", { text: w }))), b.words),
-				place(h("div", { class: "rf-print" }, fingerprintLine(out.entropy)), b.fingerprint),
-				place(h("div", { class: "rf-note" + (out.fixed ? " warn" : "") }, ...note), b.note)),
+			body: (step) => {
+				const grew = step > recSeen && !calm();
+				recSeen = step;
+				const parts = seedQrParts(lay, { words, entropy: out.entropy, qr, step, toWords: true, fade: step === 1 && grew });
+				if (how.length) parts.over.push(place(h("div", { class: "qr-how" }, how.map((x) => h("small", { text: x }))), { x: 240, y: 64, w: 200, h: 40 }));
+				if (step >= 2) parts.over.push(place(h("div", { class: "qr-print" }, fingerprintLine(out.entropy)), b.fingerprint),
+					place(h("div", { class: "qr-note" + (out.fixed ? " warn" : "") }, ...note), b.note));
+				return h("div", { class: "dict-slide" }, canvas(...parts.kids), ...parts.over);
+			},
 		};
 	}
 

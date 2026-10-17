@@ -180,19 +180,6 @@ const SeedcraftLayouts = (() => {
 		const view = { w: 420, h: n <= 4 ? 130 : n <= 8 ? 200 : 240 };
 		return { view, boxes: { picker: box(2, 2, view.w - 4, view.h - 4) } };
 	}
-	// Recovering, the end: the seed's QR code, whole and large, on the left; on
-	// the right what was found (and how it was read), its words, its fingerprint,
-	// and a note (where it is, what was put right).
-	function readFinal() {
-		return { boxes: {
-			guide: { ...GUIDE },
-			qr: box(24, 36, 290, 290),
-			title: box(340, 40, 316, 30),
-			words: box(340, 76, 316, 176),
-			fingerprint: box(340, 258, 316, 40),
-			note: box(340, 302, 316, 44),
-		}, arrows: [] };
-	}
 	// Checking a copy, the end: the QR code of your words and the one you read,
 	// side by side with = or ≠ between them, each named under it, and under
 	// both what it means. When they differ, on the right the strings as read
@@ -452,5 +439,5 @@ const SeedcraftLayouts = (() => {
 		return { boxes: b, arrows };
 	}
 
-	return { BUILT, SLOT, RAIL, pitch, qrCellsBox, seedQr, VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readColumn, readTurn, pickerPopup, readFinal, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, REJECT, BADGE, fileRow, fileColumn, store, dictName, dictCheck, dictAsIs };
+	return { BUILT, SLOT, RAIL, pitch, qrCellsBox, seedQr, VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readColumn, readTurn, pickerPopup, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, REJECT, BADGE, fileRow, fileColumn, store, dictName, dictCheck, dictAsIs };
 })();
