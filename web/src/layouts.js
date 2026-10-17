@@ -97,9 +97,9 @@ const SeedcraftLayouts = (() => {
 			b.keyNumber = box(388, 110, 112, 32);
 			arrows.push(arrow("keyNumber", "keyString", "keyNumber", "key", [[370, 126], [388, 126]]), clockSeed, clockKey(110));
 		} else {
-			Object.assign(b, { keyDict: box(388, 96, 112, 72), keyNumber: box(388, 44, 112, 32) });
+			Object.assign(b, { keyDict: box(386, 96, 116, 72), keyNumber: box(388, 44, 112, 32) });
 			arrows.push(
-				arrow("keyPiece", "keyString", "keyDict", "key", [[370, 126], [388, 126]]),
+				arrow("keyPiece", "keyString", "keyDict", "key", [[370, 126], [386, 126]]),
 				arrow("keyNumber", "keyDict", "keyNumber", "key", [[430, 96], [430, 76]]),
 				clockSeed, clockKey(44));
 		}
@@ -254,10 +254,10 @@ const SeedcraftLayouts = (() => {
 		arrows.push(arrow("number", "brace", "number", "key", [[378, mid], [394, mid]]));
 		if (file) arrows.push(arrow("slot", "number", "keySlot", "key", [[422, mid + 20], [422, RAIL], [352, RAIL], [352, SLOT.y]]));
 		else {
-			Object.assign(b, { keyDict: box(466, mid - 36, 86, 72), piece: box(568, mid - 25, 76, 50) });
+			Object.assign(b, { keyDict: box(466, mid - 36, 116, 72), piece: box(598, mid - 25, 56, 50) });
 			arrows.push(
 				arrow("dict", "number", "keyDict", "key", [[450, mid], [466, mid]]),
-				arrow("piece", "keyDict", "piece", "key", [[552, mid], [568, mid]]),
+				arrow("piece", "keyDict", "piece", "key", [[582, mid], [598, mid]]),
 				arrow("slot", "piece", "keySlot", "key", [[606, mid + 25], [606, RAIL], [352, RAIL], [352, SLOT.y]]));
 		}
 		return { boxes: b, faces, arrows };
@@ -430,10 +430,16 @@ const SeedcraftLayouts = (() => {
 	}
 	// The seed as a QR: its words, their number, the QR, left to right (toWords:
 	// the other way round); end: with the fingerprint and a note under the words.
+	// the font (in canvas units) for the seed's number in its box: its lines (of `chars` characters each) and
+	// the «bits» line under them fit the box, never bigger than 16
+	function digitFont(b, chars, lines) {
+		return Math.floor(Math.min(16, (b.w - 8) / (chars * 0.62), b.h / ((lines + 1.6) * 1.25)) * 10) / 10;
+	}
 	function seedQr({ toWords = false, end = false } = {}) {
-		const b = { guide: { ...GUIDE }, question: box(150, 28, 380, 32),
-			words: end ? box(16, 70, 200, 180) : box(16, 76, 200, 190),
-			number: box(240, 110, 184, 110), qr: box(448, 68, 216, 216) };
+		// the question on one line over everything; the words and the number centred on the arrows' line (y 165)
+		const b = { guide: { ...GUIDE }, question: box(16, 28, 648, 32),
+			words: end ? box(16, 70, 200, 180) : box(16, 75, 200, 180),
+			number: box(240, 100, 184, 130), qr: box(448, 68, 216, 216) };
 		if (end) Object.assign(b, { fingerprint: box(16, 256, 200, 28), note: box(16, 290, 408, 44) });
 		const arrows = toWords
 			? [arrow("qr>number", "qr", "number", "qr", [[448, 165], [424, 165]]), arrow("number>words", "number", "words", "qr", [[240, 165], [216, 165]])]
@@ -441,5 +447,5 @@ const SeedcraftLayouts = (() => {
 		return { boxes: b, arrows };
 	}
 
-	return { BUILT, SLOT, RAIL, pitch, qrCellsBox, seedQr, VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readColumn, readTurn, pickerPopup, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, REJECT, BADGE, fileRow, fileColumn, store, dictName, dictCheck, dictAsIs };
+	return { BUILT, SLOT, RAIL, pitch, qrCellsBox, digitFont, seedQr, VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readColumn, readTurn, pickerPopup, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, REJECT, BADGE, fileRow, fileColumn, store, dictName, dictCheck, dictAsIs };
 })();

@@ -465,6 +465,16 @@ for (const n of [2, 4, 8, 16, 32]) {
 	check(as.boxes.actions.w >= 200 && as.boxes.actions.h >= 150, `dictAsIs n=${n}: room for its actions`);
 }
 for (const n of [4, 16, 32]) { const b = Lay.dictAsIs({ n }).boxes; check(b.dict.w === b.actions.w && b.dict.x === 16 && b.actions.x + b.actions.w === 664, `dictAsIs n=${n}: two equal columns, margin to margin`); }
+{
+	// «Your QR»: the question over one line, the words on the arrows' line, every line of the number inside its box (12 and 24 words)
+	const q = Lay.seedQr({});
+	check(q.boxes.question.x === 16 && q.boxes.question.w === 648, "seedQr: the question has the whole width, on one line");
+	check(q.boxes.words.y + q.boxes.words.h / 2 === q.arrows[0].points[0][1], "seedQr: the words centred on the arrows' line");
+	for (const [bytes, digits] of [[16, 39], [32, 78]]) {
+		const lines = Math.ceil(Math.ceil(digits / 3) / 5), f = Lay.digitFont(q.boxes.number, 19, lines);
+		check(19 * 0.62 * f <= q.boxes.number.w - 8 && (lines + 1.6) * 1.25 * f <= q.boxes.number.h && f >= 9, `seedQr: ${bytes * 8} bits: the number's ${lines} lines (and its bits line) fit their box at ${f}`);
+	}
+}
 check(Lay.keyThrow({ sides: 6 }).faces.cols === 3 && Lay.keyThrow({ sides: 6 }).faces.rows === 2, "throw d6: three by two");
 // reading back: the dictionary in a popup, every button big enough to tap; the two ends
 for (const n of [2, 4, 8, 16, 32]) {
@@ -597,6 +607,22 @@ for (const pad of [false, true]) {
 		const sb = lay.boxes.seedString, th = walk(edge, cls("v-thread"))[0], ic = walk(edge, cls("v-icon"))[0];
 		const icx = num(walk(ic, (n) => n.tag === "text")[0].attrs.x);
 		check(th && ic && num(th.attrs.x1) - icx > 0 && num(th.attrs.x1) - icx < 20 && icx < sb.x + 20, "string: the thread starts at its icon, even with no positions before the first");
+	}
+	{
+		const vb = lay.boxes.keyString, vs = V.string({ box: vb, orientation: "v", role: "reference", kind: "key", things, items: [undefined, undefined, undefined, 4, 5, 6, 7], current: 3 });
+		const th = walk(vs, cls("v-thread-ref"))[0];
+		check(th && num(th.attrs.y1) - vb.y < 20 && num(th.attrs.y1) - vb.y > 0, "string: a vertical thread starts at its icon, even with no positions before the first");
+	}
+	{
+		// spec §4 rule 4: a name of 16 characters is drawn whole where the make turn's and the key throw's dictionaries are
+		const name = "Orange beetroot1", things = Array.from({ length: 8 }, (_, i) => ({ name: i === 3 ? name : "Name " + i, colour: "#c60" }));
+		for (const [label, b] of [["make turn", Lay.makeTurn({ pad: true, n: 8 }).boxes.keyDict], ["key throw", Lay.keyThrow({ sides: 6, bits: 3, tool: "dice", n: 8 }).boxes.keyDict]]) {
+			for (const mode of ["reel", "static"]) {
+				const d = V.dictionary({ box: b, things, mode, value: 3, icon: "key" });
+				const shown = walk(d, cls("v-name")).map(textOf);
+				check(b && shown.includes(name), `dictionary (${mode}) at the ${label}'s key dictionary: a 16-character name is not cut`);
+			}
+		}
 	}
 	const ref = V.string({ box: lay.boxes.keyString, orientation: "v", role: "reference", kind: "key", things, items: [1, 2, 3, 4, 5, 6, 7], firstPosition: 11, current: 3 });
 	check(walk(ref, cls("v-piece")).length === 7 && walk(ref, cls("v-turn-frame")).length === 1 && walk(ref, cls("v-thread-ref")).length === 1, "string: a reference, dotted, its turn's piece framed");

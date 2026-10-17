@@ -207,7 +207,7 @@ const SeedcraftSlides = (() => {
 			s.help ? h("button", { class: "slide-tool", title: say("slidesHelp", "Explain"), "aria-label": say("slidesHelp", "Explain"), on: { click: () => s.help() } }, "?") : null,
 			el.more = h("button", { class: "slide-tool", id: "slide-more", title: say("slidesMore", "More"), "aria-label": say("slidesMore", "More"),
 				"aria-haspopup": "dialog", "aria-expanded": String(panelOpen), on: { click: () => panel(!panelOpen) } }, "⋯"));
-		const question = s.question ? h("h1", { class: "slide-question", text: s.question }) : null;
+		const question = s.question ? h("h1", { class: "slide-question" + (s.wide ? " wide" : ""), text: s.question }) : null;
 
 		el.body = h("div", { class: "slide-body" + (s.page ? " slide-page" : "") });
 		const content = s.body ? s.body(Math.min(step, steps - 1)) : null;
