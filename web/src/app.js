@@ -105,7 +105,7 @@
 
 	// another number of words: what was made for the old length goes (the key, the sequence), as with a new N
 	function setWords(words) {
-		st.plan.words = words;
+		st.plan.words = words; st.gathered = {};
 		st.make = { seed: st.make.seed, entropy: null, symbols: null, turn: 0 };
 	}
 
@@ -440,7 +440,7 @@
 		}
 		const m = st.make;
 		if (((m.key && m.key.pieces.length) || m.symbols) && !confirm(T().modeChangeAsk)) return false;
-		st.mode = mode;
+		st.mode = mode; st.gathered = {};
 		st.make = { seed: m.seed, entropy: null, symbols: null, turn: 0 };
 		return true;
 	}
@@ -573,7 +573,7 @@
 
 	// ---- what a choice changes, and what it asks first ---------------------------
 	// a form proposes its N, until the size is chosen (or a dictionary fixes it)
-	function setForm(id) { st.plan.form = id; if (!st.dict && !st.plan.chosen.size) st.plan.n = formOf(id).n; }
+	function setForm(id) { if (id !== st.plan.form) st.gathered = {}; st.plan.form = id; if (!st.dict && !st.plan.chosen.size) st.plan.n = formOf(id).n; }
 	const madeWork = () => !!(st.make.symbols || (st.make.key && st.make.key.pieces.length));
 	const readWork = () => !!(st.read.taps.length || st.read.keyTaps.length);
 	// another dictionary (of the journey on screen): any other one, of any size,
@@ -603,6 +603,7 @@
 			st.ways[st.screen].dict = null;
 		}
 		const p = st.screen === "read" ? st.read : st.plan;
+		if (v !== p.n && p === st.plan) st.gathered = {};
 		p.n = v; p.chosen.size = true;
 	}
 	// the key's own collection (null: the same as the sequence's): its dictionary goes, asked first
@@ -611,6 +612,7 @@
 		if (f === p.padForm) return true;
 		// recovering, the key's pieces read so far were of the old collection: they go too
 		if ((kc.dict || (st.screen === "read" && st.read.keyTaps.length)) && !confirm(T().keyCollChangeAsk)) return false;
+		if (p === st.plan) st.gathered = {};
 		p.padForm = f; p.chosen.padForm = false; kc.set(null, true); st.ways[st.screen].keyDict = null; st.ways[st.screen].keyNameDraft = null;
 		return true;
 	}
@@ -623,7 +625,7 @@
 		if (v === p.padAs) return true;
 		const work = reading ? !!(st.read.keyTaps.length || st.read.keyFile) : !!(m.key && m.key.pieces.length);
 		if (work && !confirm(reading ? T().keyAsChangeAskRead : T().keyAsChangeAsk)) return false;
-		p.padAs = v;
+		p.padAs = v; if (!reading) st.gathered = {};
 		if (reading) forgetKeyRead(st.read, true);
 		else Object.assign(m, { padKept: false, check: null, checked: false, storedAt: {} });
 		return true;
@@ -817,33 +819,76 @@
 	}
 
 	// ---- make, 2: the pieces ------------------------------------------------------
-	// A group per collection, with its icon: the kinds of piece, how many of
-	// each, what holds them, where that number comes from, and «I have them».
-	// A key of the same collection is one group with more of each.
-	function piecesSlide() {
-		const t = T(), p = st.plan, n = st.dict ? st.dict.things.length : p.n, L = symbolsFor(p.words, n);
+	// Cards: for each collection its pieces (what kinds, how many of each) and
+	// its assembly (what holds them), each with a tick, then what is only
+	// recommended. A key of the same collection is one group with more of each.
+	function gatherPlan() {
+		const p = st.plan, n = st.dict ? st.dict.things.length : p.n, L = symbolsFor(p.words, n);
 		// an address book's conventional order needs no dictionary of pieces (SPEC §11.3)
 		const dictPieces = (id) => id === "book" && n === 8 ? 0 : 1;
-		const { groups, keyFile } = J.pieces({ words: p.words, n, mode: st.mode, padAs: p.padAs, form: p.form, padForm: p.padForm }, dictPieces);
-		const group = (g) => {
-			const written = formOf(g.form).family === "written", own = g.kinds[0] === "key" ? st.padDict : st.dict;
-			const materials = materialsOf(g.form, L, n);
-			return h("section", { class: "pieces-group" + (g.kinds[0] === "key" ? " key" : "") },
-				h("h2", {}, h("span", { class: "pieces-icon", "aria-hidden": "true" }, g.kinds.map((x) => V.iconTag(x))),
-					h("span", { text: t.piecesFor[g.what] }), h("small", { text: t.forms[g.form].name })),
-				h("div", { class: "pieces-kinds" + (n > 16 ? " many" : "") }, kindThings(g.form, n, own && own.things).map((x) => h("span", { class: "pieces-kind" },
-					svg("svg", { viewBox: "0 0 24 24", role: "img", "aria-label": x.name }, V.piece({ box: { x: 0, y: 0, w: 24, h: 24 }, thing: x, named: false })),
-					written ? null : h("small", { text: "×" + (g.each + g.copies) })))),
-				materials ? h("p", { class: "pieces-thread", text: g.what === "both" ? t.piecesTwice(materials) : materials }) : null,
-				h("p", { class: "pieces-split", text: written ? t.gatherNoPieces : t.piecesSplit(g.each, g.copies, g.what) }),
-				h("label", { class: "pieces-have" }, h("input", { type: "checkbox", checked: st.gathered[g.what] ? "" : null,
-					on: { change: (e) => { st.gathered[g.what] = e.target.checked; render(); } } }), h("span", { text: t.piecesHave })));
+		// an assembly card: the form has materials to tell, and is not written
+		const assemblyOf = (id) => formOf(id).family !== "written" && !!materialsOf(id, L, n);
+		return { n, L, ...J.pieces({ words: p.words, n, mode: st.mode, padAs: p.padAs, form: p.form, padForm: p.padForm }, dictPieces, assemblyOf) };
+	}
+	const gatherOk = () => { const { groups } = gatherPlan(); return J.gatherDone(st.gathered, groups); };
+	// the small drawings of the gather cards
+	const gatherArt = (kind, n) => {
+		const line = (tag, attrs) => svg(tag, { class: "gather-line", ...attrs });
+		const parts = {
+			cord: () => [svg("path", { class: "gather-line", d: "M6 20 Q24 4 42 20" }), svg("circle", { class: "gather-solid", cx: 6, cy: 20, r: 2.6 }), svg("circle", { class: "gather-solid", cx: 42, cy: 20, r: 2.6 })],
+			book: () => [line("rect", { x: 9, y: 4, width: 30, height: 20, rx: 2 }), line("path", { d: "M24 4 V24" })],
+			brick: () => [line("rect", { x: 8, y: 11, width: 32, height: 13, rx: 1.5 }), line("rect", { x: 13, y: 6, width: 7, height: 5 }), line("rect", { x: 28, y: 6, width: 7, height: 5 })],
+			bag: () => [line("path", { d: "M13 10 Q24 6 35 10 L39 24 Q24 27 9 24 Z" }), line("path", { d: "M18 9 Q24 1 30 9" })],
+			box: () => [line("rect", { x: 4, y: 6, width: 40, height: 18, rx: 2 }), ...[16, 28].map((x) => line("path", { d: `M${x} 6 V24` })), line("path", { d: "M4 15 H44" })],
+			tweezers: () => [line("path", { d: "M8 23 L40 7" }), line("path", { d: "M8 23 L40 13" })],
+			needle: () => [line("path", { d: "M6 23 L42 6" }), line("ellipse", { cx: 40.5, cy: 6.8, rx: 1, ry: 2.2, transform: "rotate(65 40.5 6.8)" })],
 		};
-		return { question: t.piecesQ, body: () => h("div", { class: "pieces" + (groups.length > 1 ? " two" : "") }, ...groups.map(group),
-			keyFile ? h("p", { class: "pieces-file" }, h("span", { class: "pieces-icon", "aria-hidden": "true" }, V.iconTag("key")), t.gatherFile) : null) };
+		return svg("svg", { class: "gather-art", viewBox: "0 0 48 28", "aria-hidden": "true" }, ...parts[kind]());
+	};
+	// the kinds as dots, in the colour of the piece when it has one
+	const kindDots = (things, key) => {
+		const n = things.length, cols = Math.min(n, 16), rows = Math.ceil(n / cols), step = Math.min(120 / cols, 28 / rows), r = step / 2 * 0.8;
+		return svg("svg", { class: "gather-dots" + (key ? " key" : ""), viewBox: "0 0 120 28", "aria-hidden": "true" },
+			...things.map((x, i) => svg("circle", { class: "gather-dot", cx: 60 - cols * step / 2 + (i % cols + 0.5) * step, cy: 14 - rows * step / 2 + (Math.floor(i / cols) + 0.5) * step, r, fill: x.colour || undefined })));
+	};
+	const formArt = (id) => ({ necklace: "cord", gems: "cord", book: "book", stickers: "book", photos: "book", bricks: "brick" })[id] || "bag";
+	function piecesSlide() {
+		const t = T(), { n, L, groups, keyFile } = gatherPlan(), done = J.gatherDone(st.gathered, groups);
+		const tick = (what) => h("label", { class: "gather-tick" }, h("input", { type: "checkbox", checked: st.gathered[what] ? "" : null,
+			on: { change: (e) => { st.gathered[what] = e.target.checked; render(); } } }), h("span", { text: t.piecesHave }));
+		const card = (cls, ...kids) => h("section", { class: "gather-card " + cls }, ...kids);
+		const piecesCard = (g) => {
+			const written = formOf(g.form).family === "written", key = g.kinds[0] === "key", own = key ? st.padDict : st.dict, each = g.each + g.copies;
+			const other = key && g.what === "key";
+			return card("pieces-card" + (key ? " key" : ""),
+				kindDots(kindThings(g.form, n, own && own.things), key),
+				h("h2", {}, h("span", { class: "pieces-icon", "aria-hidden": "true" }, g.kinds.map((x) => V.iconTag(x))),
+					h("span", { text: other ? t.gatherKeyPieces : t.piecesFor[g.what] }), h("small", { text: t.forms[g.form].name })),
+				written ? h("p", { class: "gather-note", text: t.gatherNoPieces }) : h("div", { class: "gather-body" },
+					h("div", { class: "gather-nums" },
+						h("p", {}, h("b", { text: String(n) }), h("span", { text: t.gatherKinds })), h("p", {}, h("b", { text: String(each) }), h("span", { text: t.gatherEach }))),
+					h("p", { class: "gather-total" }, h("span", { text: t.gatherTotal }), h("b", { text: String(n * each) }))),
+				tick(g.what));
+		};
+		const assemblyCard = (g) => {
+			const materials = materialsOf(g.form, L, n), { big, text } = J.splitMaterials(materials);
+			return card("assembly-card" + (g.kinds[0] === "key" ? " key" : ""),
+				gatherArt(formArt(g.form)),
+				h("h2", {}, h("span", { text: t.gatherAssembly }), h("small", { text: t.forms[g.form].name })),
+				h("div", { class: "gather-body" }, big ? h("p", { class: "gather-big" }, h("b", { text: big })) : null,
+					h("p", { class: "gather-note", text: g.what === "both" ? t.piecesTwice(text) : text })),
+				tick("assembly:" + g.what));
+		};
+		const item = (kind, text, tag) => h("li", {}, gatherArt(kind), h("span", { text }), tag ? h("small", { text: tag }) : null);
+		const recommended = groups.some((g) => formOf(g.form).family !== "written")
+			? card("recommended-card", h("h2", {}, h("span", { text: t.gatherRecommended })),
+				h("ul", {}, item("box", t.gatherBox(n)), item("tweezers", t.gatherTweezers, t.gatherOptional), item("needle", t.gatherNeedle, t.gatherOptional))) : null;
+		const cards = groups.flatMap((g) => [piecesCard(g), g.assembly ? assemblyCard(g) : null]).filter(Boolean);
+		return { question: t.piecesQ, ready: done, caption: () => done ? null : t.gatherWait,
+			body: () => h("div", { class: "pieces" }, h("div", { class: "gather-grid" }, ...cards, recommended),
+				keyFile ? h("p", { class: "pieces-file" }, h("span", { class: "pieces-icon", "aria-hidden": "true" }, V.iconTag("key")), t.gatherFile) : null) };
 	}
 
-	// ---- make, 3 (and read, 1): the dictionary ------------------------------
 	// naming or checking it: a slide per piece (nameSlide, checkSlide), its own way on
 	function editDict(edit) { st.edit = edit; render(); }
 
@@ -1005,7 +1050,7 @@
 		setTimeout(() => { if (document.activeElement !== nameIn && !document.querySelector(".slide-popup")) nameIn.focus(); }, 0);
 		return {
 			question: t.nameQ(ed.i),
-			help: helpOf(t.dictName, t.nameHelp, t.dictChecks),
+			help: helpOf(t.dictName, t.nameHelp, ed.i === 0 ? [t.nameTipPiece, t.nameTipOrder, ...t.dictChecks] : t.dictChecks),
 			shortcuts: [{ icon: "Aa", label: t.thingSymbol, go: () => symbolPopup(x) }],
 			prev: { go: () => { if (ed.i > 0) { ed.i--; render(); } else editDict(null); } },
 			next: { label: ed.i < n - 1 ? undefined : "✓ " + t.dictDone, go: forward, ready: !problem() },
@@ -1018,7 +1063,9 @@
 						x.photo ? h("button", { type: "button", class: "btn ghost", title: t.photoRemove, "aria-label": t.photoRemove, on: { click: () => { x.photo = ""; render(); } } }, "✕") : null,
 						// editing a dictionary already there: saved from any piece, no need to page to the end
 						ed.base && ed.i < n - 1 ? h("button", { type: "button", class: "btn", on: { click: () => { if (!problem()) finish(); } } }, "✓ " + t.dictSaveNames) : null),
-					err), b.form)),
+					err), b.form),
+				// the first piece: what the form is for, and what the order is (bubbles beside the form and the box)
+				...(ed.i === 0 ? [place(h("p", { class: "tip right", text: t.nameTipPiece }), b.tipPiece), place(h("p", { class: "tip left", text: t.nameTipOrder }), b.tipOrder)] : [])),
 		};
 	}
 	// a piece's colour: one of the beads' colours, any other, or none (a tap chooses and closes)

@@ -386,7 +386,9 @@ const SeedcraftLayouts = (() => {
 			number: box(244, 104, 184, 72),
 			bits: box(336 - bw / 2, 188, bw, 28),
 			piece: box(452, 66, 204, 128),
-			form: box(452, 202, 204, 140),
+			form: box(452, 202, 204, 132),
+			tipPiece: box(236, 276, 204, 58),
+			tipOrder: box(236, 224, 204, 44),
 		}, arrows: [] };
 	}
 	// Checking a piece: the box on the left, the piece in the centre, its
