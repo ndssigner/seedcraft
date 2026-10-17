@@ -396,7 +396,7 @@
 		const p = st.plan, rd = st.read, m = st.make;
 		if (flow === "make") return ({ mode: !!st.mode, form: !!p.chosen.form, words: !!p.chosen.words, size: !!st.dict || !!p.chosen.size,
 			keyAs: !!p.chosen.padAs, keyColl: !!p.chosen.padColl, keyForm: !!p.chosen.padForm, dict: !!st.dict, keyDict: !!st.padDict, keyWho: !!m.keyWho,
-			keyTool: !!(m.key && m.key.by), keyThrow: keyDone(), seed: !!m.symbols, qr: !!m.symbols, seq: !!m.symbols, check: !!m.checked })[id] !== false;
+			keyTool: !!(m.key && m.key.by), keyThrow: keyDone(), pieces: gatherOk(), seed: !!m.symbols, qr: !!m.symbols, seq: !!m.symbols, check: !!m.checked })[id] !== false;
 		return ({ mode: !!rd.mode, form: !!rd.chosen.form, size: !!rd.dict || !!rd.chosen.size, dict: !!rd.dict, keyAs: !!rd.chosen.padAs,
 			keyColl: !!rd.chosen.padColl, keyForm: !!rd.chosen.padForm, keyDict: !!rd.padDict, keyFile: !!rd.keyFile, words: !!rd.chosen.words, recover: !!rd.out })[id] !== false;
 	}
@@ -581,8 +581,10 @@
 	// one named by the person, it is asked first (no: everything stays)
 	function changeDict(d) {
 		const c = seedColl(), work = st.screen === "read" ? readWork() : madeWork();
-		if (!c.dict || sameThings(c.dict, d)) { c.set(d); return true; }
+		const size = () => { if (st.screen !== "read" && d.things.length !== st.plan.n) st.gathered = {}; };
+		if (!c.dict || sameThings(c.dict, d)) { size(); c.set(d); return true; }
 		if ((work || c.dict.way === "name") && !confirm(T().dictChangeAsk)) return false;
+		size();
 		c.set(d, work);
 		return true;
 	}
@@ -759,9 +761,9 @@
 		const naming = chosen === "name" && !(dict && dict.way === "name");
 		return decide({ question: t.dictQ, options: dictOptions(n, formId, "seed"), chosen,
 			choose: (id) => { ways.error = ""; if (id === "ready") pick(set); else if (id === "name") ways.dict = "name"; else open(); },
-			ready: naming || !!dict, caption: () => ways.error || null,
+			ready: naming || !!dict, caption: () => ways.error || t.dictIntro,
 			next: naming ? { go: () => editDict(nameDraft(ways, "nameDraft", undefined, n)), ready: true } : undefined,
-			help: helpOf(t.dictBeforeTitle, t.dictIntro, t.dictChecks),
+			help: helpOf(t.dictBeforeTitle, null, t.dictChecks),
 			shortcuts: SETS.filter((x) => x.things.length >= n && x !== set).map((x) => ({ icon: x.icon, label: x[st.lang], go: () => { pick(x); render(); } })) });
 	}
 	// pad mode, the key as things of another collection: its own dictionary (SPEC §11.4), as many kinds as the sequence's
@@ -832,7 +834,7 @@
 	}
 	const gatherOk = () => { const { groups } = gatherPlan(); return J.gatherDone(st.gathered, groups); };
 	// the small drawings of the gather cards
-	const gatherArt = (kind, n) => {
+	const gatherArt = (kind) => {
 		const line = (tag, attrs) => svg(tag, { class: "gather-line", ...attrs });
 		const parts = {
 			cord: () => [svg("path", { class: "gather-line", d: "M6 20 Q24 4 42 20" }), svg("circle", { class: "gather-solid", cx: 6, cy: 20, r: 2.6 }), svg("circle", { class: "gather-solid", cx: 42, cy: 20, r: 2.6 })],
@@ -889,6 +891,7 @@
 				keyFile ? h("p", { class: "pieces-file" }, h("span", { class: "pieces-icon", "aria-hidden": "true" }, V.iconTag("key")), t.gatherFile) : null) };
 	}
 
+	// ---- make, 3 (and read, 1): the dictionary ------------------------------
 	// naming or checking it: a slide per piece (nameSlide, checkSlide), its own way on
 	function editDict(edit) { st.edit = edit; render(); }
 
@@ -1500,7 +1503,7 @@
 			question: t.seedQ(st.plan.words),
 			next: made ? undefined : { label: t.makeIt + " ▶", go: () => { make(); if (m.symbols) goSlide("make", "qr"); }, ready: ok },
 			caption: () => made ? (padMode ? t.whyPad : t.makeWarn) : padMode ? t.seqPadIntro : t.seqIntro,
-			body: () => h("div", { class: "slide-form seed-form" }, seedAlert(), area, status, print, h("div", { class: "row" }, tool)),
+			body: () => h("div", { class: "slide-form seed-form" }, h("p", { class: "seed-intro", text: t.seedIntro }), seedAlert(), area, status, print, h("div", { class: "row" }, tool)),
 		};
 	}
 
