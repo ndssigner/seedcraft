@@ -450,7 +450,14 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 		el.getBoundingClientRect();
 		el.style.transition = `transform ${ms}ms cubic-bezier(.3,.7,.3,1)`;
 		el.style.transform = "";
-		return { finish() { el.style.transition = ""; el.style.transform = ""; } };
+		// once there (or finished at once), the element is left as it was: no transition kept on it
+		const done = (e) => {
+			if (e && (e.target !== el || e.propertyName !== "transform")) return;
+			if (el.removeEventListener) el.removeEventListener("transitionend", done);
+			el.style.transition = "";
+		};
+		if (el.addEventListener) el.addEventListener("transitionend", done);
+		return { finish() { done(); el.style.transform = ""; } };
 	}
 	const fadeIn = (el) => {
 		if (live(el) && !reducedMotion()) el.classList.add("v-fade-in");
