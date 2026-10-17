@@ -368,7 +368,7 @@ ol.entries.paper li { color: #111; border-bottom-color: #ccc; }
 .v-qr-fixed.on { fill: #7a4a00; } .v-qr-fixed.off { fill: #f6dfb0; }
 .v-qr-hatch-line { stroke: #b36b00; stroke-width: .6; opacity: .7; }
 .v-qr-hatched { pointer-events: none; }
-.v-qr-legend-text { fill: #7a4a00; font-family: var(--sans); }
+.v-qr-legend-text { fill: var(--muted); font-family: var(--sans); }
 .v-qr-tab { fill: var(--qr); } .v-qr-tab-text { fill: #ffffff; font-family: var(--sans); font-weight: 600; }
 .v-dict-label { fill: var(--fg); font-family: var(--sans); }
 .v-qr-marker { fill: none; stroke: var(--qr); stroke-width: 2.5; pointer-events: none; }

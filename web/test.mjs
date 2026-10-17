@@ -605,6 +605,8 @@ for (const pad of [false, true]) {
 	{
 		const db = { x: 10, y: 40, w: 140, h: 60 }, wd = V.dictionary({ box: db, things, label: "Dictionary" });
 		check(walk(wd, (n) => n.tag === "text" && textOf(n).includes("Dictionary")).length === 1, "dictionary: wide enough, the tab names it");
+		const tabR = walk(wd, cls("v-dict-tab"))[0], lt = walk(wd, cls("v-dict-label"))[0];
+		check(num(lt.attrs.x) + 0.55 * num(lt.attrs["font-size"]) * (textOf(lt).length + 1) <= num(tabR.attrs.x) + num(tabR.attrs.width), "dictionary: the label's estimated end stays inside the tab");
 		const nr = V.dictionary({ box: { ...db, w: 86 }, things, label: "Dictionary" });
 		check(!walk(nr, (n) => n.tag === "text" && textOf(n).includes("Dictionary")).length && walk(nr, (n) => n.tag === "title" && textOf(n) === "Dictionary").length === 1, "dictionary: narrow, only a title");
 		within(wd, db, "labelled dictionary");
