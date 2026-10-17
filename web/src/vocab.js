@@ -181,7 +181,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 		const there = items.map((x, i) => x === undefined ? -1 : i).filter((i) => i >= 0);
 		if (there.length) {
 			const a = place(there[0]), b = place(there[there.length - 1]), ext = (i) => i === 0 || i === items.length - 1 ? pitch / 2 : 0;
-			const [x1, y1] = vertical ? [a[0], a[1] - ext(there[0])] : [a[0] - ext(there[0]), a[1]];
+			const [x1, y1] = vertical ? [a[0], a[1] - ext(there[0])] : [there[0] > 0 && !vertical ? box.x + pad : a[0] - ext(there[0]), a[1]];
 			const [x2, y2] = vertical ? [b[0], b[1] + ext(there[there.length - 1])] : [b[0] + ext(there[there.length - 1]), b[1]];
 			parts.push(svg("line", { x1: r1(x1), y1: r1(y1), x2: r1(x2), y2: r1(y2), class: "v-thread" + (role === "reference" ? " v-thread-ref" : role === "build" ? " v-thread-build" : "") }));
 		}

@@ -477,20 +477,21 @@ body { overflow: hidden; }
 .slide-popup { position: relative; z-index: 6; max-width: 80%; max-height: 80%; overflow: hidden; background: var(--surface); border: 1px solid var(--line-strong);
 	border-radius: var(--r-l); box-shadow: var(--tray); padding: calc(var(--u) * 10); }
 /* a decision on the lectern: the cards under the question, sized by the frame (--u) */
-.decision { position: absolute; left: calc(var(--u) * 20); right: calc(var(--u) * 20); top: calc(var(--u) * 66); bottom: calc(var(--u) * 8);
+.decision { position: absolute; left: calc(var(--u) * 16); right: calc(var(--u) * 16); top: calc(var(--u) * 66); bottom: calc(var(--u) * 16);
 	display: flex; align-items: center; justify-content: center; }
-.decision .v-cards { width: 100%; gap: calc(var(--u) * 12); }
+.decision .v-cards { width: 100%; gap: calc(var(--u) * 12); align-items: stretch; justify-content: center; align-content: center; }
 .decision .v-card { max-width: calc(var(--u) * 190); padding: calc(var(--u) * 8); gap: calc(var(--u) * 4); font: inherit; color: var(--fg); }
-.decision .v-card-art { width: 100%; display: flex; justify-content: center; }
+.decision .v-card-art { width: 100%; height: calc(var(--u) * 50); flex: none; display: flex; justify-content: center; align-items: flex-start; }
 .decision .v-card-art svg { width: auto; max-width: 100%; height: calc(var(--u) * 50); }
 .decision .v-card-title { font-size: 1.3em; line-height: 1.15; }
 .decision .v-card-list { font-size: 1em; line-height: 1.25; }
 .decision .v-card-list li { margin-top: .2em; }
-.decision.many .v-cards, .decision.lots .v-cards { flex-wrap: wrap; align-content: center; }
+.decision.many .v-cards, .decision.lots .v-cards { flex-wrap: wrap; align-content: center; justify-content: center; }
 .decision.many .v-card { flex: 0 1 calc(var(--u) * 118); padding: calc(var(--u) * 6); }
 .decision.lots { top: calc(var(--u) * 62); bottom: calc(var(--u) * 4); }
 .decision.lots .v-cards { gap: calc(var(--u) * 6); }
 .decision.lots .v-card { flex: 0 1 calc(var(--u) * 120); padding: calc(var(--u) * 4) calc(var(--u) * 5); gap: calc(var(--u) * 2); font-size: .8em; }
+.decision.lots .v-card-art { height: calc(var(--u) * 26); }
 .decision.lots .v-card-art svg { height: calc(var(--u) * 26); }
 .card-file { fill: var(--surface); stroke: var(--key); stroke-width: 1.2; }
 .card-device { fill: var(--sunk); stroke: var(--line-strong); stroke-width: 1.2; }

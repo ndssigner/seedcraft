@@ -403,12 +403,14 @@ const SeedcraftLayouts = (() => {
 	// The dictionary as it is: its box on the left (in two columns past 16
 	// pieces, so every row shows), then whether it is checked, and its actions.
 	function dictAsIs({ n }) {
-		const columns = n > 16 ? 2 : 1, w = 196 * columns, x = 24 + w + 24;
+		// two equal columns margin to margin: the list on the left (two inner ones past 16), the notice and the buttons on the right
+		const columns = n > 16 ? 2 : 1, w = (648 - 24) / 2, x = 16 + w + 24, top = 70, room = 334 - top;
+		const statusH = 44, gap = 12, actionsH = 200, y0 = top + (room - (statusH + gap + actionsH)) / 2;
 		return { boxes: {
 			guide: { ...GUIDE }, question: { ...QUESTION },
-			dict: box(24, 70, w, 268),
-			status: box(x, 70, VIEW.w - 24 - x, 44),
-			actions: box(x, 126, VIEW.w - 24 - x, 212),
+			dict: box(16, top, w, room),
+			status: box(x, y0, w, statusH),
+			actions: box(x, y0 + statusH + gap, w, actionsH),
 		}, columns, arrows: [] };
 	}
 
