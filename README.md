@@ -71,9 +71,10 @@ also in each [release](https://github.com/ndssigner/seedcraft/releases), to
 use offline. English and Spanish.
 
 A lectern of slides: one landscape slide at a time, scaled to fit the
-window (the journeys never scroll), each asking one thing, with where you are at the
-top and Back and Next at the foot. Every slide draws the same few things the
-same way: strings, dictionaries, bits, the clock, the QR code. Two journeys:
+window (the journeys never scroll), each asking one thing, with where you
+are at the top and Back and Next at the foot. Every slide draws the same
+few things the same way: strings, dictionaries, bits, the clock, the QR
+code. Two journeys:
 
 - **Back up a seed**: plan, one question at a time, with drawings (the
   mode, with what each one protects; the form, from those of [SPEC

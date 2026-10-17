@@ -322,7 +322,9 @@ const SeedcraftLayouts = (() => {
 	// its title, its string (or the key file), its dictionary, a note and
 	// «Saved». With no key, the string's place (a) and the dictionary's,
 	// apart (d: no string, its dictionary under its title). At the foot,
-	// «Forget everything on this device» (forget).
+	// «Forget everything on this device» (forget). file: a key file in B's
+	// string box, as it starts: its icon, its sheet, and where each of its
+	// first three lines goes (lines: their start, left and baseline).
 	function store({ pad }) {
 		const top = 82, h = 214;
 		const b = { guide: { ...GUIDE }, question: box(150, 28, 380, 32), forget: box(190, 314, 300, 28) };
@@ -336,7 +338,9 @@ const SeedcraftLayouts = (() => {
 			place("a", box(20, top, 300, h));
 			place("b", box(360, top, 300, h));
 			Object.assign(b, { border: box(338, top, 4, h), apart: box(280, 62, 120, 16) });
-			return { boxes: b, arrows: [] };
+			const f = b.bString, sheet = box(f.x + 20, f.y + 1, f.w - 22, f.h - 2);
+			const file = { icon: box(f.x, f.y + f.h / 2 - 9, 16, 18), sheet, lines: [0, 1, 2].map((j) => [sheet.x + 8, sheet.y + 13 + j * 13]) };
+			return { boxes: b, file, arrows: [] };
 		}
 		place("a", box(20, top, 400, h));
 		const d = box(450, top, 210, h);
