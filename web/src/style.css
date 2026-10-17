@@ -335,10 +335,12 @@ ol.entries.paper li { color: #111; border-bottom-color: #ccc; }
 .v-pick:focus-visible { outline: none; }
 .v-pick.on .v-pick-bg { stroke: var(--accent); stroke-width: 2.5; fill: var(--accent-soft); }
 /* binary: each bit in its box, in a machine face; the header's and the padding's dashed */
+.v-bit-0 .v-bit-box { fill: #ffffff; } .v-bit-1 .v-bit-box { fill: #111111; }
 .v-bit-box { fill: var(--surface); stroke: currentColor; stroke-width: 1.2; }
 .v-bit-dashed .v-bit-box { stroke-dasharray: 3 2; }
 .v-bit-empty .v-bit-box { stroke: var(--line-strong); stroke-dasharray: 2 2; }
 .v-bit .v-t { fill: var(--fg); }
+.v-bit.v-bit-0 .v-t { fill: #111111; } .v-bit.v-bit-1 .v-t { fill: #ffffff; }
 /* the clock module */
 .v-clock-box { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.2; }
 .v-clock-cell { fill: var(--sunk); stroke: var(--line-strong); stroke-width: 1; }
@@ -363,6 +365,12 @@ ol.entries.paper li { color: #111; border-bottom-color: #ccc; }
 .v-qr-turn { fill: var(--qr-soft); stroke: var(--qr); stroke-width: .8; }
 .v-qr-turn.on { fill: var(--qr); }
 .v-qr-err { fill: var(--err); }
+.v-qr-fixed.on { fill: #7a4a00; } .v-qr-fixed.off { fill: #f6dfb0; }
+.v-qr-hatch-line { stroke: #b36b00; stroke-width: .6; opacity: .7; }
+.v-qr-hatched { pointer-events: none; }
+.v-qr-legend-text { fill: #7a4a00; font-family: var(--sans); }
+.v-qr-tab { fill: var(--qr); } .v-qr-tab-text { fill: #ffffff; font-family: var(--sans); font-weight: 600; }
+.v-dict-label { fill: var(--fg); font-family: var(--sans); }
 .v-qr-marker { fill: none; stroke: var(--qr); stroke-width: 2.5; pointer-events: none; }
 .v-qr-reveal { animation: v-reveal 1ms both; }
 @keyframes v-reveal { from { opacity: 0; } to { opacity: 1; } }

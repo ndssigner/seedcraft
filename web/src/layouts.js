@@ -423,9 +423,9 @@ const SeedcraftLayouts = (() => {
 	}
 	// the bounding rectangle of QR cells [r, c] in a box, as vocab.js's qr places
 	// them (side = min(w, h), centred), 2 units out on each side; null if none
-	function qrCellsBox(b, size, cells) {
+	function qrCellsBox(b, size, cells, { legend = false } = {}) {
 		if (!cells.length) return null;
-		const side = Math.min(b.w, b.h), cs = side / size, x0 = b.x + (b.w - side) / 2, y0 = b.y + (b.h - side) / 2;
+		const side = Math.min(b.w, b.h) - (legend ? 14 : 0), cs = side / size, x0 = b.x + (b.w - side) / 2, y0 = b.y + (b.h - side - (legend ? 14 : 0)) / 2;
 		const rs = cells.map((c) => c[0]), cols = cells.map((c) => c[1]);
 		const r0 = Math.min(...rs), r1 = Math.max(...rs), c0 = Math.min(...cols), c1 = Math.max(...cols);
 		return box(x0 + c0 * cs - 2, y0 + r0 * cs - 2, (c1 - c0 + 1) * cs + 4, (r1 - r0 + 1) * cs + 4);

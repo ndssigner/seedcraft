@@ -77,6 +77,8 @@
 			mode: keep ? keep.mode : null, form: keep ? keep.form : "necklace", n: keep ? keep.n : 16, chosen: keep ? keep.chosen : {}, dict: keep ? keep.dict : null };
 	}
 	const T = () => SEEDCRAFT_TEXT[st.lang];
+	// the QR's fixed areas (amber, hatched), and the legend saying so where there is room
+	const qrFixed = (size, box) => ({ fixed: S.functionModules(size), legend: box.h >= 150 ? T().qrFixedLegend : null });
 	// a dictionary of another size, or another one (reset, once asked: changeDict):
 	// what was made with the old one goes (a renamed piece changes nothing: the
 	// sequence is numbers). Recovering has its own (st.read.dict, setReadDict):
@@ -521,7 +523,7 @@
 	const artString = (things, items, kind = "seed", box = { x: 0, y: 4, w: ART_W, h: ART_H - 8 }) =>
 		V.string({ box, orientation: "h", role: kind === "key" ? "reference" : "read", kind, things, items: items.map((i) => i === null ? null : i % things.length), showValues: false, room: 20 });
 	const seedAndKey = (seed, key) => artOf(artString(seed, [3, 0, 2, 1], "seed", { x: 0, y: 0, w: ART_W, h: 28 }), artString(key, [1, 3, 0, 2], "key", { x: 0, y: 28, w: ART_W, h: 28 }));
-	const dictArt = (things, icon, extra) => artOf(extra || null, V.dictionary({ box: { x: 34, y: 2, w: 92, h: 52 }, things, icon }));
+	const dictArt = (things, icon, extra) => artOf(extra || null, V.dictionary({ label: T().dictLabel, box: { x: 34, y: 2, w: 92, h: 52 }, things, icon }));
 	const keyFileArt = () => artOf(V.icon("key", 22, 29, 18),
 		svg("rect", { x: 40, y: 3, width: 84, height: 50, rx: 4, class: "card-file" }),
 		...["54 16", "3A37 DFE7 6", "A6C8 BBC2 2", "413D F4 5"].map((x, i) => svg("text", { x: 46, y: 15 + i * 11, "font-size": 8.5, class: "v-t v-mono v-c-key" }, x)));
@@ -1000,7 +1002,7 @@
 			question: target === "pad" ? t.keyDictHaveQ(t.forms[coll.form].name) : t.dictHaveQ,
 			help: reading ? null : helpOf(t.dictSave, t.dictSaveHelp, []),
 			body: () => h("div", { class: "dict-slide" },
-				canvas(V.dictionary({ box: b.dict, things: d.things, mode: "static", icon: iconOf(target), columns: lay.columns })), status, actions),
+				canvas(V.dictionary({ label: T().dictLabel, box: b.dict, things: d.things, mode: "static", icon: iconOf(target), columns: lay.columns })), status, actions),
 		};
 	}
 
@@ -1014,7 +1016,7 @@
 		// what changes as the name is typed, redrawn in place (the field keeps its focus)
 		const dict = svg("g"), piece = svg("g");
 		const draw = () => {
-			dict.replaceChildren(V.dictionary({ box: b.dict, things: ed.things, mode: "static", value: ed.i, icon }));
+			dict.replaceChildren(V.dictionary({ label: T().dictLabel, box: b.dict, things: ed.things, mode: "static", value: ed.i, icon }));
 			piece.replaceChildren(V.piece({ box: b.piece, thing: x }));
 		};
 		draw();
@@ -1137,7 +1139,7 @@
 				d.checked = true; editDict(null);
 			} },
 			body: () => h("div", { class: "dict-slide" },
-				canvas(V.dictionary({ box: b.dict, things: shown, mode: "static", value: right ? v : null, icon }), V.piece({ box: b.piece, thing: x })),
+				canvas(V.dictionary({ label: T().dictLabel, box: b.dict, things: shown, mode: "static", value: right ? v : null, icon }), V.piece({ box: b.piece, thing: x })),
 				place(h("div", { class: "dict-answer" }, numbers, wrong), b.answers)),
 		};
 	}
@@ -1324,7 +1326,7 @@
 			}
 			// the bag: the key's dictionary as buttons
 			if (b.picker) {
-				const pk = V.dictionary({ box: b.picker, things, mode: "picker", value, icon: "key", onPick: pick });
+				const pk = V.dictionary({ label: T().dictLabel, box: b.picker, things, mode: "picker", value, icon: "key", onPick: pick });
 				if (piece) pk.classList.add("kt-off");
 				kids.push(pk);
 			}
@@ -1338,7 +1340,7 @@
 				const shown = (id) => !!piece && at(id) < p;
 				if (b.number) groups.number.replaceChildren(V.number({ box: b.number, value: shown("number") ? value : null, colour: "key" }));
 				if (b.keyDict) {
-					const reel = V.dictionary({ box: b.keyDict, things, mode: "reel", value: shown("dict") ? value : null, icon: "key", from: turning ? 0 : undefined });
+					const reel = V.dictionary({ label: T().dictLabel, box: b.keyDict, things, mode: "reel", value: shown("dict") ? value : null, icon: "key", from: turning ? 0 : undefined });
 					groups.dict.replaceChildren(svg("g", { class: shown("dict") ? null : "kt-wait" }, reel));
 				}
 				if (b.piece) groups.piece.replaceChildren(V.piece({ box: b.piece, thing: shown("piece") ? things[value] : null }));
@@ -1530,7 +1532,7 @@
 			over.push(fade ? V.fadeIn(num) : num);
 		}
 		if (showQr) {
-			kids.push(V.qr({ box: b.qr, size: qr.size, modules: (r, c) => qr.getModule(c, r), reveal }));
+			kids.push(V.qr({ box: b.qr, size: qr.size, modules: (r, c) => qr.getModule(c, r), reveal, ...qrFixed(qr.size, b.qr) }));
 			over.push(place(h("div", { class: "qr-label" }, V.iconTag("seed"), " " + t.qrLabel(qr.size)), { x: b.qr.x, y: b.qr.y + b.qr.h + 2, w: b.qr.w, h: 16 }));
 		}
 		// the arrow of each step is the current one, the one before it past
@@ -1669,21 +1671,21 @@
 		const wait = (el, on) => on ? el : svg("g", { class: "tn-wait" }, el);
 		function draw(p, turning, onRun, alive) {
 			const reached = (id) => at(id) >= 0 && at(id) <= p;
-			groups.qr.replaceChildren(V.qr({ box: b.qr, size, modules, turnCells }));
+			groups.qr.replaceChildren(V.qr({ box: b.qr, size, modules, turnCells, markerLabel: T().qrPosition(i + 1), ...qrFixed(size, b.qr) }));
 			groups.bits.replaceChildren(V.bits({ box: b.bits, bits: turn.map((x) => reached("bits") ? bits[x.bit] : null), roles, colour: "qr" }));
 			groups.number.replaceChildren(V.number({ box: b.number, value: reached("number") ? P : null, colour: "qr" }));
 			if (pad) {
 				groups.key.replaceChildren(file ? keyFileColumn() : V.string({ box: b.keyString, orientation: "v", role: "reference", kind: "key", things: keyThings,
 					items: Array.from({ length: 7 }, (_, j) => { const x = i - 3 + j; return x < 0 || x >= L ? undefined : m.pad[x]; }), current: 3, firstPosition: i - 2 }));
 				const keyAt = at(file ? "key" : "keyNumber");
-				if (b.keyDict) groups.keyDict.replaceChildren(wait(V.dictionary({ box: b.keyDict, things: keyThings, mode: "reel", icon: "key",
+				if (b.keyDict) groups.keyDict.replaceChildren(wait(V.dictionary({ label: T().dictLabel, box: b.keyDict, things: keyThings, mode: "reel", icon: "key",
 					value: p >= keyAt ? K : null, from: turning && p === keyAt ? 0 : undefined }), reached("key")));
 				groups.keyNumber.replaceChildren(V.number({ box: b.keyNumber, value: p >= keyAt ? K : null, colour: "key" }));
 				const clockAt = at("clock");
 				groups.clock.replaceChildren(p < clockAt ? svg("g") : V.clock({ box: b.clock, n, from: P, by: K, sign: 1, inputColour: "qr",
 					phase: p === clockAt ? "inputs" : p === at("out") && turning ? "run" : "done", onDone: p === at("out") ? onRun : undefined, alive }));
 			}
-			groups.seedDict.replaceChildren(wait(V.dictionary({ box: b.seedDict, things, mode: "reel", icon: "seed",
+			groups.seedDict.replaceChildren(wait(V.dictionary({ label: T().dictLabel, box: b.seedDict, things, mode: "reel", icon: "seed",
 				value: reached("dict") ? C : null, from: turning && p === at("dict") ? 0 : undefined }), reached("dict")));
 			// your string: those before the turn in place, the slot (filled at the last stage), the rest to come
 			groups.seedString.replaceChildren(V.string({ box: b.seedString, role: "build", kind: "seed", things, current: 6, firstPosition: i - 5,
@@ -1710,9 +1712,9 @@
 		// to its place, the QR's marker from f's squares, the strings a piece (a row) over;
 		// the bits and the number fade in. Its glides, while they play
 		function advance(f) {
-			const out = [], q = groups.qr.lastChild, marker = q && q.lastChild;
-			const was = Lay.qrCellsBox(b.qr, size, S.turnBits(size, f, k).filter((x) => x.cell).map((x) => x.cell)), now = Lay.qrCellsBox(b.qr, size, turnCells);
-			if (was && now && marker && marker.getAttribute("class") === "v-qr-marker") out.push(V.glide(marker, { dx: was.x - now.x, dy: was.y - now.y }));
+			const out = [], q = groups.qr.lastChild, marker = q && q.querySelector && q.querySelector(".v-qr-cursor");
+			const was = Lay.qrCellsBox(b.qr, size, S.turnBits(size, f, k).filter((x) => x.cell).map((x) => x.cell), { legend: b.qr.h >= 150 }), now = Lay.qrCellsBox(b.qr, size, turnCells, { legend: b.qr.h >= 150 });
+			if (was && now && marker) out.push(V.glide(marker, { dx: was.x - now.x, dy: was.y - now.y }));
 			out.push(V.glide(groups.seedString, { dx: (i - f) * Lay.pitch(b.seedString, 13) }));
 			if (pad) out.push(V.glide(groups.key, { dy: (i - f) * (file ? Lay.fileColumn(b.keyString, { role: "reference" }).pitch : Lay.pitch(b.keyString, 7, { vertical: true })) }));
 			V.fadeIn(groups.bits); V.fadeIn(groups.number);
@@ -1810,9 +1812,9 @@
 		const w = diff.wrong[0] || { turn: L - 1, column: "seed" };
 		const label = (box, s) => svg("text", { x: box.x + box.w / 2, y: box.y + box.h - 4, "font-size": 12, "text-anchor": "middle", class: "v-t v-name" }, s);
 		const kids = [
-			V.qr({ box: b.made, size, modules: made }),
+			V.qr({ box: b.made, size, modules: made, ...qrFixed(size, b.made) }),
 			svg("text", { x: b.sign.x + b.sign.w / 2, y: b.sign.y + b.sign.h / 2 + 15, "font-size": 42, "text-anchor": "middle", class: "v-t v-bold " + (exact ? "v-c-seed" : "v-c-err") }, exact ? "=" : "≠"),
-			exact ? V.qr({ box: b.read, size, modules: made }) : V.qr({ box: b.read, size, modules: (r, c) => S.templateModule(size, r, c), painted, wrong: differ }),
+			exact ? V.qr({ box: b.read, size, modules: made, ...qrFixed(size, b.read) }) : V.qr({ box: b.read, size, modules: (r, c) => S.templateModule(size, r, c), painted, wrong: differ, ...qrFixed(size, b.read) }),
 			label(b.madeLabel, t.checkMadeQr), label(b.readLabel, t.checkReadQr),
 		];
 		if (!exact) {
@@ -1863,7 +1865,7 @@
 		};
 		const kids = [
 			svg("rect", { x: b.a.x, y: b.a.y, width: b.a.w, height: b.a.h, rx: 8, class: "st-place" }), seedString,
-			V.dictionary({ box: b.aDict, things: st.dict.things, mode: "static", icon: "seed" }),
+			V.dictionary({ label: T().dictLabel, box: b.aDict, things: st.dict.things, mode: "static", icon: "seed" }),
 		];
 		const over = [];
 		const note = (box, ...lines) => over.push(place(h("div", { class: "st-note" }, lines.filter(Boolean).map((x) => h("p", { text: x }))), box));
@@ -1875,7 +1877,7 @@
 			const keyThings = file ? null : keyThingsMade();
 			kids.push(svg("rect", { x: b.b.x, y: b.b.y, width: b.b.w, height: b.b.h, rx: 8, class: "st-place st-key" }),
 				file ? keyFile() : V.string({ box: b.bString, orientation: "h", role: "read", kind: "key", things: keyThings, items: first(m.pad), showValues: false }),
-				V.dictionary({ box: b.bDict, things: own ? st.padDict.things : st.dict.things, mode: "static", icon: "key" }),
+				V.dictionary({ label: T().dictLabel, box: b.bDict, things: own ? st.padDict.things : st.dict.things, mode: "static", icon: "key" }),
 				svg("line", { x1: b.border.x + b.border.w / 2, y1: b.border.y, x2: b.border.x + b.border.w / 2, y2: b.border.y + b.border.h, class: "st-border" }),
 				svg("text", { x: b.apart.x + b.apart.w / 2, y: b.apart.y + 12, "font-size": 12, "text-anchor": "middle", class: "v-t v-bold v-c-err" }, t.storeApart));
 			titled(b.aTitle, "seed", t.storeA); titled(b.bTitle, "key", t.storeB);
@@ -1887,7 +1889,7 @@
 			else savedBox("b", b.bSaved);
 		} else {
 			kids.push(svg("rect", { x: b.d.x, y: b.d.y, width: b.d.w, height: b.d.h, rx: 8, class: "st-place" }),
-				V.dictionary({ box: b.dDict, things: st.dict.things, mode: "static", icon: "seed" }));
+				V.dictionary({ label: T().dictLabel, box: b.dDict, things: st.dict.things, mode: "static", icon: "seed" }));
 			titled(b.aTitle, "seed", t.storeHere); titled(b.dTitle, "seed", t.storeDictApart);
 			note(b.aNote, t.storeAmong); note(b.dNote, t.storeDictWhy);
 			savedBox("a", b.aSaved); savedBox("d", b.dSaved);
@@ -2104,7 +2106,7 @@
 			};
 			Slides.popup(h("div", { class: "rt-pick" }, h("h2", { class: "rt-pick-q" }, V.iconTag(which), " ", t.readWhich(pos)),
 				svg("svg", { class: "rt-pick-canvas", viewBox: `0 0 ${pl.view.w} ${pl.view.h}` },
-					V.dictionary({ box: pl.boxes.picker, things: th, mode: "picker", value: cur === undefined ? null : cur, icon: which, onPick: pick }))),
+					V.dictionary({ label: T().dictLabel, box: pl.boxes.picker, things: th, mode: "picker", value: cur === undefined ? null : cur, icon: which, onPick: pick }))),
 			{ label: t.readWhich(pos) });
 		}
 		// a row before (or a key file's place) tapped: only where its number comes from
@@ -2147,16 +2149,16 @@
 			g.bits.replaceChildren(V.bits({ box: b.bits, bits: turn.map((x, j) => reached("bits") ? pb[j] : null), roles, colour: "qr" }));
 			const painted = new Map(before);
 			if (reached("paint")) paintTurn(painted, i);
-			g.qr.replaceChildren(V.qr({ box: b.qr, size, modules: template, turnCells, painted }));
+			g.qr.replaceChildren(V.qr({ box: b.qr, size, modules: template, turnCells, painted, markerLabel: T().qrPosition(i + 1), ...qrFixed(size, b.qr) }));
 			lay.arrows.forEach((a, j) => arrowGroups[j].replaceChildren(V.arrow({ points: a.points, colour: a.colour, state: arrowState(a.id, p) })));
 		}
 		// the advance from turn f: the columns a row over, the QR's marker from f's squares, the bits fading in
 		function advance(f) {
 			const rows = lay.columns.seed.rows, dy = (i - f) * (rows[1].y - rows[0].y), out = [V.glide(g.seed, { dy })];
 			if (pad) out.push(V.glide(g.key, { dy }));
-			const q = g.qr.lastChild, marker = q && q.lastChild;
-			const was = Lay.qrCellsBox(b.qr, size, S.turnBits(size, f, k).filter((x) => x.cell).map((x) => x.cell)), now = Lay.qrCellsBox(b.qr, size, turnCells);
-			if (was && now && marker && marker.getAttribute("class") === "v-qr-marker") out.push(V.glide(marker, { dx: was.x - now.x, dy: was.y - now.y }));
+			const q = g.qr.lastChild, marker = q && q.querySelector && q.querySelector(".v-qr-cursor");
+			const was = Lay.qrCellsBox(b.qr, size, S.turnBits(size, f, k).filter((x) => x.cell).map((x) => x.cell), { legend: b.qr.h >= 150 }), now = Lay.qrCellsBox(b.qr, size, turnCells, { legend: b.qr.h >= 150 });
+			if (was && now && marker) out.push(V.glide(marker, { dx: was.x - now.x, dy: was.y - now.y }));
 			V.fadeIn(g.bits);
 			return out;
 		}
@@ -2258,7 +2260,7 @@
 		return {
 			question: "✗ " + t.readNoFit, caption: () => t.readLockedWhy, shortcuts: readShortcuts(rd, L, done),
 			prev: { go: () => readGo(rd, L - 1) }, next: null,
-			body: () => h("div", { class: "dict-slide" }, canvas(V.qr({ box: b.qr, size, modules: (r, c) => S.templateModule(size, r, c), painted }))),
+			body: () => h("div", { class: "dict-slide" }, canvas(V.qr({ box: b.qr, size, modules: (r, c) => S.templateModule(size, r, c), painted, ...qrFixed(size, b.qr) }))),
 		};
 	}
 	// The seed found: the same path as «Your QR» backwards (layouts.js's seedQr):
