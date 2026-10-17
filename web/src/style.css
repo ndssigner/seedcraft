@@ -609,6 +609,14 @@ body { overflow: hidden; }
 .rf-title small { color: var(--muted); font-size: .85em; }
 .rf-words { columns: 3; column-gap: 1em; padding: 0 0 0 1.6em; font-family: var(--mono); font-size: 1.15em; line-height: 1.6; }
 .rf-words.many { font-size: .95em; line-height: 1.5; }
+.qr-seed { position: absolute; z-index: 1; font-size: calc(var(--u) * 15); line-height: 1; }
+.qr-words, .qr-number, .qr-bits, .qr-label { position: absolute; z-index: 1; box-sizing: border-box; overflow: hidden; margin: 0; }
+.qr-words { columns: 2; column-gap: 1em; padding: 0 0 0 1.8em; font-family: var(--mono); font-size: calc(var(--u) * 13); line-height: 1.3; }
+.qr-words.many { font-size: calc(var(--u) * 11.5); line-height: 1.25; }
+.qr-words li { break-inside: avoid; }
+.qr-number { display: flex; flex-direction: column; justify-content: center; align-items: center; font-family: var(--mono); font-size: calc(var(--u) * 16); line-height: 1.3; color: var(--qr); font-weight: 600; white-space: nowrap; }
+.qr-number.many { font-size: calc(var(--u) * 14.5); line-height: 1.25; }
+.qr-bits, .qr-label { text-align: center; color: var(--muted); font-size: calc(var(--u) * 11); }
 .rf-words li::marker { color: var(--muted); font-size: .8em; }
 .rf-note { display: flex; flex-wrap: wrap; align-items: center; gap: .3em; font-size: .9em; line-height: 1.2; }
 .rf-note .alert { margin: 0; padding: .3em .6em; }

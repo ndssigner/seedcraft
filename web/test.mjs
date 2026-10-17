@@ -826,7 +826,9 @@ for (const pad of [false, true]) {
 		&& J.buyFor(12, 2, "pad", "file") === 135 && J.buyFor(12, 2, "basic") === 130, "buyFor: SPEC §6 and §10.6");
 	check(J.symbolsFor(12, 16) === 54 && J.symbolsFor(24, 16) === 91 && J.symbolsFor(12, 32) === 43 && J.symbolsFor(24, 2) === 364, "symbolsFor: SPEC §2");
 	check(ids("make", { mode: "basic" }) === "mode form words size pieces dict seed check store", "make: the basic mode's slides");
-	check(ids("make", { mode: "basic", made: true }) === "mode form words size pieces dict seed seq check store", "make: the turns once the sequence is made");
+	check(ids("make", { mode: "basic", made: true }) === "mode form words size pieces dict seed qr seq check store", "make: the turns once the sequence is made");
+	check(ids("make", { mode: "basic", made: true }).includes("seed qr seq") && !ids("make", { mode: "basic" }).includes("qr"), "make: «Your QR» between the words and the turns, once the sequence is made");
+	check(J.slides("make", { mode: "pad", padAs: "string", made: true }).find((x) => x.id === "qr").step === "seq", "make: «Your QR» under the sequence's step");
 	check(ids("make", { mode: null }) === ids("make", { mode: "basic" }), "make: before a mode is chosen, the basic mode's slides");
 	check(ids("make", { mode: "pad", padAs: "file", dict: true, keyWho: "me", keyBy: "d6" }) === "mode form words size keyAs pieces dict dictHave keyWho keyTool keyThrow seed check store", "make: a key file thrown by hand");
 	check(ids("make", { mode: "pad", padAs: "string", padForm: "book", dict: true, padDict: true, keyWho: "device", keyBy: "device" })

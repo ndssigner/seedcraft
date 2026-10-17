@@ -22,7 +22,7 @@ const SeedcraftJourneys = (() => {
 		["pieces", "gather"],
 		["dict", "dict"], ["dictHave", "dict"], ["keyDict", "dict"], ["keyDictHave", "dict"],
 		["keyWho", "key"], ["keyTool", "key"], ["keyThrow", "key"],
-		["seed", "seq"], ["seq", "seq"], ["check", "check"], ["store", "store"]];
+		["seed", "seq"], ["qr", "seq"], ["seq", "seq"], ["check", "check"], ["store", "store"]];
 	const READ = [["mode", "have"], ["form", "have"], ["size", "have"], ["dict", "have"], ["dictHave", "have"],
 		["keyAs", "have"], ["keyColl", "have"], ["keyForm", "have"], ["keyDict", "have"], ["keyDictHave", "have"], ["keyFile", "have"],
 		["words", "have"], ["recover", "recover"], ["seed", "seed"]];
@@ -36,7 +36,7 @@ const SeedcraftJourneys = (() => {
 		const pad = s.mode === "pad", things = pad && s.padAs === "string", own = things && !!s.padForm;
 		const there = {
 			keyAs: pad, keyColl: things, keyForm: own, dictHave: !!s.dict, keyDict: own, keyDictHave: own && !!s.padDict,
-			keyWho: pad, keyTool: pad && s.keyWho === "me", keyThrow: pad && !!s.keyBy, seq: !!s.made, keyFile: pad && s.padAs === "file",
+			keyWho: pad, keyTool: pad && s.keyWho === "me", keyThrow: pad && !!s.keyBy, seq: !!s.made, qr: !!s.made, keyFile: pad && s.padAs === "file",
 		};
 		// recovering, the seed's length is asked unless a key file tells it
 		if (flow === "read") there.words = !(pad && s.padAs === "file");
