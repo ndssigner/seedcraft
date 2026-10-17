@@ -419,7 +419,7 @@
 		const forward = () => { if (d.onNext) d.onNext(); goSlide(flow, along(flow, at, 1)); };
 		const next = d.hidden ? null : d.next !== undefined ? d.next
 			: after ? { go: forward, ready: d.ready !== false } : null;
-		return { id: view, guide, question: d.question || null, steps: d.steps || 1, startStep: d.startStep || 0, body: d.body, caption: d.caption || null,
+		return { id: view, guide, question: d.question || null, steps: d.steps || 1, startStep: d.startStep || 0, wide: !!d.wide, body: d.body, caption: d.caption || null,
 			prev, next, shortcuts: [...(d.shortcuts || []), home], help: d.help || null, hurry: d.hurry || null };
 	}
 	// ---- small building blocks ----------------------------------------
@@ -2234,7 +2234,7 @@
 				const grew = step > recSeen && !calm();
 				recSeen = step;
 				const parts = seedQrParts(lay, { words, entropy: out.entropy, qr, step, toWords: true, fade: step === 1 && grew });
-				if (how.length) parts.over.push(place(h("div", { class: "qr-how" }, how.map((x) => h("small", { text: x }))), { x: 240, y: 64, w: 200, h: 40 }));
+				if (how.length) parts.over.push(place(h("div", { class: "qr-how" }, how.map((x) => h("small", { text: x }))), { x: 240, y: 62, w: 200, h: 36 }));
 				if (step >= 2) parts.over.push(place(h("div", { class: "qr-print" }, fingerprintLine(out.entropy)), b.fingerprint),
 					place(h("div", { class: "qr-note" + (out.fixed ? " warn" : "") }, ...note), b.note));
 				return h("div", { class: "dict-slide" }, canvas(...parts.kids), ...parts.over);
