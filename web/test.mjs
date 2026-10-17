@@ -636,6 +636,12 @@ for (const pad of [false, true]) {
 		check(walk(pb, cls("v-name")).length === 1 && walk(walk(pb, cls("v-current"))[0], cls("v-name")).length === 1, "string build: only the turn's piece has its name under it");
 		check(walk(pb, (n) => n.tag === "mask").length === 1 && walk(fixed, (n) => n.tag === "text" && textOf(n) === "9").length === 1, "string build: a mask fades the run's ends; the turn's position is in the posBox");
 	}
+	{
+		// a vertical reference string (the key's, in the make turn): its icon apart from the run that glides
+		const vr = V.string({ box: { x: 20, y: 40, w: 40, h: 200 }, orientation: "v", role: "reference", kind: "key", things, items: [0, 1, 2, 3, 4, 5, 6], current: 3, firstPosition: 2 });
+		const run = walk(vr, cls("v-string-run"))[0], icon = walk(vr, cls("v-string-icon"))[0];
+		check(run && icon && walk(run, cls("v-piece")).length === 7 && !walk(run, cls("v-icon")).length && walk(icon, cls("v-icon")).length === 1, "string reference: the icon apart from the run");
+	}
 	const midCx = (p) => num(walk(p, (n) => n.tag === "circle")[0].attrs.cx), sl = lay.boxes.seedSlot;
 	check(Math.abs(midCx(cur[0]) - (sl.x + sl.w / 2)) < 1, "string: the turn's piece is in the slot's box");
 	within(s, { x: lay.boxes.seedString.x, y: lay.boxes.posBox.y, w: lay.boxes.seedString.w, h: lay.boxes.seedString.y + lay.boxes.seedString.h - lay.boxes.posBox.y }, "string build");
@@ -845,7 +851,7 @@ for (const pad of [false, true]) {
 
 	// arrows: dashed, right angles, the past ones nearly invisible
 	const past = V.arrow({ points: [[10, 10], [50, 10], [50, 40]], colour: "qr", state: "past" });
-	check(num(past.attrs.opacity) < 0.1, "arrow: a past one nearly invisible");
+	check(past.attrs.opacity === "0.25", "arrow: a past one faint (opacity 0.25)");
 	const now = V.arrow({ points: [[10, 10], [50, 10]], colour: "key", state: "current" });
 	check(cls("v-c-key")(now) && walk(now, cls("v-arrow-line"))[0].attrs.d === "M10 10 L50 10" && walk(now, (n) => n.tag === "mask").length === 1, "arrow: the current one drawn along its path, in its colour");
 	check(V.arrow({ points: [[0, 0], [5, 0]], colour: "qr", state: "hidden" }).attrs.visibility === "hidden", "arrow: hidden");

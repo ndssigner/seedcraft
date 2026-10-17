@@ -155,7 +155,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			label = (i, x, y, thing, pos, value) => [
 				text(x, box.y + box.h - 2, 9, pos, { "text-anchor": "middle", class: posClass(i) }),
 				value !== null && showValues ? text(x + pitch / 2 - 2, box.y + 10, 9, value, { "text-anchor": "end", class: "v-value " + colourClass(kind) }) : null];
-			parts.push(icon(kind, box.x + pad / 2, cy, Math.min(pad * 0.7, 14)));
+			iconEl = icon(kind, box.x + pad / 2, cy, Math.min(pad * 0.7, 14));
 			start = box.x + pad;
 		} else if (role === "read") {
 			// layouts.js's readColumn: each row's position on the column's outer side (outer),
@@ -167,7 +167,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			label = (i, x, y, thing, pos, value) => [
 				value !== null && showValues ? text(mid(col.rows[i].value), y + fs * 0.36, fs, value, { "text-anchor": "middle", class: "v-value v-bold " + colourClass(kind) }) : null,
 				text(mid(col.rows[i].pos), y + small * 0.36, small, pos, { "text-anchor": "middle", class: posClass(i) })];
-			parts.push(icon(kind, col.icon[0], col.icon[1], pad * 0.75));
+			iconEl = icon(kind, col.icon[0], col.icon[1], pad * 0.75);
 			start = col.icon[1] + pad * 0.4;
 		} else {
 			// the position on the left, the piece on the right
@@ -179,7 +179,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			label = (i, x, y, thing, pos, value) => [
 				text(box.x + numW / 2, y + fs * 0.35, i === current ? 10 : fs, pos, { "text-anchor": "middle", class: posClass(i) }),
 				value !== null && showValues ? text(box.x + numW / 2, y + fs * 1.4, fs, value, { "text-anchor": "middle", class: "v-value " + colourClass(kind) }) : null];
-			parts.push(icon(kind, cx, box.y + pad / 2, pad * 0.75));
+			iconEl = icon(kind, cx, box.y + pad / 2, pad * 0.75);
 			start = box.y + pad;
 		}
 		// the thread, from the first position there is to the last
@@ -206,7 +206,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			if (tap) press(g, () => tap(i));
 			parts.push(g);
 		});
-		if (iconEl) {
+		if (role === "build" && !vertical) {
 			// build: the icon apart; the beads and thread in the run (faded at both ends, in a wrapper
 			// so a glided run does not drag its mask); the slot's frame and the posBox, fixed
 			const id = "sm" + (++maskN), x0 = box.x, w = box.w, fade = Math.min(pitch / w, 0.5);
@@ -226,7 +226,8 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 				svg("g", { class: "v-string-icon" }, iconEl),
 				svg("g", { mask: `url(#${id})` }, svg("g", { class: "v-string-run" }, parts))]);
 		}
-		return svg("g", { class: `v v-string v-${role} v-${kind}` }, parts);
+		// the others: the icon apart too, so a glided run (the key's reference string) leaves it in place
+		return svg("g", { class: `v v-string v-${role} v-${kind}` }, [svg("g", { class: "v-string-icon" }, iconEl), svg("g", { class: "v-string-run" }, parts)]);
 	}
 
 	// ---- a dictionary: a little card with a book's tab ----------------------
@@ -528,14 +529,14 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 
 	// ---- an arrow: dashed, straight, turning at right angles ---------------
 	// "current": drawn along its path (CSS; at once with reduced motion);
-	// "past": nearly invisible; "hidden": not shown.
+	// "past": faint; "hidden": not shown.
 	function arrow({ points, colour = "qr", state = "current" }) {
 		const d = pathOf(points), [ex, ey] = points[points.length - 1], [px, py] = points[points.length - 2] || points[0];
 		const len = Math.hypot(ex - px, ey - py) || 1, ux = (ex - px) / len, uy = (ey - py) / len;
 		const head = [[ex, ey], [ex - 7 * ux + 4 * uy, ey - 7 * uy - 4 * ux], [ex - 7 * ux - 4 * uy, ey - 7 * uy + 4 * ux]].map((p) => p.map(r1).join(",")).join(" ");
 		const body = [svg("path", { d, class: "v-arrow-line" }), svg("polygon", { points: head, class: "v-arrow-head" })];
 		const attrs = { class: `v v-arrow v-arrow-${state} ${colourClass(colour)}` };
-		if (state === "past") attrs.opacity = "0.08";
+		if (state === "past") attrs.opacity = "0.25";
 		if (state === "hidden") attrs.visibility = "hidden";
 		if (state !== "current") return svg("g", attrs, body);
 		const id = nextId("draw");
