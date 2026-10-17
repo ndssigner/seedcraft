@@ -361,7 +361,7 @@
 	}
 	// the slide for what is on screen now
 	function slideNow(view) {
-		const t = T(), home = { icon: "⌂", label: t.slidesHome, go: () => go("intro") };
+		const t = T(), home = { icon: V.iconTag("home"), label: t.slidesHome, go: () => go("intro") };
 		const toStart = { label: "◀ " + t.tabIntro, go: () => go("intro") };
 		const page = (body, prev) => ({ id: view, page: true, guide: [], question: null, steps: 1, body: () => body,
 			prev, next: null, shortcuts: st.screen === "intro" ? [] : [home], help: null });
@@ -420,7 +420,7 @@
 		const next = d.hidden ? null : d.next !== undefined ? d.next
 			: after ? { go: forward, ready: d.ready !== false } : null;
 		return { id: view, guide, question: d.question || null, steps: d.steps || 1, startStep: d.startStep || 0, body: d.body, caption: d.caption || null,
-			prev, next, shortcuts: [...(d.shortcuts || []), home], help: d.help || null };
+			prev, next, shortcuts: [...(d.shortcuts || []), home], help: d.help || null, hurry: d.hurry || null };
 	}
 	// ---- small building blocks ----------------------------------------
 	const panel = (...children) => h("section", { class: "panel" }, ...children);
@@ -522,7 +522,7 @@
 		V.string({ box, orientation: "h", role: kind === "key" ? "reference" : "read", kind, things, items: items.map((i) => i === null ? null : i % things.length), showValues: false, room: 20 });
 	const seedAndKey = (seed, key) => artOf(artString(seed, [3, 0, 2, 1], "seed", { x: 0, y: 0, w: ART_W, h: 28 }), artString(key, [1, 3, 0, 2], "key", { x: 0, y: 28, w: ART_W, h: 28 }));
 	const dictArt = (things, icon, extra) => artOf(extra || null, V.dictionary({ box: { x: 34, y: 2, w: 92, h: 52 }, things, icon }));
-	const keyFileArt = () => artOf(svg("text", { x: 22, y: 34, "font-size": 14, "text-anchor": "middle", class: "v-t v-icon" }, "⚿"),
+	const keyFileArt = () => artOf(V.icon("key", 22, 29, 18),
 		svg("rect", { x: 40, y: 3, width: 84, height: 50, rx: 4, class: "card-file" }),
 		...["54 16", "3A37 DFE7 6", "A6C8 BBC2 2", "413D F4 5"].map((x, i) => svg("text", { x: 46, y: 15 + i * 11, "font-size": 8.5, class: "v-t v-mono v-c-key" }, x)));
 	const dieArt = (opts) => V.die({ size: 56, ...opts });
@@ -630,7 +630,6 @@
 	}
 
 	// ---- the slides of each journey ------------------------------------------
-	const ICON = { seed: "🌱", key: "⚿" };
 	const SLIDES = {
 		make: {
 			mode: () => decide({ question: T().modeHelp, options: modeOptions(), chosen: st.mode, choose: setMode }),
@@ -829,7 +828,7 @@
 			const written = formOf(g.form).family === "written", own = g.kinds[0] === "key" ? st.padDict : st.dict;
 			const materials = materialsOf(g.form, L, n);
 			return h("section", { class: "pieces-group" + (g.kinds[0] === "key" ? " key" : "") },
-				h("h2", {}, h("span", { class: "pieces-icon", "aria-hidden": "true", text: g.kinds.map((x) => ICON[x]).join(" ") }),
+				h("h2", {}, h("span", { class: "pieces-icon", "aria-hidden": "true" }, g.kinds.map((x) => V.iconTag(x))),
 					h("span", { text: t.piecesFor[g.what] }), h("small", { text: t.forms[g.form].name })),
 				h("div", { class: "pieces-kinds" + (n > 16 ? " many" : "") }, kindThings(g.form, n, own && own.things).map((x) => h("span", { class: "pieces-kind" },
 					svg("svg", { viewBox: "0 0 24 24", role: "img", "aria-label": x.name }, V.piece({ box: { x: 0, y: 0, w: 24, h: 24 }, thing: x, named: false })),
@@ -840,7 +839,7 @@
 					on: { change: (e) => { st.gathered[g.what] = e.target.checked; render(); } } }), h("span", { text: t.piecesHave })));
 		};
 		return { question: t.piecesQ, body: () => h("div", { class: "pieces" + (groups.length > 1 ? " two" : "") }, ...groups.map(group),
-			keyFile ? h("p", { class: "pieces-file" }, h("span", { class: "pieces-icon", "aria-hidden": "true", text: ICON.key }), t.gatherFile) : null) };
+			keyFile ? h("p", { class: "pieces-file" }, h("span", { class: "pieces-icon", "aria-hidden": "true" }, V.iconTag("key")), t.gatherFile) : null) };
 	}
 
 	// ---- make, 3 (and read, 1): the dictionary ------------------------------
@@ -886,7 +885,7 @@
 	};
 
 	// ---- your own dictionary: as it is, named and checked a slide per piece ----------
-	// The same little box everywhere (vocab.js's dictionary, 🌱 or ⚿), on the
+	// The same little box everywhere (vocab.js's dictionary, 🌱 or the key), on the
 	// geometry of layouts.js (dictAsIs, dictName, dictCheck): the HTML over the
 	// canvas is placed on its boxes, in the lectern's units. The key's own
 	// collection: the same slides (target "pad"). Recovering: the same, on the
@@ -1157,7 +1156,7 @@
 	// «What came up?» On the left the faces of the die (or the coin) as buttons,
 	// every one tappable, and under them what to do now; in the middle the bit
 	// tower filling up, each face that counts on its left with its order number
-	// (①②③) and joined to its bits, those thrown again aside, dimmed, with ↻;
+	// (a ring round its number) and joined to its bits, those thrown again aside, dimmed, with ↻;
 	// then brace → the number → the key's dictionary turning to it → the piece
 	// → its slot in the key string at the bottom. A key file: the number goes
 	// to its place in the file, growing at the bottom. The bag: the dictionary
@@ -1167,7 +1166,6 @@
 	let keyRolling = false;  // the device's die rolling: nothing else moves until it stops
 	let keyFresh = null;     // the position of a piece just completed: it is shown arriving, once
 	let keyFocus = null;     // the face tapped from the keyboard, focused again once redrawn
-	const circled = (i) => i <= 20 ? String.fromCodePoint(0x2460 + i - 1) : i <= 35 ? String.fromCodePoint(0x3251 + i - 21) : i <= 50 ? String.fromCodePoint(0x32B1 + i - 36) : `(${i})`;
 	const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 	function keyThrowSlide() {
 		const t = T(), m = st.make, n = st.dict.things.length, k = Math.log2(n), L = keyLength();
@@ -1254,12 +1252,19 @@
 				marks.used.forEach((u) => kids.push(svg("g", { class: "kt-thrown" },
 					svg("path", { class: "kt-join", d: `M${u.join[0][0]} ${u.join[0][1]} H${u.join[1][0]} M${u.span[0][0]} ${u.span[0][1]} V${u.span[1][1]}` }),
 					faceOf(throws[u.at], u.face, "kt-small"),
-					svg("text", { x: u.label[0], y: u.label[1], "font-size": 10, "text-anchor": "end", class: "v-t kt-order" }, circled(u.at + 1)))));
-				marks.rejected.forEach((r) => kids.push(svg("g", { class: "kt-again" }, faceOf(throws[r.at], r.face, "kt-small"),
-					svg("text", { x: r.label[0], y: r.label[1], "font-size": 7, "text-anchor": "middle", class: "v-t kt-order" }, circled(r.at + 1) + "↻"),
-					svg("title", {}, t.keyNoCount))));
+					V.badge(u.at + 1, u.badge.x + u.badge.w / 2, u.badge.y + u.badge.h / 2, Lay.BADGE, "kt-order"))));
+				// those thrown again: dimmed, each its badge and ↻ under it, side by side
+				marks.rejected.forEach((r) => {
+					const cy = r.badge.y + r.badge.h / 2, bw = V.badgeSize(r.at + 1, Lay.BADGE).w, sw = 0.7 * Lay.BADGE;
+					const x0 = r.badge.x + (r.badge.w - bw - 2 - sw) / 2;
+					kids.push(svg("g", { class: "kt-again" }, faceOf(throws[r.at], r.face, "kt-small"),
+						V.badge(r.at + 1, x0 + bw / 2, cy, Lay.BADGE, "kt-order"),
+						svg("text", { x: x0 + bw + 2 + sw / 2, y: cy + Lay.BADGE * 0.36, "font-size": Lay.BADGE, "text-anchor": "middle", class: "v-t kt-reroll" }, "↻"),
+						svg("title", {}, t.keyNoCount)));
+				});
 				// (a d10's faces are already numbered from 0)
-				if (sides !== 10) kids.push(svg("text", { x: b.info.x, y: b.info.y + 10, "font-size": 9, class: "v-t kt-info" }, coin ? t.keyCoinBits : t.keyFirstZero));
+				if (sides !== 10) kids.push(svg("g", { class: "kt-info" }, V.icon("info", b.info.x + 6, b.info.y + b.info.h / 2, 12),
+					svg("text", { x: b.info.x + 15, y: b.info.y + 10, "font-size": 9, class: "v-t" }, coin ? t.keyCoinBits : t.keyFirstZero)));
 			}
 			// the bag: the key's dictionary as buttons
 			if (b.picker) {
@@ -1315,7 +1320,7 @@
 			if (!piece && throws.length && tool === "dice") tools.push(act("↶ " + t.keyUndo, () => update(S.keyUndoThrow(m.key))));
 			if (key.fix) tools.push(act(t.keyFixCancel, () => keyGo(pos)));
 			if (piece && piece.by !== "device") tools.push(act(t.keyFix, () => update(S.keyFix(key))));
-			if (piece && !asString && have === L && pos === L - 1) tools.push(act("⤓ " + t.padFileSave, saveFile, m.padKept ? "btn ghost small" : "btn small"));
+			if (piece && !asString && have === L && pos === L - 1) tools.push(act([V.iconTag("save"), " " + t.padFileSave], saveFile, m.padKept ? "btn ghost small" : "btn small"));
 			over.push(place(h("div", { class: "kt-tools" }, tools), b.tools));
 			if (focus !== null && piece) Promise.resolve().then(() => { const nb = document.getElementById("slide-next"); if (nb) nb.focus(); });
 			return h("div", { class: "dict-slide kt-slide" }, canvas(...kids), ...over);
@@ -1339,7 +1344,7 @@
 			const row = Array.from({ length: len }, (_, j) => at(start + j));
 			const whole = row.every((v) => v !== null);
 			const lineOf = (vals) => S.writePadFile(vals, n).trimEnd().split("\n");
-			const parts = [svg("text", { x: box.x + 8, y: box.y + 48, "font-size": 14, "text-anchor": "middle", class: "v-t v-icon" }, ICON.key)];
+			const parts = [V.icon("key", box.x + 8, box.y + 43, 14)];
 			const y1 = box.y + 16, y2 = box.y + 48;
 			if (r.row === 0) parts.push(svg("text", { x: r.xs[0] - 5, y: y1, "font-size": 11, class: "v-t v-mono kt-file-before" }, `${L} ${n}`));
 			else Array.from(lineOf(values.slice(start - ROW, start))[1].replace(/ /g, "")).forEach((c, j) =>
@@ -1371,7 +1376,7 @@
 			: !st.seen.keyWhy ? t.keyWhy : null;
 		const shortcuts = keyChangedWays();
 		if (key.by === "device" && have < L) shortcuts.push({ icon: "⏩", label: t.seeAll, go: all });
-		if (have === L) shortcuts.push(asString ? { icon: "⤓", label: t.saveList, go: saveList } : { icon: "⤓", label: t.padFileSave, go: saveFile });
+		if (have === L) shortcuts.push(asString ? { icon: V.iconTag("save"), label: t.saveList, go: saveList } : { icon: V.iconTag("save"), label: t.padFileSave, go: saveFile });
 		const why = tool === "bag" ? [t.keyBagPutBack] : tool === "device" ? [] : coin ? [t.keyCoinBits]
 			: [sides === 10 ? null : t.keyFirstZero, t.keyRerollWhy, t.keyPartUsed(k)].filter(Boolean);
 		return {
@@ -1455,6 +1460,27 @@
 	let turnFresh = null;   // a turn reached with Next: its cycle plays once
 	let turnRun = 0;        // moves on at every render: a turn's cycle still playing from an earlier one stops
 	let turnBack = false;   // a turn reached with Back: shown at its last step
+	// A turn's cycle played on arriving: a stage every STAGE_MS, the clock's
+	// run (vocab.js: RUN_MS at most) and STAGE_MS after it, so a whole turn
+	// lasts about 2.5 s at most, whatever N. draw(p, turning, onRun, alive):
+	// the slide at stage p; alive: whether this play still counts (render()
+	// moves turnRun on: a play from an earlier drawing stops). finish(): its
+	// end at once (Next while it plays); false when there was nothing playing.
+	const STAGE_MS = 150;
+	function playCycle(stages, first, draw) {
+		const run = turnRun, last = stages.length - 1;
+		let playing = true;
+		const alive = () => playing && run === turnRun;
+		const later = (fn) => setTimeout(() => { if (alive()) fn(); }, STAGE_MS);
+		const play = (p) => {
+			const out = stages[p].id === "out";
+			draw(p, true, out ? () => later(() => play(p + 1)) : undefined, alive);
+			if (p >= last) playing = false;
+			else if (!out) later(() => play(p + 1));
+		};
+		play(first);
+		return { finish: () => { if (!alive()) return false; playing = false; draw(last, false); return true; } };
+	}
 	// to another turn of the sequence; a turn explained is explained only while it is on screen
 	// still: shown as it ends, never played (a jump, not Next)
 	function turnGo(to, still = false) {
@@ -1509,7 +1535,7 @@
 		const groups = {}, arrowGroups = lay.arrows.map(() => svg("g"));
 		["qr", "bits", "number", "key", "keyDict", "keyNumber", "clock", "seedDict", "seedString"].forEach((g) => { groups[g] = svg("g"); });
 		const wait = (el, on) => on ? el : svg("g", { class: "tn-wait" }, el);
-		function draw(p, turning, onRun) {
+		function draw(p, turning, onRun, alive) {
 			const reached = (id) => at(id) >= 0 && at(id) <= p;
 			groups.qr.replaceChildren(V.qr({ box: b.qr, size, modules, turnCells }));
 			groups.bits.replaceChildren(V.bits({ box: b.bits, bits: turn.map((x) => reached("bits") ? bits[x.bit] : null), roles, colour: "qr" }));
@@ -1523,7 +1549,7 @@
 				groups.keyNumber.replaceChildren(V.number({ box: b.keyNumber, value: p >= keyAt ? K : null, colour: "key" }));
 				const clockAt = at("clock");
 				groups.clock.replaceChildren(p < clockAt ? svg("g") : V.clock({ box: b.clock, n, from: P, by: K, sign: 1, inputColour: "qr",
-					phase: p === clockAt ? "inputs" : p === at("out") && turning ? "run" : "done", onDone: p === at("out") ? onRun : undefined }));
+					phase: p === clockAt ? "inputs" : p === at("out") && turning ? "run" : "done", onDone: p === at("out") ? onRun : undefined, alive }));
 			}
 			groups.seedDict.replaceChildren(wait(V.dictionary({ box: b.seedDict, things, mode: "reel", icon: "seed",
 				value: reached("dict") ? C : null, from: turning && p === at("dict") ? 0 : undefined }), reached("dict")));
@@ -1537,7 +1563,7 @@
 		}
 		// the key file's characters around the turn, a column like the key string's: the turn's framed
 		function keyFileColumn() {
-			const col = Lay.fileColumn(b.keyString, { role: "reference" }), parts = [svg("text", { x: col.icon[0], y: col.icon[1], "font-size": 11, "text-anchor": "middle", class: "v-t v-icon" }, ICON.key)];
+			const col = Lay.fileColumn(b.keyString, { role: "reference" }), parts = [V.icon("key", col.icon[0], col.icon[1] - 4, 11)];
 			col.rows.forEach((r, j) => {
 				const x = i - 3 + j;
 				if (x < 0 || x >= L) return;
@@ -1548,21 +1574,15 @@
 			return svg("g", { class: "v v-file", role: "img", "aria-label": t.padFileTitle }, parts);
 		}
 
+		let cycle = null;
 		function body(step) {
 			const kids = [groups.qr, groups.bits, groups.number, groups.key, groups.keyDict, groups.keyNumber, groups.clock, groups.seedDict, groups.seedString, ...arrowGroups];
+			cycle = null;
 			if (explaining) draw(step, true);
-			else if (fresh) {
-				// on arriving: the cycle plays, a relation at a time; the clock turns step by step, then it goes on
-				// (stage 0 now, before the body is on the page; each later stage only while
-				// nothing has been drawn since: render() moves the token on)
-				const run = turnRun, later = (fn, ms) => setTimeout(() => { if (run === turnRun) fn(); }, ms);
-				const play = (p) => {
-					const out = stages[p].id === "out";
-					draw(p, true, out ? () => later(() => play(p + 1), 300) : undefined);
-					if (p < last && !out) later(() => play(p + 1), 450);
-				};
-				play(0);
-			} else draw(last, false);
+			// on arriving: the cycle plays, a relation at a time, the clock turning step by step
+			// (stage 0 now, before the body is on the page; each later one only while nothing has been drawn since)
+			else if (fresh) cycle = playCycle(stages, 0, draw);
+			else draw(last, false);
 			return h("div", { class: "dict-slide tn-slide" }, canvas(...kids));
 		}
 
@@ -1582,13 +1602,15 @@
 			{ icon: "⏩", label: t.seeAll, go: () => turnGo(L - 1, true) },
 			{ icon: "🧵", label: t.seqWhole, go: wholeString },
 			{ icon: "🖨", label: t.printIt, go: () => go("print") },
-			{ icon: "⤓", label: t.saveList, go: () => download(m.symbols.map((s, j) => `${j + 1}. ${things[s].name}`).join("\n") + "\n", listName, "text/plain") },
+			{ icon: V.iconTag("save"), label: t.saveList, go: () => download(m.symbols.map((s, j) => `${j + 1}. ${things[s].name}`).join("\n") + "\n", listName, "text/plain") },
 			{ icon: "?", label: t.seqExplain, go: explainTurn },
 			...keyChangedWays(),
 			{ icon: "◀", label: t.otherSeed, go: () => { if (confirm(t.otherSeedAsk(st.mode))) otherSeed(); } },
 		];
 		return {
 			count: `${pos}/${L}`, steps: explaining ? stages.length : 1, startStep: explaining && back ? last : 0, caption, shortcuts, help: explainTurn, body,
+			// Next while the cycle plays: first its end, then on
+			hurry: () => !!cycle && cycle.finish(),
 			prev: i > 0 ? { go: () => turnGo(i - 1) } : undefined,
 			next: i < L - 1 ? { go: () => turnGo(i + 1) } : undefined,
 		};
@@ -1624,7 +1646,7 @@
 	// that does not match, it framed in red, and Next goes to it.
 	function checkEnd(rd, diff) {
 		const t = T(), m = st.make, things = st.dict.things, n = things.length, k = Math.log2(n), pad = st.mode === "pad", L = readLength(rd);
-		const exact = !!m.checked, b = Lay.checkFinal({ pad }).boxes;
+		const exact = !!m.checked, cf = Lay.checkFinal({ pad }), b = cf.boxes, cols = cf.columns;
 		const qr = S.compactSeedQR(m.entropy), size = qr.size, cells = S.dataModulesRowMajor(size), made = (r, c) => qr.getModule(c, r);
 		// what was read, place by place along the strings (as it reads best), on the template
 		const plain = diff.seed.map((c, p) => pad ? S.clockStep(c, diff.key[p], n, -1).value : c);
@@ -1642,9 +1664,9 @@
 			// the strings as read, around the turn of the piece that does not match, it framed in red;
 			// the two strings swapped, each column is drawn as the string read in it (its icon, its dictionary)
 			const keyThings = pad && rd.padAs === "string" ? keyThingsOf(rd) : null, swapped = !!(keyThings && diff.swapped);
-			kids.push(swapped ? readColumn(b.seedColumn, "key", keyThings, rd.taps, w.turn, L) : readColumn(b.seedColumn, "seed", things, rd.taps, w.turn, L));
+			kids.push(swapped ? readColumn(b.seedColumn, "key", keyThings, rd.taps, w.turn, L, { column: cols.seed }) : readColumn(b.seedColumn, "seed", things, rd.taps, w.turn, L, { column: cols.seed }));
 			if (pad) kids.push(!keyThings ? fileColumn(b.keyColumn, rd.keyFile, w.turn, L)
-				: swapped ? readColumn(b.keyColumn, "seed", things, rd.keyTaps, w.turn, L) : readColumn(b.keyColumn, "key", keyThings, rd.keyTaps, w.turn, L));
+				: swapped ? readColumn(b.keyColumn, "seed", things, rd.keyTaps, w.turn, L, { column: cols.key }) : readColumn(b.keyColumn, "key", keyThings, rd.keyTaps, w.turn, L, { column: cols.key }));
 			kids.push(V.frame({ box: w.column === "key" && b.keyRow ? b.keyRow : b.seedRow, colour: "err" }));
 		}
 		const result = exact
@@ -1680,7 +1702,7 @@
 		const keyFile = () => {
 			const f = lay.file, lines = S.writePadFile(m.pad, n).split("\n").slice(0, 3);
 			return svg("g", { class: "v v-file", role: "img", "aria-label": t.padFileTitle },
-				svg("text", { x: f.icon.x + f.icon.w / 2, y: f.icon.y + f.icon.h - 4, "font-size": 14, "text-anchor": "middle", class: "v-t v-icon" }, ICON.key),
+				V.icon("key", f.icon.x + f.icon.w / 2, f.icon.y + f.icon.h / 2, f.icon.w),
 				svg("rect", { x: f.sheet.x, y: f.sheet.y, width: f.sheet.w, height: f.sheet.h, rx: 4, class: "card-file" }),
 				...lines.map((x, j) => svg("text", { x: f.lines[j][0], y: f.lines[j][1], "font-size": 10, class: "v-t v-mono v-c-key" }, x)));
 		};
@@ -1690,7 +1712,7 @@
 		];
 		const over = [];
 		const note = (box, ...lines) => over.push(place(h("div", { class: "st-note" }, lines.filter(Boolean).map((x) => h("p", { text: x }))), box));
-		const titled = (box, icon, text) => over.push(place(h("p", { class: "st-title" }, h("span", { "aria-hidden": "true", text: icon + " " }), text), box));
+		const titled = (box, icon, text) => over.push(place(h("p", { class: "st-title" }, V.iconTag(icon), " ", text), box));
 		const savedBox = (id, box) => over.push(place(h("label", { class: "st-saved" }, h("input", { type: "checkbox", checked: saved[id] ? "" : null,
 			on: { change: (e) => { saved[id] = e.target.checked; } } }), h("span", { text: t.storeSaved })), box));
 		const saveFile = () => { download(S.writePadFile(m.pad, n), "numbers.txt", "text/plain"); m.padKept = true; render(); };
@@ -1701,17 +1723,17 @@
 				V.dictionary({ box: b.bDict, things: own ? st.padDict.things : st.dict.things, mode: "static", icon: "key" }),
 				svg("line", { x1: b.border.x + b.border.w / 2, y1: b.border.y, x2: b.border.x + b.border.w / 2, y2: b.border.y + b.border.h, class: "st-border" }),
 				svg("text", { x: b.apart.x + b.apart.w / 2, y: b.apart.y + 12, "font-size": 12, "text-anchor": "middle", class: "v-t v-bold v-c-err" }, t.storeApart));
-			titled(b.aTitle, ICON.seed, t.storeA); titled(b.bTitle, ICON.key, t.storeB);
+			titled(b.aTitle, "seed", t.storeA); titled(b.bTitle, "key", t.storeB);
 			// which half is which only for two strings; beside a file, its start is all there is to mark
 			note(b.aNote, file ? t.storeMarkStartOnly : t.storeMarkStart, shared ? t.storeCopy : null);
 			note(b.bNote, file ? t.storeFileNote : t.storeMarkStart, shared ? t.storeCopy : null);
 			savedBox("a", b.aSaved);
-			if (unsaved) over.push(place(h("div", { class: "st-saved" }, h("button", { type: "button", class: "btn small", on: { click: saveFile } }, "⤓ " + t.padFileSave)), b.bSaved));
+			if (unsaved) over.push(place(h("div", { class: "st-saved" }, h("button", { type: "button", class: "btn small", on: { click: saveFile } }, V.iconTag("save"), " " + t.padFileSave)), b.bSaved));
 			else savedBox("b", b.bSaved);
 		} else {
 			kids.push(svg("rect", { x: b.d.x, y: b.d.y, width: b.d.w, height: b.d.h, rx: 8, class: "st-place" }),
 				V.dictionary({ box: b.dDict, things: st.dict.things, mode: "static", icon: "seed" }));
-			titled(b.aTitle, ICON.seed, t.storeHere); titled(b.dTitle, ICON.seed, t.storeDictApart);
+			titled(b.aTitle, "seed", t.storeHere); titled(b.dTitle, "seed", t.storeDictApart);
 			note(b.aNote, t.storeAmong); note(b.dNote, t.storeDictWhy);
 			savedBox("a", b.aSaved); savedBox("d", b.dSaved);
 		}
@@ -1836,13 +1858,14 @@
 	// i, each piece with its number beside it; vals: what was read at each
 	// place. The turn's place, while it is not read: a hole (a «+» with slot).
 	// slot(): the hole tapped; piece(x): the piece of place x tapped;
-	// title(x): what hovering the piece of place x says (a locked one: where its number comes from).
+	// title(x): what hovering the piece of place x says (a locked one: where its number comes from);
+	// column: layouts.js's readColumn for the box (where each row's position, piece and number go).
 	function readColumn(box, kind, things, vals, i, L, on = {}) {
 		const items = Array.from({ length: 7 }, (_, j) => {
 			const x = i - 3 + j;
 			return x < 0 || x >= L ? undefined : vals[x] !== undefined ? vals[x] : x === i ? null : undefined;
 		});
-		return V.string({ box, orientation: "v", role: "read", kind, things, items, current: 3, firstPosition: i - 2,
+		return V.string({ box, orientation: "v", role: "read", kind, things, items, current: 3, firstPosition: i - 2, column: on.column,
 			onSlot: on.slot ? () => on.slot() : undefined, onPiece: on.piece ? (j) => on.piece(i - 3 + j) : undefined, titleOf: on.title ? (j) => on.title(i - 3 + j) : undefined });
 	}
 	// A key file's characters around turn i, a column like a string read: each
@@ -1850,7 +1873,7 @@
 	// layouts.js's fileColumn; hovering one says where its number comes
 	// from. onTap(x): place x tapped (the same, in a popup).
 	function fileColumn(box, values, i, L, onTap) {
-		const col = Lay.fileColumn(box), parts = [svg("text", { x: col.icon[0], y: col.icon[1], "font-size": 11, "text-anchor": "middle", class: "v-t v-icon" }, ICON.key)];
+		const col = Lay.fileColumn(box), parts = [V.icon("key", col.icon[0], col.icon[1], 11)];
 		col.rows.forEach((r, j) => {
 			const x = i - 3 + j, v = values && values[x];
 			if (x < 0 || x >= L || v === undefined) return;
@@ -1916,7 +1939,7 @@
 				const hole = $("app").querySelector(".v-slot"), nb = $("slide-next");
 				if (hole) hole.focus(); else if (nb && !nb.disabled) nb.focus();
 			};
-			Slides.popup(h("div", { class: "rt-pick" }, h("h2", { class: "rt-pick-q" }, h("span", { "aria-hidden": "true", text: ICON[which] + " " }), t.readWhich(pos)),
+			Slides.popup(h("div", { class: "rt-pick" }, h("h2", { class: "rt-pick-q" }, V.iconTag(which), " ", t.readWhich(pos)),
 				svg("svg", { class: "rt-pick-canvas", viewBox: `0 0 ${pl.view.w} ${pl.view.h}` },
 					V.dictionary({ box: pl.boxes.picker, things: th, mode: "picker", value: cur === undefined ? null : cur, icon: which, onPick: pick }))),
 			{ label: t.readWhich(pos) });
@@ -1945,17 +1968,17 @@
 			return s === p ? "current" : s < p ? "past" : "hidden";
 		};
 		const g = { frame: svg("g"), seed: svg("g"), key: svg("g"), clock: svg("g"), bits: svg("g"), qr: svg("g") }, arrowGroups = lay.arrows.map(() => svg("g"));
-		function draw(p, turning, onRun) {
+		function draw(p, turning, onRun, alive) {
 			const reached = (id) => whole && at(id) >= 0 && p >= at(id);
 			g.frame.replaceChildren(V.frame({ box: b.row, colour: "qr" }));
-			g.seed.replaceChildren(readColumn(b.seedColumn, "seed", things, rd.taps, i, L, { slot: () => choose("seed"), piece: (x) => x === i ? choose("seed") : locked("seed", x),
+			g.seed.replaceChildren(readColumn(b.seedColumn, "seed", things, rd.taps, i, L, { column: lay.columns.seed, slot: () => choose("seed"), piece: (x) => x === i ? choose("seed") : locked("seed", x),
 				title: (x) => x === i ? null : lockLine("seed", x) }));
 			if (pad) {
 				g.key.replaceChildren(file ? fileColumn(b.keyColumn, key, i, L, (x) => locked("key", x))
-					: readColumn(b.keyColumn, "key", keyThings, rd.keyTaps, i, L, { slot: () => choose("key"), piece: (x) => x === i ? choose("key") : locked("key", x),
+					: readColumn(b.keyColumn, "key", keyThings, rd.keyTaps, i, L, { column: lay.columns.key, slot: () => choose("key"), piece: (x) => x === i ? choose("key") : locked("key", x),
 						title: (x) => x === i ? null : lockLine("key", x) }));
 				g.clock.replaceChildren(V.clock({ box: b.clock, n, from: hasC ? C : null, by: hasK ? K : null, sign: -1, inputColour: "seed",
-					phase: !whole || p < at("out") ? "inputs" : p === at("out") && turning ? "run" : "done", onDone: p === at("out") ? onRun : undefined }));
+					phase: !whole || p < at("out") ? "inputs" : p === at("out") && turning ? "run" : "done", onDone: p === at("out") ? onRun : undefined, alive }));
 			}
 			const pb = whole ? bitsOf(P, k) : [];
 			g.bits.replaceChildren(V.bits({ box: b.bits, bits: turn.map((x, j) => reached("bits") ? pb[j] : null), roles, colour: "qr" }));
@@ -1964,19 +1987,13 @@
 			g.qr.replaceChildren(V.qr({ box: b.qr, size, modules: template, turnCells, painted }));
 			lay.arrows.forEach((a, j) => arrowGroups[j].replaceChildren(V.arrow({ points: a.points, colour: a.colour, state: arrowState(a.id, p) })));
 		}
+		let cycle = null;
 		function body() {
-			if (fresh) {
-				// the pieces just chosen: the cycle plays from the numbers in, a relation at a time; the clock
-				// turns step by step, then it goes on (the first stage now, before the body is on the page;
-				// each later one only while nothing has been drawn since: render() moves the token on)
-				const run = turnRun, later = (fn, ms) => setTimeout(() => { if (run === turnRun) fn(); }, ms);
-				const play = (p) => {
-					const out = stages[p].id === "out";
-					draw(p, true, out ? () => later(() => play(p + 1), 300) : undefined);
-					if (p < last && !out) later(() => play(p + 1), 450);
-				};
-				play(pad ? at("in") : at("bits"));
-			} else draw(whole ? last : 0, false);
+			// the pieces just chosen: the cycle plays from the numbers in, a relation at a time, the clock
+			// turning step by step (the first stage now, before the body is on the page; each later one
+			// only while nothing has been drawn since)
+			cycle = fresh ? playCycle(stages, pad ? at("in") : at("bits"), draw) : null;
+			if (!fresh) draw(whole ? last : 0, false);
 			return h("div", { class: "dict-slide rt-slide" }, canvas(g.frame, g.seed, g.key, g.clock, g.bits, g.qr, ...arrowGroups));
 		}
 
@@ -1987,6 +2004,8 @@
 		const checking = rd !== st.read;
 		return {
 			count: `${pos}/${L}`, caption, body,
+			// Next while the cycle plays: first its end, then on
+			hurry: () => !!cycle && cycle.finish(),
 			help: helpOf(stepName(checking ? "make" : "read", checking ? "check" : "recover"), checking ? (pad ? t.checkHelpPad : t.checkReadHelp) : null,
 				[t.forms[form].read, keyThings ? t.tapPadHelp : null, pad ? null : t.whyBasic(n, k), t.readLockedWhy].filter(Boolean)),
 			shortcuts: readShortcuts(rd, L, opts.done),

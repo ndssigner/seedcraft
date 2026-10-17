@@ -312,6 +312,14 @@ ol.entries.paper li { color: #111; border-bottom-color: #ccc; }
 .v-build .v-empty:not(.v-current) { opacity: .6; }
 .v-turn-frame { fill: none; stroke: var(--qr); stroke-width: 1.5; }
 .v-icon { fill: var(--fg); }
+/* the drawn icons (vocab.js: the key, save, home, info): lines in the text's colour; the key's amber */
+.v-icon-drawn { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; }
+.v-icon-key { color: var(--key); }
+.v-ico { display: inline-flex; align-items: center; vertical-align: -.15em; line-height: 1; }
+.v-ico-svg { width: 1.1em; height: 1.1em; overflow: visible; }
+/* an order number in a ring */
+.v-badge-ring { fill: var(--surface); stroke: currentColor; stroke-width: 1.2; }
+.v-badge-n { font-weight: 700; }
 /* a dictionary: a card with a book's tab; a reel's window over the rows */
 .v-dict-card { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.2; }
 .v-dict-tab { fill: var(--sunk); stroke: var(--line-strong); stroke-width: 1.2; }
@@ -320,7 +328,7 @@ ol.entries.paper li { color: #111; border-bottom-color: #ccc; }
 .v-dict-row.on .v-dict-num, .v-dict-row.on .v-name { fill: var(--fg); font-weight: 700; }
 .v-dict-on { fill: var(--accent-soft); }
 .v-reel-window { fill: none; stroke: var(--line); }
-.v-reel-strip { transition: transform .8s cubic-bezier(.3, .1, .2, 1); }
+.v-reel-strip { transition: transform .5s cubic-bezier(.3, .1, .2, 1); }
 .v-pick { cursor: pointer; }
 .v-pick-bg { fill: var(--sunk); stroke: var(--line); }
 .v-pick:hover .v-pick-bg, .v-pick:focus-visible .v-pick-bg { stroke: var(--accent); }
@@ -358,7 +366,7 @@ ol.entries.paper li { color: #111; border-bottom-color: #ccc; }
 /* arrows: dashed; the current one drawn along its path, the past ones nearly gone */
 .v-arrow-line { fill: none; stroke: currentColor; stroke-width: 2; stroke-dasharray: 5 4; }
 .v-arrow-head { fill: currentColor; }
-.v-arrow-draw { fill: none; stroke: #ffffff; stroke-width: 16; stroke-linecap: square; stroke-dasharray: 1 1; stroke-dashoffset: 1; animation: v-draw .6s ease-out forwards; }
+.v-arrow-draw { fill: none; stroke: #ffffff; stroke-width: 16; stroke-linecap: square; stroke-dasharray: 1 1; stroke-dashoffset: 1; animation: v-draw .4s ease-out forwards; }
 @keyframes v-draw { to { stroke-dashoffset: 0; } }
 .v-frame { fill: none; stroke: currentColor; stroke-width: 2; }
 /* a decision: a card per option, the chosen one with the accent's border */
@@ -377,6 +385,7 @@ ol.entries.paper li { color: #111; border-bottom-color: #ccc; }
 .v-die-edge { fill: var(--line-strong); }
 .v-die-rim { fill: none; stroke: var(--line); stroke-width: 2; }
 .v-die-face { fill: var(--fg); }
+.v-die-pip { fill: var(--fg); }
 .v-die { display: block; }
 .v-die.v-rolling { animation: v-roll .6s linear infinite; }
 @keyframes v-roll { to { transform: rotate(360deg); } }
@@ -435,8 +444,12 @@ body { overflow: hidden; }
 .slide-prev { justify-self: start; }
 .slide-next { justify-self: end; }
 .slide-caption { text-align: center; min-width: 0; }
-.slide-caption p { margin: 0; font-size: .95em; line-height: 1.2; }
-.slide-caption small { display: block; color: var(--muted); font-size: .75em; font-variant-numeric: tabular-nums; }
+/* two lines of caption at most and «step n of m» under them, all inside the foot
+   (2 × .9em × 1.15 + .72em × 1.15 = 2.9 em of the frame's 11 units: 31.9 of the foot's 32.5; web/test.mjs checks it) */
+.slide-caption p { margin: 0; font-size: .9em; line-height: 1.15; max-height: 2.3em; overflow: hidden;
+	display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+.slide-caption small { display: block; color: var(--muted); font-size: .72em; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.slide-caption [hidden] { display: none; }
 /* the «⋯» panel: on the right, over the slide, which is dimmed under it */
 .slide-scrim { position: absolute; inset: 0; z-index: 5; background: rgba(28, 40, 38, .38); }
 .slide-panel { position: absolute; z-index: 6; top: 0; right: 0; bottom: 0; width: 36%; display: flex; flex-direction: column; gap: .6em;
@@ -487,7 +500,7 @@ body { overflow: hidden; }
 .pieces.two .pieces-group { flex: 1 1 0; max-width: none; }
 .pieces-group h2 { margin: 0; font-size: 1.15em; display: flex; align-items: baseline; gap: .5em; }
 .pieces-group h2 small { color: var(--muted); font-weight: 400; font-size: .8em; }
-.pieces-icon { font-size: 1.1em; }
+.pieces-icon { font-size: 1.1em; display: inline-flex; align-items: center; gap: .3em; }
 .pieces-kinds { display: flex; flex-wrap: wrap; gap: calc(var(--u) * 3) calc(var(--u) * 5); }
 .pieces-kind { display: flex; flex-direction: column; align-items: center; width: calc(var(--u) * 28); }
 .pieces-kind svg { width: calc(var(--u) * 22); height: calc(var(--u) * 22); }
@@ -553,10 +566,12 @@ body { overflow: hidden; }
 .kt-off { opacity: .55; pointer-events: none; }
 .kt-brace { fill: none; stroke: var(--key); stroke-width: 1.6; }
 .kt-join { fill: none; stroke: var(--key); stroke-width: 1.2; }
-.kt-order { fill: var(--muted); }
-.kt-again { opacity: .45; }
-.kt-again .kt-order { fill: var(--fg); }
-.kt-info { fill: var(--muted); }
+.kt-order { color: var(--muted); }
+/* a face thrown again: dimmed, but still read from the lectern */
+.kt-again { opacity: .5; color: var(--fg); }
+.kt-again .kt-order { color: var(--fg); }
+.kt-reroll { font-weight: 700; }
+.kt-info { color: var(--muted); }
 .kt-file-before, .kt-file-hole { fill: var(--muted); }
 .kt-file-now { fill: var(--key); }
 .kt-file-check { fill: var(--muted); font-style: italic; }
