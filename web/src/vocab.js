@@ -215,13 +215,15 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	// middle; from: the value it turns from (animated unless reduced motion).
 	// "picker": every piece as a button; onPick(v). columns ("static"): side by
 	// side, so that every row shows (the first column 0 …, the next on from there).
-	function dictionary({ box, things = [], mode = "static", value = null, icon: kind = "seed", onPick, from, columns = 1 }) {
+	function dictionary({ box, things = [], mode = "static", value = null, icon: kind = "seed", onPick, from, columns = 1, label = null }) {
 		const N = things.length, tabH = L.pickerGrid(box, N).tabH;
 		const card = { x: box.x, y: box.y + tabH, w: box.w, h: box.h - tabH }, inner = { x: card.x + 2, y: card.y + 2, w: card.w - 4, h: card.h - 4 };
-		const tabW = Math.min(30, box.w * 0.4);
+		const wide = !!label && box.w >= 110, lfs = Math.max(8, Math.min(10, tabH * 0.7));
+		const tabW = wide ? Math.min(box.w, 30 + 0.55 * lfs * String(label).length + 6) : Math.min(30, box.w * 0.4);
 		const parts = [
 			svg("rect", { x: box.x, y: box.y, width: r1(tabW), height: tabH + 2, rx: 3, class: "v-dict-tab" }),
-			icon(kind, box.x + tabW / 2, box.y + tabH * 0.82 - Math.max(9, tabH * 0.8) * 0.35, Math.max(9, tabH * 0.8)),
+			icon(kind, box.x + (wide ? 15 : tabW / 2), box.y + tabH * 0.82 - Math.max(9, tabH * 0.8) * 0.35, Math.max(9, tabH * 0.8)),
+			wide ? text(box.x + 28, box.y + tabH * 0.82, lfs, "📖 " + label, { class: "v-dict-label" }) : label ? svg("title", {}, label) : null,
 			svg("rect", { x: card.x, y: card.y, width: card.w, height: card.h, rx: 4, class: "v-dict-card" }),
 		];
 		const row = (v, y, rowH, on, col = inner) => {
@@ -299,7 +301,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			const x = tower ? box.x + (box.w - SUB - size) / 2 : box.x + i * pitch + (pitch - size) / 2;
 			const y = tower ? box.y + i * pitch + (pitch - size) / 2 : box.y + (box.h - size) / 2;
 			const role = roles[i] && roles[i] !== "data" ? " v-bit-dashed v-bit-" + roles[i] : "";
-			parts.push(svg("g", { class: "v-bit" + (b === null || b === undefined ? " v-bit-empty" : "") + role },
+			parts.push(svg("g", { class: "v-bit" + (b === 0 ? " v-bit-0" : b === 1 ? " v-bit-1" : "") + (b === null || b === undefined ? " v-bit-empty" : "") + role },
 				svg("rect", { x: r1(x), y: r1(y), width: r1(size), height: r1(size), rx: 3, class: "v-bit-box" }),
 				b === null || b === undefined ? null : text(x + size / 2, y + size * 0.72, size * 0.62, b, { "text-anchor": "middle", class: "v-mono" })));
 		});
@@ -426,23 +428,48 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	// painted: Map(r * size + c → 0 | 1), what has been painted (over modules);
 	// turnCells: [[r, c]], the turn's squares (also ringed by a marker, the last child); wrong: [[r, c]], squares in red;
 	// reveal: { order: [[r, c]], ms }, the dark data cells in order appear one after the other over ms.
-	function qr({ box, size, modules, turnCells = [], painted = new Map(), wrong = [], reveal = null }) {
-		const side = Math.min(box.w, box.h), cs = side / size, x0 = box.x + (box.w - side) / 2, y0 = box.y + (box.h - side) / 2;
+	// fixed: Set of r * size + c (the function modules), drawn apart in amber/brown with a hatch (they cost no pieces);
+	// legend: a short string under the QR (the QR is then 14 smaller); markerLabel: a blue tab on the marker,
+	// both in one g.v-qr-cursor (the last child) so that they glide together
+	function qr({ box, size, modules, turnCells = [], painted = new Map(), wrong = [], reveal = null, fixed = null, legend = null, markerLabel = null }) {
+		const LEG = 14, side = Math.min(box.w, box.h) - (legend ? LEG : 0), cs = side / size, x0 = box.x + (box.w - side) / 2, y0 = box.y + (box.h - side - (legend ? LEG : 0)) / 2;
 		const get = typeof modules === "function" ? modules : (r, c) => modules ? modules[r][c] : null;
 		const turn = new Set(turnCells.map(([r, c]) => r * size + c)), bad = new Set(wrong.map(([r, c]) => r * size + c));
 		const order = reveal && reveal.order && !reducedMotion() ? new Map(reveal.order.map(([r, c], j) => [r * size + c, j])) : null;
 		const parts = [svg("rect", { x: r1(x0), y: r1(y0), width: r1(side), height: r1(side), class: "v-qr-bg" })];
+		const hatchId = fixed ? nextId("hatch") : null, hatched = [];
+		if (fixed) parts.push(svg("pattern", { id: hatchId, width: 3, height: 3, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" },
+			svg("path", { d: "M0 0.5H3", class: "v-qr-hatch-line" })));
 		for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) {
-			const k = r * size + c, v = painted.has(k) ? painted.get(k) === 1 : get(r, c);
-			const cls = bad.has(k) ? "v-qr-err" : turn.has(k) ? "v-qr-turn" + (v ? " on" : "") : v === true ? "v-qr-dark" : v === false ? null : "v-qr-unknown";
+			const k = r * size + c, v = painted.has(k) ? painted.get(k) === 1 : get(r, c), isFixed = !!fixed && fixed.has(k);
+			const cls = bad.has(k) ? "v-qr-err" : turn.has(k) ? "v-qr-turn" + (v ? " on" : "") : isFixed ? "v-qr-fixed " + (v === true ? "on" : "off") : v === true ? "v-qr-dark" : v === false ? null : "v-qr-unknown";
 			if (!cls) continue;
 			const revealed = order && cls === "v-qr-dark" && order.has(k);
 			const el = svg("rect", { x: r1(x0 + c * cs), y: r1(y0 + r * cs), width: r1(cs), height: r1(cs), class: revealed ? cls + " v-qr-reveal" : cls });
 			if (revealed && el.style) el.style.animationDelay = (order.get(k) / reveal.order.length * reveal.ms) + "ms";
 			parts.push(el);
+			if (isFixed && !bad.has(k) && !turn.has(k)) hatched.push(`M${r1(x0 + c * cs)} ${r1(y0 + r * cs)}h${r1(cs)}v${r1(cs)}h${r1(-cs)}z`);
 		}
-		const m = L.qrCellsBox(box, size, turnCells);
-		if (m) parts.push(svg("rect", { x: m.x, y: m.y, width: m.w, height: m.h, rx: 2, class: "v-qr-marker" }));
+		if (hatched.length) parts.push(svg("path", { d: hatched.join(""), fill: `url(#${hatchId})`, class: "v-qr-hatched" }));
+		if (legend) {
+			const ly = box.y + box.h - LEG / 2 + 3, sw = 10, tw = 0.5 * 9 * String(legend).length, lx = box.x + (box.w - (sw + 4 + tw)) / 2;
+			parts.push(svg("g", { class: "v-qr-legend" },
+				svg("rect", { x: r1(lx), y: r1(box.y + box.h - LEG / 2 - 4), width: sw, height: 8, rx: 1.5, class: "v-qr-fixed off" }),
+				svg("rect", { x: r1(lx), y: r1(box.y + box.h - LEG / 2 - 4), width: sw, height: 8, rx: 1.5, fill: `url(#${hatchId || "none"})`, class: "v-qr-hatched" }),
+				text(lx + sw + 4, ly, 9, legend, { class: "v-qr-legend-text" })));
+		}
+		const m = L.qrCellsBox(box, size, turnCells, { legend: !!legend });
+		if (m) {
+			const kids = [svg("rect", { x: m.x, y: m.y, width: m.w, height: m.h, rx: 2, class: "v-qr-marker" })];
+			if (markerLabel) {
+				const fs = 8, th = 12, tw = Math.min(box.w, 0.55 * fs * String(markerLabel).length + 10);
+				const below = m.y - th < box.y;
+				const tx = Math.max(box.x, Math.min(box.x + box.w - tw, m.x + m.w / 2 - tw / 2)), ty = below ? m.y + m.h : m.y - th;
+				kids.push(svg("rect", { x: r1(tx), y: r1(ty), width: r1(tw), height: th, rx: 3, class: "v-qr-tab" }),
+					text(tx + tw / 2, ty + th - 3.5, fs, markerLabel, { "text-anchor": "middle", class: "v-qr-tab-text" }));
+			}
+			parts.push(svg("g", { class: "v-qr-cursor" }, kids));
+		}
 		return svg("g", { class: "v v-qr" }, parts);
 	}
 

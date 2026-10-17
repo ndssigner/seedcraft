@@ -99,6 +99,16 @@ const SeedcraftSequences = (() => {
 		return f;
 	}
 
+	// The format information: the 15 bits (with the mask in them) written twice, 30 cells.
+	function formatModules(size) {
+		const out = [];
+		for (let c = 0; c < 9; c++) if (c !== 6) out.push([8, c]);
+		for (let r = 7; r >= 0; r--) if (r !== 6) out.push([r, 8]);
+		for (let r = size - 1; r >= size - 7; r--) out.push([r, 8]);
+		for (let c = size - 8; c < size; c++) out.push([8, c]);
+		return out;
+	}
+
 	// The colour of a function module that does not depend on the mask: finders,
 	// separators, timing, the alignment pattern (25 x 25) and the dark module.
 	// null: a format module, which does (it can only be drawn once the mask is known).
@@ -804,7 +814,7 @@ const SeedcraftSequences = (() => {
 		FORMAT_VERSION, HEADER_BITS, LAYOUTS, DecodeError,
 		sha512, hmac512, hmacKey, pbkdf2Sha512, ripemd160, mnemonicToSeed, fingerprint,
 		sha256, mnemonicToEntropy, entropyToMnemonic,
-		functionModules, templateModule, dataModulesRowMajor, compactSeedQR, encode, decode,
+		functionModules, formatModules, templateModule, dataModulesRowMajor, compactSeedQR, encode, decode,
 		symbolsToBits, readSequence, decodeObjects, physicalSequence, piecesToBuy, rsCorrect,
 		PAD_DIGITS, PAD_ROW, PAD_GROUP, PadFileError, newPad, DICE, diceBits, throwsToNumber, keyMove, keyAddPiece, keyAddThrow, keyUndoThrow, keyFix, changedPieces, addPads, encrypt, decrypt, encodePad, decodePad, decodePadObjects,
 		checkCharacter, writePadFile, readPadFile,

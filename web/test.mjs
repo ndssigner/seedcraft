@@ -584,6 +584,32 @@ for (const pad of [false, true]) {
 	const things = Array.from({ length: 32 }, (_, i) => ({ name: "Piece " + i, emoji: i % 3 ? "" : "🍎", colour: i % 2 ? "#d04040" : "", photo: "", symbol: "" }));
 	const lay = Lay.makeTurn({ pad: true, n: 16 }), rlay = Lay.readTurn({ pad: true, n: 16 });
 
+	// the QR's fixed areas, the cursor label, black and white bits, the labelled dictionary
+	for (const size of [21, 25]) {
+		const fm = S.formatModules(size), fn = S.functionModules(size);
+		check(fm.length === 30 && fm.every(([r, c]) => fn.has(r * size + c)) && fm.some(([r, c]) => r === 8 && c === 0) && fm.some(([r, c]) => r === size - 1 && c === 8), `formatModules(${size}): 30 cells inside the function modules`);
+		const qb = { x: 0, y: 40, w: 216, h: 216 }, fx = V.qr({ box: qb, size, modules: () => false, fixed: fn, legend: "fixed" });
+		check(walk(fx, cls("v-qr-fixed")).length > 100, `qr(${size}) with fixed: fixed cells drawn`);
+		const bg = walk(fx, cls("v-qr-bg"))[0];
+		check(num(bg.attrs.width) === 216 - 14 && walk(fx, (n) => n.tag === "text" && textOf(n) === "fixed").length === 1, `qr(${size}) with legend: side is min(w,h) - 14, legend drawn`);
+		within(fx, qb, `qr(${size}) with legend`);
+	}
+	{
+		const qb = { x: 0, y: 40, w: 200, h: 200 }, mk = V.qr({ box: qb, size: 21, modules: () => false, turnCells: [[0, 20], [1, 20]], markerLabel: "Position 3", fixed: S.functionModules(21) });
+		const cur = walk(mk, cls("v-qr-cursor"));
+		check(cur.length === 1 && walk(cur[0], cls("v-qr-marker")).length === 1 && walk(cur[0], (n) => n.tag === "text" && textOf(n) === "Position 3").length === 1, "qr: the marker and its label in one cursor group");
+		within(mk, { x: qb.x - 2, y: qb.y - 2, w: qb.w + 4, h: qb.h + 4 }, "qr with a marker label at the box top (the ring itself is 2 out)");
+	}
+	const bb = V.bits({ box: { x: 0, y: 0, w: 100, h: 20 }, bits: [0, 1] }), bg2 = walk(bb, cls("v-bit"));
+	check(cls("v-bit-0")(bg2[0]) && cls("v-bit-1")(bg2[1]), "bits: v-bit-0 then v-bit-1");
+	{
+		const db = { x: 10, y: 40, w: 140, h: 60 }, wd = V.dictionary({ box: db, things, label: "Dictionary" });
+		check(walk(wd, (n) => n.tag === "text" && textOf(n).includes("Dictionary")).length === 1, "dictionary: wide enough, the tab names it");
+		const nr = V.dictionary({ box: { ...db, w: 86 }, things, label: "Dictionary" });
+		check(!walk(nr, (n) => n.tag === "text" && textOf(n).includes("Dictionary")).length && walk(nr, (n) => n.tag === "title" && textOf(n) === "Dictionary").length === 1, "dictionary: narrow, only a title");
+		within(wd, db, "labelled dictionary");
+	}
+
 	// string: 13 positions, the turn's piece bigger and ringed; holes dashed; nothing where there is no position
 	const items = Array.from({ length: 13 }, (_, i) => i < 6 ? i : null);
 	const s = V.string({ box: lay.boxes.seedString, orientation: "h", role: "build", things, items, firstPosition: 9, current: 6 });
@@ -633,8 +659,8 @@ for (const pad of [false, true]) {
 		// the QR marker, the reveal, glide and fade
 		const qb = lay.boxes.qr, dark = () => true;
 		const withMark = V.qr({ box: qb, size: 25, modules: dark, turnCells: [[0, 0], [1, 2]] }), want = Lay.qrCellsBox(qb, 25, [[0, 0], [1, 2]]);
-		const last = withMark.children[withMark.children.length - 1];
-		check(cls("v-qr-marker")(last) && last.attrs.x === want.x && last.attrs.y === want.y && last.attrs.width === want.w && last.attrs.height === want.h, "qr: a marker round the turn's cells, its last child, at qrCellsBox");
+		const cursor = withMark.children[withMark.children.length - 1], last = cursor.children[0];
+		check(cls("v-qr-cursor")(cursor) && cls("v-qr-marker")(last) && last.attrs.x === want.x && last.attrs.y === want.y && last.attrs.width === want.w && last.attrs.height === want.h, "qr: a marker round the turn's cells, in the last child (the cursor), at qrCellsBox");
 		check(walk(V.qr({ box: qb, size: 25, modules: dark, turnCells: [] }), cls("v-qr-marker")).length === 0, "qr: no turn cells, no marker");
 		const order = [[0, 0], [0, 1], [0, 2], [0, 3]];
 		const rev = V.qr({ box: qb, size: 25, modules: dark, reveal: { order, ms: 1000 } });
