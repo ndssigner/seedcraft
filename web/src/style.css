@@ -363,6 +363,11 @@ ol.entries.paper li { color: #111; border-bottom-color: #ccc; }
 .v-qr-turn { fill: var(--qr-soft); stroke: var(--qr); stroke-width: .8; }
 .v-qr-turn.on { fill: var(--qr); }
 .v-qr-err { fill: var(--err); }
+.v-qr-marker { fill: none; stroke: var(--qr); stroke-width: 2.5; pointer-events: none; }
+.v-qr-reveal { animation: v-reveal 1ms both; }
+@keyframes v-reveal { from { opacity: 0; } to { opacity: 1; } }
+.v-fade-in { animation: v-fade-in 450ms both; }
+@keyframes v-fade-in { from { opacity: 0; } to { opacity: 1; } }
 /* arrows: dashed; the current one drawn along its path, the past ones nearly gone */
 .v-arrow-line { fill: none; stroke: currentColor; stroke-width: 2; stroke-dasharray: 5 4; }
 .v-arrow-head { fill: currentColor; }
@@ -399,6 +404,7 @@ ol.entries.paper li { color: #111; border-bottom-color: #ccc; }
 	.v-reel-strip, .v-face .v-die { transition: none; }
 	.v-arrow-draw { animation: none; stroke-dashoffset: 0; }
 	.v-die.v-rolling { animation: none; }
+	.v-qr-reveal, .v-fade-in { animation: none; }
 }
 
 /* ---- the lectern (slides.js) ----
