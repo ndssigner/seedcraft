@@ -1238,7 +1238,7 @@
 		keyFresh = null;
 		let from = throwFrom !== null && Math.abs(pos - throwFrom) === 1 && asString && !calm() ? throwFrom : null;
 		throwFrom = null;
-		let glides = null;
+		let glides = null, hold = null, arrowsOn = true;
 		const focus = keyFocus; keyFocus = null;
 
 		// a throw marked: the piece's own coin or die (marking one again, the one it was thrown with)
@@ -1345,17 +1345,21 @@
 				}
 				if (b.piece) groups.piece.replaceChildren(V.piece({ box: b.piece, thing: shown("piece") ? things[value] : null }));
 				groups.slot.replaceChildren(asString ? keyString(shown("slot")) : keyFile(shown("slot")));
-				arrows.forEach(({ a, g }) => g.replaceChildren(V.arrow({ points: a.points, colour: "key",
-					state: !piece ? "hidden" : at(a.id) === p - 1 ? "current" : at(a.id) < p - 1 ? "past" : "hidden" })));
+				drawArrows(p);
 			};
+			// (only the arrows again once a glide has stopped: the string that glided is not replaced)
+			const drawArrows = (p) => arrows.forEach(({ a, g }) => g.replaceChildren(V.arrow({ points: a.points, colour: "key",
+				state: !piece || !arrowsOn ? "hidden" : at(a.id) === p - 1 ? "current" : at(a.id) < p - 1 ? "past" : "hidden" })));
 			if (fresh) {
 				// it arrives: the number, the dictionary turning to it, the piece, its slot
 				stage(1);
 				const live = () => groups.slot.isConnected !== false;
 				const steps = stages.slice(1).map((id, i) => [id, 450 * (i + 1) + (at("dict") >= 0 && at(id) > at("dict") ? 450 : 0)]);
 				steps.forEach(([id, ms]) => setTimeout(() => { if (live()) stage(at(id) + 1, id === "dict"); }, ms));
-			} else stage(stages.length);
+			} else if (from !== null) hold = afterGlide((on) => { arrowsOn = on; if (on) drawArrows(stages.length); else stage(stages.length); });
+			else stage(stages.length);
 			// an adjacent Next or Back: the key string starts a piece over and glides to its place
+			// (its arrows only once it has stopped)
 			if (from !== null) glides = glideIn(from, (f) => [V.glide(runOf(groups.slot), { dx: (pos - f) * Lay.pitch(b.keyString, 13) })]);
 			from = null;
 
@@ -1445,7 +1449,7 @@
 			help: helpOf(stepName("make", "key"), t.keyWhy, asString ? why : [...why, t.padFileHelp]),
 			prev: pos > 0 ? { go: () => keyGo(pos - 1) } : undefined, next, body,
 			// Next while the key string glides: first its end, then on
-			hurry: () => { const playing = !!glides && glides.playing; if (glides) glides.finish(); return playing; },
+			hurry: () => { const playing = !!glides && glides.playing; if (glides) glides.finish(); return (!!hold && hold.finish()) || playing; },
 		};
 	}
 
@@ -1598,6 +1602,21 @@
 		if (delay > 0) { draw(-1, false); later(() => play(first), delay); } else play(first);
 		return { finish: () => { if (!alive()) return false; playing = false; draw(last, false); return true; } };
 	}
+	// An arrival that glides and plays no cycle: show(false) at once (its arrows hidden), show(true)
+	// once the advance has stopped (V.ADVANCE_MS), unless another drawing has come since (render, or
+	// cancel() from a body drawn again). finish() (Next while it waits): show(true) at once.
+	function afterGlide(show) {
+		const run = turnRun;
+		let over = false;
+		show(false);
+		const self = {
+			playing: true,
+			cancel() { over = true; self.playing = false; },
+			finish() { if (over) return false; self.cancel(); if (run === turnRun) show(true); return true; },
+		};
+		setTimeout(() => { if (!over && run === turnRun) self.finish(); else self.cancel(); }, V.ADVANCE_MS);
+		return self;
+	}
 	// a string's run (its beads and thread, the part that glides; its icon stays put)
 	const runOf = (g) => (g && g.querySelector && g.querySelector(".v-string-run")) || null;
 	// The advance between two drawings: start(from) makes the glides once the body is on
@@ -1674,10 +1693,13 @@
 		const wait = (el, on) => on ? el : svg("g", { class: "tn-wait" }, el);
 		// the strings are drawn again only when they change (the key's never, the seed's when its slot
 		// fills): a stage drawn while the advance plays does not replace the run that glides
-		let keyDrawn = false, slotDrawn = null;
+		// (the QR, the same at every stage, drawn once: its cursor glides undisturbed);
+		// arrowsOn false: every arrow hidden (an arrival that glides, until it has stopped)
+		let keyDrawn = false, slotDrawn = null, qrDrawn = false, arrowsOn = true;
 		function draw(p, turning, onRun, alive) {
 			const reached = (id) => at(id) >= 0 && at(id) <= p;
-			groups.qr.replaceChildren(V.qr({ box: b.qr, size, modules, turnCells, markerLabel: T().qrPosition(i + 1), ...qrFixed(size, b.qr) }));
+			if (!qrDrawn) groups.qr.replaceChildren(V.qr({ box: b.qr, size, modules, turnCells, markerLabel: T().qrPosition(i + 1), ...qrFixed(size, b.qr) }));
+			qrDrawn = true;
 			groups.bits.replaceChildren(V.bits({ box: b.bits, bits: turn.map((x) => reached("bits") ? bits[x.bit] : null), roles, colour: "qr" }));
 			groups.number.replaceChildren(V.number({ box: b.number, value: reached("number") ? P : null, colour: "qr" }));
 			if (pad) {
@@ -1702,7 +1724,7 @@
 			}
 			lay.arrows.forEach((a, j) => {
 				const s = stageOf(a.id);
-				arrowGroups[j].replaceChildren(V.arrow({ points: a.points, colour: a.colour, state: p < 0 ? "hidden" : s === p ? "current" : s < p ? "past" : "hidden" }));
+				arrowGroups[j].replaceChildren(V.arrow({ points: a.points, colour: a.colour, state: p < 0 || !arrowsOn ? "hidden" : s === p ? "current" : s < p ? "past" : "hidden" }));
 			});
 		}
 		// the key file's characters around the turn, a column like the key string's: the turn's framed
@@ -1732,13 +1754,16 @@
 			V.fadeIn(groups.bits); V.fadeIn(groups.number);
 			return out;
 		}
-		let cycle = null, glides = null;
+		let cycle = null, glides = null, hold = null;
 		function body(step) {
 			const kids = [groups.qr, groups.bits, groups.number, groups.key, groups.keyDict, groups.keyNumber, groups.clock, groups.seedDict, groups.seedString, ...arrowGroups];
 			cycle = null;
+			if (hold) { hold.cancel(); hold = null; }
 			// a fade left from an advance does not replay on this redraw (the groups are re-inserted)
 			if (from === null) [groups.bits, groups.number].forEach((g) => g.classList && g.classList.remove("v-fade-in"));
-			if (explaining) draw(step, true);
+			// an arrival that glides with no cycle (an explained turn, or Back): its arrows once the string has stopped
+			if (from !== null && !fresh) hold = afterGlide((on) => { arrowsOn = on; if (explaining) draw(step, on); else draw(last, false); arrowsOn = true; });
+			else if (explaining) draw(step, true);
 			// on arriving: the cycle plays, a relation at a time, the clock turning step by step
 			// (stage 0 now, before the body is on the page; each later one only while nothing has been drawn since),
 			// after the advance from the turn before
@@ -1752,7 +1777,8 @@
 		const hurry = () => {
 			const g = glides && glides.playing;
 			if (glides) glides.finish();
-			return (!!cycle && cycle.finish()) || !!g;
+			const h = !!hold && hold.finish();
+			return (!!cycle && cycle.finish()) || h || !!g;
 		};
 
 		// the sentences: one per relation (the first turns, or «?»); else what this turn has to say
@@ -2146,25 +2172,34 @@
 			const s = stageOf(id);
 			return s === p ? "current" : s < p ? "past" : "hidden";
 		};
+		// the columns (the same at every stage) drawn once, the QR only when its painting changes: a stage or
+		// the arrows' drawing never replaces what glides; arrowsOn false: every arrow hidden (until the glide has stopped)
+		let colsDrawn = false, paintDrawn = null, arrowsOn = true;
 		const g = { frame: svg("g"), seed: svg("g"), key: svg("g"), clock: svg("g"), bits: svg("g"), qr: svg("g") }, arrowGroups = lay.arrows.map(() => svg("g"));
 		function draw(p, turning, onRun, alive) {
 			const reached = (id) => whole && at(id) >= 0 && p >= at(id);
 			g.frame.replaceChildren(V.frame({ box: b.row, colour: "qr" }));
-			g.seed.replaceChildren(readColumn(b.seedColumn, "seed", things, rd.taps, i, L, { column: lay.columns.seed, slot: () => choose("seed"), piece: (x) => x === i ? choose("seed") : locked("seed", x),
+			if (!colsDrawn) g.seed.replaceChildren(readColumn(b.seedColumn, "seed", things, rd.taps, i, L, { column: lay.columns.seed, slot: () => choose("seed"), piece: (x) => x === i ? choose("seed") : locked("seed", x),
 				title: (x) => x === i ? null : lockLine("seed", x) }));
-			if (pad) {
+			if (pad && !colsDrawn) {
 				g.key.replaceChildren(file ? fileColumn(b.keyColumn, key, i, L, (x) => locked("key", x))
 					: readColumn(b.keyColumn, "key", keyThings, rd.keyTaps, i, L, { column: lay.columns.key, slot: () => choose("key"), piece: (x) => x === i ? choose("key") : locked("key", x),
 						title: (x) => x === i ? null : lockLine("key", x) }));
+			}
+			colsDrawn = true;
+			if (pad) {
 				g.clock.replaceChildren(V.clock({ box: b.clock, n, from: hasC ? C : null, by: hasK ? K : null, sign: -1, inputColour: "seed",
 					phase: !whole || p < at("out") ? "inputs" : p === at("out") && turning ? "run" : "done", onDone: p === at("out") ? onRun : undefined, alive }));
 			}
 			const pb = whole ? bitsOf(P, k) : [];
 			g.bits.replaceChildren(V.bits({ box: b.bits, bits: turn.map((x, j) => reached("bits") ? pb[j] : null), roles, colour: "qr" }));
-			const painted = new Map(before);
-			if (reached("paint")) paintTurn(painted, i);
-			g.qr.replaceChildren(V.qr({ box: b.qr, size, modules: template, turnCells, painted, markerLabel: T().qrPosition(i + 1), ...qrFixed(size, b.qr) }));
-			lay.arrows.forEach((a, j) => arrowGroups[j].replaceChildren(V.arrow({ points: a.points, colour: a.colour, state: arrowState(a.id, p) })));
+			if (paintDrawn !== reached("paint")) {
+				paintDrawn = reached("paint");
+				const painted = new Map(before);
+				if (paintDrawn) paintTurn(painted, i);
+				g.qr.replaceChildren(V.qr({ box: b.qr, size, modules: template, turnCells, painted, markerLabel: T().qrPosition(i + 1), ...qrFixed(size, b.qr) }));
+			}
+			lay.arrows.forEach((a, j) => arrowGroups[j].replaceChildren(V.arrow({ points: a.points, colour: a.colour, state: arrowsOn ? arrowState(a.id, p) : "hidden" })));
 		}
 		// the advance from turn f: the columns a row over, the QR's marker from f's squares, the bits fading in
 		function advance(f) {
@@ -2176,13 +2211,16 @@
 			V.fadeIn(g.bits);
 			return out;
 		}
-		let cycle = null, glides = null;
+		let cycle = null, glides = null, hold = null;
 		function body() {
 			// the pieces just chosen: the cycle plays from the numbers in, a relation at a time, the clock
 			// turning step by step (the first stage now, before the body is on the page; each later one
 			// only while nothing has been drawn since)
 			cycle = fresh ? playCycle(stages, pad ? at("in") : at("bits"), draw) : null;
-			if (!fresh) draw(whole ? last : 0, false);
+			if (hold) { hold.cancel(); hold = null; }
+			// an arrival that glides: its arrows once the columns have stopped
+			if (!fresh && from !== null) hold = afterGlide((on) => { arrowsOn = on; draw(whole ? last : 0, false); arrowsOn = true; });
+			else if (!fresh) draw(whole ? last : 0, false);
 			if (from !== null) glides = glideIn(from, advance);
 			from = null;
 			return h("div", { class: "dict-slide rt-slide" }, canvas(g.frame, g.seed, g.key, g.clock, g.bits, g.qr, ...arrowGroups));
@@ -2196,7 +2234,7 @@
 		return {
 			count: `${pos}/${L}`, caption, body,
 			// Next while the advance or the cycle plays: first its end, then on
-			hurry: () => { const playing = !!glides && glides.playing; if (glides) glides.finish(); return (!!cycle && cycle.finish()) || playing; },
+			hurry: () => { const playing = !!glides && glides.playing; if (glides) glides.finish(); const held = !!hold && hold.finish(); return (!!cycle && cycle.finish()) || held || playing; },
 			help: helpOf(stepName(checking ? "make" : "read", checking ? "check" : "recover"), checking ? (pad ? t.checkHelpPad : t.checkReadHelp) : null,
 				[t.forms[form].read, keyThings ? t.tapPadHelp : null, pad ? null : t.whyBasic(n, k), t.readLockedWhy].filter(Boolean)),
 			shortcuts: readShortcuts(rd, L, opts.done),
