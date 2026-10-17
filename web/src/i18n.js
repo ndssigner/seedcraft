@@ -179,7 +179,9 @@ const SEEDCRAFT_TEXT = {
 			"Leave your heirs a note: what they are, where the other half is, and where to find SPEC-sequences.md.",
 		],
 		storeForgetWhy: "Closing the page forgets everything too.",
-		storeForget: "Forget everything on this device", storeForgetAsk: "Forget everything on this device: the words, the sequence, the key and the dictionaries? Save what you need first.",
+		storeForget: "Forget everything on this device", storeForgetAsk: (open) => (open.length ? `“Saved” is not ticked for ${open.map((x) => `“${x}”`).join(" and ")}. ` : "")
+			+ "Forget everything on this device: the words, the sequence, the key and the dictionaries? Save what you need first.",
+		storeNotChecked: "This copy is not checked yet: read it back in “Check” before you trust it.",
 		// storing it: two places with a key, never together; with none, the dictionary apart
 		storeQ: (pad) => pad ? "Where does each half go?" : "Where does each thing go?",
 		storeA: "Place A: your string", storeB: "Place B: your key", storeApart: "never together",
@@ -213,7 +215,8 @@ const SEEDCRAFT_TEXT = {
 		endPad: "Each string alone is chance: each needs the other. Keep them apart, and lose neither.",
 		checkFixed: "Same seed, but some piece is wrong (the QR code put it right): fix it before storing.",
 		checkPadding: "Same seed, but a piece differs in its padding bits (they have no square): fix it before storing.",
-		readAgain: "Read another",
+		readAgain: "Read another", readForget: "Forget",
+		readForgetAsk: "Forget the seed found and everything read here, and go back to the start?",
 		formTitle: "Which form?",
 		// the decisions' cards (their ✓ and ✕: SPEC §11, RISK-AUDIT.md), and the slides' questions
 		cards: {
@@ -244,9 +247,12 @@ const SEEDCRAFT_TEXT = {
 		piecesSplit: (each, copies, what) => `${each} for ${what === "seq" ? "the string" : what === "both" ? "the string and the key" : "the key"}` + (copies ? ` · ${copies} for ${copies > 1 ? "the dictionary (a copy with each)" : "its dictionary"}` : ""),
 		modeChangeAskRead: "Change the mode? What was read so far is forgotten.",
 		wordsChangeAsk: "Change the number of words? The key and the sequence made so far are forgotten.",
-		dictChangeAsk: "A dictionary of another size? What was made or read with this one is forgotten.",
+		dictChangeAsk: "Another dictionary? What was made or read with this one is forgotten.",
+		keyDictChangeAsk: "Another dictionary for the key? The key read with this one, or the copy's check, is forgotten.",
+		keyAsChangeAsk: "Keep the key the other way? Your key stays, but it must be saved, checked and stored again.",
+		keyAsChangeAskRead: "The key the other way? What was read of the key so far is forgotten.",
 		sizeChangeAsk: "Another number of kinds? Your dictionary, and what was made or read with it, are forgotten.",
-		keyCollChangeAsk: "Another collection for the key? Its dictionary is forgotten.",
+		keyCollChangeAsk: "Another collection for the key? Its dictionary, and what was read of the key, are forgotten.",
 		forms: {
 			book: { name: "Address book", pros: ["Very well hidden, on a shelf", "Its dictionary can be a fixed order"], cons: ["Never rewrite an entry"],
 				namePh: "e.g. Avenue",
@@ -533,7 +539,9 @@ const SEEDCRAFT_TEXT = {
 			"Deja una nota a tus herederos: qué son, dónde está la otra mitad y dónde encontrar SPEC-sequences.md.",
 		],
 		storeForgetWhy: "Cerrar la página también lo olvida todo.",
-		storeForget: "Olvidar todo en este aparato", storeForgetAsk: "¿Olvidar todo en este aparato: las palabras, la secuencia, la llave y los diccionarios? Guarda antes lo que necesites.",
+		storeForget: "Olvidar todo en este aparato", storeForgetAsk: (open) => (open.length ? `«Guardado» no está marcado en ${open.map((x) => `«${x}»`).join(" ni en ")}. ` : "")
+			+ "¿Olvidar todo en este aparato: las palabras, la secuencia, la llave y los diccionarios? Guarda antes lo que necesites.",
+		storeNotChecked: "Esta copia aún no está comprobada: léela en «Comprobar» antes de fiarte de ella.",
 		// guardarla: dos sitios con llave, nunca juntas; sin llave, el diccionario aparte
 		storeQ: (pad) => pad ? "¿Dónde va cada mitad?" : "¿Dónde va cada cosa?",
 		storeA: "Sitio A: tu ristra", storeB: "Sitio B: tu llave", storeApart: "nunca juntas",
@@ -567,7 +575,8 @@ const SEEDCRAFT_TEXT = {
 		endPad: "Cada ristra sola es azar: cada una necesita la otra. Guárdalas por separado y no pierdas ninguna.",
 		checkFixed: "La misma semilla, pero alguna pieza está mal (el QR la ha arreglado): corrígela antes de guardar.",
 		checkPadding: "La misma semilla, pero una pieza difiere en sus bits de relleno (sin cuadrito): corrígela antes de guardar.",
-		readAgain: "Leer otra",
+		readAgain: "Leer otra", readForget: "Olvidar",
+		readForgetAsk: "¿Olvidar la semilla encontrada y todo lo leído aquí, y volver al inicio?",
 		formTitle: "¿Qué forma?",
 		// the decisions' cards (their ✓ and ✕: SPEC §11, RISK-AUDIT.md), and the slides' questions
 		cards: {
@@ -598,9 +607,12 @@ const SEEDCRAFT_TEXT = {
 		piecesSplit: (each, copies, what) => `${each} para ${what === "seq" ? "la ristra" : what === "both" ? "la ristra y la llave" : "la llave"}` + (copies ? ` · ${copies} para ${copies > 1 ? "el diccionario (una copia con cada una)" : "su diccionario"}` : ""),
 		modeChangeAskRead: "¿Cambiar el modo? Se olvida lo leído hasta ahora.",
 		wordsChangeAsk: "¿Cambiar el número de palabras? Se olvidan la llave y la secuencia hechas hasta ahora.",
-		dictChangeAsk: "¿Un diccionario de otro tamaño? Se olvida lo hecho o leído con este.",
+		dictChangeAsk: "¿Otro diccionario? Se olvida lo hecho o leído con este.",
+		keyDictChangeAsk: "¿Otro diccionario para la llave? Se olvida la llave leída con este, o la comprobación de la copia.",
+		keyAsChangeAsk: "¿Guardar la llave de la otra forma? Tu llave se queda, pero hay que guardarla, comprobarla y ponerla a salvo otra vez.",
+		keyAsChangeAskRead: "¿La llave de la otra forma? Se olvida lo leído de la llave hasta ahora.",
 		sizeChangeAsk: "¿Otro número de clases? Se olvidan tu diccionario y lo hecho o leído con él.",
-		keyCollChangeAsk: "¿Otra colección para la llave? Se olvida su diccionario.",
+		keyCollChangeAsk: "¿Otra colección para la llave? Se olvidan su diccionario y lo leído de la llave.",
 		forms: {
 			book: { name: "Agenda de direcciones", pros: ["Muy bien escondida, en una estantería", "Su diccionario puede ser un orden fijo"], cons: ["Nunca reescribas una entrada"],
 				namePh: "p. ej. Avenida",

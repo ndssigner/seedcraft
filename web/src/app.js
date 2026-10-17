@@ -77,22 +77,27 @@
 			mode: keep ? keep.mode : null, form: keep ? keep.form : "necklace", n: keep ? keep.n : 16, chosen: keep ? keep.chosen : {}, dict: keep ? keep.dict : null };
 	}
 	const T = () => SEEDCRAFT_TEXT[st.lang];
-	// a dictionary of another size: what was made with the old one goes (a
-	// renamed piece changes nothing: the sequence is numbers). Recovering has
-	// its own (st.read.dict, setReadDict): reading never touches the backup.
-	function setDict(d) {
-		const same = st.dict && d && st.dict.things.length === d.things.length;
+	// a dictionary of another size, or another one (reset, once asked: changeDict):
+	// what was made with the old one goes (a renamed piece changes nothing: the
+	// sequence is numbers). Recovering has its own (st.read.dict, setReadDict):
+	// reading never touches the backup.
+	function setDict(d, reset) {
+		const same = !reset && st.dict && d && st.dict.things.length === d.things.length;
 		st.dict = d;
 		if (d) st.plan.n = d.things.length;
 		if (!same) st.make = { seed: st.make.seed, entropy: null, symbols: null, turn: 0 };
 	}
-	// the same for what is being read: another size, what was read with the old one goes
-	function setReadDict(d) {
-		const rd = st.read, same = rd.dict && d && rd.dict.things.length === d.things.length;
-		if (!same) st.read = { ...freshRead(rd), padDict: null };
+	// the same for what is being read: another size (or reset), what was read with the old one goes
+	function setReadDict(d, reset) {
+		const rd = st.read, size = rd.dict && d && rd.dict.things.length === d.things.length;
+		if (!size || reset) st.read = { ...freshRead(rd), padDict: size ? rd.padDict : null };
 		st.read.dict = d;
 		if (d) st.read.n = d.things.length;
 	}
+	// two dictionaries with the same pieces, in the same order
+	const PIECE_KEYS = ["name", "emoji", "colour", "photo"];
+	const sameThings = (a, b) => !!a && !!b && a.things.length === b.things.length
+		&& a.things.every((x, j) => PIECE_KEYS.every((k) => (x[k] || "") === (b.things[j][k] || "")));
 	// the dictionary of the journey on screen, and how to replace it
 	const seedColl = () => st.screen === "read" ? { dict: st.read.dict, set: setReadDict } : { dict: st.dict, set: setDict };
 	// the dictionary something is read with: recovering, the reading's own; checking a copy, the backup's
@@ -123,6 +128,23 @@
 		for (const [k, v] of Object.entries(attrs || {})) if (v !== undefined) e.setAttribute(k, v);
 		for (const c of children.flat()) if (c) e.append(c instanceof Node ? c : document.createTextNode(String(c)));
 		return e;
+	}
+	// One file picker for the whole page, outside the slides (they are drawn
+	// anew on every change): Safari tells nothing of a file chosen in a picker
+	// that left the page meanwhile. Each use says what files it takes and what
+	// to do with the one chosen, whatever slide is on screen by then.
+	let onPicked = null;
+	const picker = h("input", { type: "file", class: "hidden", tabindex: "-1", "aria-hidden": "true", on: { change: () => {
+		const f = picker.files && picker.files[0], fn = onPicked;
+		picker.value = "";
+		if (f && fn) fn(f);
+	} } });
+	document.body.append(picker);
+	function pickFile(accept, fn, capture) {
+		picker.setAttribute("accept", accept);
+		if (capture) picker.setAttribute("capture", capture); else picker.removeAttribute("capture");
+		onPicked = fn;
+		picker.click();
 	}
 	function download(data, name, type) {
 		const url = URL.createObjectURL(new Blob([data], { type }));
@@ -374,7 +396,7 @@
 		const p = st.plan, rd = st.read, m = st.make;
 		if (flow === "make") return ({ mode: !!st.mode, form: !!p.chosen.form, words: !!p.chosen.words, size: !!st.dict || !!p.chosen.size,
 			keyAs: !!p.chosen.padAs, keyColl: !!p.chosen.padColl, keyForm: !!p.chosen.padForm, dict: !!st.dict, keyDict: !!st.padDict, keyWho: !!m.keyWho,
-			keyTool: !!(m.key && m.key.by), keyThrow: keyDone(), seed: !!m.symbols, seq: !!m.symbols })[id] !== false;
+			keyTool: !!(m.key && m.key.by), keyThrow: keyDone(), seed: !!m.symbols, seq: !!m.symbols, check: !!m.checked })[id] !== false;
 		return ({ mode: !!rd.mode, form: !!rd.chosen.form, size: !!rd.dict || !!rd.chosen.size, dict: !!rd.dict, keyAs: !!rd.chosen.padAs,
 			keyColl: !!rd.chosen.padColl, keyForm: !!rd.chosen.padForm, keyDict: !!rd.padDict, keyFile: !!rd.keyFile, words: !!rd.chosen.words, recover: !!rd.out })[id] !== false;
 	}
@@ -465,7 +487,7 @@
 	// RISK-AUDIT.md). A tap chooses, and the chosen card has the accent; Next
 	// waits until one is chosen. A choice that would undo work asks first.
 	const V = SeedcraftVocab(svg, h);
-	function decide({ question, options, chosen, choose, ready, help, shortcuts, next, caption, extra }) {
+	function decide({ question, options, chosen, choose, ready, help, shortcuts, next, caption }) {
 		return { question, help, shortcuts, next, caption, ready: ready !== undefined ? ready : chosen !== null && chosen !== undefined,
 			body: () => h("div", { class: "decision" + (options.length > 5 ? " lots" : options.length > 4 ? " many" : "") },
 				V.cards({ options, chosen, onChoose: (id) => {
@@ -474,7 +496,7 @@
 					choose(id); render();
 					const on = keyed && $("app").querySelector(".v-card.on");
 					if (on) on.focus();
-				} }), extra ? extra() : null) };
+				} })) };
 	}
 	// «?»: a few lines on what to think of, over the slide
 	const helpOf = (title, lead, items) => () => Slides.popup(h("div", { class: "slide-help" }, h("h2", { text: title }),
@@ -554,12 +576,22 @@
 	function setForm(id) { st.plan.form = id; if (!st.dict && !st.plan.chosen.size) st.plan.n = formOf(id).n; }
 	const madeWork = () => !!(st.make.symbols || (st.make.key && st.make.key.pieces.length));
 	const readWork = () => !!(st.read.taps.length || st.read.keyTaps.length);
-	// another dictionary (of the journey on screen): one of another size undoes
-	// what was made or read with the old one, which is asked first
+	// another dictionary (of the journey on screen): any other one, of any size,
+	// undoes what was made or read with the old one; with work done, or the old
+	// one named by the person, it is asked first (no: everything stays)
 	function changeDict(d) {
-		const c = seedColl(), same = c.dict && d && c.dict.things.length === d.things.length;
-		if (!same && c.dict && (st.screen === "read" ? readWork() : madeWork()) && !confirm(T().dictChangeAsk)) return false;
-		c.set(d);
+		const c = seedColl(), work = st.screen === "read" ? readWork() : madeWork();
+		if (!c.dict || sameThings(c.dict, d)) { c.set(d); return true; }
+		if ((work || c.dict.way === "name") && !confirm(T().dictChangeAsk)) return false;
+		c.set(d, work);
+		return true;
+	}
+	// the same for the key's own dictionary: what was read with it, or the backup's check, goes
+	function changeKeyDict(d) {
+		const kc = keyColl(), work = st.screen === "read" ? !!st.read.keyTaps.length : madeWork();
+		if (!kc.dict || sameThings(kc.dict, d)) { kc.set(d); return true; }
+		if ((work || kc.dict.way === "name") && !confirm(T().keyDictChangeAsk)) return false;
+		kc.set(d, work);
 		return true;
 	}
 	// another number of kinds: the dictionary of the old one goes, asked first
@@ -577,8 +609,23 @@
 	function setPadForm(f) {
 		const kc = keyColl(), p = st.screen === "read" ? st.read : st.plan;
 		if (f === p.padForm) return true;
-		if (kc.dict && !confirm(T().keyCollChangeAsk)) return false;
-		p.padForm = f; p.chosen.padForm = false; kc.set(null); st.ways[st.screen].keyDict = null; st.ways[st.screen].keyNameDraft = null;
+		// recovering, the key's pieces read so far were of the old collection: they go too
+		if ((kc.dict || (st.screen === "read" && st.read.keyTaps.length)) && !confirm(T().keyCollChangeAsk)) return false;
+		p.padForm = f; p.chosen.padForm = false; kc.set(null, true); st.ways[st.screen].keyDict = null; st.ways[st.screen].keyNameDraft = null;
+		return true;
+	}
+
+	// the key as a string or as a file: once some of it is drawn (or read), asked
+	// first; making one, it is then saved, read back and stored again as the new
+	// kind; recovering, what was read of the key goes
+	function setPadAs(v) {
+		const reading = st.screen === "read", p = reading ? st.read : st.plan, m = st.make;
+		if (v === p.padAs) return true;
+		const work = reading ? !!(st.read.keyTaps.length || st.read.keyFile) : !!(m.key && m.key.pieces.length);
+		if (work && !confirm(reading ? T().keyAsChangeAskRead : T().keyAsChangeAsk)) return false;
+		p.padAs = v;
+		if (reading) forgetKeyRead(st.read, true);
+		else Object.assign(m, { padKept: false, check: null, checked: false, storedAt: {} });
 		return true;
 	}
 
@@ -606,7 +653,7 @@
 			keyAs: () => {
 				const p = st.plan;
 				return decide({ question: T().keyAsQ, options: keyAsOptions(kindThings(p.form, formOf(p.form).n)), chosen: p.chosen.padAs ? p.padAs : null,
-					choose: (v) => { p.padAs = v; p.chosen.padAs = true; } });
+					choose: (v) => { if (setPadAs(v)) p.chosen.padAs = true; } });
 			},
 			keyColl: () => {
 				const p = st.plan, other = p.padForm || otherForm(p.form, true);
@@ -649,7 +696,7 @@
 			keyAs: () => {
 				const rd = st.read;
 				return decide({ question: T().haveKeyHelp, options: keyAsOptions(kindThings(rd.form, formOf(rd.form).n)), chosen: rd.chosen.padAs ? rd.padAs : null,
-					choose: (v) => { st.read.padAs = v; st.read.chosen.padAs = true; } });
+					choose: (v) => { if (setPadAs(v)) st.read.chosen.padAs = true; } });
 			},
 			keyColl: () => {
 				const rd = st.read, other = rd.padForm || otherForm(rd.form);
@@ -680,18 +727,16 @@
 	// ---- the dictionary: ready-made, your own, or one saved before ----------------
 	// (naming it piece by piece, checking it: nameSlide, checkSlide)
 	// a dictionary file opened: its pieces, or what is wrong with it (n: the size it must have)
-	function dictFileInput(n, onThings, onError) {
-		const t = T();
-		return h("input", { type: "file", accept: ".json,.txt,application/json,text/plain", class: "hidden", on: { change: async (e) => {
-			const f = e.target.files[0];
-			if (!f) return;
+	function openDictFile(n, onThings, onError) {
+		pickFile(".json,.txt,application/json,text/plain", async (f) => {
+			const t = T();
 			try {
 				const things = dictFromFile(await f.text(), f.name), problem = dictProblem(things);
 				if (problem) onError(problem);
 				else if (n && things.length !== n) onError(t.errPadDictSize(things.length, n));
 				else onThings(things);
 			} catch (x) { onError(t.errDictFile); }
-		} } });
+		});
 	}
 	const blankThings = (n) => Array.from({ length: n }, () => ({ name: "", emoji: "", colour: "", photo: "" }));
 	// your own dictionary, being named: kept in the journey's ways (key: nameDraft,
@@ -704,17 +749,16 @@
 		const t = T(), ways = st.ways[flow];
 		const dict = seedColl().dict, n = dict ? dict.things.length : flow === "read" ? st.read.n : st.plan.n, formId = flow === "read" ? st.read.form : st.plan.form;
 		const set = readySet(n, formId);
-		let input = null;
+		const open = () => openDictFile(0, (things) => { if (changeDict({ things, checked: false, way: "open" })) ways.dict = "open"; render(); },
+			(msg) => { ways.error = msg; render(); });
 		const pick = (x) => { if (changeDict({ things: thingsOf(x, n), checked: x.id === "streets" && formId === "book", way: "ready" })) { ways.dict = "ready"; ways.error = ""; } };
 		const chosen = ways.dict || (dict ? dict.way || "ready" : null);
 		// your own: named piece by piece once Next is pressed; then the dictionary as it is
 		const naming = chosen === "name" && !(dict && dict.way === "name");
 		return decide({ question: t.dictQ, options: dictOptions(n, formId, "seed"), chosen,
-			choose: (id) => { ways.error = ""; if (id === "ready") pick(set); else if (id === "name") ways.dict = "name"; else if (input) input.click(); },
+			choose: (id) => { ways.error = ""; if (id === "ready") pick(set); else if (id === "name") ways.dict = "name"; else open(); },
 			ready: naming || !!dict, caption: () => ways.error || null,
 			next: naming ? { go: () => editDict(nameDraft(ways, "nameDraft", undefined, n)), ready: true } : undefined,
-			extra: () => (input = dictFileInput(0, (things) => { if (changeDict({ things, checked: false, way: "open" })) ways.dict = "open"; render(); },
-				(msg) => { ways.error = msg; render(); })),
 			help: helpOf(t.dictBeforeTitle, t.dictIntro, t.dictChecks),
 			shortcuts: SETS.filter((x) => x.things.length >= n && x !== set).map((x) => ({ icon: x.icon, label: x[st.lang], go: () => { pick(x); render(); } })) });
 	}
@@ -723,16 +767,15 @@
 		const t = T(), ways = st.ways[flow], kc = keyColl(), dict = seedColl().dict, n = dict ? dict.things.length : flow === "read" ? st.read.n : st.plan.n;
 		const formId = kc.form || otherForm(flow === "read" ? st.read.form : st.plan.form);
 		const set = readySet(n, formId);
-		let input = null;
-		const pick = (x) => { kc.set({ things: thingsOf(x, n), checked: x.id === "streets" && formId === "book", way: "ready" }); ways.keyDict = "ready"; ways.keyError = ""; };
+		const open = () => openDictFile(n, (things) => { if (changeKeyDict({ things, checked: false, way: "open" })) ways.keyDict = "open"; render(); },
+			(msg) => { ways.keyError = msg; render(); });
+		const pick = (x) => { if (changeKeyDict({ things: thingsOf(x, n), checked: x.id === "streets" && formId === "book", way: "ready" })) { ways.keyDict = "ready"; ways.keyError = ""; } };
 		const chosen = ways.keyDict || (kc.dict ? kc.dict.way || "ready" : null);
 		const naming = chosen === "name" && !(kc.dict && kc.dict.way === "name");
 		return decide({ question: t.keyDictQ, options: dictOptions(n, formId, "key"), chosen,
-			choose: (id) => { ways.keyError = ""; if (id === "ready") pick(set); else if (id === "name") ways.keyDict = "name"; else if (input) input.click(); },
+			choose: (id) => { ways.keyError = ""; if (id === "ready") pick(set); else if (id === "name") ways.keyDict = "name"; else open(); },
 			ready: naming || !!kc.dict, caption: () => ways.keyError || null,
 			next: naming ? { go: () => editDict(nameDraft(ways, "keyNameDraft", "pad", n)), ready: true } : undefined,
-			extra: () => (input = dictFileInput(n, (things) => { keyColl().set({ things, checked: false, way: "open" }); ways.keyDict = "open"; render(); },
-				(msg) => { ways.keyError = msg; render(); })),
 			shortcuts: SETS.filter((x) => x.things.length >= n && x !== set).map((x) => ({ icon: x.icon, label: x[st.lang], go: () => { pick(x); render(); } })) });
 	}
 
@@ -830,9 +873,17 @@
 	function keyDictNeeded() { return st.mode === "pad" && st.plan.padAs === "string" && !!st.plan.padForm; }
 	// The key's own collection: the backup's (st.plan, st.padDict) or, recovering,
 	// the one being read's (st.read), which leaves the backup alone
+	// (set(d, reset): another dictionary, once asked, and what was read with the
+	// old one goes; making one, the copy is read back and stored again)
 	const keyColl = () => st.screen === "read"
-		? { form: st.read.padForm, dict: st.read.padDict, set: (d) => { st.read.padDict = d; } }
-		: { form: st.plan.padForm, dict: st.padDict, set: (d) => { st.padDict = d; st.make.check = null; } };
+		? { form: st.read.padForm, dict: st.read.padDict, set: (d, reset) => { st.read.padDict = d; if (reset) forgetKeyRead(st.read); } }
+		: { form: st.plan.padForm, dict: st.padDict, set: (d) => { st.padDict = d; Object.assign(st.make, { check: null, checked: false, storedAt: {} }); } };
+	// what was read of the key goes (and, file: the key file given); the sequence's
+	// pieces read stay, and with key pieces gone the turns start again
+	const forgetKeyRead = (rd, file) => {
+		if (rd.keyTaps.length) rd.turn = 0;
+		Object.assign(rd, { keyTaps: [], keyText: "", out: null, error: "", sig: "" }, file ? { keyFile: null, fileText: "" } : {});
+	};
 
 	// ---- your own dictionary: as it is, named and checked a slide per piece ----------
 	// The same little box everywhere (vocab.js's dictionary, 🌱 or ⚿), on the
@@ -884,7 +935,7 @@
 			render();
 		};
 		const other = () => {
-			if (target === "pad") coll.set(null); else if (!changeDict(null)) return;
+			if (!(target === "pad" ? changeKeyDict(null) : changeDict(null))) return;
 			ways[target === "pad" ? "keyDict" : "dict"] = null;
 			render();
 		};
@@ -946,11 +997,9 @@
 				draw(); Slides.setReady(!tell());
 			}, keydown: (e) => { if (e.key === "Enter") { e.preventDefault(); forward(); } } } });
 		nameIn.value = x.name;
-		const photoIn = h("input", { type: "file", accept: "image/*", capture: "environment", class: "hidden", on: { change: async (e) => {
-			const f = e.target.files[0];
-			if (!f) return;
+		const takePhoto = () => pickFile("image/*", async (f) => {
 			try { x.photo = await photoOf(f); render(); } catch (z) { err.textContent = t.errPhoto; }
-		} } });
+		}, "environment");
 		const dot = h("span", { class: "dict-dot" + (x.colour ? "" : " none"), "aria-hidden": "true" });
 		if (x.colour) dot.style.setProperty("--c", x.colour);
 		setTimeout(() => { if (document.activeElement !== nameIn && !document.querySelector(".slide-popup")) nameIn.focus(); }, 0);
@@ -965,11 +1014,10 @@
 				place(h("div", { class: "dict-form" }, nameIn,
 					h("div", { class: "dict-buttons" },
 						h("button", { type: "button", class: "btn ghost", on: { click: () => colourPopup(x) } }, dot, t.pieceColour),
-						h("button", { type: "button", class: "btn ghost", title: t.photoTake, on: { click: () => photoIn.click() } }, x.photo ? t.photoAgain : t.piecePhoto),
+						h("button", { type: "button", class: "btn ghost", title: t.photoTake, on: { click: takePhoto } }, x.photo ? t.photoAgain : t.piecePhoto),
 						x.photo ? h("button", { type: "button", class: "btn ghost", title: t.photoRemove, "aria-label": t.photoRemove, on: { click: () => { x.photo = ""; render(); } } }, "✕") : null,
 						// editing a dictionary already there: saved from any piece, no need to page to the end
-						ed.base && ed.i < n - 1 ? h("button", { type: "button", class: "btn", on: { click: () => { if (!problem()) finish(); } } }, "✓ " + t.dictSaveNames) : null,
-						photoIn),
+						ed.base && ed.i < n - 1 ? h("button", { type: "button", class: "btn", on: { click: () => { if (!problem()) finish(); } } }, "✓ " + t.dictSaveNames) : null),
 					err), b.form)),
 		};
 	}
@@ -1669,14 +1717,17 @@
 		}
 		// forgetting everything here, as on opening the page (the language aside)
 		const forget = () => {
-			if (unsaved || !confirm(t.storeForgetAsk)) return;
+			// the places whose «Saved» is not ticked, named
+			const open = (pad ? [["a", t.storeA], ["b", t.storeB]] : [["a", t.storeHere], ["d", t.storeDictApart]]).filter(([id]) => !saved[id]).map(([, x]) => x);
+			if (unsaved || !confirm(t.storeForgetAsk(open))) return;
 			Object.assign(st, freshState());
 			fingerprints.clear();
 			go("intro");
 		};
 		over.push(place(h("div", { class: "st-forget" }, h("button", { type: "button", class: "btn ghost st-forget-btn", disabled: unsaved || undefined, on: { click: forget } }, t.storeForget)), b.forget));
 		return {
-			question: t.storeQ(pad), caption: () => unsaved ? t.storeKeyUnsaved : t.storeForgetWhy, next: null,
+			// reached without a copy read back exactly (the guide lands on Check first): said at the foot
+			question: t.storeQ(pad), caption: () => unsaved ? t.storeKeyUnsaved : !m.checked ? t.storeNotChecked : t.storeForgetWhy, next: null,
 			help: helpOf(stepName("make", "store"), null, pad ? t.storePad : t.storeBasic),
 			body: () => h("div", { class: "dict-slide st-slide" }, canvas(...kids), ...over),
 		};
@@ -1698,14 +1749,9 @@
 			on: { input: (e) => { rd.fileText = e.target.value; show(true); } } });
 		area.value = rd.fileText;
 		show();
-		const open = h("input", { type: "file", accept: ".txt,text/plain", class: "hidden", on: { change: async (e) => {
-			const f = e.target.files[0];
-			if (!f) return;
-			rd.fileText = await f.text();
-			render();
-		} } });
+		const open = () => pickFile(".txt,text/plain", async (f) => { rd.fileText = await f.text(); render(); });
 		return [h("div", { class: "label pad-label", text: t.padFileTitle }), h("div", { class: "hint", text: t.padFileReadHelp }), area, status,
-			h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: () => open.click() } }, t.padFileOpen), open)];
+			h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: open } }, t.padFileOpen))];
 	}
 	// rd.keyFile from rd.fileText, or why not (a PadFileError's code and line,
 	// in words). Its length tells the seed's number of words.
@@ -2031,12 +2077,20 @@
 		const wrong = out.fixed ? wrongTurns(out, L, k, rd.mode === "pad") : null;
 		const how = [out.reversed ? t.reversed : null, out.swapped ? t.padSwapped : null].filter(Boolean);
 		const toTurn = (j) => { rd.turn = j; goSlide("read", "recover"); };
+		// everything read here forgotten (the backup being made aside), and to the start
+		const forget = () => {
+			if (!confirm(t.readForgetAsk)) return;
+			fingerprints.delete([...out.entropy].join());
+			Object.assign(st, { read: freshRead(), at: { ...st.at, read: "mode" }, step: { ...st.step, read: "have" }, ways: { ...st.ways, read: {} } });
+			go("intro");
+		};
 		const note = wrong && wrong.length ? [h("span", { text: t.readWrong(wrong.length) + " " }), ...wrong.slice(0, 4).map((j) => h("button", { type: "button", class: "btn ghost small", on: { click: () => toTurn(j) } }, t.readPiece(j + 1)))]
 			: out.fixed ? [h("span", { text: t.readFixed })] : [seedAlert()];
 		return {
 			caption: () => t.handDone, next: null,
 			prev: { go: () => toTurn(L - 1) },
-			shortcuts: [{ icon: "↺", label: t.readAgain, go: () => { st.read = freshRead(st.read); toStep("read", "have"); } }],
+			shortcuts: [{ icon: "↺", label: t.readAgain, go: () => { st.read = freshRead(st.read); toStep("read", "have"); } },
+				{ icon: "✕", label: t.readForget, go: forget }],
 			body: () => h("div", { class: "dict-slide rf-slide" }, canvas(V.qr({ box: b.qr, size: qr.size, modules: (r, c) => qr.getModule(c, r) })),
 				place(h("div", { class: "rf-title" }, h("b", { text: "✓ " + t.seedFound }), ...how.map((x) => h("small", { text: x }))), b.title),
 				place(h("ol", { class: "rf-words" + (words.length > 12 ? " many" : "") }, words.map((w) => h("li", { text: w }))), b.words),
@@ -2112,7 +2166,9 @@
 			h("b", { text: name + " ↗" }), h("span", { text: desc }));
 		const tryExample = () => {
 			const set = SETS[0];
-			setDict({ things: thingsOf(set, st.plan.n), checked: false, way: "ready" }); st.ways.make.dict = "ready";
+			// a backup under way with another dictionary: asked first, and no keeps it all
+			if (!changeDict({ things: thingsOf(set, st.plan.n), checked: false, way: "ready" })) return;
+			st.ways.make.dict = "ready";
 			toStep("make", "plan");
 		};
 		// the two journeys, as they will go: one door each
