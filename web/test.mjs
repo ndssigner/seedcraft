@@ -367,6 +367,24 @@ for (const n of [2, 4, 8, 16, 32]) for (const pad of [false, true]) {
 	check(make.arrows.find((a) => a.id === "position").from === "seedSlot" && make.arrows.find((a) => a.id === "slot").to === "seedSlot", `make n=${n} pad=${pad}: the cycle starts and ends at the slot`);
 	if (pad) check(contains(Lay.readTurn({ pad, n }).boxes.keyColumn, Lay.readTurn({ pad, n }).boxes.keySlot), `read n=${n}: the key's slot is in its column`);
 }
+check(S.entropyNumber(new Uint8Array(16)) === "0" && S.entropyNumber(new Uint8Array(16).fill(255)) === "340282366920938463463374607431768211455", "entropyNumber: big-endian decimal");
+check(S.groupDigits("1234567", 5).join("|") === "1 234 567" && S.groupDigits("9".repeat(78), 5).length === 6, "groupDigits: threes from the right, 5 groups a line; 24 words in 6 lines");
+const margin = (name, lay) => check(Object.entries(lay.boxes).every(([id, b]) => id === "guide" || id === "question" || (b.x >= 16 && b.x + b.w <= 664 && b.y + b.h <= 334)), `${name} within the 16 px margin`);
+for (const n of [2, 4, 8, 16, 32]) for (const pad of [false, true]) for (const file of pad ? [false, true] : [false]) {
+	const lay = Lay.makeTurn({ pad, n, file }), b = lay.boxes;
+	margin(`make n=${n} pad=${pad} file=${file}`, lay);
+	check(Object.entries(b).filter(([id, x]) => x.y < Lay.BUILT.y && id !== "guide" && id !== "qr").every(([, x]) => x.h <= b.qr.h) && b.qr.w === b.qr.h && b.qr.w >= 180, `make n=${n} pad=${pad}: the QR the tallest of the top band, ≥ 180`);
+	margin(`read n=${n} pad=${pad}`, Lay.readTurn({ pad, n }));
+}
+for (const pad of [false, true]) margin(`checkFinal pad=${pad}`, Lay.checkFinal({ pad }));
+for (const sides of [2, 6, 20]) for (const tool of ["dice", "device", "bag"]) margin(`throw d${sides} ${tool}`, Lay.keyThrow({ sides, tool }));
+for (const toWords of [false, true]) for (const end of toWords ? [false, true] : [false]) checkLayout(`seedQr toWords=${toWords} end=${end}`, Lay.seedQr({ toWords, end }));
+{ const q = Lay.seedQr({}), r = Lay.seedQr({ toWords: true });
+  check(q.arrows.map((a) => `${a.from}>${a.to}`).join() === "words>number,number>qr" && r.arrows.map((a) => `${a.from}>${a.to}`).join() === "qr>number,number>words", "seedQr: words → number → QR, and back");
+  check(q.boxes.qr.w === q.boxes.qr.h && q.boxes.qr.x > q.boxes.number.x && q.boxes.number.x > q.boxes.words.x, "seedQr: words, number, QR from left to right"); }
+check(Lay.qrCellsBox({ x: 20, y: 40, w: 210, h: 210 }, 21, []) === null, "qrCellsBox: no cells, no marker");
+{ const m = Lay.qrCellsBox({ x: 20, y: 40, w: 210, h: 210 }, 21, [[0, 0], [1, 1]]); check(m.x === 18 && m.y === 38 && m.w === 24 && m.h === 24, "qrCellsBox: the cells' bounds, 2 px out"); }
+check(Math.abs(Lay.pitch(Lay.BUILT, 13) - (648 - 40) / 13) < 1e-9, "pitch: as the string spaces its pieces");
 check(Lay.makeTurn({ pad: true, n: 16 }).arrows.map((a) => a.id).join() === "position,bits,number,keyPiece,keyNumber,clockSeed,clockKey,output,slot", "make: the arrows in the cycle's order");
 // a key file: its column, its number straight from the turn's row (no key dictionary), then the same clock
 for (const n of [2, 4, 8, 16, 32]) {
@@ -564,7 +582,7 @@ for (const pad of [false, true]) {
 	check(walk(s, cls("v-hole")).length === 7, "string: the empty positions are holes");
 	check(walk(s, (n) => n.tag === "text" && textOf(n) === "15").length === 1, "string: each piece's position beside it (9 + 6)");
 	const rad = (p) => Math.max(...walk(p, (n) => n.tag === "circle").map((c) => num(c.attrs.r)));
-	check(rad(cur[0]) >= 1.5 * rad(pieces[5]) && rad(cur[0]) >= 20, "string: the turn's piece is by far the biggest (1.5 × a neighbour)");
+	check(rad(cur[0]) >= 1.5 * rad(pieces[5]) && rad(cur[0]) >= 19, "string: the turn's piece is by far the biggest (1.5 × a neighbour)");
 	const names = walk(s, cls("v-name"));
 	check(names.length === 1 && walk(cur[0], cls("v-name")).length === 1, "string build: only the turn's piece has its name under it");
 	// a hole at the turn: its position (blue) under it, no name
@@ -577,7 +595,7 @@ for (const pad of [false, true]) {
 	const ref = V.string({ box: lay.boxes.keyString, orientation: "v", role: "reference", kind: "key", things, items: [1, 2, 3, 4, 5, 6, 7], firstPosition: 11, current: 3 });
 	check(walk(ref, cls("v-piece")).length === 7 && walk(ref, cls("v-turn-frame")).length === 1 && walk(ref, cls("v-thread-ref")).length === 1, "string: a reference, dotted, its turn's piece framed");
 	const refCy = num(walk(walk(ref, cls("v-current"))[0], (n) => n.tag === "circle")[0].attrs.cy);
-	check(Math.abs(refCy - 131) < 1, "string: the reference's turn piece is level with the arrow that leaves it");
+	check(Math.abs(refCy - 126) < 1, "string: the reference's turn piece is level with the arrow that leaves it");
 	within(ref, lay.boxes.keyString, "string reference");
 	let slotHit = null;
 	const rd = V.string({ box: rlay.boxes.keyColumn, orientation: "v", role: "read", kind: "key", column: rlay.columns.key, things, items: [2, 9, 4, null, undefined, undefined, undefined], firstPosition: 1, current: 3, onSlot: (i) => { slotHit = i; } });

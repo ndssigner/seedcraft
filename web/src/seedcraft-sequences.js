@@ -784,7 +784,23 @@ const SeedcraftSequences = (() => {
 		return hexOf(ripemd160(sha256(pub)).slice(0, 4));
 	}
 
+	// the entropy as a big-endian unsigned decimal
+	function entropyNumber(entropy) {
+		let x = 0n;
+		for (const byte of entropy) x = (x << 8n) | BigInt(byte);
+		return x.toString();
+	}
+	// groups of three digits from the right, a space between, lines of at most perLine groups
+	function groupDigits(s, perLine) {
+		const groups = [];
+		for (let i = s.length; i > 0; i -= 3) groups.unshift(s.slice(Math.max(0, i - 3), i));
+		const lines = [];
+		for (let i = 0; i < groups.length; i += perLine) lines.push(groups.slice(i, i + perLine).join(" "));
+		return lines;
+	}
+
 	return {
+		entropyNumber, groupDigits,
 		FORMAT_VERSION, HEADER_BITS, LAYOUTS, DecodeError,
 		sha512, hmac512, hmacKey, pbkdf2Sha512, ripemd160, mnemonicToSeed, fingerprint,
 		sha256, mnemonicToEntropy, entropyToMnemonic,

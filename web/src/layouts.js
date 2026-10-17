@@ -46,7 +46,9 @@ const SeedcraftLayouts = (() => {
 
 	// The string being built (the seed in its turn, the key in its throw) is one
 	// element: bottom, full width, 13 pieces, the turn's slot in the middle.
-	const BUILT = box(20, 280, 640, 60), SLOT = box(316, 280, 48, 60);
+	const BUILT = box(16, 276, 648, 58), SLOT = box(316, 276, 48, 58);
+	// the y where the arrows run before dropping into the slot
+	const RAIL = 262;
 	// the slide's fixed top band, the guide on the left and «?» «⋯» on the right: nothing else goes there
 	const GUIDE = box(0, 0, VIEW.w, 26);
 
@@ -59,52 +61,51 @@ const SeedcraftLayouts = (() => {
 	function makeTurn({ pad, n, file = false }) {
 		const bits = bitsOf(n);
 		const b = {
-			qr: box(20, 45, 95, 95),
-			bits: box(135, 56, bits * BIT, BIT),
-			number: box(135, 94, 60, 36),
+			qr: box(16, 36, 180, 180),
+			bits: box(212, 56, bits * BIT, BIT),
+			number: box(212, 94, 72, 40),
 			seedString: { ...BUILT },
 			seedSlot: { ...SLOT },
 			guide: { ...GUIDE },
 		};
 		const arrows = [
-			arrow("position", "seedSlot", "qr", "qr", [[328, 280], [328, 268], [67, 268], [67, 140]]),
-			arrow("bits", "qr", "bits", "qr", [[115, 67], [135, 67]]),
-			arrow("number", "bits", "number", "qr", [[155, 78], [155, 94]]),
+			arrow("position", "seedSlot", "qr", "qr", [[328, 276], [328, 264], [106, 264], [106, 216]]),
+			arrow("bits", "qr", "bits", "qr", [[196, 67], [212, 67]]),
+			arrow("number", "bits", "number", "qr", [[232, 78], [232, 94]]),
 		];
 		if (!pad) {
-			b.seedDict = box(297, 76, 86, 72);
+			b.seedDict = box(400, 76, 140, 72);
 			arrows.push(
-				arrow("dict", "number", "seedDict", "qr", [[195, 112], [297, 112]]),
-				arrow("slot", "seedDict", "seedSlot", "qr", [[352, 148], [352, 280]]));
+				arrow("dict", "number", "seedDict", "qr", [[284, 112], [400, 112]]),
+				arrow("slot", "seedDict", "seedSlot", "qr", [[470, 148], [470, RAIL], [352, RAIL], [352, SLOT.y]]));
 			return { boxes: b, arrows };
 		}
-		// the key string is a reference: vertical, its turn piece in the middle (y 131)
+		// the key string is a reference: vertical, its turn piece in the middle (y 126)
 		Object.assign(b, {
-			keyString: box(268, 40, 34, 182),
-			clock: box(452, 50, 140, 136),
-			seedDict: box(479, 202, 86, 62),
+			keyString: box(336, 36, 34, 180),
+			clock: box(520, 44, 128, 136),
+			seedDict: box(520, 196, 128, 60),
 		});
 		const keyIn = clockModule(b.clock).inputs[1], keyX = keyIn.x + keyIn.w / 2;
-		// The key's number must reach its own (right) cell, so it goes over the
-		// top; the key string stands between the seed's number and the module, so
-		// the seed's can only go under it and up the outer corridor into the left
-		// cell: any route over the top would cross the key's.
-		const clockSeed = arrow("clockSeed", "number", "clock", "qr", [[165, 130], [165, 240], [436, 240], [436, 63], [452, 63]]);
-		const clockKey = (y) => arrow("clockKey", "keyNumber", "clock", "key", [[406, y], [420, y], [420, 38], [keyX, 38], [keyX, keyIn.y]]);
+		// The key's number sits above its dictionary, so its route to the clock
+		// goes over the top and never crosses the seed's, which goes under the
+		// key string and up the outer corridor into the left cell.
+		const clockSeed = arrow("clockSeed", "number", "clock", "qr", [[248, 134], [248, 236], [506, 236], [506, 56], [520, 56]]);
+		const clockKey = (y) => arrow("clockKey", "keyNumber", "clock", "key", [[456, y], [456, 30], [keyX, 30], [keyX, keyIn.y]]);
 		if (file) {
 			// the file's row → its number, level with it
-			b.keyNumber = box(320, 116, 86, 30);
-			arrows.push(arrow("keyNumber", "keyString", "keyNumber", "key", [[302, 131], [320, 131]]), clockSeed, clockKey(131));
+			b.keyNumber = box(388, 110, 112, 32);
+			arrows.push(arrow("keyNumber", "keyString", "keyNumber", "key", [[370, 126], [388, 126]]), clockSeed, clockKey(110));
 		} else {
-			Object.assign(b, { keyDict: box(320, 95, 86, 72), keyNumber: box(320, 183, 86, 30) });
+			Object.assign(b, { keyDict: box(388, 96, 112, 72), keyNumber: box(388, 44, 112, 32) });
 			arrows.push(
-				arrow("keyPiece", "keyString", "keyDict", "key", [[302, 131], [320, 131]]),
-				arrow("keyNumber", "keyDict", "keyNumber", "key", [[363, 167], [363, 183]]),
-				clockSeed, clockKey(198));
+				arrow("keyPiece", "keyString", "keyDict", "key", [[370, 126], [388, 126]]),
+				arrow("keyNumber", "keyDict", "keyNumber", "key", [[430, 96], [430, 76]]),
+				clockSeed, clockKey(44));
 		}
 		arrows.push(
-			arrow("output", "clock", "seedDict", "qr", [[522, 186], [522, 202]]),
-			arrow("slot", "seedDict", "seedSlot", "qr", [[522, 264], [522, 266], [352, 266], [352, 280]]));
+			arrow("output", "clock", "seedDict", "qr", [[584, 180], [584, 196]]),
+			arrow("slot", "seedDict", "seedSlot", "qr", [[584, 256], [584, RAIL], [352, RAIL], [352, SLOT.y]]));
 		return { boxes: b, arrows };
 	}
 
@@ -142,7 +143,7 @@ const SeedcraftLayouts = (() => {
 		const columns = { seed };
 		const toQr = (x) => [[x, 40], [b.qr.x + 16, 40], [b.qr.x + 16, b.qr.y]];   // into the QR near its left edge: the shortest way over the clock
 		if (!pad) {
-			b.row = box(14, rowY, 82, piece);
+			b.row = box(16, rowY, 80, piece);
 			const y = rowY + 27;
 			b.bits = box(220, y - BIT / 2, bits * BIT, BIT);
 			return { boxes: b, columns, arrows: [
@@ -156,7 +157,7 @@ const SeedcraftLayouts = (() => {
 		Object.assign(b, {
 			keyColumn,
 			keySlot: slotIn(columns.key),
-			row: box(14, rowY, 162, piece),
+			row: box(16, rowY, 160, piece),
 			clock: box(228, 90, 120, 150),
 		});
 		const m = clockModule(b.clock), [seedIn, keyIn] = m.inputs;
@@ -201,7 +202,7 @@ const SeedcraftLayouts = (() => {
 			guide: { ...GUIDE },
 			made: box(24, 44, 200, 200), sign: box(232, 119, 50, 50), read: box(290, 44, 200, 200),
 			madeLabel: box(24, 248, 200, 18), readLabel: box(290, 248, 200, 18),
-			result: box(24, 272, 466, 70),
+			result: box(24, 272, 466, 62),
 			seedColumn: box(510, top, 70, 7 * piece), seedRow: box(510, rowY, 70, piece),
 		};
 		if (pad) Object.assign(b, { keyColumn: box(590, top, 70, 7 * piece), keyRow: box(590, rowY, 70, piece) });
@@ -239,10 +240,10 @@ const SeedcraftLayouts = (() => {
 				number();
 				b.instruction = box(460, 170, 190, 24); b.tools = box(460, 200, 190, 24);
 				arrows.push(arrow("number", "picker", "number", "key", cy === mid ? [[right, mid], [394, mid]] : [[right, cy], [370, cy], [370, mid], [394, mid]]),
-					arrow("slot", "number", "keySlot", "key", [[422, mid + 20], [422, 266], [352, 266], [352, 280]]));
+					arrow("slot", "number", "keySlot", "key", [[422, mid + 20], [422, RAIL], [352, RAIL], [352, SLOT.y]]));
 			} else {
 				b.instruction = box(380, 120, 260, 24); b.tools = box(380, 150, 260, 24);
-				arrows.push(arrow("slot", "picker", "keySlot", "key", [[cx, bottom], [cx, 266], [352, 266], [352, 280]]));
+				arrows.push(arrow("slot", "picker", "keySlot", "key", [[cx, bottom], [cx, RAIL], [352, RAIL], [352, SLOT.y]]));
 			}
 			return { boxes: b, faces, arrows };
 		}
@@ -264,13 +265,13 @@ const SeedcraftLayouts = (() => {
 			b.info = box(200, Math.max(y + h, b.rejected.y + b.rejected.h) + 6, 156, 14);
 		}
 		arrows.push(arrow("number", "brace", "number", "key", [[378, mid], [394, mid]]));
-		if (file) arrows.push(arrow("slot", "number", "keySlot", "key", [[422, mid + 20], [422, 266], [352, 266], [352, 280]]));
+		if (file) arrows.push(arrow("slot", "number", "keySlot", "key", [[422, mid + 20], [422, RAIL], [352, RAIL], [352, SLOT.y]]));
 		else {
 			Object.assign(b, { keyDict: box(466, mid - 36, 86, 72), piece: box(568, mid - 25, 76, 50) });
 			arrows.push(
 				arrow("dict", "number", "keyDict", "key", [[450, mid], [466, mid]]),
 				arrow("piece", "keyDict", "piece", "key", [[552, mid], [568, mid]]),
-				arrow("slot", "piece", "keySlot", "key", [[606, mid + 25], [606, 266], [352, 266], [352, 280]]));
+				arrow("slot", "piece", "keySlot", "key", [[606, mid + 25], [606, RAIL], [352, RAIL], [352, SLOT.y]]));
 		}
 		return { boxes: b, faces, arrows };
 	}
@@ -424,5 +425,32 @@ const SeedcraftLayouts = (() => {
 		}, columns, arrows: [] };
 	}
 
-	return { VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readColumn, readTurn, pickerPopup, readFinal, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, REJECT, BADGE, fileRow, fileColumn, store, dictName, dictCheck, dictAsIs };
+	// the spacing of a string's pieces in a box (vocab.js's string)
+	function pitch(b, count, { vertical = false, room } = {}) {
+		const pad = room !== undefined ? room : vertical ? Math.min(14, b.h * 0.08) : Math.min(20, b.w * 0.04);
+		return ((vertical ? b.h : b.w) - 2 * pad) / count;
+	}
+	// the bounding rectangle of QR cells [r, c] in a box, as vocab.js's qr places
+	// them (side = min(w, h), centred), 2 units out on each side; null if none
+	function qrCellsBox(b, size, cells) {
+		if (!cells.length) return null;
+		const side = Math.min(b.w, b.h), cs = side / size, x0 = b.x + (b.w - side) / 2, y0 = b.y + (b.h - side) / 2;
+		const rs = cells.map((c) => c[0]), cols = cells.map((c) => c[1]);
+		const r0 = Math.min(...rs), r1 = Math.max(...rs), c0 = Math.min(...cols), c1 = Math.max(...cols);
+		return box(x0 + c0 * cs - 2, y0 + r0 * cs - 2, (c1 - c0 + 1) * cs + 4, (r1 - r0 + 1) * cs + 4);
+	}
+	// The seed as a QR: its words, their number, the QR, left to right (toWords:
+	// the other way round); end: with the fingerprint and a note under the words.
+	function seedQr({ toWords = false, end = false } = {}) {
+		const b = { guide: { ...GUIDE }, question: box(150, 28, 380, 32),
+			words: end ? box(16, 70, 200, 180) : box(16, 76, 200, 190),
+			number: box(240, 110, 184, 110), qr: box(448, 68, 216, 216) };
+		if (end) Object.assign(b, { fingerprint: box(16, 256, 200, 28), note: box(16, 290, 408, 44) });
+		const arrows = toWords
+			? [arrow("qr>number", "qr", "number", "qr", [[448, 165], [424, 165]]), arrow("number>words", "number", "words", "qr", [[240, 165], [216, 165]])]
+			: [arrow("words>number", "words", "number", "qr", [[216, 165], [240, 165]]), arrow("number>qr", "number", "qr", "qr", [[424, 165], [448, 165]])];
+		return { boxes: b, arrows };
+	}
+
+	return { BUILT, SLOT, RAIL, pitch, qrCellsBox, seedQr, VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readColumn, readTurn, pickerPopup, readFinal, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, REJECT, BADGE, fileRow, fileColumn, store, dictName, dictCheck, dictAsIs };
 })();
