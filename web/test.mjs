@@ -597,6 +597,25 @@ for (const pad of [false, true]) {
 	const refCy = num(walk(walk(ref, cls("v-current"))[0], (n) => n.tag === "circle")[0].attrs.cy);
 	check(Math.abs(refCy - 126) < 1, "string: the reference's turn piece is level with the arrow that leaves it");
 	within(ref, lay.boxes.keyString, "string reference");
+	{
+		// the QR marker, the reveal, glide and fade
+		const qb = lay.boxes.qr, dark = () => true;
+		const withMark = V.qr({ box: qb, size: 25, modules: dark, turnCells: [[0, 0], [1, 2]] }), want = Lay.qrCellsBox(qb, 25, [[0, 0], [1, 2]]);
+		const last = withMark.children[withMark.children.length - 1];
+		check(cls("v-qr-marker")(last) && last.attrs.x === want.x && last.attrs.y === want.y && last.attrs.width === want.w && last.attrs.height === want.h, "qr: a marker round the turn's cells, its last child, at qrCellsBox");
+		check(walk(V.qr({ box: qb, size: 25, modules: dark, turnCells: [] }), cls("v-qr-marker")).length === 0, "qr: no turn cells, no marker");
+		const order = [[0, 0], [0, 1], [0, 2], [0, 3]];
+		const rev = V.qr({ box: qb, size: 25, modules: dark, reveal: { order, ms: 1000 } });
+		check(walk(rev, cls("v-qr-reveal")).length === 4, "qr: the cells in the reveal order carry v-qr-reveal");
+		check(typeof V.glide === "function" && V.ADVANCE_MS === 450 && typeof V.fadeIn === "function", "vocab: glide, fadeIn and ADVANCE_MS");
+		check(typeof V.glide({}, { dx: 0, dy: 0 }).finish === "function" && V.glide({ setAttribute() {}, style: {}, getBoundingClientRect() {} }, {}).finish() === undefined, "glide: no move, a no-op finish");
+		const el = { setAttribute() {}, style: {}, getBoundingClientRect() {} }, g = V.glide(el, { dx: 10, dy: -4 });
+		check(el.style.transform === "" && /450ms cubic-bezier/.test(el.style.transition), "glide: ends in its own place, transitioning over 450 ms");
+		g.finish();
+		check(el.style.transform === "" && el.style.transition === "", "glide: finish removes the transition at once");
+		const pt = V.string({ box: lay.boxes.seedString, orientation: "h", role: "build", things, items: [0, 1, 2], current: 1 });
+		check(pt && Lay.pitch(lay.boxes.seedString, 3, {}) > 0, "string spaces its pieces with Lay.pitch");
+	}
 	let slotHit = null;
 	const rd = V.string({ box: rlay.boxes.keyColumn, orientation: "v", role: "read", kind: "key", column: rlay.columns.key, things, items: [2, 9, 4, null, undefined, undefined, undefined], firstPosition: 1, current: 3, onSlot: (i) => { slotHit = i; } });
 	const vals = walk(rd, cls("v-value"));

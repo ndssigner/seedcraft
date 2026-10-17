@@ -1512,7 +1512,7 @@
 		const L = m.symbols.length, i = m.turn = Math.max(0, Math.min(L - 1, m.turn || 0)), pos = i + 1;
 		const plain = pad ? m.basic : m.symbols, P = plain[i], C = m.symbols[i], K = pad ? m.pad[i] : null;
 		const lay = Lay.makeTurn({ pad, n, file }), b = lay.boxes, stages = J.turnStages({ pad, file }), last = stages.length - 1;
-		const qr = S.compactSeedQR(m.entropy), size = qr.size, cells = S.dataModulesRowMajor(size), ndata = cells.length;
+		const qr = S.compactSeedQR(m.entropy), size = qr.size;
 		const bits = S.symbolsToBits(plain, k), turn = S.turnBits(size, i, k), roles = turn.map((x) => x.role);
 		const explaining = i < J.EXPLAINED || !!(m.explain && m.explain.turn === i);
 		const fresh = !explaining && turnFresh === i && !calm(), back = turnBack;
@@ -1523,10 +1523,8 @@
 		// the last turn, once whole: why it is made this way (with a key: why both strings are needed)
 		const end = i === L - 1 ? (pad ? t.endPad : t.endBasic) : null;
 
-		// the QR code: its fixed squares, the data squares of the turns so far, this turn's in blue
-		const fixed = S.functionModules(size), data = new Map(cells.map(([r, c], j) => [r * size + c, j]));
-		const upto = Math.min(ndata, (i + 1) * k);
-		const modules = (r, c) => fixed.has(r * size + c) ? qr.getModule(c, r) : data.get(r * size + c) < upto ? bits[data.get(r * size + c)] === 1 : null;
+		// the QR code, whole in every turn; this turn's squares in blue
+		const modules = (r, c) => qr.getModule(c, r);
 		const turnCells = turn.filter((x) => x.cell).map((x) => x.cell);
 		const stageOf = (arrowId) => stages.findIndex((s) => s.arrows.includes(arrowId));
 		const at = (id) => stages.findIndex((s) => s.id === id);

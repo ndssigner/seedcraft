@@ -129,7 +129,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 		const n = Math.max(1, items.length), vertical = orientation === "v";
 		// the icon's room at the start, the same at the end, so the middle position stays at the box's middle
 		const pad = room !== undefined ? room : vertical ? Math.min(14, box.h * 0.08) : Math.min(20, box.w * 0.04);
-		const pitch = ((vertical ? box.h : box.w) - 2 * pad) / n;
+		const pitch = L.pitch(box, n, { vertical, room: pad });
 		const parts = [];
 		let place, r, label, curR = null;
 		const posClass = (i) => "v-pos" + (i === current ? " v-pos-current v-c-qr v-bold" : "");
@@ -418,19 +418,44 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	// ---- the QR code: a grid, the turn's squares in blue -----------------
 	// modules(r, c): true dark, false light, null not known yet (or a 2D array);
 	// painted: Map(r * size + c → 0 | 1), what has been painted (over modules);
-	// turnCells: [[r, c]], the turn's squares; wrong: [[r, c]], squares in red.
-	function qr({ box, size, modules, turnCells = [], painted = new Map(), wrong = [] }) {
+	// turnCells: [[r, c]], the turn's squares (also ringed by a marker, the last child); wrong: [[r, c]], squares in red;
+	// reveal: { order: [[r, c]], ms }, the dark data cells in order appear one after the other over ms.
+	function qr({ box, size, modules, turnCells = [], painted = new Map(), wrong = [], reveal = null }) {
 		const side = Math.min(box.w, box.h), cs = side / size, x0 = box.x + (box.w - side) / 2, y0 = box.y + (box.h - side) / 2;
 		const get = typeof modules === "function" ? modules : (r, c) => modules ? modules[r][c] : null;
 		const turn = new Set(turnCells.map(([r, c]) => r * size + c)), bad = new Set(wrong.map(([r, c]) => r * size + c));
+		const order = reveal && reveal.order && !reducedMotion() ? new Map(reveal.order.map(([r, c], j) => [r * size + c, j])) : null;
 		const parts = [svg("rect", { x: r1(x0), y: r1(y0), width: r1(side), height: r1(side), class: "v-qr-bg" })];
 		for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) {
 			const k = r * size + c, v = painted.has(k) ? painted.get(k) === 1 : get(r, c);
 			const cls = bad.has(k) ? "v-qr-err" : turn.has(k) ? "v-qr-turn" + (v ? " on" : "") : v === true ? "v-qr-dark" : v === false ? null : "v-qr-unknown";
-			if (cls) parts.push(svg("rect", { x: r1(x0 + c * cs), y: r1(y0 + r * cs), width: r1(cs), height: r1(cs), class: cls }));
+			if (!cls) continue;
+			const revealed = order && cls === "v-qr-dark" && order.has(k);
+			const el = svg("rect", { x: r1(x0 + c * cs), y: r1(y0 + r * cs), width: r1(cs), height: r1(cs), class: revealed ? cls + " v-qr-reveal" : cls });
+			if (revealed && el.style) el.style.animationDelay = (order.get(k) / reveal.order.length * reveal.ms) + "ms";
+			parts.push(el);
 		}
+		const m = L.qrCellsBox(box, size, turnCells);
+		if (m) parts.push(svg("rect", { x: m.x, y: m.y, width: m.w, height: m.h, rx: 2, class: "v-qr-marker" }));
 		return svg("g", { class: "v v-qr" }, parts);
 	}
+
+	// ---- moving and appearing, all in ADVANCE_MS (nothing under reduced motion) ----
+	const ADVANCE_MS = 450;
+	// el starts at translate(dx, dy) and glides to its own place; finish() settles it at once
+	function glide(el, { dx = 0, dy = 0, ms = ADVANCE_MS } = {}) {
+		if (!live(el) || !el.style || reducedMotion() || (!dx && !dy)) return { finish() {} };
+		el.style.transition = "none";
+		el.style.transform = `translate(${dx}px, ${dy}px)`;
+		el.getBoundingClientRect();
+		el.style.transition = `transform ${ms}ms cubic-bezier(.3,.7,.3,1)`;
+		el.style.transform = "";
+		return { finish() { el.style.transition = ""; el.style.transform = ""; } };
+	}
+	const fadeIn = (el) => {
+		if (live(el) && !reducedMotion()) el.classList.add("v-fade-in");
+		return el;
+	};
 
 	// ---- an arrow: dashed, straight, turning at right angles ---------------
 	// "current": drawn along its path (CSS; at once with reduced motion);
@@ -489,5 +514,5 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 		h("button", { type: "button", class: "v-face", disabled: disabled || undefined, "aria-label": faceLabel(sides, face, label), on: { click: () => onPress && onPress(face) } },
 			die({ sides, face, size, label }));
 
-	return { RUN_MS, clockStepMs, icon, iconTag, badge, badgeSize, string, dictionary, bits, number, piece, frame, clock, qr, arrow, cards, die, faceButton };
+	return { RUN_MS, clockStepMs, icon, iconTag, badge, badgeSize, string, dictionary, bits, number, piece, frame, clock, qr, ADVANCE_MS, glide, fadeIn, arrow, cards, die, faceButton };
 }
