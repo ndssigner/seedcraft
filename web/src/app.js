@@ -396,7 +396,7 @@
 		const p = st.plan, rd = st.read, m = st.make;
 		if (flow === "make") return ({ mode: !!st.mode, form: !!p.chosen.form, words: !!p.chosen.words, size: !!st.dict || !!p.chosen.size,
 			keyAs: !!p.chosen.padAs, keyColl: !!p.chosen.padColl, keyForm: !!p.chosen.padForm, dict: !!st.dict, keyDict: !!st.padDict, keyWho: !!m.keyWho,
-			keyTool: !!(m.key && m.key.by), keyThrow: keyDone(), seed: !!m.symbols, seq: !!m.symbols, check: !!m.checked })[id] !== false;
+			keyTool: !!(m.key && m.key.by), keyThrow: keyDone(), seed: !!m.symbols, qr: !!m.symbols, seq: !!m.symbols, check: !!m.checked })[id] !== false;
 		return ({ mode: !!rd.mode, form: !!rd.chosen.form, size: !!rd.dict || !!rd.chosen.size, dict: !!rd.dict, keyAs: !!rd.chosen.padAs,
 			keyColl: !!rd.chosen.padColl, keyForm: !!rd.chosen.padForm, keyDict: !!rd.padDict, keyFile: !!rd.keyFile, words: !!rd.chosen.words, recover: !!rd.out })[id] !== false;
 	}
@@ -673,6 +673,7 @@
 			keyTool: () => needs("make") || keyToolSlide(),
 			keyThrow: () => needs("make") || keyThrowSlide(),
 			seed: () => needs("make") || seedSlide(),
+			qr: () => needs("make") || qrSlide(),
 			seq: () => needs("make") || turnSlide(),
 			check: () => needs("make") || checkTurns(),
 			store: () => needs("make") || storeSlide(),
@@ -1440,9 +1441,52 @@
 			: h("button", { type: "button", class: "btn ghost small", on: { click: () => test(st.plan.words === 12 ? 16 : 32) } }, st.plan.words === 12 ? t.seedTest12 : t.seedTest24);
 		return {
 			question: t.seedQ(st.plan.words),
-			next: made ? undefined : { label: t.makeIt + " ▶", go: () => { make(); if (m.symbols) goSlide("make", "seq"); }, ready: ok },
+			next: made ? undefined : { label: t.makeIt + " ▶", go: () => { make(); if (m.symbols) goSlide("make", "qr"); }, ready: ok },
 			caption: () => made ? (padMode ? t.whyPad : t.makeWarn) : padMode ? t.seqPadIntro : t.seqIntro,
 			body: () => h("div", { class: "slide-form seed-form" }, seedAlert(), area, status, print, h("div", { class: "row" }, tool)),
+		};
+	}
+
+	// ---- «Your QR»: words → number → QR, before the first turn ------------------
+	// The parts of the words → number → QR picture at a step (layouts.js's
+	// seedQr): { kids: for the canvas, over: HTML placed on its boxes }. Step 0
+	// the first thing, step 1 the arrow to the number and the number, step 2
+	// the arrow on to the last thing. toWords: the other way round (QR, then
+	// number, then words: recovering's end). reveal: the QR filling in.
+	function seedQrParts(lay, { words, entropy, qr, step, toWords = false, reveal = null }) {
+		const t = T(), b = lay.boxes, kids = [], over = [];
+		const digits = S.groupDigits(S.entropyNumber(entropy), 5);
+		const showWords = toWords ? step >= 2 : true, showNumber = step >= 1, showQr = toWords ? true : step >= 2;
+		if (showWords) {
+			over.push(place(h("div", { class: "qr-seed", "aria-hidden": "true" }, V.iconTag("seed")), { x: b.words.x, y: b.words.y - 22, w: 24, h: 20 }));
+			over.push(place(h("ol", { class: "qr-words" + (words.length > 12 ? " many" : "") }, words.map((w) => h("li", { text: w }))), b.words));
+		}
+		if (showNumber) {
+			over.push(V.fadeIn(place(h("div", { class: "qr-number" + (digits.length > 4 ? " many" : ""), role: "text" }, digits.map((x) => h("div", { text: x }))), b.number)));
+			over.push(place(h("div", { class: "qr-bits", text: t.qrBits(entropy.length * 8) }), { x: b.number.x, y: b.number.y + b.number.h + 4, w: b.number.w, h: 18 }));
+		}
+		if (showQr) {
+			kids.push(V.qr({ box: b.qr, size: qr.size, modules: (r, c) => qr.getModule(c, r), reveal }));
+			over.push(place(h("div", { class: "qr-label", text: t.qrLabel(qr.size) }), { x: b.qr.x, y: b.qr.y + b.qr.h + 2, w: b.qr.w, h: 16 }));
+		}
+		// the arrow of each step is the current one, the one before it past
+		lay.arrows.forEach((a, j) => { if (step >= j + 1) kids.push(V.arrow({ points: a.points, colour: a.colour, state: step === j + 1 ? "current" : "past" })); });
+		return { kids, over };
+	}
+	let qrSeen = 0;   // the step «Your QR» was last drawn at: the QR fills in only when a step grew
+	function qrSlide() {
+		const t = T(), m = st.make, words = m.seed.trim().split(/\s+/), qr = S.compactSeedQR(m.entropy), lay = Lay.seedQr({});
+		return {
+			id: "qr", question: t.qrQ, steps: 3, caption: (s) => [t.qrStepWords, t.qrStepNumber, t.qrStepQr][s],
+			help: helpOf(t.qrQ, null, [t.qrHelp]),
+			next: { go: () => turnGo(0, true) },
+			body: (step) => {
+				const grew = step > qrSeen && !calm();
+				qrSeen = step;
+				const reveal = step === 2 && grew ? { order: S.dataModulesRowMajor(qr.size), ms: 1000 } : null;
+				const parts = seedQrParts(lay, { words, entropy: m.entropy, qr, step, reveal });
+				return h("div", { class: "dict-slide" }, canvas(...parts.kids), ...parts.over);
+			},
 		};
 	}
 
@@ -1609,7 +1653,7 @@
 			count: `${pos}/${L}`, steps: explaining ? stages.length : 1, startStep: explaining && back ? last : 0, caption, shortcuts, help: explainTurn, body,
 			// Next while the cycle plays: first its end, then on
 			hurry: () => !!cycle && cycle.finish(),
-			prev: i > 0 ? { go: () => turnGo(i - 1) } : undefined,
+			prev: i > 0 ? { go: () => turnGo(i - 1) } : { go: () => goSlide("make", "qr") },
 			next: i < L - 1 ? { go: () => turnGo(i + 1) } : undefined,
 		};
 	}
