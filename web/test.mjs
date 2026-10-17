@@ -464,6 +464,7 @@ for (const n of [2, 4, 8, 16, 32]) {
 	check(as.boxes.dict.h / Math.ceil(n / as.columns) >= 15, `dictAsIs n=${n}: every row shows (${as.columns} column${as.columns > 1 ? "s" : ""})`);
 	check(as.boxes.actions.w >= 200 && as.boxes.actions.h >= 150, `dictAsIs n=${n}: room for its actions`);
 }
+for (const n of [4, 16, 32]) { const b = Lay.dictAsIs({ n }).boxes; check(b.dict.w === b.actions.w && b.dict.x === 16 && b.actions.x + b.actions.w === 664, `dictAsIs n=${n}: two equal columns, margin to margin`); }
 check(Lay.keyThrow({ sides: 6 }).faces.cols === 3 && Lay.keyThrow({ sides: 6 }).faces.rows === 2, "throw d6: three by two");
 // reading back: the dictionary in a popup, every button big enough to tap; the two ends
 for (const n of [2, 4, 8, 16, 32]) {
@@ -591,6 +592,12 @@ for (const pad of [false, true]) {
 	within(s, lay.boxes.seedString, "string build");
 	const edge = V.string({ box: lay.boxes.seedString, orientation: "h", role: "build", things, items: [undefined, undefined, 3, 4, null], current: 3 });
 	check(walk(edge, cls("v-piece")).length === 3, "string: no piece where the string has no position");
+	{
+		// the icon beside its thread: with no positions before the first, the thread still starts at the icon
+		const sb = lay.boxes.seedString, th = walk(edge, cls("v-thread"))[0], ic = walk(edge, cls("v-icon"))[0];
+		const icx = num(walk(ic, (n) => n.tag === "text")[0].attrs.x);
+		check(th && ic && num(th.attrs.x1) - icx > 0 && num(th.attrs.x1) - icx < 20 && icx < sb.x + 20, "string: the thread starts at its icon, even with no positions before the first");
+	}
 	const ref = V.string({ box: lay.boxes.keyString, orientation: "v", role: "reference", kind: "key", things, items: [1, 2, 3, 4, 5, 6, 7], firstPosition: 11, current: 3 });
 	check(walk(ref, cls("v-piece")).length === 7 && walk(ref, cls("v-turn-frame")).length === 1 && walk(ref, cls("v-thread-ref")).length === 1, "string: a reference, dotted, its turn's piece framed");
 	const refCy = num(walk(walk(ref, cls("v-current"))[0], (n) => n.tag === "circle")[0].attrs.cy);
