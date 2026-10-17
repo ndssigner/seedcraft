@@ -419,10 +419,15 @@ for (const sides of [2, 4, 6, 8, 10, 12, 16, 20]) {
 		const k = Math.log2(n), l = Lay.keyThrow({ sides, bits: k }), used = [];
 		for (let from = 0; from < k; from += b) used.push({ at: used.length, from, to: Math.min(k, from + b) });
 		const marks = Lay.throwMarks(l, { bits: k, used, rejected: Array.from({ length: 9 }, (_, i) => 10 + i) });
-		check(marks.used.every((m) => contains(l.boxes.dice, m.face) && m.face.w >= 14 && m.label[0] > l.boxes.dice.x + 8), `throw d${sides} N=${n}: each face that counts beside its bits, with room for its number`);
-		check(marks.used.every((m, i) => marks.used.slice(i + 1).every((o) => !overlap(m.face, o.face))), `throw d${sides} N=${n}: the faces that count apart`);
-		check(marks.rejected.length >= 4 && marks.rejected.every((m) => contains(l.boxes.rejected, m.face) && m.label[1] <= l.boxes.rejected.y + l.boxes.rejected.h)
+		check(marks.used.every((m) => contains(l.boxes.dice, m.face) && m.face.w >= 14 && contains(l.boxes.dice, m.badge) && !overlap(m.badge, m.face)
+			&& m.badge.h >= Lay.BADGE * 1.4 && m.badge.w >= Lay.BADGE * 2), `throw d${sides} N=${n}: each face that counts beside its bits, its badge (two digits of ${Lay.BADGE}) before it`);
+		check(marks.used.every((m, i) => marks.used.slice(i + 1).every((o) => !overlap(m.face, o.face) && !overlap(m.badge, o.badge))), `throw d${sides} N=${n}: the faces that count apart`);
+		check(marks.rejected.length >= 4 && marks.rejected.every((m) => contains(l.boxes.rejected, m.face) && contains(l.boxes.rejected, m.badge) && !overlap(m.face, m.badge))
 			&& marks.rejected[marks.rejected.length - 1].at === 18, `throw d${sides} N=${n}: the faces thrown again aside, the last ones`);
+		// read from the lectern: each face thrown again at least 24 units, its badge's number 10, with room for two digits and ↻
+		check(Lay.BADGE >= 10 && marks.rejected.every((m) => m.face.w >= 24 && m.face.h >= 24 && m.badge.h >= Lay.BADGE * 1.4 && m.badge.w >= Lay.BADGE * (0.6 * 2 + 0.8) + 2 + Lay.BADGE * 0.7)
+			&& marks.rejected.every((m, i) => marks.rejected.slice(i + 1).every((o) => !overlap(m.face, o.face) && !overlap(m.badge, o.badge) && !overlap(m.face, o.badge) && !overlap(m.badge, o.face))),
+		`throw d${sides} N=${n}: the faces thrown again big enough to read (faces ≥ 24, badges ≥ ${Lay.BADGE}), apart`);
 	}
 }
 for (const pos of [0, 3, 15, 16, 53, 90]) {
@@ -475,6 +480,37 @@ for (const n of [2, 16, 32]) {
 		`fileColumn read n=${n}: the middle place on the turn's row, its texts inside the column`);
 	const mk = Lay.makeTurn({ pad: true, n, file: true }), ref = Lay.fileColumn(mk.boxes.keyString, { role: "reference" }), from = mk.arrows.find((a) => a.id === "keyNumber").points[0];
 	check(ref.rows.length === 7 && ref.rows.every((r) => contains(mk.boxes.keyString, r.frame)) && Math.abs(ref.rows[3].y - from[1]) < 1, `fileColumn reference n=${n}: the turn's place framed, level with the arrow to its number`);
+}
+// a string read, vertical: each row's position, piece and number side by side, never one over the other;
+// the position on the column's outer side (the seed's on the left, the key's on the right), the number beside the piece
+{
+	const textW = (s, fs) => 0.6 * fs * String(s).length;
+	const rowsApart = (c, col, what) => {
+		check(c.rows.length === 7 && c.rows.every((r) => [r.pos, r.piece, r.value].every((x) => contains(col, x)) && !overlap(r.pos, r.piece) && !overlap(r.pos, r.value) && !overlap(r.piece, r.value)
+			&& r.pos.y === r.piece.y && r.value.y === r.piece.y), `${what}: position, piece and number side by side in each row, inside the column`);
+		check(c.outer === "left" ? c.rows.every((r) => r.pos.x === col.x && r.value.x > r.piece.x) : c.rows.every((r) => r.pos.x + r.pos.w === col.x + col.w && r.value.x < r.piece.x),
+			`${what}: the position on the outer side (${c.outer}), the number beside the piece`);
+		check(c.rows.every((r) => r.pos.w >= textW(364, 10) && r.value.w >= textW(31, 13) && 2 * c.r <= r.piece.w && r.piece.h >= 2 * c.r), `${what}: room for «364», «31» and the piece`);
+	};
+	for (const pad of [false, true]) for (const n of [2, 16, 32]) {
+		const rt = Lay.readTurn({ pad, n });
+		rowsApart(rt.columns.seed, rt.boxes.seedColumn, `readTurn pad=${pad} n=${n} seed`);
+		check(rt.columns.seed.outer === "left" && contains(rt.columns.seed.rows[3].piece, rt.boxes.seedSlot), `readTurn pad=${pad} n=${n}: the seed's slot on its piece's place`);
+		if (pad) {
+			rowsApart(rt.columns.key, rt.boxes.keyColumn, `readTurn n=${n} key`);
+			check(rt.columns.key.outer === "right" && contains(rt.columns.key.rows[3].piece, rt.boxes.keySlot), `readTurn n=${n}: the key's slot on its piece's place`);
+			// the key file's column the same way: its number beside the character, its place outside
+			const fc = Lay.fileColumn(rt.boxes.keyColumn);
+			check(fc.rows.every((r) => !overlap(r.valueBox, r.digitBox) && !overlap(r.posBox, r.digitBox) && !overlap(r.posBox, r.valueBox) && r.posBox.x + r.posBox.w === rt.boxes.keyColumn.x + rt.boxes.keyColumn.w
+				&& [["value", "valueBox"], ["pos", "posBox"], ["digit", "digitBox"]].every(([p, bx]) => p === "digit" ? Math.abs(r[p][0] - (r[bx].x + r[bx].w / 2)) < 0.01 : Math.abs(r[p][0] - (r[bx].x + r[bx].w / 2)) < 0.01)),
+			`fileColumn read n=${n}: the number, the character and the place side by side, the place outside`);
+		}
+	}
+	for (const pad of [false, true]) {
+		const cf = Lay.checkFinal({ pad });
+		rowsApart(cf.columns.seed, cf.boxes.seedColumn, `checkFinal pad=${pad} seed`);
+		if (pad) rowsApart(cf.columns.key, cf.boxes.keyColumn, "checkFinal key");
+	}
 }
 // storing it: two places apart with a key, the border between them; the string's place and the dictionary apart with none
 for (const pad of [false, true]) {
@@ -544,7 +580,7 @@ for (const pad of [false, true]) {
 	check(Math.abs(refCy - 131) < 1, "string: the reference's turn piece is level with the arrow that leaves it");
 	within(ref, lay.boxes.keyString, "string reference");
 	let slotHit = null;
-	const rd = V.string({ box: rlay.boxes.keyColumn, orientation: "v", role: "read", kind: "key", things, items: [2, 9, 4, null, undefined, undefined, undefined], firstPosition: 1, current: 3, onSlot: (i) => { slotHit = i; } });
+	const rd = V.string({ box: rlay.boxes.keyColumn, orientation: "v", role: "read", kind: "key", column: rlay.columns.key, things, items: [2, 9, 4, null, undefined, undefined, undefined], firstPosition: 1, current: 3, onSlot: (i) => { slotHit = i; } });
 	const vals = walk(rd, cls("v-value"));
 	check(vals.length === 3 && vals.every(cls("v-c-key")) && textOf(vals[1]) === "9", "string read: each piece's number beside it, in its string's colour");
 	const slot = walk(rd, cls("v-slot"))[0];
@@ -552,7 +588,32 @@ for (const pad of [false, true]) {
 	const rk = rlay.boxes.keySlot, rcx = num(walk(slot, (n) => n.tag === "circle")[0].attrs.cx), rcy = num(walk(slot, (n) => n.tag === "circle")[0].attrs.cy);
 	check(rcx > rk.x && rcx < rk.x + rk.w && rcy > rk.y && rcy < rk.y + rk.h, "string read: the turn's hole is in the slot's box");
 	within(rd, rlay.boxes.keyColumn, "string read");
-	check(walk(rd, (n) => n.tag === "text" && textOf(n) === "⚿").length === 1 && walk(s, (n) => n.tag === "text" && textOf(n) === "🌱").length === 1, "string: the seed's or the key's icon beside it");
+	// drawn as readColumn says: each number and position on its own box, never over each other
+	{
+		const sd = V.string({ box: rlay.boxes.seedColumn, orientation: "v", role: "read", kind: "seed", things, items: [2, 9, 4, 6, 1, 3, 5], firstPosition: 1, current: 3, column: rlay.columns.seed });
+		const col = rlay.columns.seed, ins = (t, b) => num(t.attrs.x) > b.x && num(t.attrs.x) < b.x + b.w && num(t.attrs.y) > b.y && num(t.attrs.y) < b.y + b.h;
+		const vs = walk(sd, cls("v-value")), ps = walk(sd, cls("v-pos"));
+		check(vs.length === 7 && ps.length === 7 && vs.every((t, j) => ins(t, col.rows[j].value)) && ps.every((t, j) => ins(t, col.rows[j].pos)),
+			"string read: each number beside its piece, each position on the outer side, on readColumn's boxes");
+		const kv = walk(rd, cls("v-value")), kp = walk(rd, cls("v-pos")), kc = rlay.columns.key;
+		check(kp.every((t) => num(t.attrs.x) > kc.rows[0].pos.x) && kv.every((t) => num(t.attrs.x) < kc.rows[0].piece.x), "string read: the key's positions on its right, its numbers on the left of its pieces");
+	}
+	check(walk(rd, (n) => n.attrs["data-icon"] === "key").length === 1 && walk(s, (n) => n.tag === "text" && textOf(n) === "🌱").length === 1, "string: the seed's or the key's icon beside it");
+	// the key's icon is drawn (⚿ is missing from common fonts), with no text, the same in SVG and in HTML
+	{
+		const ki = V.icon("key", 50, 50, 24), tag = V.iconTag("key");
+		check(ki.tag === "g" && cls("v-icon-key")(ki) && !walk(ki, (n) => n.tag === "text").length && walk(ki, (n) => n.tag === "circle").length === 1, "icon: the key drawn, a bow and a shaft, no glyph");
+		within(ki, { x: 38, y: 38, w: 24, h: 24 }, "icon: the key in its square");
+		check(tag.tag === "span" && tag.attrs["aria-hidden"] === "true" && walk(tag, (n) => n.tag === "svg").length === 1 && !textOf(tag).trim(), "iconTag: the key as a little drawing beside a text");
+		for (const k of ["save", "home", "info"]) check(!walk(V.icon(k, 12, 12, 24), (n) => n.tag === "text").length, `icon: ${k} drawn, no glyph`);
+		check(textOf(V.iconTag("seed")) === "🌱", "iconTag: the seed's is its emoji");
+		const bd = V.badge(12, 30, 30, 10);
+		check(textOf(bd) === "12" && walk(bd, cls("v-badge-ring")).length === 1 && num(walk(bd, cls("v-badge-ring"))[0].attrs.width) >= 0.6 * 10 * 2 + 4, "badge: an order number in a ring, drawn (no ①), wide enough for two digits");
+		// no symbol a common font may lack, anywhere in the page's code or texts
+		const glyphs = /[\u26BF\u2302\u2913\u2460-\u24FF\u3251-\u32BF]/u;
+		for (const f of ["src/vocab.js", "src/app.js", "src/slides.js", "src/journeys.js", "src/i18n.js", "src/style.css", "src/seedcraft.html"])
+			check(!glyphs.test(read(f)), `${f}: no ⚿ ⌂ ⤓ nor circled numbers (drawn instead)`);
+	}
 
 	// dictionary: a reel turns until its value's row is centred in a 3-row window
 	for (const b of [lay.boxes.keyDict, lay.boxes.seedDict]) {
@@ -630,6 +691,8 @@ for (const pad of [false, true]) {
 	const cr = V.clock({ box: lay.boxes.clock, n: 16, from: 11, by: 9, sign: 1, phase: "run" });
 	check(textOf(walk(cr, cls("v-clock-out"))[0]) === "4", "clock run, without animation: the value appears directly");
 
+	// a clock's run lasts at most RUN_MS (about 1.2 s), its step never slower than 220 ms
+	check(V.RUN_MS <= 1200 && [1, 5, 9, 15, 31].every((by) => V.clockStepMs(by) <= 220 && V.clockStepMs(by) * by <= V.RUN_MS + 0.01) && V.clockStepMs(3) === 220, "clock run: 220 ms a step, at most 1.2 s in all (N = 32)");
 	// a clock's onDone always comes after clock() has returned, moving or not
 	{
 		let done = 0;
@@ -688,7 +751,13 @@ for (const pad of [false, true]) {
 	cardList[0].attrs.on.click(); check(chose === "a", "cards: a tap chooses");
 
 	// a die, and its faces as buttons
-	check(textOf(V.die({ sides: 6, face: 3, size: 56 })) === "4" && textOf(V.die({ sides: 10, face: 3 })) === "3" && textOf(V.die({ sides: 6, face: null })) === "?", "die: its face");
+	check(textOf(V.die({ sides: 8, face: 3, size: 56 })) === "4" && textOf(V.die({ sides: 10, face: 3 })) === "3" && textOf(V.die({ sides: 6, face: null })) === "?", "die: its face, in digits from a d8 on");
+	// a d4's and a d6's faces are pips, as on the dice; the device's (a label) and a coin's stay words
+	for (const sides of [4, 6]) for (let f = 0; f < sides; f++) {
+		const d = V.die({ sides, face: f, size: 26 });
+		check(!walk(d, (n) => n.tag === "text").length && walk(d, cls("v-die-pip")).length === f + 1, `die d${sides}: face ${f + 1} in pips`);
+	}
+	check(textOf(V.die({ sides: 6, label: "13", size: 100 })) === "13" && textOf(V.die({ sides: 2, face: 1, label: "H" })) === "H" && !walk(V.die({ sides: 8, face: 0 }), cls("v-die-pip")).length, "die: a label, a coin and a d8 without pips");
 	let pressed = null;
 	const fb = V.faceButton({ sides: 20, face: 4, onPress: (f) => { pressed = f; }, size: 31 });
 	check(fb.tag === "button" && cls("v-face")(fb), "faceButton: a button");
@@ -827,6 +896,18 @@ for (const pad of [false, true]) {
 	for (const lang of ["en", "es"]) check((TX[lang].turnSlot(364) + " " + TX[lang].seqKeyChanged).length <= 110, `caption ${lang}: slot + key changed fits`);
 	// the first turn read: how to read each form
 	for (const lang of ["en", "es"]) for (const [id, f] of Object.entries(TX[lang].forms)) check(f.read.length <= 110, `caption ${lang}.forms.${id}.read at most 110 characters (${f.read.length})`);
+}
+// the lectern's foot: two lines of caption at most and «step n of m», all inside the foot (style.css, in the frame's units)
+{
+	const css = read("src/style.css"), rule = (sel) => { const m = new RegExp(sel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*\\{([^}]*)\\}").exec(css); return m ? m[1] : ""; };
+	const prop = (r, p) => { const m = new RegExp("(?:^|;|\\s)" + p + ":\\s*([^;]+)").exec(r); return m ? m[1].trim() : ""; };
+	const units = (v) => { const m = /calc\(var\(--u\) \* ([\d.]+)\)/.exec(v); return m ? parseFloat(m[1]) : NaN; };
+	const frame = rule(".slide-frame"), foot = rule(".slide-foot"), p = rule(".slide-caption p"), small = rule(".slide-caption small");
+	const fs = units(prop(frame, "font-size")), footH = units(prop(foot, "height")), footTop = units(prop(foot, "top"));
+	const em = (v) => parseFloat(v);
+	const need = fs * (2 * em(prop(p, "font-size")) * em(prop(p, "line-height")) + em(prop(small, "font-size")) * em(prop(small, "line-height")));
+	check(/line-clamp:\s*2/.test(p) && /max-height/.test(p), "the caption: two lines at most");
+	check(need <= footH && footTop + footH <= 382.5 + 0.01 && Math.abs(680 / 382.5 - 16 / 9) < 0.001, `the foot: two caption lines and the step line (${need.toFixed(1)}) inside it (${footH}), inside the 16:9 frame`);
 }
 console.log(`${failures ? "FAIL" : "ok"}: ${vectors.length} vectors, ${padVectors.length} pad vectors, ${failures} failures`);
 process.exit(failures ? 1 : 0);

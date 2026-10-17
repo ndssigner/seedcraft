@@ -19,7 +19,6 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	const mod = (x, n) => ((x % n) + n) % n;
 	const r1 = (x) => Math.round(x * 10) / 10;
 	const colourClass = (c) => "v-c-" + (c || "seed");
-	const ICON = { seed: "🌱", key: "⚿" };
 	const text = (x, y, size, s, attrs = {}) => svg("text", { x: r1(x), y: r1(y), "font-size": r1(size), ...attrs, class: "v-t" + (attrs.class ? " " + attrs.class : "") }, String(s));
 	// a text cut to a width, roughly (an average glyph is about 0.56 em)
 	const fit = (s, width, size) => {
@@ -36,6 +35,43 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 		el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); } });
 		return el;
 	};
+
+	// ---- icons: the seed's 🌱 (an emoji every system draws), the rest drawn ----
+	// (no symbol a system's fonts may lack: the key, home, save, the circled
+	// numbers' code points). Each icon is lines in a
+	// 24-unit square around its centre, in absolute coordinates (no transform).
+	// key: a bow, a shaft, two teeth; save: an arrow down onto a tray; home: a
+	// house; info: a ring round an «i».
+	const SHAPES = {
+		key: (c, u) => [svg("circle", { cx: r1(c[0] - 5 * u), cy: r1(c[1]), r: r1(4 * u) }),
+			svg("path", { d: `M${r1(c[0] - u)} ${r1(c[1])} H${r1(c[0] + 10 * u)} M${r1(c[0] + 6.5 * u)} ${r1(c[1])} V${r1(c[1] + 3.5 * u)} M${r1(c[0] + 10 * u)} ${r1(c[1])} V${r1(c[1] + 4.5 * u)}` })],
+		save: (c, u) => [svg("path", { d: `M${r1(c[0])} ${r1(c[1] - 9 * u)} V${r1(c[1] + 3 * u)} M${r1(c[0] - 5 * u)} ${r1(c[1] - 2 * u)} L${r1(c[0])} ${r1(c[1] + 3 * u)} L${r1(c[0] + 5 * u)} ${r1(c[1] - 2 * u)} M${r1(c[0] - 8 * u)} ${r1(c[1] + 8 * u)} H${r1(c[0] + 8 * u)}` })],
+		home: (c, u) => [svg("path", { d: `M${r1(c[0] - 9 * u)} ${r1(c[1])} L${r1(c[0])} ${r1(c[1] - 8 * u)} L${r1(c[0] + 9 * u)} ${r1(c[1])} M${r1(c[0] - 6 * u)} ${r1(c[1] - 2 * u)} V${r1(c[1] + 8 * u)} H${r1(c[0] + 6 * u)} V${r1(c[1] - 2 * u)}` })],
+		info: (c, u) => [svg("circle", { cx: r1(c[0]), cy: r1(c[1]), r: r1(9 * u) }),
+			svg("path", { d: `M${r1(c[0])} ${r1(c[1] - 1.5 * u)} V${r1(c[1] + 5 * u)} M${r1(c[0])} ${r1(c[1] - 5 * u)} V${r1(c[1] - 4 * u)}` })],
+	};
+	// in an SVG drawing: the icon centred on (x, y), size units across
+	function icon(kind, x, y, size) {
+		if (kind === "seed" || !SHAPES[kind]) return text(x, y + size * 0.35, size, "🌱", { "text-anchor": "middle", class: "v-icon", "data-icon": "seed" });
+		const u = size / 24;
+		return svg("g", { class: `v-icon v-icon-drawn v-icon-${kind}`, "data-icon": kind, "stroke-width": r1(Math.max(1, 2.2 * u)) }, SHAPES[kind]([x, y], u));
+	}
+	// in a text (HTML): the icon as a little inline drawing (the seed's, its emoji), beside the words
+	function iconTag(kind) {
+		if (kind === "seed" || !SHAPES[kind]) return h("span", { class: "v-ico", "aria-hidden": "true", "data-icon": "seed" }, "🌱");
+		return h("span", { class: "v-ico", "aria-hidden": "true", "data-icon": kind },
+			svg("svg", { class: `v-ico-svg v-icon-${kind}`, viewBox: "0 0 24 24", width: "24", height: "24" }, icon(kind, 12, 12, 24)));
+	}
+	// an order number in a ring (drawn: the circled digits are missing from
+	// many fonts), centred on (x, y), its number size units high (≥ 10 to read):
+	// a circle for one digit, a pill as wide as it takes for more (badgeSize)
+	const badgeSize = (n, size = 10) => { const len = String(n).length; return { w: r1(Math.max(1.4 * size, 0.6 * size * len + 0.8 * size)), h: r1(1.4 * size) }; };
+	function badge(n, x, y, size = 10, cls = "") {
+		const s = String(n), { w, h: hh } = badgeSize(n, size);
+		return svg("g", { class: "v-badge" + (cls ? " " + cls : ""), "data-n": s },
+			svg("rect", { x: r1(x - w / 2), y: r1(y - hh / 2), width: w, height: hh, rx: r1(hh / 2), class: "v-badge-ring" }),
+			text(x, y + size * 0.36, size, s, { "text-anchor": "middle", class: "v-badge-n" }));
+	}
 
 	// ---- one piece -------------------------------------------------------
 	// centred on (x, y): its photo, else its emoji, else its symbol on its
@@ -87,7 +123,9 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	// its string's colour (showValues). onSlot(i): a hole is a «+» to tap.
 	// room: the icon's room at each end, if not the usual (a small drawing on a card).
 	// titleOf(i): what hovering piece i says, if not its position and name.
-	function string({ box, orientation = "h", role = "build", kind = "seed", things = [], items = [], firstPosition = 1, current = -1, showValues = role === "read", onSlot, onPiece, room, titleOf }) {
+	// column (role "read", vertical): layouts.js's readColumn for this box (readTurn's and
+	// checkFinal's columns); else one is made with outer: the side its positions go on.
+	function string({ box, orientation = "h", role = "build", kind = "seed", things = [], items = [], firstPosition = 1, current = -1, showValues = role === "read", onSlot, onPiece, room, titleOf, column, outer = "left" }) {
 		const n = Math.max(1, items.length), vertical = orientation === "v";
 		// the icon's room at the start, the same at the end, so the middle position stays at the box's middle
 		const pad = room !== undefined ? room : vertical ? Math.min(14, box.h * 0.08) : Math.min(20, box.w * 0.04);
@@ -107,7 +145,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 				? [svg("text", { x: r1(x), y: r1(box.y + box.h - 3), "font-size": r1(NAME), "text-anchor": "middle", class: "v-t v-name" },
 					svg("tspan", { class: "v-pos v-pos-current v-c-qr v-bold" }, String(pos)), thing ? " " + fit(thing.name, 3 * pitch - NAME * 2, NAME) : "")]
 				: [text(x, cy - r - 1.5, 9, pos, { "text-anchor": "middle", class: "v-pos" })];
-			parts.push(text(box.x + pad / 2, cy + Math.min(pad * 0.7, 14) * 0.35, Math.min(pad * 0.7, 14), ICON[kind], { "text-anchor": "middle", class: "v-icon" }));
+			parts.push(icon(kind, box.x + pad / 2, cy, Math.min(pad * 0.7, 14)));
 		} else if (!vertical) {
 			const cy = box.y + box.h * 0.38;
 			r = Math.max(3, Math.min(pitch / 2 - 6, box.h * 0.27) * (role === "reference" ? 0.7 : 1));
@@ -115,17 +153,18 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			label = (i, x, y, thing, pos, value) => [
 				text(x, box.y + box.h - 2, 9, pos, { "text-anchor": "middle", class: posClass(i) }),
 				value !== null && showValues ? text(x + pitch / 2 - 2, box.y + 10, 9, value, { "text-anchor": "end", class: "v-value " + colourClass(kind) }) : null];
-			parts.push(text(box.x + pad / 2, cy + Math.min(pad * 0.7, 14) * 0.35, Math.min(pad * 0.7, 14), ICON[kind], { "text-anchor": "middle", class: "v-icon" }));
+			parts.push(icon(kind, box.x + pad / 2, cy, Math.min(pad * 0.7, 14)));
 		} else if (role === "read") {
-			// the piece on the left, its number on the right (big, in its string's colour), its position under that
-			const cx = box.x + Math.min(22, box.w * 0.32);
-			r = Math.max(3, Math.min(pitch / 2 - 3, 16, cx - box.x - 2));
-			place = (i) => [cx, box.y + pad + pitch * (i + 0.5)];
-			const lx = (cx + r + box.x + box.w) / 2, fs = Math.min(13, pitch * 0.38), small = 9;
+			// layouts.js's readColumn: each row's position on the column's outer side (outer),
+			// the piece in the middle, its number (big, in its string's colour) beside it, never one over the other
+			const col = column && column.rows.length === n ? column : L.readColumn(box, { outer, top: pad, count: n }), mid = (b) => b.x + b.w / 2;
+			r = col.r;
+			place = (i) => [mid(col.rows[i].piece), col.rows[i].y];
+			const fs = Math.min(13, pitch * 0.38), small = 9;
 			label = (i, x, y, thing, pos, value) => [
-				value !== null && showValues ? text(lx, y + fs * 0.15, fs, value, { "text-anchor": "middle", class: "v-value v-bold " + colourClass(kind) }) : null,
-				text(lx, y + fs * 0.15 + small + 1, small, pos, { "text-anchor": "middle", class: posClass(i) })];
-			parts.push(text(cx, box.y + pad * 0.8, pad * 0.75, ICON[kind], { "text-anchor": "middle", class: "v-icon" }));
+				value !== null && showValues ? text(mid(col.rows[i].value), y + fs * 0.36, fs, value, { "text-anchor": "middle", class: "v-value v-bold " + colourClass(kind) }) : null,
+				text(mid(col.rows[i].pos), y + small * 0.36, small, pos, { "text-anchor": "middle", class: posClass(i) })];
+			parts.push(icon(kind, col.icon[0], col.icon[1], pad * 0.75));
 		} else {
 			// the position on the left, the piece on the right
 			const numW = 12;
@@ -136,7 +175,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			label = (i, x, y, thing, pos, value) => [
 				text(box.x + numW / 2, y + fs * 0.35, i === current ? 10 : fs, pos, { "text-anchor": "middle", class: posClass(i) }),
 				value !== null && showValues ? text(box.x + numW / 2, y + fs * 1.4, fs, value, { "text-anchor": "middle", class: "v-value " + colourClass(kind) }) : null];
-			parts.push(text(cx, box.y + pad * 0.8, pad * 0.75, ICON[kind], { "text-anchor": "middle", class: "v-icon" }));
+			parts.push(icon(kind, cx, box.y + pad / 2, pad * 0.75));
 		}
 		// the thread, from the first position there is to the last
 		const there = items.map((x, i) => x === undefined ? -1 : i).filter((i) => i >= 0);
@@ -172,13 +211,13 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	// middle; from: the value it turns from (animated unless reduced motion).
 	// "picker": every piece as a button; onPick(v). columns ("static"): side by
 	// side, so that every row shows (the first column 0 …, the next on from there).
-	function dictionary({ box, things = [], mode = "static", value = null, icon = "seed", onPick, from, columns = 1 }) {
+	function dictionary({ box, things = [], mode = "static", value = null, icon: kind = "seed", onPick, from, columns = 1 }) {
 		const N = things.length, tabH = L.pickerGrid(box, N).tabH;
 		const card = { x: box.x, y: box.y + tabH, w: box.w, h: box.h - tabH }, inner = { x: card.x + 2, y: card.y + 2, w: card.w - 4, h: card.h - 4 };
 		const tabW = Math.min(30, box.w * 0.4);
 		const parts = [
 			svg("rect", { x: box.x, y: box.y, width: r1(tabW), height: tabH + 2, rx: 3, class: "v-dict-tab" }),
-			text(box.x + tabW / 2, box.y + tabH * 0.82, Math.max(9, tabH * 0.8), ICON[icon], { "text-anchor": "middle", class: "v-icon" }),
+			icon(kind, box.x + tabW / 2, box.y + tabH * 0.82 - Math.max(9, tabH * 0.8) * 0.35, Math.max(9, tabH * 0.8)),
 			svg("rect", { x: card.x, y: card.y, width: card.w, height: card.h, rx: 4, class: "v-dict-card" }),
 		];
 		const row = (v, y, rowH, on, col = inner) => {
@@ -203,7 +242,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 					text(x + cw / 2, y + ch - 3, fs, fit(thing.name, cw - 6, fs), { "text-anchor": "middle", class: "v-name" }),
 					svg("title", {}, `${v}: ${thing.name || ""}`)), () => onPick && onPick(v)));
 			});
-			return svg("g", { class: `v v-dict v-dict-${icon} v-picker` }, parts);
+			return svg("g", { class: `v v-dict v-dict-${kind} v-picker` }, parts);
 		}
 		if (mode === "reel") {
 			const rowH = inner.h / 3, at = (v) => inner.y + rowH - (v === null ? 0 : v) * rowH, id = nextId("reel");
@@ -218,7 +257,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 				strip.style.transform = `translate(0px, ${r1(at(from))}px)`;
 				requestAnimationFrame(() => requestAnimationFrame(() => { strip.style.transform = `translate(0px, ${r1(at(value))}px)`; }));
 			}
-			return svg("g", { class: `v v-dict v-dict-${icon} v-reel` }, parts);
+			return svg("g", { class: `v v-dict v-dict-${kind} v-reel` }, parts);
 		}
 		// static: every row if each gets 15 px (a 9 px name), in its columns
 		const per = Math.ceil(N / Math.max(1, columns));
@@ -229,7 +268,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 				if (v === value) parts.push(svg("rect", { x: r1(col.x), y: r1(y), width: r1(cw), height: r1(rowH), rx: 3, class: "v-dict-on" }));
 				parts.push(row(v, y, rowH, v === value, col));
 			}
-			return svg("g", { class: `v v-dict v-dict-${icon} v-static` }, parts);
+			return svg("g", { class: `v v-dict v-dict-${kind} v-static` }, parts);
 		}
 		// else the rows around value
 		const show = Math.max(1, Math.min(N, Math.floor(inner.h / 15))), rowH = Math.min(20, inner.h / show);
@@ -239,7 +278,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			if (v === value) parts.push(svg("rect", { x: inner.x, y: r1(y), width: inner.w, height: r1(rowH), rx: 3, class: "v-dict-on" }));
 			parts.push(row(v, y, rowH, v === value));
 		}
-		return svg("g", { class: `v v-dict v-dict-${icon} v-static` }, parts);
+		return svg("g", { class: `v v-dict v-dict-${kind} v-static` }, parts);
 	}
 
 	// ---- binary: each bit in its little box, with «₂» --------------------
@@ -284,13 +323,18 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	// ---- the clock module: inputs on top, the dial, the output at the bottom ----
 	// The bands and the dial are layouts.js's clockModule (the arrows enter its
 	// cells). phase "inputs": the two numbers only; "run": the token goes round
-	// step by step (about 220 ms a step), then the output; directly with
-	// reduced motion; "done": the token at the result, the arc, the output.
+	// step by step (220 ms a step, at most RUN_MS in all: with N = 32 a step is
+	// quicker), then the output; directly with reduced motion; "done": the token
+	// at the result, the arc, the output.
 	// inputColour: the first number's colour ("qr" making a copy, "seed" reading).
 	// onDone ("run"): called once the output shows, always after clock() has returned.
+	// alive ("run"): whether the run still counts (the drawing it is in still the
+	// latest): once it says no, the token stops where it is and onDone never comes.
 	// from or by null: that number is not there yet (reading, a piece still to
 	// choose): its band empty, the ring with its numbers, nothing turning.
-	function clock({ box, n, from, by, sign = 1, phase = "done", inputColour = "qr", onDone }) {
+	// a step of the token: 220 ms, quicker when there are many, so a run lasts at most RUN_MS
+	const RUN_MS = 1200, clockStepMs = (steps) => Math.min(220, RUN_MS / Math.max(1, steps));
+	function clock({ box, n, from, by, sign = 1, phase = "done", inputColour = "qr", onDone, alive }) {
 		const m = L.clockModule(box), { cx, cy, r } = m.dial;
 		const angle = (v) => 2 * Math.PI * v / n - Math.PI / 2;
 		const at = (v, rr = r) => [r1(cx + rr * Math.cos(angle(v))), r1(cy + rr * Math.sin(angle(v)))];
@@ -355,17 +399,18 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 		if (moving) {
 			// the token goes round a step at a time, the counter counting; then the arc and the output
 			let k = 0;
+			const step = clockStepMs(by);
 			const tick = () => {
-				if (k > 0 && g.isConnected === false) return;
+				if (alive ? !alive() : k > 0 && g.isConnected === false) return;
 				k++;
 				const [x, y] = at(mod(from + sign * k, n));
 				token.setAttribute("cx", x); token.setAttribute("cy", y); counter.textContent = byText(k);
-				if (k < by) { setTimeout(tick, 220); return; }
+				if (k < by) { setTimeout(tick, step); return; }
 				output.textContent = String(to);
 				if (arc) arc.setAttribute("visibility", "visible");
 				if (onDone) later(onDone);
 			};
-			setTimeout(tick, 220);
+			setTimeout(tick, step);
 		} else if (phase === "run" && onDone) later(onDone);
 		return g;
 	}
@@ -421,20 +466,28 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 
 	// ---- dice: a face in relief (a coin is round) --------------------------
 	// face: from 0 (shown as 1 … sides, a d10's 0 … 9), null: «?». label: the
-	// face's own name instead (a coin's heads and tails).
+	// face's own name instead (a coin's heads and tails). A d4's and a d6's
+	// faces are pips, as on the dice themselves; from a d8 on, digits.
 	const faceLabel = (sides, face, label) => label !== undefined ? label : face === null || face === undefined ? "?" : String(sides === 10 ? face : face + 1);
+	// where the pips of 1 … 6 go, on a 3 × 3 grid (column, row) round the face's centre
+	const PIPS = [null, [[1, 1]], [[0, 0], [2, 2]], [[0, 0], [1, 1], [2, 2]], [[0, 0], [2, 0], [0, 2], [2, 2]],
+		[[0, 0], [2, 0], [1, 1], [0, 2], [2, 2]], [[0, 0], [2, 0], [0, 1], [2, 1], [0, 2], [2, 2]]];
+	const pipped = (sides, face, label) => label === undefined && (sides === 4 || sides === 6) && face !== null && face !== undefined && face >= 0 && face < sides;
 	function die({ sides, face = null, size = 56, label, rolling = false }) {
 		const coin = sides === 2, s = faceLabel(sides, face, label);
 		const body = coin
 			? [svg("circle", { cx: 50, cy: 53, r: 42, class: "v-die-edge" }), svg("circle", { cx: 50, cy: 48, r: 42, class: "v-die-body" }), svg("circle", { cx: 50, cy: 48, r: 33, class: "v-die-rim" })]
 			: [svg("rect", { x: 8, y: 13, width: 84, height: 84, rx: 18, class: "v-die-edge" }), svg("rect", { x: 8, y: 6, width: 84, height: 84, rx: 18, class: "v-die-body" })];
 		const fs = s.length > 2 ? 30 : 44;
+		const mark = pipped(sides, face, label)
+			? svg("g", { class: "v-die-pips", "data-face": s }, PIPS[face + 1].map(([c, r]) => svg("circle", { cx: 28 + 22 * c, cy: 26 + 22 * r, r: 9, class: "v-die-pip" })))
+			: svg("text", { x: 50, y: 48 + fs * 0.36, "font-size": fs, "text-anchor": "middle", class: "v-t v-bold v-die-face" }, s);
 		return svg("svg", { class: "v-die" + (coin ? " v-coin" : "") + (rolling ? " v-rolling" : ""), width: size, height: size, viewBox: "0 0 100 100", "aria-hidden": "true" },
-			body, svg("text", { x: 50, y: 48 + fs * 0.36, "font-size": fs, "text-anchor": "middle", class: "v-t v-bold v-die-face" }, s));
+			body, mark);
 	}
 	const faceButton = ({ sides, face, onPress, disabled = false, label, size = 48 }) =>
 		h("button", { type: "button", class: "v-face", disabled: disabled || undefined, "aria-label": faceLabel(sides, face, label), on: { click: () => onPress && onPress(face) } },
 			die({ sides, face, size, label }));
 
-	return { string, dictionary, bits, number, piece, frame, clock, qr, arrow, cards, die, faceButton };
+	return { RUN_MS, clockStepMs, icon, iconTag, badge, badgeSize, string, dictionary, bits, number, piece, frame, clock, qr, arrow, cards, die, faceButton };
 }

@@ -107,8 +107,12 @@ const SeedcraftSlides = (() => {
 		else if (e.key === "ArrowLeft") { e.preventDefault(); move("prev"); }
 	}
 
+	// Next (the button, the space bar, →) while the slide is still playing
+	// something (slide.hurry(): true if it was, and it is now at its end):
+	// that press only finishes it; the next one moves on.
 	function move(dir) {
 		if (!slide) return;
+		if (dir !== "prev" && typeof slide.hurry === "function" && slide.hurry()) return;
 		const r = nextOf({ step, dir }, slide);
 		if (!r) return;
 		if ("step" in r) { step = r.step; draw(); }
@@ -239,7 +243,7 @@ const SeedcraftSlides = (() => {
 		el.aside = h("aside", { class: "slide-panel", role: "dialog", "aria-modal": "true", "aria-label": say("slidesMore", "More") },
 			h("div", { class: "slide-panel-top" }, close),
 			h("ul", { class: "slide-shortcuts" }, (s.shortcuts || []).map((x) => h("li", {},
-				h("button", { on: { click: () => { panel(false); x.go(); } } }, h("span", { class: "slide-icon", "aria-hidden": "true", text: x.icon || "" }), h("span", { text: x.label }))))),
+				h("button", { on: { click: () => { panel(false); x.go(); } } }, h("span", { class: "slide-icon", "aria-hidden": "true" }, x.icon || ""), h("span", { text: x.label }))))),
 			h("div", { class: "slide-panel-foot" },
 				t.langSwitch ? h("button", { class: "btn ghost small", id: "slide-lang", on: { click: () => switchLang(t.langSwitch) } }, t.langName) : null,
 				h("label", { class: "slide-awake" }, awakeBox, h("span", { text: say("slidesAwake", "Keep the screen on") }))));

@@ -9,6 +9,9 @@ const SeedcraftLayouts = (() => {
 	const box = (x, y, w, h) => ({ x, y, w, h });
 	const BIT = 22;                                   // a bit's little box, binary row and tower
 	const bitsOf = (n) => Math.max(1, Math.ceil(Math.log2(n)));
+	// a face thrown again (keyThrow's rejected): its cell (w × h), its face's
+	// side, its order badge's height; BADGE: the size of a badge's number
+	const REJECT = { w: 31, h: 42, face: 26, badge: 14 }, BADGE = 10, USED_BADGE = { w: 20, h: 14 };
 
 	// an arrow is dashed, straight and turns only at right angles
 	function route(points) {
@@ -105,32 +108,54 @@ const SeedcraftLayouts = (() => {
 		return { boxes: b, arrows };
 	}
 
+	// A string read, vertical (vocab.js's "read" role), 7 places (count): each place's
+	// row split in three, side by side, never one over the other: its position
+	// on the column's outer side (outer "left": the seed's, the leftmost; "right":
+	// the key's, beside it), the piece in the middle, its number on the inner
+	// side, beside the piece. top: the icon's room at each end (as the string's);
+	// r: the piece's radius; icon: the icon's centre, over the pieces.
+	const POS_W = 18, VALUE_W = 22;
+	function readColumn(b, { outer = "left", top = Math.min(14, b.h * 0.08), count = 7 } = {}) {
+		const pitch = (b.h - 2 * top) / count, pieceW = b.w - POS_W - VALUE_W, left = outer === "left";
+		const posX = left ? b.x : b.x + b.w - POS_W, pieceX = left ? b.x + POS_W : b.x + VALUE_W, valueX = left ? b.x + POS_W + pieceW : b.x;
+		const rows = Array.from({ length: count }, (_, j) => {
+			const y = b.y + top + pitch * (j + 0.5), y0 = y - pitch / 2;
+			return { y, pos: box(posX, y0, POS_W, pitch), piece: box(pieceX, y0, pieceW, pitch), value: box(valueX, y0, VALUE_W, pitch) };
+		});
+		return { outer, top, pitch, r: Math.max(3, Math.min(pitch / 2 - 3, 16, pieceW / 2 - 1)), icon: [pieceX + pieceW / 2, b.y + top / 2], rows };
+	}
+
 	// The turn while recovering: what is built is the QR, large on the right.
 	// The strings read are vertical and side by side on the left, 7 pieces each,
 	// the turn's row (the middle one) framed, with a "+" slot per string; every
 	// arrow leaves from that frame, each down its own corridor (x 188, 200, 212).
 	function readTurn({ pad, n }) {
 		const bits = bitsOf(n), piece = 41, top = 40, rowY = top + 3 * piece;
+		const seedColumn = box(20, top, 70, 7 * piece), seed = readColumn(seedColumn, { outer: "left" });
+		const slotIn = (c) => box(c.rows[3].piece.x, rowY + 2, c.rows[3].piece.w, piece - 4);
 		const b = {
-			seedColumn: box(20, top, 70, 7 * piece),
-			seedSlot: box(24, rowY + 2, 36, piece - 4),
+			seedColumn,
+			seedSlot: slotIn(seed),
 			qr: box(490, 75, 170, 170),
 			guide: { ...GUIDE },
 		};
+		const columns = { seed };
 		const toQr = (x) => [[x, 40], [b.qr.x + 16, 40], [b.qr.x + 16, b.qr.y]];   // into the QR near its left edge: the shortest way over the clock
 		if (!pad) {
 			b.row = box(14, rowY, 82, piece);
 			const y = rowY + 27;
 			b.bits = box(220, y - BIT / 2, bits * BIT, BIT);
-			return { boxes: b, arrows: [
+			return { boxes: b, columns, arrows: [
 				arrow("position", "row", "qr", "qr", [[96, rowY + 9], [110, rowY + 9], ...toQr(110)]),
 				arrow("bits", "row", "bits", "qr", [[96, y], [220, y]]),
 				arrow("paint", "bits", "qr", "qr", [[220 + bits * BIT, y], [b.qr.x, y]]),
 			] };
 		}
+		const keyColumn = box(100, top, 70, 7 * piece);
+		columns.key = readColumn(keyColumn, { outer: "right" });
 		Object.assign(b, {
-			keyColumn: box(100, top, 70, 7 * piece),
-			keySlot: box(104, rowY + 2, 36, piece - 4),
+			keyColumn,
+			keySlot: slotIn(columns.key),
 			row: box(14, rowY, 162, piece),
 			clock: box(228, 90, 120, 150),
 		});
@@ -138,7 +163,7 @@ const SeedcraftLayouts = (() => {
 		const outY = Math.round(m.output.y + m.output.h / 2), keyX = keyIn.x + keyIn.w / 2;
 		b.bits = box(364, outY - BIT / 2, bits * BIT, BIT);
 		// the key's number goes over the top into its own (right) cell
-		return { boxes: b, arrows: [
+		return { boxes: b, columns, arrows: [
 			arrow("position", "row", "qr", "qr", [[176, rowY + 9], [188, rowY + 9], ...toQr(188)]),
 			arrow("clockSeed", "row", "clock", "qr", [[176, rowY + 33], [212, rowY + 33], [212, seedIn.y + 15], [228, seedIn.y + 15]]),
 			arrow("clockKey", "row", "clock", "key", [[176, rowY + 21], [200, rowY + 21], [200, 74], [keyX, 74], [keyX, keyIn.y]]),
@@ -180,14 +205,16 @@ const SeedcraftLayouts = (() => {
 			seedColumn: box(510, top, 70, 7 * piece), seedRow: box(510, rowY, 70, piece),
 		};
 		if (pad) Object.assign(b, { keyColumn: box(590, top, 70, 7 * piece), keyRow: box(590, rowY, 70, piece) });
-		return { boxes: b, arrows: [] };
+		const columns = { seed: readColumn(b.seedColumn, { outer: "left" }) };
+		if (pad) columns.key = readColumn(b.keyColumn, { outer: "right" });
+		return { boxes: b, columns, arrows: [] };
 	}
 
 	// The key's throw: the faces as buttons on the left (a coin's 2 up to a
 	// d20's 20, in a grid as square as the space allows), the instruction and
 	// the tools (undo, fix) under them, the bit tower in the middle with the
 	// faces that count on its left (dice) and those thrown again aside
-	// (rejected), the ⓘ under it (info), then brace → number → the key's
+	// (rejected), the info line under it (info), then brace → number → the key's
 	// dictionary → the piece → its slot in the key string being built. That
 	// row stays at the middle of a 5-bit tower, whatever N, so it never climbs
 	// into the question. tool "bag": the key's dictionary as buttons (picker)
@@ -230,9 +257,11 @@ const SeedcraftLayouts = (() => {
 			b.faces = box(20, 70, cols * size + (cols - 1) * gap, rows * size + (rows - 1) * gap);
 			b.instruction = box(20, b.faces.y + b.faces.h + 10, 180, 24);
 			b.tools = box(20, b.instruction.y + b.instruction.h + 4, 180, 24);
-			b.dice = box(270, y, 52, h);
-			b.rejected = box(222, Math.min(y, mid - 33), 44, Math.max(h, 66));
-			b.info = box(222, Math.max(y + h, b.rejected.y + b.rejected.h) + 6, 136, 14);
+			// the faces thrown again: a grid of REJECT cells (a face, its order badge
+			// under it), as many rows as fit between the question and the info line
+			b.dice = box(264, y, 58, h);
+			b.rejected = box(200, 64, 2 * REJECT.w, 4 * REJECT.h);
+			b.info = box(200, Math.max(y + h, b.rejected.y + b.rejected.h) + 6, 156, 14);
 		}
 		arrows.push(arrow("number", "brace", "number", "key", [[378, mid], [394, mid]]));
 		if (file) arrows.push(arrow("slot", "number", "keySlot", "key", [[422, mid + 20], [422, 266], [352, 266], [352, 280]]));
@@ -264,21 +293,22 @@ const SeedcraftLayouts = (() => {
 	}
 	// Where the thrown faces go. used: [{ at, from, to }] (the throw, and the
 	// bits it gave: from … to − 1 of the tower), each on the tower's left beside
-	// its bits, its order number (label: its end, right-aligned) before it and a
-	// line joining it to them (join); rejected: [at], aside in a grid of 22 ×
-	// 22, the last ones that fit, each with its order number under it (label).
+	// its bits, its order badge (badge: a ring round its number, two digits wide) before it and
+	// a line joining it to them (join); rejected: [at], aside in a grid of REJECT
+	// cells, the last ones that fit, each face (at least 24 units) with its order
+	// badge and ↻ under it (badge, at least 14 units tall: its number BADGE units).
 	function throwMarks(lay, { bits, used = [], rejected = [] }) {
-		const t = lay.boxes.tower, d = lay.boxes.dice, r = lay.boxes.rejected, pitch = t.h / bits;
+		const t = lay.boxes.tower, d = lay.boxes.dice, r = lay.boxes.rejected, pitch = t.h / bits, B = USED_BADGE;
 		const out = { used: used.map(({ at, from, to }) => {
 			const y1 = t.y + from * pitch, y2 = t.y + to * pitch, cy = (y1 + y2) / 2, size = Math.min(30, y2 - y1 - 2);
-			const fx = d.x + d.w - 8 - size, jx = t.x - 3;
-			return { at, face: box(fx, cy - size / 2, size, size), label: [fx - 2, cy + 3.5],
+			const fx = d.x + d.w - 6 - size, jx = t.x - 3;
+			return { at, face: box(fx, cy - size / 2, size, size), badge: box(fx - 2 - B.w, cy - B.h / 2, B.w, B.h),
 				join: [[fx + size, cy], [jx, cy]], span: [[jx, y1 + 2], [jx, y2 - 2]] };
 		}), rejected: [] };
-		const cols = Math.floor(r.w / 22), rows = Math.floor(r.h / 22), shown = rejected.slice(-cols * rows);
+		const cols = Math.floor(r.w / REJECT.w), rows = Math.floor(r.h / REJECT.h), shown = rejected.slice(-cols * rows);
 		out.rejected = shown.map((at, i) => {
-			const x = r.x + (i % cols) * 22, y = r.y + Math.floor(i / cols) * 22;
-			return { at, face: box(x + 4, y, 14, 14), label: [x + 11, y + 21] };
+			const x = r.x + (i % cols) * REJECT.w, y = r.y + Math.floor(i / cols) * REJECT.h;
+			return { at, face: box(x + (REJECT.w - REJECT.face) / 2, y, REJECT.face, REJECT.face), badge: box(x, y + REJECT.face + 2, REJECT.w, REJECT.badge) };
 		});
 		return out;
 	}
@@ -303,12 +333,15 @@ const SeedcraftLayouts = (() => {
 	function fileColumn(b, { role = "read" } = {}) {
 		const top = 14, pitch = (b.h - 2 * top) / 7, rows = [];
 		if (role === "read") {
-			const cx = b.x + 22, lx = (cx + 12 + b.x + b.w) / 2;
-			for (let j = 0; j < 7; j++) {
-				const y = b.y + top + pitch * (j + 0.5);
-				rows.push({ y, digit: [cx, y + 6], value: [lx, y + 2], pos: [lx, y + 12], ring: box(b.x + 2, y - pitch / 2 + 1, b.w - 4, pitch - 2) });
-			}
-			return { icon: [cx, b.y + 11], pitch, rows };
+			// as a string read beside the seed's (readColumn, outer "right"): its number
+			// on the inner side, the character in the middle, its place on the outer side
+			const c = readColumn(b, { outer: "right", top });
+			c.rows.forEach((r) => {
+				const y = r.y, mid = (x) => x.x + x.w / 2;
+				rows.push({ y, digit: [mid(r.piece), y + 6], value: [mid(r.value), y + 4.5], pos: [mid(r.pos), y + 3],
+					digitBox: r.piece, valueBox: r.value, posBox: r.pos, ring: box(b.x + 2, y - pitch / 2 + 1, b.w - 4, pitch - 2) });
+			});
+			return { icon: [c.icon[0], b.y + 7], pitch, rows };
 		}
 		for (let j = 0; j < 7; j++) {
 			const y = b.y + top + pitch * (j + 0.5);
@@ -391,5 +424,5 @@ const SeedcraftLayouts = (() => {
 		}, columns, arrows: [] };
 	}
 
-	return { VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readTurn, pickerPopup, readFinal, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, fileRow, fileColumn, store, dictName, dictCheck, dictAsIs };
+	return { VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readColumn, readTurn, pickerPopup, readFinal, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, REJECT, BADGE, fileRow, fileColumn, store, dictName, dictCheck, dictAsIs };
 })();
