@@ -760,6 +760,12 @@ for (const pad of [false, true]) {
 	check(J.resolve("make", list, "keyTool") === "keyTool" && J.resolve("make", list, "dictHave") === "dict" && J.resolve("make", list, "keyThrow") === "keyTool"
 		&& J.resolve("make", J.slides("make", { mode: "pad", padAs: "string" }), "keyThrow") === "keyWho" && J.resolve("make", list, "nowhere") === "mode", "resolve: a slide that went gives the one before it");
 	check(J.jump(list, "dict", () => true) === "dict" && J.jump(list, "key", (id) => id !== "words") === "words" && J.jump(list, "nowhere", () => true) === null, "jump: a step's first slide, or what it needs first");
+	// the guide to Store with the copy not read back yet (app.js's slideDone: check is done only once m.checked): Check first; Store itself stays there
+	for (const s of [{ mode: "basic", dict: true, made: true }, { mode: "pad", padAs: "file", dict: true, keyWho: "device", keyBy: "device", made: true }]) {
+		const made = J.slides("make", s), notChecked = (id) => id !== "check";
+		check(J.jump(made, "store", notChecked) === "check" && J.jump(made, "store", () => true) === "store" && J.resolve("make", made, "store") === "store",
+			`jump: Store with no Check lands on Check (${s.mode}); checked, on Store`);
+	}
 	const one = (p) => JSON.stringify(J.pieces({ words: 12, n: 16, form: "necklace", padForm: null, ...p }, (f) => f === "book" ? 0 : 1));
 	check(one({ mode: "basic" }) === JSON.stringify({ keyFile: false, groups: [{ kinds: ["seed"], form: "necklace", each: 15, copies: 1, what: "seq" }] }), "pieces: the basic mode, one group");
 	check(one({ mode: "pad", padAs: "string" }) === JSON.stringify({ keyFile: false, groups: [{ kinds: ["seed", "key"], form: "necklace", each: 20, copies: 2, what: "both" }] }), "pieces: a key of the same collection, one group with more of each");
@@ -812,7 +818,7 @@ for (const pad of [false, true]) {
 		"readTap", "readTapBoth", "readTurnPad", "readTurnBasic", "readNoFit", "typeHelp", "handDone", "checkMatch", "checkFixed", "checkPadding", "checkMismatch",
 		"readLockedWhy", "readLockedAhead",
 		// storing it
-		"storeForgetWhy", "storeKeyUnsaved"];
+		"storeForgetWhy", "storeKeyUnsaved", "storeNotChecked"];
 	for (const lang of ["en", "es"]) for (const k of keys) {
 		const v = TX[lang][k], s = typeof v === "function" ? v(...(args[k] || [])) : v;
 		check(typeof s === "string" && s.length <= 110, `caption ${lang}.${k} at most 110 characters (${s && s.length}: ${s})`);
