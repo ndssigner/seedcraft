@@ -311,6 +311,8 @@ ol.entries.paper li { color: #111; border-bottom-color: #ccc; }
 .v-reference .v-piece:not(.v-current) { opacity: .55; }
 .v-build .v-empty:not(.v-current) { opacity: .6; }
 .v-turn-frame { fill: none; stroke: var(--qr); stroke-width: 1.5; }
+.v-pos-box { fill: none; stroke: var(--qr); stroke-width: 1.5; }
+.v-slot-frame { fill: none; stroke: currentColor; stroke-opacity: 0.35; stroke-width: 1; stroke-dasharray: 3 3; }
 .v-icon { fill: var(--fg); }
 /* the drawn icons (vocab.js: the key, save, home, info): lines in the text's colour; the key's amber */
 .v-icon-drawn { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; }

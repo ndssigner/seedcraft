@@ -364,11 +364,15 @@ for (const n of [2, 4, 8, 16, 32]) for (const pad of [false, true]) {
 	}
 	const make = Lay.makeTurn({ pad, n });
 	check(make.boxes.bits.w >= Math.log2(n) * 16, `make n=${n} bits wide enough`);
-	check(make.arrows.find((a) => a.id === "position").from === "seedSlot" && make.arrows.find((a) => a.id === "slot").to === "seedSlot", `make n=${n} pad=${pad}: the cycle starts and ends at the slot`);
+	check(make.arrows.find((a) => a.id === "position").from === "posBox" && make.arrows.find((a) => a.id === "slot").to === "seedSlot", `make n=${n} pad=${pad}: the cycle starts at posBox and ends at the slot`);
 	if (pad) check(contains(Lay.readTurn({ pad, n }).boxes.keyColumn, Lay.readTurn({ pad, n }).boxes.keySlot), `read n=${n}: the key's slot is in its column`);
 }
 check(S.entropyNumber(new Uint8Array(16)) === "0" && S.entropyNumber(new Uint8Array(16).fill(255)) === "340282366920938463463374607431768211455", "entropyNumber: big-endian decimal");
 check(S.groupDigits("1234567", 5).join("|") === "1 234 567" && S.groupDigits("9".repeat(78), 5).length === 6, "groupDigits: threes from the right, 5 groups a line; 24 words in 6 lines");
+for (const n of [2, 16, 32]) for (const pad of [false, true]) for (const file of pad ? [false, true] : [false]) {
+	const lay = Lay.makeTurn({ pad, n, file }), pos = lay.arrows.find((a) => a.id === "position"), slot = lay.arrows.find((a) => a.id === "slot");
+	check(pos.from === "posBox" && pos.points[0][0] === lay.boxes.posBox.x && slot.points[slot.points.length - 1][0] === 360, `make n=${n} pad=${pad} file=${file}: position leaves its box, the slot is reached at x 360`);
+}
 const margin = (name, lay) => check(Object.entries(lay.boxes).every(([id, b]) => id === "guide" || id === "question" || (b.x >= 16 && b.x + b.w <= 664 && b.y + b.h <= 334)), `${name} within the 16 px margin`);
 for (const n of [2, 4, 8, 16, 32]) for (const pad of [false, true]) for (const file of pad ? [false, true] : [false]) {
 	const lay = Lay.makeTurn({ pad, n, file }), b = lay.boxes;
@@ -391,7 +395,7 @@ for (const n of [2, 4, 8, 16, 32]) {
 	const lay = Lay.makeTurn({ pad: true, n, file: true }), m = Lay.clockModule(lay.boxes.clock), into = (id) => ends(lay.arrows.find((a) => a.id === id));
 	checkLayout(`make n=${n} file`, lay);
 	for (const a of lay.arrows) check(onBorder(starts(a), lay.boxes[a.from]) && onBorder(ends(a), lay.boxes[a.to]), `make n=${n} file: arrow ${a.id} leaves and reaches its boxes`);
-	check(!lay.boxes.keyDict && lay.arrows.map((a) => `${a.id}:${a.from}>${a.to}`).join() === "position:seedSlot>qr,bits:qr>bits,number:bits>number,keyNumber:keyString>keyNumber,clockSeed:number>clock,clockKey:keyNumber>clock,output:clock>seedDict,slot:seedDict>seedSlot",
+	check(!lay.boxes.keyDict && lay.arrows.map((a) => `${a.id}:${a.from}>${a.to}`).join() === "position:posBox>qr,bits:qr>bits,number:bits>number,keyNumber:keyString>keyNumber,clockSeed:number>clock,clockKey:keyNumber>clock,output:clock>seedDict,slot:seedDict>seedSlot",
 		`make n=${n} file: no key dictionary, the file's row → its number → the clock`);
 	check(inCell(into("clockSeed"), m.inputs[0]) && inCell(into("clockKey"), m.inputs[1]), `make n=${n} file: each number enters its own input cell`);
 	const row = lay.boxes.keyString.y + lay.boxes.keyString.h / 2, k = lay.arrows.find((a) => a.id === "keyNumber");
@@ -614,7 +618,7 @@ for (const pad of [false, true]) {
 
 	// string: 13 positions, the turn's piece bigger and ringed; holes dashed; nothing where there is no position
 	const items = Array.from({ length: 13 }, (_, i) => i < 6 ? i : null);
-	const s = V.string({ box: lay.boxes.seedString, orientation: "h", role: "build", things, items, firstPosition: 9, current: 6 });
+	const s = V.string({ box: lay.boxes.seedString, orientation: "h", role: "build", things, items, firstPosition: 9, current: 6, posBox: lay.boxes.posBox });
 	const pieces = walk(s, cls("v-piece")), cur = walk(s, cls("v-current"));
 	check(pieces.length === 13 && cur.length === 1 && pieces.indexOf(cur[0]) === 6, "string: 13 pieces, the 7th marked as the turn's");
 	check(walk(s, cls("v-hole")).length === 7, "string: the empty positions are holes");
@@ -622,12 +626,19 @@ for (const pad of [false, true]) {
 	const rad = (p) => Math.max(...walk(p, (n) => n.tag === "circle").map((c) => num(c.attrs.r)));
 	check(rad(cur[0]) >= 1.5 * rad(pieces[5]) && rad(cur[0]) >= 19, "string: the turn's piece is by far the biggest (1.5 × a neighbour)");
 	const names = walk(s, cls("v-name"));
-	check(names.length === 1 && walk(cur[0], cls("v-name")).length === 1, "string build: only the turn's piece has its name under it");
-	// a hole at the turn: its position (blue) under it, no name
-	check(textOf(names[0]) === "15" && walk(names[0], cls("v-pos-current")).length === 1 && walk(cur[0], cls("v-hole")).length === 1, "string build: a hole at the turn shows its position and no name");
+	check(names.length === 0, "string build: a hole at the turn has no name");
+	// a hole at the turn: no name; its position (blue) above it
+	check(walk(cur[0], cls("v-hole")).length === 1, "string build: a hole at the turn");
+	{
+		const pb = V.string({ box: lay.boxes.seedString, orientation: "h", role: "build", things, items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], firstPosition: 3, current: 6, posBox: lay.boxes.posBox });
+		const run = walk(pb, cls("v-string-run"))[0], icon = walk(pb, cls("v-string-icon"))[0], fixed = walk(pb, cls("v-string-fixed"))[0];
+		check(run && icon && fixed && walk(run, cls("v-piece")).length === 13 && !walk(run, cls("v-icon")).length && walk(icon, cls("v-icon")).length === 1, "string build: icon, run (every bead) and fixed groups");
+		check(walk(pb, cls("v-name")).length === 1 && walk(walk(pb, cls("v-current"))[0], cls("v-name")).length === 1, "string build: only the turn's piece has its name under it");
+		check(walk(pb, (n) => n.tag === "mask").length === 1 && walk(fixed, (n) => n.tag === "text" && textOf(n) === "9").length === 1, "string build: a mask fades the run's ends; the turn's position is in the posBox");
+	}
 	const midCx = (p) => num(walk(p, (n) => n.tag === "circle")[0].attrs.cx), sl = lay.boxes.seedSlot;
 	check(Math.abs(midCx(cur[0]) - (sl.x + sl.w / 2)) < 1, "string: the turn's piece is in the slot's box");
-	within(s, lay.boxes.seedString, "string build");
+	within(s, { x: lay.boxes.seedString.x, y: lay.boxes.posBox.y, w: lay.boxes.seedString.w, h: lay.boxes.seedString.y + lay.boxes.seedString.h - lay.boxes.posBox.y }, "string build");
 	const edge = V.string({ box: lay.boxes.seedString, orientation: "h", role: "build", things, items: [undefined, undefined, 3, 4, null], current: 3 });
 	check(walk(edge, cls("v-piece")).length === 3, "string: no piece where the string has no position");
 	{
