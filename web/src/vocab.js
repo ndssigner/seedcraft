@@ -219,7 +219,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 		const N = things.length, tabH = L.pickerGrid(box, N).tabH;
 		const card = { x: box.x, y: box.y + tabH, w: box.w, h: box.h - tabH }, inner = { x: card.x + 2, y: card.y + 2, w: card.w - 4, h: card.h - 4 };
 		const wide = !!label && box.w >= 110, lfs = Math.max(8, Math.min(10, tabH * 0.7));
-		const tabW = wide ? Math.min(box.w, 30 + 0.55 * lfs * String(label).length + 6) : Math.min(30, box.w * 0.4);
+		const tabW = wide ? Math.min(box.w, 28 + 0.55 * lfs * (String(label).length + 3) + 6) : Math.min(30, box.w * 0.4);
 		const parts = [
 			svg("rect", { x: box.x, y: box.y, width: r1(tabW), height: tabH + 2, rx: 3, class: "v-dict-tab" }),
 			icon(kind, box.x + (wide ? 15 : tabW / 2), box.y + tabH * 0.82 - Math.max(9, tabH * 0.8) * 0.35, Math.max(9, tabH * 0.8)),
