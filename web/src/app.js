@@ -72,7 +72,7 @@
 	// dictionary, kept from `keep`.
 	function freshRead(keep) {
 		return { turn: 0, taps: [], keyTaps: [], keyFile: null, fileText: "",
-			typing: false, text: "", keyText: "", typeError: "", out: null, error: "", sig: "",
+			typing: false, text: "", keyText: "", typeError: "", out: null, error: "", sig: "", from: null,
 			words: keep ? keep.words : 12, padAs: keep ? keep.padAs : "string", padForm: keep ? keep.padForm : null, padDict: keep ? keep.padDict : null,
 			mode: keep ? keep.mode : null, form: keep ? keep.form : "necklace", n: keep ? keep.n : 16, chosen: keep ? keep.chosen : {}, dict: keep ? keep.dict : null };
 	}
@@ -1140,6 +1140,7 @@
 		if (p && lastPart(p.throws, sidesOf(p.by), Math.log2(st.dict.things.length))) st.seen.keyPart = true;
 		if (p && st.plan.padAs === "file" && closesRow(key.pos, L)) st.seen.rowCheck = true;
 		setKey(S.keyMove(key, to, L));
+		throwFrom = Math.abs(st.make.key.pos - key.pos) === 1 ? key.pos : null;
 		render();
 	}
 	// The throw that closes a piece giving more bits than it still needs (a
@@ -1167,6 +1168,7 @@
 	let keyRolling = false;  // the device's die rolling: nothing else moves until it stops
 	let keyFresh = null;     // the position of a piece just completed: it is shown arriving, once
 	let keyFocus = null;     // the face tapped from the keyboard, focused again once redrawn
+	let throwFrom = null;    // the piece left with an adjacent Next or Back: the key string glides in from it
 	const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 	function keyThrowSlide() {
 		const t = T(), m = st.make, n = st.dict.things.length, k = Math.log2(n), L = keyLength();
@@ -1182,6 +1184,9 @@
 		const update = (next) => { setKey(next); render(); };
 		const fresh = keyFresh === pos && !!piece && !calm();
 		keyFresh = null;
+		let from = throwFrom !== null && Math.abs(pos - throwFrom) === 1 && asString && !calm() ? throwFrom : null;
+		throwFrom = null;
+		let glides = null;
 		const focus = keyFocus; keyFocus = null;
 
 		// a throw marked: the piece's own coin or die (marking one again, the one it was thrown with)
@@ -1298,6 +1303,9 @@
 				const steps = stages.slice(1).map((id, i) => [id, 450 * (i + 1) + (at("dict") >= 0 && at(id) > at("dict") ? 450 : 0)]);
 				steps.forEach(([id, ms]) => setTimeout(() => { if (live()) stage(at(id) + 1, id === "dict"); }, ms));
 			} else stage(stages.length);
+			// an adjacent Next or Back: the key string starts a piece over and glides to its place
+			if (from !== null) glides = glideIn(from, (f) => [V.glide(groups.slot, { dx: (pos - f) * Lay.pitch(b.keyString, 13) })]);
+			from = null;
 
 			// over the canvas: the faces, the device's die, what to do, the tools
 			if (b.faces) {
@@ -1384,6 +1392,8 @@
 			question: t.keyThrowQ, count: `${pos + 1}/${L}`, caption: () => caption, shortcuts,
 			help: helpOf(stepName("make", "key"), t.keyWhy, asString ? why : [...why, t.padFileHelp]),
 			prev: pos > 0 ? { go: () => keyGo(pos - 1) } : undefined, next, body,
+			// Next while the key string glides: first its end, then on
+			hurry: () => { const playing = !!glides && glides.playing; if (glides) glides.finish(); return playing; },
 		};
 	}
 
@@ -1433,7 +1443,7 @@
 				m.basic = S.encode(m.entropy, k);
 				m.symbols = S.encrypt(m.basic, m.pad, n);
 			} else m.symbols = S.encode(m.entropy, k);
-			m.turn = 0; m.explain = null; turnFresh = null;
+			m.turn = 0; m.explain = null; turnFresh = null; turnFrom = null;
 			m.checked = false; m.storedAt = {}; m.check = null; m.keyChanged = null;
 		};
 		const tool = made
@@ -1506,26 +1516,45 @@
 	let turnFresh = null;   // a turn reached with Next: its cycle plays once
 	let turnRun = 0;        // moves on at every render: a turn's cycle still playing from an earlier one stops
 	let turnBack = false;   // a turn reached with Back: shown at its last step
+	let turnFrom = null;    // the turn left with an adjacent Next or Back: the new one glides in from it
 	// A turn's cycle played on arriving: a stage every STAGE_MS, the clock's
 	// run (vocab.js: RUN_MS at most) and STAGE_MS after it, so a whole turn
 	// lasts about 2.5 s at most, whatever N. draw(p, turning, onRun, alive):
 	// the slide at stage p; alive: whether this play still counts (render()
 	// moves turnRun on: a play from an earlier drawing stops). finish(): its
 	// end at once (Next while it plays); false when there was nothing playing.
+	// delay: the first stage stays that much longer (the advance between turns plays first).
 	const STAGE_MS = 150;
-	function playCycle(stages, first, draw) {
+	function playCycle(stages, first, draw, delay = 0) {
 		const run = turnRun, last = stages.length - 1;
 		let playing = true;
 		const alive = () => playing && run === turnRun;
-		const later = (fn) => setTimeout(() => { if (alive()) fn(); }, STAGE_MS);
-		const play = (p) => {
+		const later = (fn, ms) => setTimeout(() => { if (alive()) fn(); }, ms);
+		const play = (p, wait = 0) => {
 			const out = stages[p].id === "out";
-			draw(p, true, out ? () => later(() => play(p + 1)) : undefined, alive);
+			draw(p, true, out ? () => later(() => play(p + 1), STAGE_MS + wait) : undefined, alive);
 			if (p >= last) playing = false;
-			else if (!out) later(() => play(p + 1));
+			else if (!out) later(() => play(p + 1), STAGE_MS + wait);
 		};
-		play(first);
+		play(first, delay);
 		return { finish: () => { if (!alive()) return false; playing = false; draw(last, false); return true; } };
+	}
+	// The advance between two drawings: start(from) makes the glides once the body is on
+	// the page (just after body() returns), unless another drawing has come since.
+	// playing: until ADVANCE_MS have gone by or finish() (Next while it plays) settles them.
+	function glideIn(from, start) {
+		const run = turnRun;
+		let list = null, over = false;
+		const self = {
+			playing: true,
+			finish() { over = true; self.playing = false; if (list) list.forEach((g) => g.finish()); },
+		};
+		Promise.resolve().then(() => {
+			if (over || run !== turnRun) { self.playing = false; return; }
+			list = start(from);
+			setTimeout(() => { self.playing = false; }, V.ADVANCE_MS);
+		});
+		return self;
 	}
 	// to another turn of the sequence; a turn explained is explained only while it is on screen
 	// still: shown as it ends, never played (a jump, not Next)
@@ -1534,6 +1563,7 @@
 		m.turn = Math.max(0, Math.min(m.symbols.length - 1, to));
 		turnFresh = !still && m.turn === from + 1 ? m.turn : null;
 		turnBack = m.turn === from - 1;
+		turnFrom = !still && Math.abs(m.turn - from) === 1 ? from : null;
 		m.explain = null;
 		render();
 	}
@@ -1541,7 +1571,7 @@
 	function explainTurn() {
 		const m = st.make;
 		m.explain = { turn: m.turn || 0, run: (m.explain ? m.explain.run : 0) + 1 };
-		turnFresh = null; turnBack = false;
+		turnFresh = null; turnBack = false; turnFrom = null;
 		render();
 	}
 	// the key's things, if the key is a string (its own collection's, or the seed's)
@@ -1562,7 +1592,9 @@
 		const bits = S.symbolsToBits(plain, k), turn = S.turnBits(size, i, k), roles = turn.map((x) => x.role);
 		const explaining = i < J.EXPLAINED || !!(m.explain && m.explain.turn === i);
 		const fresh = !explaining && turnFresh === i && !calm(), back = turnBack;
-		turnFresh = null; turnBack = false;
+		// an adjacent Next or Back: the slide glides in from the turn left (once, on the first drawing)
+		let from = turnFrom !== null && Math.abs(i - turnFrom) === 1 && !calm() ? turnFrom : null;
+		turnFresh = null; turnBack = false; turnFrom = null;
 		const changed = (m.keyChanged || []).includes(i);
 		// the header (version and mask) and the padding have no squares in the QR code
 		const note = roles.includes("header") ? t.turnHeader : roles.includes("padding") ? t.turnPadding : null;
@@ -1618,17 +1650,38 @@
 			return svg("g", { class: "v v-file", role: "img", "aria-label": t.padFileTitle }, parts);
 		}
 
-		let cycle = null;
+		// The advance from turn f (FLIP): each thing starts where it was in f's drawing and glides
+		// to its place, the QR's marker from f's squares, the strings a piece (a row) over;
+		// the bits and the number fade in. Its glides, while they play
+		function advance(f) {
+			const out = [], q = groups.qr.lastChild, marker = q && q.lastChild;
+			const was = Lay.qrCellsBox(b.qr, size, S.turnBits(size, f, k).filter((x) => x.cell).map((x) => x.cell)), now = Lay.qrCellsBox(b.qr, size, turnCells);
+			if (was && now && marker && marker.getAttribute("class") === "v-qr-marker") out.push(V.glide(marker, { dx: was.x - now.x, dy: was.y - now.y }));
+			out.push(V.glide(groups.seedString, { dx: (i - f) * Lay.pitch(b.seedString, 13) }));
+			if (pad) out.push(V.glide(groups.key, { dy: (i - f) * (file ? Lay.fileColumn(b.keyString, { role: "reference" }).pitch : Lay.pitch(b.keyString, 7, { vertical: true })) }));
+			V.fadeIn(groups.bits); V.fadeIn(groups.number);
+			return out;
+		}
+		let cycle = null, glides = null;
 		function body(step) {
 			const kids = [groups.qr, groups.bits, groups.number, groups.key, groups.keyDict, groups.keyNumber, groups.clock, groups.seedDict, groups.seedString, ...arrowGroups];
 			cycle = null;
 			if (explaining) draw(step, true);
 			// on arriving: the cycle plays, a relation at a time, the clock turning step by step
-			// (stage 0 now, before the body is on the page; each later one only while nothing has been drawn since)
-			else if (fresh) cycle = playCycle(stages, 0, draw);
+			// (stage 0 now, before the body is on the page; each later one only while nothing has been drawn since),
+			// after the advance from the turn before
+			else if (fresh) cycle = playCycle(stages, 0, draw, from !== null ? V.ADVANCE_MS : 0);
 			else draw(last, false);
+			if (from !== null) glides = glideIn(from, advance);
+			from = null;
 			return h("div", { class: "dict-slide tn-slide" }, canvas(...kids));
 		}
+		// Next while it plays: the advance's end, then the cycle's; true if either was playing
+		const hurry = () => {
+			const g = glides && glides.playing;
+			if (glides) glides.finish();
+			return (!!cycle && cycle.finish()) || !!g;
+		};
 
 		// the sentences: one per relation (the first turns, or «?»); else what this turn has to say
 		const bitsText = turn.map((x) => bits[x.bit]).join("");
@@ -1653,8 +1706,8 @@
 		];
 		return {
 			count: `${pos}/${L}`, steps: explaining ? stages.length : 1, startStep: explaining && back ? last : 0, caption, shortcuts, help: explainTurn, body,
-			// Next while the cycle plays: first its end, then on
-			hurry: () => !!cycle && cycle.finish(),
+			// Next while the advance or the cycle plays: first its end, then on
+			hurry,
 			prev: i > 0 ? { go: () => turnGo(i - 1) } : { go: () => goSlide("make", "qr") },
 			next: i < L - 1 ? { go: () => turnGo(i + 1) } : undefined,
 		};
@@ -1865,7 +1918,13 @@
 		return f;
 	}
 	// to another turn: any one already read, or the first one not read yet
-	function readGo(rd, to) { rd.turn = Math.max(0, Math.min(readFrontier(rd), to)); render(); }
+	// (rd.from: the turn left, when it is the one before or after, not the end: the slide glides in from it)
+	function readGo(rd, to) {
+		const was = rd.turn || 0;
+		rd.turn = Math.max(0, Math.min(readFrontier(rd), to));
+		rd.from = was < readLength(rd) && Math.abs(rd.turn - was) === 1 ? was : null;
+		render();
+	}
 	// What the L turns give, worked out again only when a piece changes:
 	// decodeTurns (both directions, both roles) or, if nothing decodes, "nofit".
 	function readOut(rd) {
@@ -1963,6 +2022,8 @@
 		const turn = S.turnBits(size, i, k), roles = turn.map((x) => x.role), turnCells = turn.filter((x) => x.cell).map((x) => x.cell);
 		const fresh = whole && readFresh === i && !calm();
 		readFresh = null;
+		let from = typeof rd.from === "number" && Math.abs(i - rd.from) === 1 && !calm() ? rd.from : null;
+		rd.from = null;
 		const form = rd.form || st.plan.form;
 		// the squares painted: every other turn read; this one once its cycle reaches them
 		const paintTurn = (map, j) => bitsOf(plainOf(j), k).forEach((bit, x) => { const c = cells[j * k + x]; if (c) map.set(c[0] * size + c[1], bit); });
@@ -2031,13 +2092,25 @@
 			g.qr.replaceChildren(V.qr({ box: b.qr, size, modules: template, turnCells, painted }));
 			lay.arrows.forEach((a, j) => arrowGroups[j].replaceChildren(V.arrow({ points: a.points, colour: a.colour, state: arrowState(a.id, p) })));
 		}
-		let cycle = null;
+		// the advance from turn f: the columns a row over, the QR's marker from f's squares, the bits fading in
+		function advance(f) {
+			const rows = lay.columns.seed.rows, dy = (i - f) * (rows[1].y - rows[0].y), out = [V.glide(g.seed, { dy })];
+			if (pad) out.push(V.glide(g.key, { dy }));
+			const q = g.qr.lastChild, marker = q && q.lastChild;
+			const was = Lay.qrCellsBox(b.qr, size, S.turnBits(size, f, k).filter((x) => x.cell).map((x) => x.cell)), now = Lay.qrCellsBox(b.qr, size, turnCells);
+			if (was && now && marker && marker.getAttribute("class") === "v-qr-marker") out.push(V.glide(marker, { dx: was.x - now.x, dy: was.y - now.y }));
+			V.fadeIn(g.bits);
+			return out;
+		}
+		let cycle = null, glides = null;
 		function body() {
 			// the pieces just chosen: the cycle plays from the numbers in, a relation at a time, the clock
 			// turning step by step (the first stage now, before the body is on the page; each later one
 			// only while nothing has been drawn since)
 			cycle = fresh ? playCycle(stages, pad ? at("in") : at("bits"), draw) : null;
 			if (!fresh) draw(whole ? last : 0, false);
+			if (from !== null) glides = glideIn(from, advance);
+			from = null;
 			return h("div", { class: "dict-slide rt-slide" }, canvas(g.frame, g.seed, g.key, g.clock, g.bits, g.qr, ...arrowGroups));
 		}
 
@@ -2048,8 +2121,8 @@
 		const checking = rd !== st.read;
 		return {
 			count: `${pos}/${L}`, caption, body,
-			// Next while the cycle plays: first its end, then on
-			hurry: () => !!cycle && cycle.finish(),
+			// Next while the advance or the cycle plays: first its end, then on
+			hurry: () => { const playing = !!glides && glides.playing; if (glides) glides.finish(); return (!!cycle && cycle.finish()) || playing; },
 			help: helpOf(stepName(checking ? "make" : "read", checking ? "check" : "recover"), checking ? (pad ? t.checkHelpPad : t.checkReadHelp) : null,
 				[t.forms[form].read, keyThings ? t.tapPadHelp : null, pad ? null : t.whyBasic(n, k), t.readLockedWhy].filter(Boolean)),
 			shortcuts: readShortcuts(rd, L, opts.done),
