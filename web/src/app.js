@@ -445,7 +445,8 @@
 			if (later && (!st.dict || (keyDictNeeded() && !st.padDict))) return "dict";
 			if (["seq", "check", "store"].includes(step) && st.mode === "pad" && !keyReady()) return "key";
 			// a key file is saved before a sequence is made with it, and before it is checked: this page forgets it
-			if ((step === "check" || (step === "seq" && !m.symbols)) && st.mode === "pad" && st.plan.padAs === "file" && !m.padKept) return "key";
+			// (Store too: its own warning and its forgetting that waits are a second guard)
+			if ((step === "check" || step === "store" || (step === "seq" && !m.symbols)) && st.mode === "pad" && st.plan.padAs === "file" && !m.padKept) return "key";
 			if ((step === "check" || step === "store") && !m.symbols) return "seq";
 			return null;
 		}
@@ -1072,7 +1073,7 @@
 		m.padKept = false;
 		if (m.basic && m.pad) {
 			const before = m.symbols;
-			m.symbols = S.encrypt(m.basic, m.pad, n); m.checked = false; m.check = null;
+			m.symbols = S.encrypt(m.basic, m.pad, n); m.checked = false; m.check = null; m.storedAt = {};
 			if (before) m.keyChanged = [...new Set([...(m.keyChanged || []), ...S.changedPieces(before, m.symbols)])].sort((a, b) => a - b);
 		}
 	}
@@ -1337,7 +1338,7 @@
 	function otherSeed() {
 		const m = st.make;
 		m.seed = ""; m.symbols = m.entropy = m.basic = m.check = m.keyChanged = null;
-		m.checked = m.stored = false; m.turn = 0; m.explain = null;
+		m.checked = false; m.storedAt = {}; m.turn = 0; m.explain = null;
 		if (st.mode !== "pad") { goSlide("make", "seed"); return; }
 		m.key = m.pad = null; m.keyWho = null; m.padKept = false;
 		toStep("make", "key");
@@ -1379,7 +1380,7 @@
 				m.symbols = S.encrypt(m.basic, m.pad, n);
 			} else m.symbols = S.encode(m.entropy, k);
 			m.turn = 0; m.explain = null; turnFresh = null;
-			m.checked = m.stored = false; m.check = null; m.keyChanged = null;
+			m.checked = false; m.storedAt = {}; m.check = null; m.keyChanged = null;
 		};
 		const tool = made
 			? h("button", { type: "button", class: "btn ghost small", on: { click: () => { if (confirm(t.otherSeedAsk(st.mode))) otherSeed(); } } }, "◀ " + t.otherSeed)
@@ -1622,17 +1623,18 @@
 	// saved yet is saved first, and until then nothing is forgotten.
 	function storeSlide() {
 		const t = T(), m = st.make, pad = st.mode === "pad", file = pad && st.plan.padAs === "file", n = st.dict.things.length;
-		const b = Lay.store({ pad }).boxes, saved = m.storedAt || (m.storedAt = {});
-		const unsaved = file && !m.padKept, shared = pad && !st.plan.padForm;
+		const lay = Lay.store({ pad }), b = lay.boxes, saved = m.storedAt || (m.storedAt = {});
+		// the key's own collection only for a key of things (padForm may be left from a choice undone)
+		const unsaved = file && !m.padKept, own = pad && !file && !!st.plan.padForm, shared = pad && !own;
 		const first = (vals) => Array.from({ length: Math.min(vals.length, pad ? 8 : 11) }, (_, j) => vals[j]);
 		const seedString = V.string({ box: b.aString, orientation: "h", role: "read", kind: "seed", things: st.dict.things, items: first(m.symbols), showValues: false });
 		// the key file as it starts: its first line, and its first rows
 		const keyFile = () => {
-			const box = b.bString, lines = S.writePadFile(m.pad, n).split("\n").slice(0, 3);
+			const f = lay.file, lines = S.writePadFile(m.pad, n).split("\n").slice(0, 3);
 			return svg("g", { class: "v v-file", role: "img", "aria-label": t.padFileTitle },
-				svg("text", { x: box.x + 8, y: box.y + box.h / 2 + 5, "font-size": 14, "text-anchor": "middle", class: "v-t v-icon" }, ICON.key),
-				svg("rect", { x: box.x + 20, y: box.y + 1, width: box.w - 22, height: box.h - 2, rx: 4, class: "card-file" }),
-				...lines.map((x, j) => svg("text", { x: box.x + 28, y: box.y + 14 + j * 13, "font-size": 10, class: "v-t v-mono v-c-key" }, x)));
+				svg("text", { x: f.icon.x + f.icon.w / 2, y: f.icon.y + f.icon.h - 4, "font-size": 14, "text-anchor": "middle", class: "v-t v-icon" }, ICON.key),
+				svg("rect", { x: f.sheet.x, y: f.sheet.y, width: f.sheet.w, height: f.sheet.h, rx: 4, class: "card-file" }),
+				...lines.map((x, j) => svg("text", { x: f.lines[j][0], y: f.lines[j][1], "font-size": 10, class: "v-t v-mono v-c-key" }, x)));
 		};
 		const kids = [
 			svg("rect", { x: b.a.x, y: b.a.y, width: b.a.w, height: b.a.h, rx: 8, class: "st-place" }), seedString,
@@ -1642,18 +1644,19 @@
 		const note = (box, ...lines) => over.push(place(h("div", { class: "st-note" }, lines.filter(Boolean).map((x) => h("p", { text: x }))), box));
 		const titled = (box, icon, text) => over.push(place(h("p", { class: "st-title" }, h("span", { "aria-hidden": "true", text: icon + " " }), text), box));
 		const savedBox = (id, box) => over.push(place(h("label", { class: "st-saved" }, h("input", { type: "checkbox", checked: saved[id] ? "" : null,
-			on: { change: (e) => { saved[id] = e.target.checked; m.stored = (pad ? ["a", "b"] : ["a", "d"]).every((x) => saved[x]); } } }), h("span", { text: t.storeSaved })), box));
+			on: { change: (e) => { saved[id] = e.target.checked; } } }), h("span", { text: t.storeSaved })), box));
 		const saveFile = () => { download(S.writePadFile(m.pad, n), "numbers.txt", "text/plain"); m.padKept = true; render(); };
 		if (pad) {
 			const keyThings = file ? null : keyThingsMade();
 			kids.push(svg("rect", { x: b.b.x, y: b.b.y, width: b.b.w, height: b.b.h, rx: 8, class: "st-place st-key" }),
 				file ? keyFile() : V.string({ box: b.bString, orientation: "h", role: "read", kind: "key", things: keyThings, items: first(m.pad), showValues: false }),
-				V.dictionary({ box: b.bDict, things: st.plan.padForm ? st.padDict.things : st.dict.things, mode: "static", icon: "key" }),
+				V.dictionary({ box: b.bDict, things: own ? st.padDict.things : st.dict.things, mode: "static", icon: "key" }),
 				svg("line", { x1: b.border.x + b.border.w / 2, y1: b.border.y, x2: b.border.x + b.border.w / 2, y2: b.border.y + b.border.h, class: "st-border" }),
 				svg("text", { x: b.apart.x + b.apart.w / 2, y: b.apart.y + 12, "font-size": 12, "text-anchor": "middle", class: "v-t v-bold v-c-err" }, t.storeApart));
 			titled(b.aTitle, ICON.seed, t.storeA); titled(b.bTitle, ICON.key, t.storeB);
-			note(b.aNote, t.storeMarkStart, shared || file ? t.storeCopy : null);
-			note(b.bNote, file ? t.storeFileNote : t.storeMarkStart, shared || file ? t.storeCopy : null);
+			// which half is which only for two strings; beside a file, its start is all there is to mark
+			note(b.aNote, file ? t.storeMarkStartOnly : t.storeMarkStart, shared ? t.storeCopy : null);
+			note(b.bNote, file ? t.storeFileNote : t.storeMarkStart, shared ? t.storeCopy : null);
 			savedBox("a", b.aSaved);
 			if (unsaved) over.push(place(h("div", { class: "st-saved" }, h("button", { type: "button", class: "btn small", on: { click: saveFile } }, "⤓ " + t.padFileSave)), b.bSaved));
 			else savedBox("b", b.bSaved);

@@ -486,6 +486,12 @@ for (const pad of [false, true]) {
 	if (pad) check(b.border.x >= b.a.x + b.a.w && b.border.x + b.border.w <= b.b.x && b.border.y === b.a.y && b.border.h === b.a.h && b.apart.y + b.apart.h <= b.a.y
 		&& b.apart.x < b.border.x && b.apart.x + b.apart.w > b.border.x + b.border.w && b.a.w === b.b.w, `store: the border between the two places, as tall, «never together» over it, the places alike`);
 	check(Object.entries(b).every(([id, x]) => id === "guide" || x.y >= 28), `store pad=${pad}: nothing in the guide's band`);
+	if (pad) {
+		const f = lay.file, line = 10;
+		check(contains(b.bString, f.icon) && contains(b.bString, f.sheet) && !overlap(f.icon, f.sheet) && f.lines.length === 3
+			&& f.lines.every(([x, y], j) => x > f.sheet.x && y - line >= f.sheet.y && y + 3 <= f.sheet.y + f.sheet.h && (j === 0 || y - f.lines[j - 1][1] >= line + 2)),
+		"store: the key file in B's string box, its icon beside its sheet, three lines inside it, apart");
+	} else check(!lay.file, "store with no key: no key file");
 }
 // the visual vocabulary (vocab.js), drawn with a fake svg/h: { tag, attrs, children }
 {
