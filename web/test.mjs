@@ -645,6 +645,16 @@ for (const pad of [false, true]) {
 		check(el.style.transform === "" && /450ms cubic-bezier/.test(el.style.transition), "glide: ends in its own place, transitioning over 450 ms");
 		g.finish();
 		check(el.style.transform === "" && el.style.transition === "", "glide: finish removes the transition at once");
+		{ // fadeIn: the class goes at animationend (no replay when the node is re-inserted); needs motion allowed, a mock element
+			const cl = new Set(), ls = {}, fe = { setAttribute() {}, classList: { add: (c) => cl.add(c), remove: (c) => cl.delete(c) },
+				addEventListener: (n, f) => { ls[n] = f; }, removeEventListener: (n) => { delete ls[n]; } };
+			V.fadeIn(fe);
+			check(cl.has("v-fade-in") && typeof ls.animationend === "function", "fadeIn: adds v-fade-in and waits for animationend");
+			ls.animationend({ target: {} });
+			check(cl.has("v-fade-in"), "fadeIn: an animationend of a child leaves the class");
+			ls.animationend({ target: fe });
+			check(!cl.has("v-fade-in") && !ls.animationend, "fadeIn: v-fade-in removed at its own animationend");
+		}
 		const pt = V.string({ box: lay.boxes.seedString, orientation: "h", role: "build", things, items: [0, 1, 2], current: 1 });
 		check(pt && Lay.pitch(lay.boxes.seedString, 3, {}) > 0, "string spaces its pieces with Lay.pitch");
 	}

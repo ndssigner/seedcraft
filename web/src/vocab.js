@@ -466,7 +466,15 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 		return { finish() { done(); el.style.transform = ""; } };
 	}
 	const fadeIn = (el) => {
-		if (live(el) && !reducedMotion()) el.classList.add("v-fade-in");
+		if (live(el) && !reducedMotion()) {
+			el.classList.add("v-fade-in");
+			// once faded in the class goes: a node kept across redraws would replay it when re-inserted
+			if (el.addEventListener) el.addEventListener("animationend", function done(e) {
+				if (e && e.target !== el) return;
+				el.classList.remove("v-fade-in");
+				el.removeEventListener("animationend", done);
+			});
+		}
 		return el;
 	};
 

@@ -1481,17 +1481,21 @@
 		}
 		if (showQr) {
 			kids.push(V.qr({ box: b.qr, size: qr.size, modules: (r, c) => qr.getModule(c, r), reveal }));
-			over.push(place(h("div", { class: "qr-label", text: t.qrLabel(qr.size) }), { x: b.qr.x, y: b.qr.y + b.qr.h + 2, w: b.qr.w, h: 16 }));
+			over.push(place(h("div", { class: "qr-label" }, V.iconTag("seed"), " " + t.qrLabel(qr.size)), { x: b.qr.x, y: b.qr.y + b.qr.h + 2, w: b.qr.w, h: 16 }));
 		}
 		// the arrow of each step is the current one, the one before it past
 		lay.arrows.forEach((a, j) => { if (step >= j + 1) kids.push(V.arrow({ points: a.points, colour: a.colour, state: step === j + 1 ? "current" : "past" })); });
 		return { kids, over };
 	}
+	let qrBack = false;   // «Your QR» reached with Back from the first turn: opens at its last step, nothing replays
 	let qrSeen = 0;   // the step «Your QR» was last drawn at: the QR fills in only when a step grew
 	function qrSlide() {
-		const t = T(), m = st.make, words = m.seed.trim().split(/\s+/), qr = S.compactSeedQR(m.entropy), lay = Lay.seedQr({});
+		const t = T(), m = st.make, words = S.entropyToMnemonic(m.entropy).split(" "), qr = S.compactSeedQR(m.entropy), lay = Lay.seedQr({});
+		const back = qrBack;
+		qrBack = false;
+		if (back) qrSeen = 2;
 		return {
-			id: "qr", question: t.qrQ, wide: true, steps: 3, caption: (s) => [t.qrStepWords, t.qrStepNumber, t.qrStepQr][s],
+			id: "qr", question: t.qrQ, wide: true, steps: 3, startStep: back ? 2 : 0, caption: (s) => [t.qrStepWords, t.qrStepNumber, t.qrStepQr][s],
 			help: helpOf(t.qrQ, null, [t.qrHelp]),
 			next: { go: () => { const m = st.make; m.turn = 0; m.explain = null; turnFresh = null; turnBack = false; turnFrom = null; goSlide("make", "seq"); } },
 			body: (step) => {
@@ -1668,6 +1672,8 @@
 		function body(step) {
 			const kids = [groups.qr, groups.bits, groups.number, groups.key, groups.keyDict, groups.keyNumber, groups.clock, groups.seedDict, groups.seedString, ...arrowGroups];
 			cycle = null;
+			// a fade left from an advance does not replay on this redraw (the groups are re-inserted)
+			if (from === null) [groups.bits, groups.number].forEach((g) => g.classList && g.classList.remove("v-fade-in"));
 			if (explaining) draw(step, true);
 			// on arriving: the cycle plays, a relation at a time, the clock turning step by step
 			// (stage 0 now, before the body is on the page; each later one only while nothing has been drawn since),
@@ -1710,7 +1716,7 @@
 			count: `${pos}/${L}`, steps: explaining ? stages.length : 1, startStep: explaining && back ? last : 0, caption, shortcuts, help: explainTurn, body,
 			// Next while the advance or the cycle plays: first its end, then on
 			hurry,
-			prev: i > 0 ? { go: () => turnGo(i - 1) } : { go: () => goSlide("make", "qr") },
+			prev: i > 0 ? { go: () => turnGo(i - 1) } : { go: () => { qrBack = true; goSlide("make", "qr"); } },
 			next: i < L - 1 ? { go: () => turnGo(i + 1) } : undefined,
 		};
 	}
