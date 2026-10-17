@@ -916,12 +916,12 @@ for (const pad of [false, true]) {
 		check(J.jump(made, "store", notChecked) === "check" && J.jump(made, "store", () => true) === "store" && J.resolve("make", made, "store") === "store",
 			`jump: Store with no Check lands on Check (${s.mode}); checked, on Store`);
 	}
-	const one = (p) => JSON.stringify(J.pieces({ words: 12, n: 16, form: "necklace", padForm: null, ...p }, (f) => f === "book" ? 0 : 1));
-	check(one({ mode: "basic" }) === JSON.stringify({ keyFile: false, groups: [{ kinds: ["seed"], form: "necklace", each: 15, copies: 1, what: "seq" }] }), "pieces: the basic mode, one group");
-	check(one({ mode: "pad", padAs: "string" }) === JSON.stringify({ keyFile: false, groups: [{ kinds: ["seed", "key"], form: "necklace", each: 20, copies: 2, what: "both" }] }), "pieces: a key of the same collection, one group with more of each");
-	check(one({ mode: "pad", padAs: "string", padForm: "book" }) === JSON.stringify({ keyFile: false, groups: [{ kinds: ["seed"], form: "necklace", each: 15, copies: 1, what: "seq" },
-		{ kinds: ["key"], form: "book", each: 15, copies: 0, what: "key" }] }), "pieces: a key of another collection, a group each");
-	check(one({ mode: "pad", padAs: "file" }) === JSON.stringify({ keyFile: true, groups: [{ kinds: ["seed"], form: "necklace", each: 15, copies: 2, what: "seq" }] }), "pieces: a key file, a copy of the dictionary for it");
+	const one = (p) => JSON.stringify(J.pieces({ words: 12, n: 16, form: "necklace", padForm: null, ...p }, (f) => f === "book" ? 0 : 1, (f) => f !== "book"));
+	check(one({ mode: "basic" }) === JSON.stringify({ keyFile: false, groups: [{ kinds: ["seed"], form: "necklace", each: 15, copies: 1, what: "seq", assembly: true }] }), "pieces: the basic mode, one group");
+	check(one({ mode: "pad", padAs: "string" }) === JSON.stringify({ keyFile: false, groups: [{ kinds: ["seed", "key"], form: "necklace", each: 20, copies: 2, what: "both", assembly: true }] }), "pieces: a key of the same collection, one group with more of each");
+	check(one({ mode: "pad", padAs: "string", padForm: "book" }) === JSON.stringify({ keyFile: false, groups: [{ kinds: ["seed"], form: "necklace", each: 15, copies: 1, what: "seq", assembly: true },
+		{ kinds: ["key"], form: "book", each: 15, copies: 0, what: "key", assembly: false }] }), "pieces: a key of another collection, a group each");
+	check(one({ mode: "pad", padAs: "file" }) === JSON.stringify({ keyFile: true, groups: [{ kinds: ["seed"], form: "necklace", each: 15, copies: 2, what: "seq", assembly: true }] }), "pieces: a key file, a copy of the dictionary for it");
 	// a turn of the sequence: its stages reveal every arrow of makeTurn once, in the cycle's order
 	for (const [pad, file, count] of [[false, false, 5], [true, false, 9], [true, true, 8]]) {
 		const stages = J.turnStages({ pad, file }), arrows = Lay.makeTurn({ pad, n: 16, file }).arrows.map((a) => a.id);
@@ -1002,6 +1002,20 @@ for (const pad of [false, true]) {
 	check(q.words.y + q.words.h / 2 === 165 && q.words.y + q.words.h <= q.fingerprint.y, "seedQr end: the words centred on the arrows' line, clear of the fingerprint");
 	const kt = Lay.keyThrow({ sides: 6, bits: 3, tool: "dice", n: 8 }), sl = kt.arrows.find((a) => a.id === "slot");
 	check(sl.points[0][0] === kt.boxes.piece.x + kt.boxes.piece.w / 2, "keyThrow: the slot arrow leaves the piece box at its centre");
+}
+{
+	// the gather cards: every pieces tick and every assembly tick; the About page's test-only stance
+	const J = vm.runInContext("SeedcraftJourneys", ctx);
+	check(J.gatherDone({ seq: true, "assembly:seq": true }, [{ what: "seq", assembly: true }]) && !J.gatherDone({ seq: true }, [{ what: "seq", assembly: true }]) && J.gatherDone({ seq: true }, [{ what: "seq", assembly: false }]), "gatherDone: every pieces tick and every assembly tick");
+	const TX = ctx.TEXT;
+	check(!/ordenador (desconectado|sin conexión)|offline computer|disconnected computer/i.test([TX.en.safe, TX.es.safe].flat().join(" ")), "About: no real seed on an offline computer (test-only stance)");
+	// a form with materials (not written) has an assembly card; the others do not
+	check(J.pieces({ words: 12, n: 16, mode: "basic", form: "book", padForm: null }, () => 1).groups[0].assembly === false, "pieces: no assemblyOf, no assembly card");
+	// the big number of the assembly card, split out of the materials text
+	for (const lang of ["en", "es"]) for (const [id, f] of Object.entries(TX[lang].forms)) {
+		const m = J.splitMaterials(f.materials(21, 30, 4));
+		check(id === "other" ? m.big === null : m.big !== null && /\d/.test(m.big) && m.text.length > 0, `splitMaterials ${lang}.${id}: ${JSON.stringify(m)}`);
+	}
 }
 console.log(`${failures ? "FAIL" : "ok"}: ${vectors.length} vectors, ${padVectors.length} pad vectors, ${failures} failures`);
 process.exit(failures ? 1 : 0);

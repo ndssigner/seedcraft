@@ -66,13 +66,24 @@ const SeedcraftJourneys = (() => {
 	// Each group: { kinds: ["seed"], ["key"] or both, form, each (for the
 	// strings), copies (for the dictionaries), what: "seq" | "key" | "both" }.
 	// A key as a file is no collection: keyFile says it is there.
-	function pieces(p, dictPieces = () => 1) {
+	// assemblyOf(form): whether the form has an assembly card (it has materials, and is not written)
+	function pieces(p, dictPieces = () => 1, assemblyOf = () => false) {
 		const pad = p.mode === "pad", things = pad && p.padAs === "string";
 		if (things && !p.padForm) return { keyFile: false, groups: [
-			{ kinds: ["seed", "key"], form: p.form, each: buyFor(p.words, p.n, "pad", "string"), copies: 2 * dictPieces(p.form), what: "both" }] };
-		const groups = [{ kinds: ["seed"], form: p.form, each: buyFor(p.words, p.n, p.mode, "file"), copies: (pad && !things ? 2 : 1) * dictPieces(p.form), what: "seq" }];
-		if (things) groups.push({ kinds: ["key"], form: p.padForm, each: buyFor(p.words, p.n, "pad", "file"), copies: dictPieces(p.padForm), what: "key" });
+			{ kinds: ["seed", "key"], form: p.form, each: buyFor(p.words, p.n, "pad", "string"), copies: 2 * dictPieces(p.form), what: "both", assembly: !!assemblyOf(p.form) }] };
+		const groups = [{ kinds: ["seed"], form: p.form, each: buyFor(p.words, p.n, p.mode, "file"), copies: (pad && !things ? 2 : 1) * dictPieces(p.form), what: "seq", assembly: !!assemblyOf(p.form) }];
+		if (things) groups.push({ kinds: ["key"], form: p.padForm, each: buyFor(p.words, p.n, "pad", "file"), copies: dictPieces(p.padForm), what: "key", assembly: !!assemblyOf(p.padForm) });
 		return { keyFile: pad && !things, groups };
+	}
+
+	// The pieces slide is done once every group's pieces are ticked, and the
+	// assembly of each group that has one ("assembly:" + what).
+	const gatherDone = (gathered, groups) => groups.every((g) => !!gathered[g.what] && (!g.assembly || !!gathered["assembly:" + g.what]));
+	// The materials text of a form, with the length or quantity apart to draw
+	// big: the first number (with its «cm»), or null when the text has none.
+	function splitMaterials(text) {
+		const m = /\d+(?:[.,]\d+)?(?:\s?cm)?/.exec(text || "");
+		return { big: m ? m[0] : null, text: text || "" };
 	}
 
 	// ---- your own dictionary, a piece per slide ----------------------------
@@ -170,5 +181,5 @@ const SeedcraftJourneys = (() => {
 		return best;
 	}
 
-	return { BUY, PAD_BUY, EXPLAINED, turnStages, readStages, checkRead, buyFor, symbolsFor, slides, resolve, jump, pieces, nameProblem, checkOrder, throwParts };
+	return { BUY, PAD_BUY, EXPLAINED, turnStages, readStages, checkRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, splitMaterials, nameProblem, checkOrder, throwParts };
 })();
