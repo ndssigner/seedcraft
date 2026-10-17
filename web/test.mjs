@@ -980,5 +980,19 @@ for (const pad of [false, true]) {
 	check(/line-clamp:\s*2/.test(p) && /max-height/.test(p), "the caption: two lines at most");
 	check(need <= footH && footTop + footH <= 382.5 + 0.01 && Math.abs(680 / 382.5 - 16 / 9) < 0.001, `the foot: two caption lines and the step line (${need.toFixed(1)}) inside it (${footH}), inside the 16:9 frame`);
 }
+{
+	// the test harness cannot reach app.js's journeySlide, so read its source: every field slides.js reads off a slide is passed through
+	const fs = await import("node:fs"), here = new URL(".", import.meta.url).pathname;
+	const slidesSrc = fs.readFileSync(here + "src/slides.js", "utf8"), appSrc = fs.readFileSync(here + "src/app.js", "utf8");
+	const at = appSrc.indexOf("function journeySlide"), pass = appSrc.slice(at, appSrc.indexOf("// ---- small building blocks", at));
+	const fields = [...new Set([...slidesSrc.matchAll(/\bs\.([a-zA-Z]+)/g)].map((m) => m[1]))].filter((f) => f !== "page");
+	const dropped = fields.filter((f) => !new RegExp("\\b" + f + "\\b").test(pass.slice(pass.indexOf("return { id: view"))));
+	check(dropped.length === 0, "journeySlide passes on every field slides.js reads" + (dropped.length ? ": drops " + dropped.join(", ") : ""));
+	const q = Lay.seedQr({ toWords: true, end: true }).boxes;
+	check(q.words.y + q.words.h / 2 === 165 && q.words.y + q.words.h <= q.fingerprint.y, "seedQr end: the words centred on the arrows' line, clear of the fingerprint");
+	const kt = Lay.keyThrow({ sides: 6, bits: 3, tool: "dice", n: 8 }), sl = kt.arrows.find((a) => a.id === "slot");
+	check(sl.points[0][0] === kt.boxes.piece.x + kt.boxes.piece.w / 2, "keyThrow: the slot arrow leaves the piece box at its centre");
+}
 console.log(`${failures ? "FAIL" : "ok"}: ${vectors.length} vectors, ${padVectors.length} pad vectors, ${failures} failures`);
 process.exit(failures ? 1 : 0);
+

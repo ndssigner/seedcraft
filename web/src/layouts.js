@@ -258,7 +258,7 @@ const SeedcraftLayouts = (() => {
 			arrows.push(
 				arrow("dict", "number", "keyDict", "key", [[450, mid], [466, mid]]),
 				arrow("piece", "keyDict", "piece", "key", [[582, mid], [598, mid]]),
-				arrow("slot", "piece", "keySlot", "key", [[606, mid + 25], [606, RAIL], [352, RAIL], [352, SLOT.y]]));
+				arrow("slot", "piece", "keySlot", "key", [[626, mid + 25], [626, RAIL], [352, RAIL], [352, SLOT.y]]));
 		}
 		return { boxes: b, faces, arrows };
 	}
@@ -438,7 +438,7 @@ const SeedcraftLayouts = (() => {
 	function seedQr({ toWords = false, end = false } = {}) {
 		// the question on one line over everything; the words and the number centred on the arrows' line (y 165)
 		const b = { guide: { ...GUIDE }, question: box(16, 28, 648, 32),
-			words: end ? box(16, 70, 200, 180) : box(16, 75, 200, 180),
+			words: box(16, 75, 200, 180),
 			number: box(240, 100, 184, 130), qr: box(448, 68, 216, 216) };
 		if (end) Object.assign(b, { fingerprint: box(16, 256, 200, 28), note: box(16, 290, 408, 44) });
 		const arrows = toWords
