@@ -49,6 +49,8 @@ const SeedcraftLayouts = (() => {
 	const BUILT = box(16, 276, 648, 58), SLOT = box(316, 276, 48, 58);
 	// the y where the arrows run before dropping into the slot
 	const RAIL = 262;
+	// the turn's position, in its own box above the slot's left; the cycle starts here
+	const POSBOX = box(326, 258, 28, 16);
 	// the slide's fixed top band, the guide on the left and «?» «⋯» on the right: nothing else goes there
 	const GUIDE = box(0, 0, VIEW.w, 26);
 
@@ -66,10 +68,11 @@ const SeedcraftLayouts = (() => {
 			number: box(212, 94, 72, 40),
 			seedString: { ...BUILT },
 			seedSlot: { ...SLOT },
+			posBox: { ...POSBOX },
 			guide: { ...GUIDE },
 		};
 		const arrows = [
-			arrow("position", "seedSlot", "qr", "qr", [[328, 276], [328, 264], [106, 264], [106, 216]]),
+			arrow("position", "posBox", "qr", "qr", [[326, 266], [106, 266], [106, 216]]),
 			arrow("bits", "qr", "bits", "qr", [[196, 67], [212, 67]]),
 			arrow("number", "bits", "number", "qr", [[232, 78], [232, 94]]),
 		];
@@ -77,7 +80,7 @@ const SeedcraftLayouts = (() => {
 			b.seedDict = box(400, 76, 140, 72);
 			arrows.push(
 				arrow("dict", "number", "seedDict", "qr", [[284, 112], [400, 112]]),
-				arrow("slot", "seedDict", "seedSlot", "qr", [[470, 148], [470, RAIL], [352, RAIL], [352, SLOT.y]]));
+				arrow("slot", "seedDict", "seedSlot", "qr", [[470, 148], [470, RAIL], [360, RAIL], [360, SLOT.y]]));
 			return { boxes: b, arrows };
 		}
 		// the key string is a reference: vertical, its turn piece in the middle (y 126)
@@ -105,7 +108,7 @@ const SeedcraftLayouts = (() => {
 		}
 		arrows.push(
 			arrow("output", "clock", "seedDict", "qr", [[584, 180], [584, 196]]),
-			arrow("slot", "seedDict", "seedSlot", "qr", [[584, 256], [584, RAIL], [352, RAIL], [352, SLOT.y]]));
+			arrow("slot", "seedDict", "seedSlot", "qr", [[584, 256], [584, RAIL], [360, RAIL], [360, SLOT.y]]));
 		return { boxes: b, arrows };
 	}
 
@@ -211,7 +214,7 @@ const SeedcraftLayouts = (() => {
 	// in the file (no dictionary, no piece).
 	function keyThrow({ sides = 6, bits = 5, tool = "dice", file = false, n = 2 ** bits, value = null }) {
 		const mid = 70 + 5 * BIT / 2, h = bits * BIT, y = mid - h / 2;
-		const b = { guide: { ...GUIDE }, question: box(190, 30, 300, 30), keyString: { ...BUILT }, keySlot: { ...SLOT } };
+		const b = { guide: { ...GUIDE }, question: box(190, 30, 300, 30), keyString: { ...BUILT }, keySlot: { ...SLOT }, posBox: { ...POSBOX } };
 		const number = () => { b.number = box(394, mid - 20, 56, 40); };
 		let faces = null;
 		const arrows = [];
@@ -227,10 +230,11 @@ const SeedcraftLayouts = (() => {
 				number();
 				b.instruction = box(460, 170, 190, 24); b.tools = box(460, 200, 190, 24);
 				arrows.push(arrow("number", "picker", "number", "key", cy === mid ? [[right, mid], [394, mid]] : [[right, cy], [370, cy], [370, mid], [394, mid]]),
-					arrow("slot", "number", "keySlot", "key", [[422, mid + 20], [422, RAIL], [352, RAIL], [352, SLOT.y]]));
+					arrow("slot", "number", "keySlot", "key", [[422, mid + 20], [422, RAIL], [360, RAIL], [360, SLOT.y]]));
 			} else {
 				b.instruction = box(380, 120, 260, 24); b.tools = box(380, 150, 260, 24);
-				arrows.push(arrow("slot", "picker", "keySlot", "key", [[cx, bottom], [cx, RAIL], [352, RAIL], [352, SLOT.y]]));
+				// (its rail runs above the posBox, which the picker is to the left of)
+				arrows.push(arrow("slot", "picker", "keySlot", "key", [[cx, bottom], [cx, POSBOX.y - 4], [360, POSBOX.y - 4], [360, SLOT.y]]));
 			}
 			return { boxes: b, faces, arrows };
 		}
@@ -252,13 +256,13 @@ const SeedcraftLayouts = (() => {
 			b.info = box(200, Math.max(y + h, b.rejected.y + b.rejected.h) + 6, 156, 14);
 		}
 		arrows.push(arrow("number", "brace", "number", "key", [[378, mid], [394, mid]]));
-		if (file) arrows.push(arrow("slot", "number", "keySlot", "key", [[422, mid + 20], [422, RAIL], [352, RAIL], [352, SLOT.y]]));
+		if (file) arrows.push(arrow("slot", "number", "keySlot", "key", [[422, mid + 20], [422, RAIL], [360, RAIL], [360, SLOT.y]]));
 		else {
 			Object.assign(b, { keyDict: box(466, mid - 36, 116, 72), piece: box(598, mid - 25, 56, 50) });
 			arrows.push(
 				arrow("dict", "number", "keyDict", "key", [[450, mid], [466, mid]]),
 				arrow("piece", "keyDict", "piece", "key", [[582, mid], [598, mid]]),
-				arrow("slot", "piece", "keySlot", "key", [[626, mid + 25], [626, RAIL], [352, RAIL], [352, SLOT.y]]));
+				arrow("slot", "piece", "keySlot", "key", [[626, mid + 25], [626, RAIL], [360, RAIL], [360, SLOT.y]]));
 		}
 		return { boxes: b, faces, arrows };
 	}
@@ -449,5 +453,5 @@ const SeedcraftLayouts = (() => {
 		return { boxes: b, arrows };
 	}
 
-	return { BUILT, SLOT, RAIL, pitch, qrCellsBox, digitFont, seedQr, VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readColumn, readTurn, pickerPopup, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, REJECT, BADGE, fileRow, fileColumn, store, dictName, dictCheck, dictAsIs };
+	return { BUILT, SLOT, POSBOX, RAIL, pitch, qrCellsBox, digitFont, seedQr, VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readColumn, readTurn, pickerPopup, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, REJECT, BADGE, fileRow, fileColumn, store, dictName, dictCheck, dictAsIs };
 })();

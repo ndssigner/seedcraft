@@ -125,13 +125,14 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	// titleOf(i): what hovering piece i says, if not its position and name.
 	// column (role "read", vertical): layouts.js's readColumn for this box (readTurn's and
 	// checkFinal's columns); else one is made with outer: the side its positions go on.
-	function string({ box, orientation = "h", role = "build", kind = "seed", things = [], items = [], firstPosition = 1, current = -1, showValues = role === "read", onSlot, onPiece, room, titleOf, column, outer = "left" }) {
+	let maskN = 0;
+	function string({ box, orientation = "h", role = "build", kind = "seed", things = [], items = [], firstPosition = 1, current = -1, showValues = role === "read", onSlot, onPiece, room, titleOf, column, outer = "left", posBox }) {
 		const n = Math.max(1, items.length), vertical = orientation === "v";
 		// the icon's room at the start, the same at the end, so the middle position stays at the box's middle
 		const pad = room !== undefined ? room : vertical ? Math.min(14, box.h * 0.08) : Math.min(20, box.w * 0.04);
 		const pitch = L.pitch(box, n, { vertical, room: pad });
 		const parts = [];
-		let place, r, label, curR = null, start = null;   // start: where the thread begins when the first positions are empty (right of its icon)
+		let place, r, label, curR = null, start = null, iconEl = null;   // start: where the thread begins when the first positions are empty (right of its icon)
 		const posClass = (i) => "v-pos" + (i === current ? " v-pos-current v-c-qr v-bold" : "");
 		if (!vertical && role === "build") {
 			// the turn's piece by far the largest, its position (blue) and name under it, ~3 pitches wide;
@@ -141,11 +142,11 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			r = Math.max(3, Math.min(pitch / 2 - 6, R / 1.55));
 			curR = R;
 			place = (i) => [box.x + pad + pitch * (i + 0.5), cy];
+			// every position above its bead; the turn's, in the posBox, above the slot; its name under its bead
 			label = (i, x, y, thing, pos) => i === current
-				? [svg("text", { x: r1(x), y: r1(box.y + box.h - 3), "font-size": r1(NAME), "text-anchor": "middle", class: "v-t v-name" },
-					svg("tspan", { class: "v-pos v-pos-current v-c-qr v-bold" }, String(pos)), thing ? " " + fit(thing.name, 3 * pitch - NAME * 2, NAME) : "")]
+				? [thing ? svg("text", { x: r1(x), y: r1(box.y + box.h - 3), "font-size": r1(NAME), "text-anchor": "middle", class: "v-t v-name" }, fit(thing.name, 3 * pitch - NAME * 2, NAME)) : null]
 				: [text(x, cy - r - 1.5, 9, pos, { "text-anchor": "middle", class: "v-pos" })];
-			parts.push(icon(kind, box.x + pad / 2, cy, Math.min(pad * 0.7, 14)));
+			iconEl = icon(kind, box.x + pad / 2, cy, Math.min(pad * 0.7, 14));
 			start = box.x + pad;
 		} else if (!vertical) {
 			const cy = box.y + box.h * 0.38;
@@ -205,6 +206,26 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			if (tap) press(g, () => tap(i));
 			parts.push(g);
 		});
+		if (iconEl) {
+			// build: the icon apart; the beads and thread in the run (faded at both ends, in a wrapper
+			// so a glided run does not drag its mask); the slot's frame and the posBox, fixed
+			const id = "sm" + (++maskN), x0 = box.x, w = box.w, fade = Math.min(pitch / w, 0.5);
+			const stop = (o, c) => svg("stop", { offset: r1(o * 100) + "%", "stop-color": c });
+			const defs = svg("defs", {}, [
+				svg("linearGradient", { id: id + "g", gradientUnits: "userSpaceOnUse", x1: x0, y1: 0, x2: x0 + w, y2: 0 }, [stop(0, "#000"), stop(fade, "#fff"), stop(1 - fade, "#fff"), stop(1, "#000")]),
+				svg("mask", { id, maskUnits: "userSpaceOnUse", x: x0, y: box.y - 6, width: w, height: box.h + 12 },
+					svg("rect", { x: x0, y: box.y - 6, width: w, height: box.h + 12, fill: `url(#${id}g)` }))]);
+			const fixed = [];
+			if (posBox) {
+				const cx = place(current)[0];
+				fixed.push(svg("rect", { x: r1(cx - pitch / 2), y: box.y, width: r1(pitch), height: box.h, rx: 4, class: "v-slot-frame" }));
+				fixed.push(svg("rect", { x: posBox.x, y: posBox.y, width: posBox.w, height: posBox.h, rx: 4, class: "v-pos-box" }),
+					text(posBox.x + posBox.w / 2, posBox.y + posBox.h / 2 + 4, 11, firstPosition + current, { "text-anchor": "middle", class: "v-pos v-pos-current v-c-qr v-bold" }));
+			}
+			return svg("g", { class: `v v-string v-${role} v-${kind}` }, [defs, svg("g", { class: "v-string-fixed" }, fixed),
+				svg("g", { class: "v-string-icon" }, iconEl),
+				svg("g", { mask: `url(#${id})` }, svg("g", { class: "v-string-run" }, parts))]);
+		}
 		return svg("g", { class: `v v-string v-${role} v-${kind}` }, parts);
 	}
 

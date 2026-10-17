@@ -1395,7 +1395,7 @@
 				if (i === pos) return withPiece ? value : null;
 				return i < have ? values[i] : null;
 			});
-			return V.string({ box: b.keyString, role: "build", kind: "key", things, items, current: 6, firstPosition: pos - 5 });
+			return V.string({ box: b.keyString, role: "build", kind: "key", things, items, current: 6, firstPosition: pos - 5, posBox: b.posBox });
 		}
 		// the key file growing (writePadFile's format): the line before (its first line, «L N», or
 		// the row before), then the row with this piece, its place framed under the slot, its check once the row is whole
@@ -1688,7 +1688,7 @@
 			groups.seedDict.replaceChildren(wait(V.dictionary({ label: T().dictLabel, box: b.seedDict, things, mode: "reel", icon: "seed",
 				value: reached("dict") ? C : null, from: turning && p === at("dict") ? 0 : undefined }), reached("dict")));
 			// your string: those before the turn in place, the slot (filled at the last stage), the rest to come
-			groups.seedString.replaceChildren(V.string({ box: b.seedString, role: "build", kind: "seed", things, current: 6, firstPosition: i - 5,
+			groups.seedString.replaceChildren(V.string({ box: b.seedString, role: "build", kind: "seed", things, current: 6, firstPosition: i - 5, posBox: b.posBox,
 				items: Array.from({ length: 13 }, (_, j) => { const x = i - 6 + j; return x < 0 || x >= L ? undefined : x < i ? m.symbols[x] : x === i && reached("slot") ? C : null; }) }));
 			lay.arrows.forEach((a, j) => {
 				const s = stageOf(a.id);
