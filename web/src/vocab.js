@@ -131,7 +131,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 		const pad = room !== undefined ? room : vertical ? Math.min(14, box.h * 0.08) : Math.min(20, box.w * 0.04);
 		const pitch = L.pitch(box, n, { vertical, room: pad });
 		const parts = [];
-		let place, r, label, curR = null;
+		let place, r, label, curR = null, start = null;   // start: where the thread begins when the first positions are empty (right of its icon)
 		const posClass = (i) => "v-pos" + (i === current ? " v-pos-current v-c-qr v-bold" : "");
 		if (!vertical && role === "build") {
 			// the turn's piece by far the largest, its position (blue) and name under it, ~3 pitches wide;
@@ -146,6 +146,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 					svg("tspan", { class: "v-pos v-pos-current v-c-qr v-bold" }, String(pos)), thing ? " " + fit(thing.name, 3 * pitch - NAME * 2, NAME) : "")]
 				: [text(x, cy - r - 1.5, 9, pos, { "text-anchor": "middle", class: "v-pos" })];
 			parts.push(icon(kind, box.x + pad / 2, cy, Math.min(pad * 0.7, 14)));
+			start = box.x + pad;
 		} else if (!vertical) {
 			const cy = box.y + box.h * 0.38;
 			r = Math.max(3, Math.min(pitch / 2 - 6, box.h * 0.27) * (role === "reference" ? 0.7 : 1));
@@ -154,6 +155,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 				text(x, box.y + box.h - 2, 9, pos, { "text-anchor": "middle", class: posClass(i) }),
 				value !== null && showValues ? text(x + pitch / 2 - 2, box.y + 10, 9, value, { "text-anchor": "end", class: "v-value " + colourClass(kind) }) : null];
 			parts.push(icon(kind, box.x + pad / 2, cy, Math.min(pad * 0.7, 14)));
+			start = box.x + pad;
 		} else if (role === "read") {
 			// layouts.js's readColumn: each row's position on the column's outer side (outer),
 			// the piece in the middle, its number (big, in its string's colour) beside it, never one over the other
@@ -165,6 +167,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 				value !== null && showValues ? text(mid(col.rows[i].value), y + fs * 0.36, fs, value, { "text-anchor": "middle", class: "v-value v-bold " + colourClass(kind) }) : null,
 				text(mid(col.rows[i].pos), y + small * 0.36, small, pos, { "text-anchor": "middle", class: posClass(i) })];
 			parts.push(icon(kind, col.icon[0], col.icon[1], pad * 0.75));
+			start = col.icon[1] + pad * 0.4;
 		} else {
 			// the position on the left, the piece on the right
 			const numW = 12;
@@ -176,12 +179,13 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 				text(box.x + numW / 2, y + fs * 0.35, i === current ? 10 : fs, pos, { "text-anchor": "middle", class: posClass(i) }),
 				value !== null && showValues ? text(box.x + numW / 2, y + fs * 1.4, fs, value, { "text-anchor": "middle", class: "v-value " + colourClass(kind) }) : null];
 			parts.push(icon(kind, cx, box.y + pad / 2, pad * 0.75));
+			start = box.y + pad;
 		}
 		// the thread, from the first position there is to the last
 		const there = items.map((x, i) => x === undefined ? -1 : i).filter((i) => i >= 0);
 		if (there.length) {
 			const a = place(there[0]), b = place(there[there.length - 1]), ext = (i) => i === 0 || i === items.length - 1 ? pitch / 2 : 0;
-			const [x1, y1] = vertical ? [a[0], a[1] - ext(there[0])] : [there[0] > 0 && !vertical ? box.x + pad : a[0] - ext(there[0]), a[1]];
+			const [x1, y1] = vertical ? [a[0], there[0] > 0 ? start : a[1] - ext(there[0])] : [there[0] > 0 ? start : a[0] - ext(there[0]), a[1]];
 			const [x2, y2] = vertical ? [b[0], b[1] + ext(there[there.length - 1])] : [b[0] + ext(there[there.length - 1]), b[1]];
 			parts.push(svg("line", { x1: r1(x1), y1: r1(y1), x2: r1(x2), y2: r1(y2), class: "v-thread" + (role === "reference" ? " v-thread-ref" : role === "build" ? " v-thread-build" : "") }));
 		}
@@ -221,12 +225,14 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			svg("rect", { x: card.x, y: card.y, width: card.w, height: card.h, rx: 4, class: "v-dict-card" }),
 		];
 		const row = (v, y, rowH, on, col = inner) => {
-			const fs = Math.min(12, rowH * 0.62), numW = fs * 1.5, br = Math.max(2, rowH * 0.36), thing = things[v];
-			const bx = col.x + numW + 4 + br;
+			// the number, the bead, the name: a name of up to 16 characters is drawn whole (its font steps down to fit)
+			const fs = Math.min(col.w < 130 ? 10 : 12, rowH * 0.62), numW = fs * 1.25, br = Math.min(Math.max(2, rowH * 0.36), col.w < 130 ? 5 : 99), thing = things[v];
+			const bx = col.x + numW + 3 + br, tx = bx + br + 3, room = col.x + col.w - tx - 2;
+			const nfs = Math.max(Math.min(fs, 9), Math.min(Math.min(12, rowH * 0.62), room / (16 * 0.56)));
 			return svg("g", { class: "v-dict-row" + (on ? " on" : ""), "data-value": String(v), "data-y": String(r1(y)) },
 				text(col.x + numW, y + rowH / 2 + fs * 0.35, fs, v, { "text-anchor": "end", class: "v-mono v-dict-num" }),
 				bead(thing && (thing.name || thing.emoji || thing.photo || thing.colour) ? thing : null, bx, y + rowH / 2, br),
-				text(bx + br + 3, y + rowH / 2 + fs * 0.35, fs, thing ? fit(thing.name, col.x + col.w - bx - br - 4, fs) : "", { class: "v-name" }));
+				text(tx, y + rowH / 2 + nfs * 0.35, nfs, thing ? fit(thing.name, room, nfs) : "", { class: "v-name" }));
 		};
 		if (mode === "picker") {
 			// the grid is layouts.js's, so an arrow can leave from the piece picked

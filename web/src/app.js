@@ -1473,9 +1473,11 @@
 			over.push(place(h("ol", { class: "qr-words" + (words.length > 12 ? " many" : "") }, words.map((w) => h("li", { text: w }))), b.words));
 		}
 		if (showNumber) {
-			const num = place(h("div", { class: "qr-number" + (digits.length > 4 ? " many" : "") }, digits.map((x) => h("div", { text: x }))), b.number);
+			const f = Lay.digitFont(b.number, 19, digits.length);   // the lines and the «bits» under them fit their box
+			const num = place(h("div", { class: "qr-number" }, h("div", { class: "qr-digits" }, digits.map((x) => h("div", { text: x }))),
+				h("div", { class: "qr-bits", text: t.qrBits(entropy.length * 8) })), b.number);
+			num.style.fontSize = `calc(var(--u) * ${f})`;
 			over.push(fade ? V.fadeIn(num) : num);
-			over.push(place(h("div", { class: "qr-bits", text: t.qrBits(entropy.length * 8) }), { x: b.number.x, y: b.number.y + b.number.h + 4, w: b.number.w, h: 18 }));
 		}
 		if (showQr) {
 			kids.push(V.qr({ box: b.qr, size: qr.size, modules: (r, c) => qr.getModule(c, r), reveal }));
@@ -1489,9 +1491,9 @@
 	function qrSlide() {
 		const t = T(), m = st.make, words = m.seed.trim().split(/\s+/), qr = S.compactSeedQR(m.entropy), lay = Lay.seedQr({});
 		return {
-			id: "qr", question: t.qrQ, steps: 3, caption: (s) => [t.qrStepWords, t.qrStepNumber, t.qrStepQr][s],
+			id: "qr", question: t.qrQ, wide: true, steps: 3, caption: (s) => [t.qrStepWords, t.qrStepNumber, t.qrStepQr][s],
 			help: helpOf(t.qrQ, null, [t.qrHelp]),
-			next: { go: () => turnGo(0, true) },
+			next: { go: () => { const m = st.make; m.turn = 0; m.explain = null; turnFresh = null; turnBack = false; turnFrom = null; goSlide("make", "seq"); } },
 			body: (step) => {
 				const grew = step > qrSeen && !calm();
 				qrSeen = step;
