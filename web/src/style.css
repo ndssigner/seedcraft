@@ -573,6 +573,15 @@ body { overflow: hidden; }
 /* «down»: over its subject, the tail under it (the intro's string) */
 .tip.down::after { top: 100%; left: 50%; margin-top: 0; margin-left: calc(var(--u) * -6); border-top: calc(var(--u) * 10) solid var(--accent);
 	border-left: calc(var(--u) * 6) solid transparent; border-right: calc(var(--u) * 6) solid transparent; border-bottom: 0; }
+/* the mask's bubble on a last turn: closable; its tail along the side it is on at --at (from the bubble's top or left), «up»: over the cards, the tail on top */
+.tip.mask-tip { gap: calc(var(--u) * 6); font-size: .74em; z-index: 2; }
+.tip.mask-tip.left::after { top: var(--at); margin-top: calc(var(--u) * -6); }
+.tip.mask-tip.up::after { top: auto; bottom: 100%; left: var(--at); margin-top: 0; margin-left: calc(var(--u) * -6); border-bottom: calc(var(--u) * 10) solid var(--accent);
+	border-left: calc(var(--u) * 6) solid transparent; border-right: calc(var(--u) * 6) solid transparent; border-top: 0; }
+.tip-close { flex: none; align-self: flex-start; border: 0; background: none; color: inherit; font: inherit; font-size: 1.3em; line-height: 1; padding: 0 calc(var(--u) * 2); cursor: pointer; }
+/* the bits a last turn brings: ringed; the others dimmed */
+.v-bit-ring { fill: none; stroke: var(--accent); stroke-width: 1.6; }
+.v-bit-dim { opacity: .5; }
 /* the intro before the turns: the exact count, big, and what it means */
 .seq-count { position: absolute; z-index: 1; box-sizing: border-box; margin: 0; padding: calc(var(--u) * 8) calc(var(--u) * 12); display: flex; align-items: center; gap: calc(var(--u) * 12);
 	background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-m); }
