@@ -391,11 +391,14 @@ for (const size of [21, 25]) for (const n of [2, 16, 32]) for (const pad of [fal
 		checkLayout(`read size=${size} n=${n} pad=${pad} file=${file} turn ${i}`, lay);
 		margin(`read size=${size} n=${n} pad=${pad} file=${file} turn ${i}`, lay);
 		const into = (id) => lay.arrows.find((a) => a.id === id);
-		for (const a of lay.arrows) if (!(onBorder(starts(a), lay.boxes[a.from]) && onBorder(ends(a), lay.boxes[a.to]))) check(false, `read size=${size} n=${n} pad=${pad} file=${file} turn ${i}: arrow ${a.id} leaves and reaches its boxes`);
+		// (paint reaches the QR as drawn, narrower than its box with a legend)
+		const drawn = Lay.qrSquare(lay.boxes.qr, { legend: lay.boxes.qr.h >= 150 });
+		for (const a of lay.arrows) if (!(onBorder(starts(a), lay.boxes[a.from]) && onBorder(ends(a), a.id === "paint" ? drawn : lay.boxes[a.to]))) check(false, `read size=${size} n=${n} pad=${pad} file=${file} turn ${i}: arrow ${a.id} leaves and reaches its boxes`);
+		if (pad) check(starts(into("piece"))[0] <= lay.boxes.seedColumn.x + lay.boxes.seedColumn.w, `read size=${size} n=${n} file=${file} turn ${i}: with a key, the seed's piece leaves from the seed's side of the row`);
 		check(!into("position") === !cursor && !into("paint") === !cursor, `read size=${size} n=${n} pad=${pad} turn ${i}: position and paint only with a cursor`);
 		if (cursor) {
 			const p = into("position").points.at(-1), q = into("paint").points.at(-1), mid = (a, b) => a + b / 2;
-			check(p[1] === lay.boxes.qr.y && Math.abs(p[0] - mid(cursor.x, cursor.w)) <= 1 && q[0] === lay.boxes.qr.x + lay.boxes.qr.w && Math.abs(q[1] - mid(cursor.y, cursor.h)) <= 1,
+			check(p[1] === lay.boxes.qr.y && Math.abs(p[0] - mid(cursor.x, cursor.w)) <= 1 && q[0] === drawn.x + drawn.w && Math.abs(q[1] - mid(cursor.y, cursor.h)) <= 1,
 				`read size=${size} n=${n} pad=${pad} turn ${i}: position reaches the QR above the cursor, the bits beside it`);
 		}
 	}

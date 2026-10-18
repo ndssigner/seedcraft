@@ -2205,7 +2205,9 @@
 			}
 			colsDrawn = true;
 			if (pad) {
-				g.clock.replaceChildren(V.clock({ box: b.clock, n, from: hasC ? C : null, by: hasK ? K : null, sign: -1, inputColour: "seed",
+				// its inputs: while choosing, what is chosen; once whole, from the stage that feeds them
+				const fed = (has) => whole ? reached("in") : has;
+				g.clock.replaceChildren(V.clock({ box: b.clock, n, from: fed(hasC) ? C : null, by: fed(hasK) ? K : null, sign: -1, inputColour: "seed",
 					phase: !whole || p < at("out") ? "inputs" : p === at("out") && turning ? "run" : "done", onDone: p === at("out") ? onRun : undefined, alive }));
 			}
 			const pb = whole ? bitsOf(P, k) : [];
