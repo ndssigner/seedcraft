@@ -163,6 +163,12 @@
 		const words = (name || "").trim().split(/\s+/).filter(Boolean);
 		return !words.length ? "" : words.length > 1 ? words.map((w) => w[0]).join("").slice(0, 2).toUpperCase() : words[0].slice(0, 3);
 	};
+	// the automatic initials of a whole dictionary: the entries that would collide get three letters
+	const autoInitials = (things) => {
+		const at = things.map((x, i) => i).filter((i) => (things[i].name || "").trim()), u = J.uniqueInitials(at.map((i) => things[i].name.trim()), initialsOf), out = things.map(() => "");
+		at.forEach((i, j) => { out[i] = u[j]; });
+		return out;
+	};
 	const lightColour = (hex) => {
 		const v = parseInt((hex || "#ffffff").slice(1), 16);
 		return ((v >> 16) * 299 + ((v >> 8) & 255) * 587 + (v & 255) * 114) / 1000 > 150;
@@ -269,23 +275,83 @@
 
 	// A photo of a piece: the centre square, 192 px, as a JPEG data URL (the
 	// only kind of image this page may show).
-	function photoOf(file) {
-		return new Promise((resolve, reject) => {
-			const fr = new FileReader();
-			fr.onerror = reject;
-			fr.onload = () => {
-				const img = new Image();
-				img.onerror = reject;
-				img.onload = () => {
-					const side = Math.min(img.naturalWidth, img.naturalHeight), c = document.createElement("canvas");
-					c.width = c.height = 192;
-					c.getContext("2d").drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, 192, 192);
-					resolve(c.toDataURL("image/jpeg", 0.85));
-				};
-				img.src = fr.result;
-			};
-			fr.readAsDataURL(file);
+	const readImage = (file) => new Promise((resolve, reject) => {
+		const fr = new FileReader();
+		fr.onerror = reject;
+		fr.onload = () => {
+			const img = new Image();
+			img.onerror = reject;
+			img.onload = () => resolve({ img, src: fr.result });
+			img.src = fr.result;
+		};
+		fr.readAsDataURL(file);
+	});
+	// crop: {x, y, side} in the image's own pixels (none: the centred largest square)
+	function photoOf(file, crop = null) {
+		return readImage(file).then(({ img }) => {
+			const iw = img.naturalWidth, ih = img.naturalHeight, side = Math.min(iw, ih);
+			const r = crop ? Lay.cropClamp({ iw, ih, ...crop }) : { x: (iw - side) / 2, y: (ih - side) / 2, side }, c = document.createElement("canvas");
+			c.width = c.height = 192;
+			c.getContext("2d").drawImage(img, r.x, r.y, r.side, r.side, 0, 0, 192, 192);
+			return c.toDataURL("image/jpeg", 0.85);
 		});
+	}
+	// The popup that frames a photo: the image fitted, a square frame to drag, resize (wheel,
+	// pinch, slider, +/−) and nudge (arrows). Resolves the crop, or null when cancelled.
+	function cropPopup(file) {
+		return readImage(file).then(({ img, src }) => new Promise((resolve) => {
+			const t = T(), iw = img.naturalWidth, ih = img.naturalHeight, fit = Math.min(220 / iw, 150 / ih), short = Math.min(iw, ih);
+			let c = Lay.cropClamp({ iw, ih, x: (iw - short) / 2, y: (ih - short) / 2, side: short }), done = false;
+			const stage = h("div", { class: "crop-stage", tabindex: "0", role: "group", "aria-label": t.cropQ }), pic = h("img", { class: "crop-img", src, alt: "", draggable: "false" }), frame = h("div", { class: "crop-frame" });
+			stage.style.width = `calc(var(--u) * ${iw * fit})`; stage.style.height = `calc(var(--u) * ${ih * fit})`;
+			stage.append(pic, frame);
+			const slider = h("input", { type: "range", class: "crop-size", min: "32", max: String(short), step: "1", "aria-label": t.cropSize });
+			const paint = () => {
+				frame.style.left = `calc(var(--u) * ${c.x * fit})`; frame.style.top = `calc(var(--u) * ${c.y * fit})`;
+				frame.style.width = frame.style.height = `calc(var(--u) * ${c.side * fit})`;
+				slider.value = String(Math.round(c.side));
+			};
+			// resize about the frame's centre
+			const resize = (side) => { const m = Lay.cropClamp({ iw, ih, x: 0, y: 0, side }).side, cx = c.x + c.side / 2, cy = c.y + c.side / 2; c = Lay.cropClamp({ iw, ih, x: cx - m / 2, y: cy - m / 2, side: m }); paint(); };
+			const move = (dx, dy) => { c = Lay.cropClamp({ iw, ih, x: c.x + dx, y: c.y + dy, side: c.side }); paint(); };
+			const pts = new Map();
+			let last = 0;
+			const pxPerImg = () => stage.getBoundingClientRect().width / iw;
+			const span = () => { const [p, q] = [...pts.values()]; return Math.hypot(p.x - q.x, p.y - q.y); };
+			stage.addEventListener("pointerdown", (e) => {
+				pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+				try { stage.setPointerCapture(e.pointerId); } catch (z) { /* not captured */ }
+				if (pts.size === 2) last = span();
+				else if (pts.size === 1) {
+					// a press outside the frame puts its centre there
+					const r = stage.getBoundingClientRect(), k = pxPerImg(), ix = (e.clientX - r.left) / k, iy = (e.clientY - r.top) / k;
+					if (ix < c.x || ix > c.x + c.side || iy < c.y || iy > c.y + c.side) move(ix - c.side / 2 - c.x, iy - c.side / 2 - c.y);
+				}
+			});
+			stage.addEventListener("pointermove", (e) => {
+				const p = pts.get(e.pointerId); if (!p) return;
+				const dx = e.clientX - p.x, dy = e.clientY - p.y;
+				pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+				if (pts.size >= 2) { const s = span(); if (last > 0 && s > 0) resize(c.side * last / s); last = s; }
+				else { const k = pxPerImg(); move(dx / k, dy / k); }
+			});
+			const up = (e) => { pts.delete(e.pointerId); if (pts.size === 1) last = 0; };
+			stage.addEventListener("pointerup", up); stage.addEventListener("pointercancel", up);
+			stage.addEventListener("wheel", (e) => { e.preventDefault(); resize(c.side * Math.exp(e.deltaY * 0.002)); }, { passive: false });
+			stage.addEventListener("keydown", (e) => {
+				const d = Math.max(1, Math.round(c.side / 20)), v = { ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, -d], ArrowDown: [0, d] }[e.key];
+				if (v) { e.preventDefault(); move(...v); }
+			});
+			slider.addEventListener("input", () => resize(+slider.value));
+			const finish = (r) => { if (done) return; done = true; resolve(r); };
+			const close = Slides.popup(h("div", { class: "slide-help crop-pop" }, h("h2", { text: t.cropQ }), stage,
+				h("div", { class: "crop-row" }, h("button", { type: "button", class: "btn ghost", "aria-label": "−", text: "−", on: { click: () => resize(c.side * 0.9) } }), slider,
+					h("button", { type: "button", class: "btn ghost", "aria-label": "+", text: "+", on: { click: () => resize(c.side / 0.9) } })),
+				h("div", { class: "crop-row" }, h("button", { type: "button", class: "btn ghost", text: t.cropCancel, on: { click: () => close() } }),
+					h("button", { type: "button", class: "btn", text: t.cropDo, on: { click: () => { finish({ x: c.x, y: c.y, side: c.side }); close(); } } }))),
+				{ label: t.cropQ, onClose: () => finish(null) });
+			paint();
+		}));
 	}
 
 	// ---- the start page's top bar and foot ------------------------------
@@ -745,7 +811,10 @@
 				const things = dictFromFile(await f.text(), f.name), problem = dictProblem(things);
 				if (problem) onError(problem);
 				else if (n && things.length !== n) onError(t.errPadDictSize(things.length, n));
-				else onThings(things);
+				else {
+					onThings(things);
+					if (things.fixedInitials) Slides.popup(h("div", { class: "slide-help" }, h("p", { text: t.dupInitials })), { label: t.dupInitials });
+				}
 			} catch (x) { onError(t.errDictFile); }
 		});
 	}
@@ -911,6 +980,9 @@
 			const things = (j.things || []).map((x) => ({ name: String(x.name || "").trim(), emoji: x.emoji || "",
 				colour: /^#[0-9a-f]{6}$/i.test(x.colour || "") ? x.colour.toLowerCase() : "",
 				photo: typeof x.photo === "string" && x.photo.startsWith("data:image/") ? x.photo : "" }));
+			// colliding automatic initials get three letters (the note is for the caller)
+			const auto = autoInitials(things);
+			things.forEach((x, i) => { if (x.emoji && x.emoji === initialsOf(x.name) && auto[i] !== x.emoji) { x.emoji = auto[i]; things.fixedInitials = true; } });
 			return things;
 		}
 		return text.split(/\r?\n/).map((s) => s.trim()).filter(Boolean).map((name) => ({ name, emoji: "", colour: "", photo: "" }));
@@ -958,7 +1030,7 @@
 		return el;
 	}
 	// the things of a dictionary, to edit (the symbol typed by hand, if it is not the initials)
-	const editable = (things) => things.map((x) => ({ ...x, symbolTyped: !!x.emoji && x.emoji !== initialsOf(x.name) }));
+	const editable = (things) => { const auto = autoInitials(things); return things.map((x, i) => ({ ...x, symbolTyped: !!x.emoji && x.emoji !== initialsOf(x.name) && x.emoji !== auto[i] })); };
 	// Editing a dictionary already there («Edit», «Fix it here»): a draft kept in
 	// the journey's ways while it is the same dictionary, so that Back past the
 	// first piece, the guide or another language loses nothing; i: the piece to open at.
@@ -1027,7 +1099,17 @@
 			piece.replaceChildren(V.piece({ box: b.piece, thing: x }));
 		};
 		draw();
-		const err = h("p", { class: "dict-err", role: "alert" });
+		const err = h("p", { class: "dict-err", role: "alert" }), note = h("p", { class: "hint dict-note", role: "status" });
+		// the automatic initials of the whole dictionary; true when one of another piece changed or this one got three letters
+		const uniqueAll = () => {
+			const auto = autoInitials(ed.things); let changed = false;
+			ed.things.forEach((y, j) => {
+				if (y.symbolTyped || y.symbol || !(y.name || "").trim() || y.emoji === auto[j]) return;
+				if (auto[j] !== initialsOf(y.name)) changed = true;
+				y.emoji = auto[j];
+			});
+			return changed;
+		};
 		const tell = () => { const p = problem(); err.textContent = p === "dup" ? t.errDictDupOne(x.name.trim()) : ""; return p; };
 		tell();
 		// done: the dictionary (or, editing one, nothing changed: as it was), then checking it
@@ -1051,11 +1133,12 @@
 			on: { input: (e) => {
 				x.name = e.target.value;
 				if (!x.symbolTyped && !x.symbol) x.emoji = initialsOf(x.name);
+				if (uniqueAll() && !ed.dupNoted) { ed.dupNoted = true; note.textContent = T().dupInitials; }
 				draw(); Slides.setReady(!tell());
 			}, keydown: (e) => { if (e.key === "Enter") { e.preventDefault(); forward(); } } } });
 		nameIn.value = x.name;
 		const takePhoto = () => pickFile("image/*", async (f) => {
-			try { x.photo = await photoOf(f); render(); } catch (z) { err.textContent = t.errPhoto; }
+			try { const crop = await cropPopup(f); if (crop) { x.photo = await photoOf(f, crop); render(); } } catch (z) { err.textContent = t.errPhoto; }
 		}, "environment");
 		const dot = h("span", { class: "dict-dot" + (x.colour ? "" : " none"), "aria-hidden": "true" });
 		if (x.colour) dot.style.setProperty("--c", x.colour);
@@ -1075,7 +1158,7 @@
 						x.photo ? h("button", { type: "button", class: "btn ghost", title: t.photoRemove, "aria-label": t.photoRemove, on: { click: () => { x.photo = ""; render(); } } }, "✕") : null,
 						// editing a dictionary already there: saved from any piece, no need to page to the end
 						ed.base && ed.i < n - 1 ? h("button", { type: "button", class: "btn", on: { click: () => { if (!problem()) finish(); } } }, "✓ " + t.dictSaveNames) : null),
-					err), b.form),
+					err, note), b.form),
 				// the first piece: what the form is for, and what the order is (bubbles beside the form and the box)
 				...(ed.i === 0 ? [place(h("p", { class: "tip right", text: t.nameTipPiece }), b.tipPiece), place(h("p", { class: "tip left", text: t.nameTipOrder }), b.tipOrder)] : [])),
 		};

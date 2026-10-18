@@ -1339,6 +1339,8 @@ for (const pad of [false, true]) {
 		check(id === "other" ? m.big === null : m.big !== null && /\d/.test(m.big) && m.text.length > 0, `splitMaterials ${lang}.${id}: ${JSON.stringify(m)}`);
 	}
 }
+{ const c1 = Lay.cropClamp({ iw: 400, ih: 300, x: 350, y: -20, side: 500 }); check(c1.side === 300 && c1.x === 100 && c1.y === 0, "cropClamp: inside the photo, no larger than it");
+  const c2 = Lay.cropClamp({ iw: 400, ih: 300, x: 10, y: 10, side: 5 }); check(c2.side === 32, "cropClamp: a minimum size"); }
 console.log(`${failures ? "FAIL" : "ok"}: ${vectors.length} vectors, ${padVectors.length} pad vectors, ${failures} failures`);
 process.exit(failures ? 1 : 0);
 
