@@ -1774,7 +1774,7 @@
 			question: t.seedQ(st.plan.words),
 			next: made ? undefined : { label: t.makeIt + " ▶", go: () => { make(); if (m.symbols) goSlide("make", "qr"); }, ready: ok },
 			caption: () => made ? (padMode ? t.whyPad : t.makeWarn) : padMode ? t.seqPadIntro : t.seqIntro,
-			body: () => h("div", { class: "slide-form seed-form" }, h("p", { class: "seed-intro", text: t.seedIntro }), seedAlert(), area, status, print, h("div", { class: "row" }, tool)),
+			body: () => h("div", { class: "slide-form seed-form" }, h("p", { class: "seed-intro", text: t.seedIntro }), seedAlert(), h("p", { class: "hint", text: t.screenWarn }), area, status, print, h("div", { class: "row" }, tool)),
 		};
 	}
 
@@ -2942,6 +2942,7 @@
 			h("h2", { text: t.honestTitle }), h("p", { text: t.honest }),
 			h("h2", { text: t.aboutTitle }),
 			h("p", { text: t.aboutNet }),
+			h("p", { text: t.aboutRisk }),
 			h("p", { text: t.aboutCheck }),
 			h("pre", { class: "code" }, "macOS / Linux:  shasum -a 256 seedcraft-sequences.html\nWindows:        certutil -hashfile seedcraft-sequences.html SHA256"),
 			h("p", { text: t.aboutStore }),
