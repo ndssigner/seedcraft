@@ -2422,6 +2422,8 @@
 			const th = which === "key" ? keyThings : things, cur = which === "key" ? K : C, pl = Lay.pickerPopup({ n });
 			const pick = (v) => put(which, v);
 			// typing in the open picker: a buffer (in the heading), the first match lit, ↓/↑ among them, Enter picks as a tap does
+			// what each piece shows and answers to: its initials (typed, else the automatic ones)
+			const auto = autoInitials(th), shown = th.map((x, i) => x.emoji || auto[i]);
 			let buf = "", matches = [], at = 0;
 			const typedEl = h("span", { class: "rt-pick-typed", "aria-live": "polite" });
 			const light = () => {
@@ -2436,7 +2438,7 @@
 				if (!r.consumed) return;
 				e.preventDefault(); e.stopPropagation();
 				if (r.pick !== null) { pick(r.pick); return; }
-				if (r.buffer !== buf) matches = J.pickMatch(th, r.buffer);
+				if (r.buffer !== buf) matches = J.pickMatch(th, r.buffer, shown);
 				buf = r.buffer; at = matches.length ? r.at : 0; light();
 			};
 			// the lit match follows the focus: another piece focused (Tab) ends the typing, so Enter acts on that piece
@@ -2447,7 +2449,7 @@
 			const pop = h("div", { class: "rt-pick" }, h("h2", { class: "rt-pick-q" }, V.iconTag(which), " ", t.readWhich(pos), typedEl),
 				h("p", { class: "hint rt-pick-type", text: T().pickType }),
 				svg("svg", { class: "rt-pick-canvas", viewBox: `0 0 ${pl.view.w} ${pl.view.h}` },
-					V.dictionary({ label: T().dictLabel, box: pl.boxes.picker, things: th, mode: "picker", value: cur === undefined ? null : cur, icon: which, onPick: pick })));
+					V.dictionary({ label: T().dictLabel, box: pl.boxes.picker, things: th, initials: shown, mode: "picker", value: cur === undefined ? null : cur, icon: which, onPick: pick })));
 			pop.addEventListener("focusin", refocus);
 			pop.addEventListener("keydown", typeKey, true); // before a focused piece's own Enter
 			Slides.popup(pop, { label: t.readWhich(pos) });

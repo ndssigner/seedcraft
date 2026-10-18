@@ -668,6 +668,7 @@ body { overflow: hidden; }
 .seq-map svg.string { display: block; width: calc(var(--u) * 540); max-width: 100%; height: auto; max-height: calc(var(--u) * 270); }
 /* reading back, a turn per slide (layouts.js's readTurn): the dictionary opened to choose a piece, in a popup */
 .rt-pick { display: flex; flex-direction: column; gap: calc(var(--u) * 6); }
+.rt-pick .rt-pick-type { margin: 0; padding: 0; text-align: center; }
 .rt-pick-q { margin: 0; font-size: 1.3em; text-align: center; }
 .rt-pick-canvas { display: block; width: calc(var(--u) * 420); max-width: 100%; height: auto; }
 .rt-file { cursor: pointer; }

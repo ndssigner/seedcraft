@@ -336,7 +336,7 @@ const SeedcraftLayouts = (() => {
 	// opened as buttons in a popup, under its question; its own canvas (view),
 	// lower the fewer kinds there are, so every button stays big enough to tap.
 	function pickerPopup({ n }) {
-		const view = { w: 420, h: n <= 4 ? 130 : n <= 8 ? 200 : 240 };
+		const view = { w: 420, h: n <= 4 ? 110 : n <= 8 ? 160 : 200 };
 		return { view, boxes: { picker: box(2, 2, view.w - 4, view.h - 4) } };
 	}
 	// Checking a copy, the end: the QR code of your words and the one you read,
