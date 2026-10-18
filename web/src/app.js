@@ -927,6 +927,11 @@
 			box: () => [line("rect", { x: 4, y: 6, width: 40, height: 18, rx: 2 }), ...[16, 28].map((x) => line("path", { d: `M${x} 6 V24` })), line("path", { d: "M4 15 H44" })],
 			tweezers: () => [line("path", { d: "M8 23 L40 7" }), line("path", { d: "M8 23 L40 13" })],
 			needle: () => [line("path", { d: "M6 23 L42 6" }), line("ellipse", { cx: 40.5, cy: 6.8, rx: 1, ry: 2.2, transform: "rotate(65 40.5 6.8)" })],
+			envelope: () => [line("rect", { x: 8, y: 5, width: 32, height: 20, rx: 2 }), line("path", { d: "M8 6 L24 17 L40 6" })],
+			photo: () => [line("rect", { x: 9, y: 4, width: 30, height: 21, rx: 1.5 }), line("circle", { cx: 18, cy: 11, r: 2.4 }), line("path", { d: "M10 24 L22 14 L29 20 L33 16 L38 22" })],
+			corner: () => [line("rect", { x: 9, y: 4, width: 30, height: 21, rx: 1.5 }), line("path", { d: "M9 11 V4 H16" }), line("path", { d: "M39 18 V25 H32" })],
+			pen: () => [line("path", { d: "M7 24 L38 6 L42 10 L12 26 Z" }), line("path", { d: "M33 9 L38 14" })],
+			glue: () => [line("rect", { x: 16, y: 10, width: 16, height: 16, rx: 2 }), line("path", { d: "M20 10 V5 H28 V10" }), line("path", { d: "M24 5 V2" })],
 		};
 		return svg("svg", { class: "gather-art", viewBox: "0 0 48 28", "aria-hidden": "true" }, ...parts[kind]());
 	};
@@ -942,9 +947,11 @@
 		const tick = (what) => h("label", { class: "gather-tick" }, h("input", { type: "checkbox", checked: st.gathered[what] ? "" : null,
 			on: { change: (e) => { st.gathered[what] = e.target.checked; render(); } } }), h("span", { text: t.piecesHave }));
 		const card = (cls, ...kids) => h("section", { class: "gather-card " + cls }, ...kids);
-		const piecesCard = (g) => {
+		// one card per group: the pieces, then (if it has one) the assembly under a thin rule, both ticks at the bottom
+		const groupCard = ({ group: g, assembly }) => {
 			const written = formOf(g.form).family === "written", key = g.kinds[0] === "key", own = key ? st.padDict : st.dict, each = g.each + g.copies;
 			const other = key && g.what === "key";
+			const mat = assembly ? materialsOf(g.form, L, n) : null, { big, text } = mat ? J.splitMaterials(mat) : {};
 			return card("pieces-card" + (key ? " key" : ""),
 				kindDots(kindThings(g.form, n, own && own.things), key),
 				h("h2", {}, h("span", { class: "pieces-icon", "aria-hidden": "true" }, g.kinds.map((x) => V.iconTag(x))),
@@ -952,26 +959,24 @@
 				written ? h("p", { class: "gather-note", text: t.gatherNoPieces }) : h("div", { class: "gather-body" },
 					h("div", { class: "gather-nums" },
 						h("p", {}, h("b", { text: String(n) }), h("span", { text: t.gatherKinds })), h("p", {}, h("b", { text: String(each) }), h("span", { text: t.gatherEach }), h("small", { class: "gather-estimate", text: t.gatherEstimate }))),
-					h("p", { class: "gather-total", text: t.gatherTotalLine(n * each, g.what) })),
-				written ? null : h("p", { class: "gather-later", text: t.gatherLater }),
-				written ? null : tick(g.what));
-		};
-		const assemblyCard = (g) => {
-			const materials = materialsOf(g.form, L, n), { big, text } = J.splitMaterials(materials);
-			return card("assembly-card" + (g.kinds[0] === "key" ? " key" : ""),
-				gatherArt(formArt(g.form)),
-				h("h2", {}, h("span", { text: t.gatherAssembly }), h("small", { text: t.forms[g.form].name })),
-				h("div", { class: "gather-body" }, big ? h("p", { class: "gather-big" }, h("b", { text: big })) : null,
-					h("p", { class: "gather-note", text: g.what === "both" ? t.piecesTwice(text) : text })),
-				tick("assembly:" + g.what));
+					h("p", { class: "gather-total", text: t.gatherTotalLine(n * each, g.what) }),
+					h("p", { class: "gather-later", text: t.gatherLater })),
+				mat ? h("div", { class: "gather-assembly" },
+					h("div", { class: "gather-assembly-head" }, gatherArt(formArt(g.form)), h("h3", {}, t.gatherAssembly)),
+					big ? h("p", { class: "gather-big" }, h("b", { text: big })) : null,
+					h("p", { class: "gather-note", text: g.what === "both" ? t.piecesTwice(text) : text })) : null,
+				h("div", { class: "gather-ticks" }, written ? null : tick(g.what), assembly ? tick("assembly:" + g.what) : null));
 		};
 		const item = (kind, text, tag) => h("li", {}, gatherArt(kind), h("span", { text }), tag ? h("small", { text: tag }) : null);
-		const recommended = groups.some((g) => formOf(g.form).family !== "written")
+		const tips = J.gatherTips(groups.filter((g) => !g.written).map((g) => g.form));
+		const recommended = groups.some((g) => !g.written)
 			? card("recommended-card", h("h2", {}, h("span", { text: t.gatherRecommended })),
-				h("ul", {}, item("box", t.gatherBox(n)), item("tweezers", t.gatherTweezers, t.gatherOptional), item("needle", t.gatherNeedle, t.gatherOptional))) : null;
-		const cards = groups.flatMap((g) => [piecesCard(g), g.assembly ? assemblyCard(g) : null]).filter(Boolean);
+				tips.length ? h("ul", {}, ...tips.map((x) => item(x.art, typeof t.gatherTip[x.text] === "function" ? t.gatherTip[x.text](n) : t.gatherTip[x.text], x.optional ? t.gatherOptional : null)))
+					: h("p", { class: "gather-note", text: t.gatherTip.nothing })) : null;
+		const cards = J.gatherCards(groups).map(groupCard);
+		const cols = cards.length + (recommended ? 1 : 0);
 		return { question: t.piecesQ, ready: done, caption: () => done ? null : t.gatherWait,
-			body: () => h("div", { class: "pieces" }, h("div", { class: "gather-grid" }, ...cards, recommended),
+			body: () => h("div", { class: "pieces" }, h("div", { class: "gather-grid cols-" + cols }, ...cards, recommended),
 				keyFile ? h("p", { class: "pieces-file" }, h("span", { class: "pieces-icon", "aria-hidden": "true" }, V.iconTag("key")), t.gatherFile) : null) };
 	}
 
