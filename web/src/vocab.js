@@ -510,11 +510,14 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	// fixed: Set of r * size + c (the function modules), drawn apart in amber/brown with a hatch (they cost no pieces);
 	// legend: a short string under the QR (the QR is then 14 smaller); markerLabel: a blue tab on the marker,
 	// both in one g.v-qr-cursor (the last child) so that they glide together
-	function qr({ box, size, modules, turnCells = [], painted = new Map(), wrong = [], reveal = null, fixed = null, legend = null, markerLabel = null }) {
+	function qr({ box, size, modules, turnCells = [], painted = new Map(), wrong = [], reveal = null, fixed = null, legend = null, markerLabel = null, fixedReveal = null }) {
 		const LEG = 14, side = Math.min(box.w, box.h) - (legend ? LEG : 0), cs = side / size, x0 = box.x + (box.w - side) / 2, y0 = box.y + (box.h - side - (legend ? LEG : 0)) / 2;
 		const get = typeof modules === "function" ? modules : (r, c) => modules ? modules[r][c] : null;
 		const turn = new Set(turnCells.map(([r, c]) => r * size + c)), bad = new Set(wrong.map(([r, c]) => r * size + c));
 		const order = reveal && reveal.order && !reducedMotion() ? new Map(reveal.order.map(([r, c], j) => [r * size + c, j])) : null;
+		const fx = fixed && fixedReveal && !reducedMotion() ? { ms: fixedReveal.ms, n: fixed.size, j: 0 } : null;
+		const fadeFixed = (el, delay, dur) => { if (fx && el.style) { el.style.animationDelay = delay + "ms"; el.style.animationDuration = dur + "ms"; } return el; };
+		const FR = fx ? " v-qr-fixed-reveal" : "";
 		const parts = [svg("rect", { x: r1(x0), y: r1(y0), width: r1(side), height: r1(side), class: "v-qr-bg" })];
 		const hatchId = fixed ? nextId("hatch") : null, hatched = [];
 		if (fixed) parts.push(svg("pattern", { id: hatchId, width: 3, height: 3, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" },
@@ -524,18 +527,19 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			const cls = bad.has(k) ? "v-qr-err" : turn.has(k) ? "v-qr-turn" + (v ? " on" : "") : isFixed ? "v-qr-fixed " + (v === true ? "on" : v === false ? "off" : "unk") : v === true ? "v-qr-dark" : v === false ? null : "v-qr-unknown";
 			if (!cls) continue;
 			const revealed = order && cls === "v-qr-dark" && order.has(k);
-			const el = svg("rect", { x: r1(x0 + c * cs), y: r1(y0 + r * cs), width: r1(cs), height: r1(cs), class: revealed ? cls + " v-qr-reveal" : cls });
+			const el = svg("rect", { x: r1(x0 + c * cs), y: r1(y0 + r * cs), width: r1(cs), height: r1(cs), class: revealed ? cls + " v-qr-reveal" : isFixed && fx && !bad.has(k) && !turn.has(k) ? cls + FR : cls });
+			if (fx && isFixed && !bad.has(k) && !turn.has(k)) fadeFixed(el, fx.j++ / fx.n * fx.ms / 2, fx.ms / 2);
 			if (revealed && el.style) el.style.animationDelay = (order.get(k) / reveal.order.length * reveal.ms) + "ms";
 			parts.push(el);
 			if (isFixed && !bad.has(k) && !turn.has(k)) hatched.push(`M${r1(x0 + c * cs)} ${r1(y0 + r * cs)}h${r1(cs)}v${r1(cs)}h${r1(-cs)}z`);
 		}
-		if (hatched.length) parts.push(svg("path", { d: hatched.join(""), fill: `url(#${hatchId})`, class: "v-qr-hatched" }));
+		if (hatched.length) parts.push(fadeFixed(svg("path", { d: hatched.join(""), fill: `url(#${hatchId})`, class: "v-qr-hatched" + FR }), 0, fx && fx.ms));
 		if (legend) {
 			const ly = box.y + box.h - LEG / 2 + 3, sw = 10, tw = 0.5 * 9 * String(legend).length, lx = box.x + (box.w - (sw + 4 + tw)) / 2;
-			parts.push(svg("g", { class: "v-qr-legend" },
+			parts.push(fadeFixed(svg("g", { class: "v-qr-legend" + FR },
 				svg("rect", { x: r1(lx), y: r1(box.y + box.h - LEG / 2 - 4), width: sw, height: 8, rx: 1.5, class: "v-qr-fixed off" }),
 				svg("rect", { x: r1(lx), y: r1(box.y + box.h - LEG / 2 - 4), width: sw, height: 8, rx: 1.5, fill: `url(#${hatchId || "none"})`, class: "v-qr-hatched" }),
-				text(lx + sw + 4, ly, 9, legend, { class: "v-qr-legend-text" })));
+				text(lx + sw + 4, ly, 9, legend, { class: "v-qr-legend-text" })), 0, fx && fx.ms));
 		}
 		const m = L.qrCellsBox(box, size, turnCells, { legend: !!legend });
 		if (m) {

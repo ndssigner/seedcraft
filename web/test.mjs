@@ -664,7 +664,7 @@ for (const pad of [false, true]) {
 // the visual vocabulary (vocab.js), drawn with a fake svg/h: { tag, attrs, children }
 {
 	const node = (tag, attrs, ...children) => ({ tag, attrs: { ...(attrs || {}) }, children: children.flat().filter((c) => c !== null && c !== undefined && c !== false),
-		listeners: {}, addEventListener(ev, fn) { this.listeners[ev] = fn; } });
+		listeners: {}, style: {}, addEventListener(ev, fn) { this.listeners[ev] = fn; } });
 	vm.runInContext(read("src/vocab.js"), ctx, { filename: "src/vocab.js" });
 	const V = vm.runInContext("SeedcraftVocab", ctx)(node, node);
 	const walk = (n, pred, out = []) => { if (n && typeof n === "object") { if (pred(n)) out.push(n); n.children.forEach((c) => walk(c, pred, out)); } return out; };
@@ -829,6 +829,10 @@ for (const pad of [false, true]) {
 		const order = [[0, 0], [0, 1], [0, 2], [0, 3]];
 		const rev = V.qr({ box: qb, size: 25, modules: dark, reveal: { order, ms: 1000 } });
 		check(walk(rev, cls("v-qr-reveal")).length === 4, "qr: the cells in the reveal order carry v-qr-reveal");
+		{ const fn2 = S.functionModules(25), plainQ = V.qr({ box: qb, size: 25, modules: dark, fixed: fn2, legend: "fixed" }), fr = V.qr({ box: qb, size: 25, modules: dark, fixed: fn2, legend: "fixed", fixedReveal: { ms: 800 } });
+			const fixedCells = walk(fr, (n) => /v-qr-fixed/.test(n.attrs.class || "") && n.tag === "rect" && !/v-qr-legend/.test(n.attrs.class || ""));
+			check(walk(plainQ, cls("v-qr-fixed-reveal")).length === 0, "qr: without fixedReveal no cell is marked to fade in");
+			check(walk(fr, (n) => cls("v-qr-fixed-reveal")(n) && n.tag === "rect").length > 100 && walk(fr, (n) => cls("v-qr-fixed-reveal")(n) && n.style.animationDelay).length > 100 && walk(plainQ, (n) => n.style.animationDelay).length === 0, "qr: with fixedReveal the fixed cells carry v-qr-fixed-reveal and an animationDelay"); void fixedCells; }
 		check(typeof V.glide === "function" && V.ADVANCE_MS === 450 && typeof V.fadeIn === "function", "vocab: glide, fadeIn and ADVANCE_MS");
 		check(typeof V.glide({}, { dx: 0, dy: 0 }).finish === "function" && V.glide({ setAttribute() {}, style: {}, getBoundingClientRect() {} }, {}).finish() === undefined, "glide: no move, a no-op finish");
 		const el = { setAttribute() {}, style: {}, getBoundingClientRect() {} }, g = V.glide(el, { dx: 10, dy: -4 });
@@ -1305,6 +1309,9 @@ for (const pad of [false, true]) {
 	vm.runInContext(read("src/i18n.js") + ";globalThis.TEXT = SEEDCRAFT_TEXT;", ctx, { filename: "src/i18n.js" });
 	const TX = ctx.TEXT;
 	for (const lang of ["en", "es"]) { const c = TX[lang].seqCount(7, 8); check(!c.includes("7") && c.includes("8"), `seqCount ${lang}: the estimate only (the count is the big figure beside it)`); }
+	check(TX.es.gatherLater === "Te diremos la cantidad exacta cuando sepamos tu semilla." && TX.en.gatherLater === "We'll tell you the exact count once we know your seed.", "gatherLater: the new copy");
+	for (const lang of ["en", "es"]) { const f = TX[lang].gatherTotalLine; check(typeof f === "function" && f(144, "seq").includes("144") && f(144, "both").includes("144") && f(144, "seq") !== f(144, "both"), `gatherTotalLine ${lang}: the count, and a line for both`); }
+	check(TX.es.gatherTotalLine(5, "seq") === "En total: 5 piezas para la ristra y el diccionario" && TX.es.gatherTotalLine(5, "both") === "En total: 5 piezas para las dos ristras y los diccionarios" && TX.en.gatherTotalLine(5, "seq") === "In all: 5 pieces for the string and the dictionary" && TX.en.gatherTotalLine(5, "both") === "In all: 5 pieces for both strings and the dictionaries", "gatherTotalLine: exact copy");
 	check(TX.en.qrCompact.includes("SeedSigner") && TX.en.qrCompact.includes("NDS-Signer") && TX.es.qrCompact.includes("SeedSigner") && TX.es.qrCompact.includes("NDS-Signer"), "qrCompact names both readers");
 	for (const n of [2, 4, 8, 16, 32]) { const L = J.symbolsFor(12, n); check(TX.es.wordsLenSub(L).includes(String(L)) && TX.en.wordsLenSub(L).includes(String(L)), `wordsLenSub names the string's length (n=${n})`); }
 	check(TX.es.words(12) === "12 palabras" && TX.en.words(24) === "24 words" && TX.es.wordsLenSub(54) === "ristra de 54 piezas", "words cards: the number big, the length small");
