@@ -1041,16 +1041,22 @@ for (const pad of [false, true]) {
 		&& walk(cardList[1], cls("v-con")).length === 2 && textOf(cardList[0]).includes("✓") && textOf(cardList[1]).includes("✕"), "cards: two cards, with their ✓ and ✕ (two at most)");
 	check(cls("on")(cardList[1]) && cardList[1].attrs["aria-pressed"] === "true" && !cls("on")(cardList[0]), "cards: the chosen one marked");
 	cardList[0].attrs.on.click(); check(chose === "a", "cards: a tap chooses");
-	// every card the same slots, in the same order, so the rows line up (an empty list stays as a placeholder)
-	const slotsOf = (c) => c.children.filter((k) => k && k.tag).map((k) => (k.attrs.class || "").split(" ")[0]).join(" ");
-	const cd3 = V.cards({ options: [{ id: "a", art: node("svg", {}), title: "A", pros: ["p"], cons: [] }, { id: "b", art: null, title: "B", pros: [], cons: ["c"] }, { id: "c", title: "C" }], chosen: null });
-	const slots3 = walk(cd3, cls("v-card")).map(slotsOf);
-	check(slots3.length === 3 && slots3.every((x) => x === "v-card-art v-card-title v-card-pros v-card-cons"), "cards: the same slots in every card: " + slots3.join(" | "));
-
-	// seven options in rows of four: the short last row is centred (it starts at the second half column)
-	const mk = (n) => V.cards({ cols: 4, options: Array.from({ length: n }, (_, i) => ({ id: i, title: "T" })) });
+	// a card: art, title, one list; pros then cons; each li is the mark, then the text; nothing centred
+	const grid3 = V.cards({ options: [{ id: "a", art: node("svg", {}), title: "A", sub: "small", pros: ["p"], cons: ["c"] }, { id: "b", title: "B", pros: [], cons: [] }, { id: "c", title: "C", cons: ["c"] }], chosen: null });
+	const [g1, g2] = walk(grid3, cls("v-card"));
+	check(walk(g1, cls("v-card-list")).length === 1 && walk(g2, cls("v-card-list")).length === 0 && !walk(g2, cls("v-card-art")).length, "cards: one list, none when empty, no art slot without art");
+	const lis = walk(g1, (n) => n.tag === "li");
+	check(lis.length === 2 && cls("v-pro")(lis[0]) && cls("v-con")(lis[1]) && lis.every((li) => li.children.filter((k) => k && k.tag).length === 2 && cls("v-mark")(li.children[0])), "cards: pros then cons in one list, each li the mark and the text");
+	check(textOf(g1).includes("small") && walk(g1, cls("v-card-sub")).length === 1, "cards: the sub line under the title");
+	const allClasses = walk(grid3, () => true).map((n) => (n.attrs && n.attrs.class) || "").join(" ");
+	check(!/cent/.test(allClasses), "cards: no centring class");
+	// a short last row is centred (it starts at a half column)
+	const mk = (n) => V.cards({ grid: J.cardGrid(n), options: Array.from({ length: n }, (_, i) => ({ id: i, title: "T" })) });
 	const starts = (n) => walk(mk(n), cls("v-card")).map((c) => (c.attrs.class.match(/v-card-start-(\d)/) || [])[1] || "-").join("");
-	check(starts(7) === "----2--" && starts(8) === "--------" && starts(6) === "----3-" && cls("cols-4")(mk(7)), "cards: a short last row is centred: " + starts(7) + " " + starts(6));
+	check(starts(7) === "----2--" && starts(8) === "--------" && starts(6) === "------" && starts(9) === "---------" && cls("cols-4")(mk(7)) && cls("compact")(mk(7)) && !cls("compact")(mk(5)), "cards: a short last row is centred: " + starts(7));
+	for (const [n, cols, rows, compact] of [[2, 2, 1, false], [3, 3, 1, false], [4, 4, 1, false], [5, 5, 1, false], [6, 3, 2, true], [7, 4, 2, true], [8, 4, 2, true], [9, 3, 3, true], [10, 4, 3, true], [12, 4, 3, true]]) {
+		const g = J.cardGrid(n); check(g.cols === cols && g.rows === rows && g.compact === compact, `cardGrid(${n}) = ${cols} x ${rows}, compact ${compact}`);
+	}
 
 	// a die, and its faces as buttons
 	check(textOf(V.die({ sides: 8, face: 3, size: 56 })) === "4" && textOf(V.die({ sides: 10, face: 3 })) === "3" && textOf(V.die({ sides: 6, face: null })) === "?", "die: its face, in digits from a d8 on");
@@ -1300,7 +1306,8 @@ for (const pad of [false, true]) {
 	const TX = ctx.TEXT;
 	for (const lang of ["en", "es"]) { const c = TX[lang].seqCount(7, 8); check(!c.includes("7") && c.includes("8"), `seqCount ${lang}: the estimate only (the count is the big figure beside it)`); }
 	check(TX.en.qrCompact.includes("SeedSigner") && TX.en.qrCompact.includes("NDS-Signer") && TX.es.qrCompact.includes("SeedSigner") && TX.es.qrCompact.includes("NDS-Signer"), "qrCompact names both readers");
-	for (const n of [2, 4, 8, 16, 32]) { const L = J.symbolsFor(12, n); check(TX.es.wordsLen(12, L).includes(String(L)) && TX.en.wordsLen(24, L).includes(String(L)), `wordsLen names the string's length (n=${n})`); }
+	for (const n of [2, 4, 8, 16, 32]) { const L = J.symbolsFor(12, n); check(TX.es.wordsLenSub(L).includes(String(L)) && TX.en.wordsLenSub(L).includes(String(L)), `wordsLenSub names the string's length (n=${n})`); }
+	check(TX.es.words(12) === "12 palabras" && TX.en.words(24) === "24 words" && TX.es.wordsLenSub(54) === "ristra de 54 piezas", "words cards: the number big, the length small");
 	const args = { turnPosition: [364], turnNumber: ["11111", 31], turnKeyAt: [364], turnKeyFile: [364, "V", 31], turnKeyNumber: [31], turnClockOf: [32],
 		turnOut: [31], turnDict: [31], turnSlot: [364], readTap: [364], readTapBoth: [364], readTurnPad: [31, 31, 32, 31], readTurnBasic: [31] };
 	const keys = ["turnPosition", "turnBitsAre", "turnNumber", "turnKeyAt", "turnKeyFile", "turnKeyNumber", "turnClockOf", "turnOut", "turnDict", "turnSlot",

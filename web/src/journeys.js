@@ -279,11 +279,18 @@ const SeedcraftJourneys = (() => {
 		return out;
 	}
 
+	// how a decision's cards sit: cards per row, rows, and whether they are drawn small (6 or more). 2-5: one row;
+	// 6: 3 x 2; 7-8: 4 x 2; 9: 3 x 3; more: 4 per row
+	function cardGrid(count) {
+		const cols = count <= 5 ? Math.max(1, count) : count === 6 || count === 9 ? 3 : 4;
+		return { cols, rows: Math.ceil(count / cols), compact: count > 5 };
+	}
+
 	// «+» / «=» on the read-a-turn slide: which column's picker it opens ("seed" | "key"), or null.
 	// Nothing with a modifier or with digits typed; a key file (no keyThings) is always "seed".
 	function plusKey({ key, mods, buffer, keyThings, typedCol }) {
 		if ((key !== "+" && key !== "=") || mods || buffer) return null;
 		return keyThings && typedCol === "key" ? "key" : "seed";
 	}
-	return { plusKey, headerBitsUpTo, ESTIMATE, ESTIMATE_BOTH, maxPerKind, uniqueInitials, onlyPadding, paddingOnlyRead, checkVerdict, typedPiece, EXPLAINED, turnStages, readStages, checkRead, flipRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, splitMaterials, nameProblem, checkOrder, throwParts };
+	return { cardGrid, plusKey, headerBitsUpTo, ESTIMATE, ESTIMATE_BOTH, maxPerKind, uniqueInitials, onlyPadding, paddingOnlyRead, checkVerdict, typedPiece, EXPLAINED, turnStages, readStages, checkRead, flipRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, splitMaterials, nameProblem, checkOrder, throwParts };
 })();

@@ -605,19 +605,23 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	// ---- a decision: a card per option ----------------------------------
 	// options: [{ id, art (a drawing), title, pros, cons }], at most two ✓ and
 	// two ✕ each. A tap chooses (onChoose(id)); the chosen one has the accent.
-	// cols: cards per row, for many options (4): a short last row is centred (half columns, the first card of the
-	// last row starts at v-card-start-N)
-	function cards({ options = [], chosen = null, onChoose, cols = 0 }) {
-		// every card keeps all four slots (an empty list stays as a placeholder) so the rows line up
-		const list = (kind, cls, mark, xs) => h("ul", { class: "v-card-" + kind + " v-card-list" + (xs.length ? "" : " empty"), "aria-hidden": xs.length ? null : "true" },
-			xs.slice(0, 2).map((x) => h("li", { class: cls }, h("span", { class: "v-mark", "aria-hidden": "true" }, mark), " ", x)));
-		const rest = cols ? options.length % cols : 0, lastFrom = options.length - rest;
-		return h("div", { class: "v-cards" + (cols ? " cols-" + cols : "") }, options.map((o, i) => h("button", {
-			type: "button", class: "v-card" + (o.id === chosen ? " on" : "") + (rest && i === lastFrom ? " v-card-start-" + (cols - rest + 1) : ""), "aria-pressed": String(o.id === chosen),
-			on: { click: () => onChoose && onChoose(o.id) },
-		}, h("div", { class: "v-card-art", "aria-hidden": "true" }, o.art || null),
-		h("b", { class: "v-card-title" }, o.title),
-		list("pros", "v-pro", "✓", o.pros || []), list("cons", "v-con", "✕", o.cons || []))));
+	// grid: { cols, rows, compact } (journeys.js's cardGrid): cards per row; compact (6 or more cards) draws smaller. A short
+	// last row is centred (half columns: its first card starts at v-card-start-N). A card is its drawing, its title (with
+	// a small sub line, if any) and one list: the ✓ first, then the ✕, a column for the mark and one for the text.
+	function cards({ options = [], chosen = null, onChoose, grid }) {
+		const cols = grid && grid.cols ? grid.cols : Math.max(1, options.length);
+		const line = (cls, mark, x) => h("li", { class: cls }, h("span", { class: "v-mark", "aria-hidden": "true" }, mark), h("span", { class: "v-card-text" }, x));
+		const rest = options.length % cols, lastFrom = options.length - rest;
+		return h("div", { class: "v-cards cols-" + cols + (grid && grid.compact ? " compact" : "") }, options.map((o, i) => {
+			const items = (o.pros || []).slice(0, 2).map((x) => line("v-pro", "✓", x)).concat((o.cons || []).slice(0, 2).map((x) => line("v-con", "✕", x)));
+			return h("button", {
+				type: "button", class: "v-card" + (o.id === chosen ? " on" : "") + (rest && i === lastFrom ? " v-card-start-" + (cols - rest + 1) : ""), "aria-pressed": String(o.id === chosen),
+				on: { click: () => onChoose && onChoose(o.id) },
+			}, o.art ? h("div", { class: "v-card-art", "aria-hidden": "true" }, o.art) : null,
+			h("b", { class: "v-card-title" }, o.title),
+			o.sub ? h("span", { class: "v-card-sub" }, o.sub) : null,
+			items.length ? h("ul", { class: "v-card-list" }, items) : null);
+		}));
 	}
 
 	// ---- dice: a face in relief (a coin is round) --------------------------
