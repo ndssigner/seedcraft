@@ -202,7 +202,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			// spilled, along: from beyond the box's left edge (the string's start, or its places before, go
 			// out at the left, under the fade and the icon) to its last place, and on past it when that place
 			// is beyond the window, or to the window's end when the string ends there
-			const b = place(there[there.length - 1]), last = there[there.length - 1], on = last === n ? pitch / 2 : last === n - 1 ? pitch / 2 : 0;
+			const b = place(there[there.length - 1]), last = there[there.length - 1], on = last >= n - 1 ? pitch / 2 : 0;
 			parts.push(svg("line", { x1: r1(box.x - pitch), y1: r1(b[1]), x2: r1(b[0] + on), y2: r1(b[1]), class: "v-thread v-thread-build" }));
 		} else if (there.length && spilt) {
 			// spilled: from a row over the top (always: the string's start, or its places before, go up out of
@@ -556,6 +556,8 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			const cls = bad.has(k) ? "v-qr-err" : turn.has(k) ? "v-qr-turn" + (v ? " on" : "") : isFixed ? "v-qr-fixed " + (v === true ? "on" : v === false ? "off" : "unk") : v === true ? "v-qr-dark" : v === false ? null : "v-qr-unknown";
 			if (!cls) continue;
 			const revealed = order && cls === "v-qr-dark" && order.has(k);
+			// a fixed cell fading to amber keeps its step-3 black/white under it (never a white hole while the amber comes)
+			if (fx && isFixed && !bad.has(k) && !turn.has(k) && v !== false) parts.push(svg("rect", { x: r1(x0 + c * cs), y: r1(y0 + r * cs), width: r1(cs), height: r1(cs), class: v === true ? "v-qr-dark" : "v-qr-unknown" }));
 			const el = svg("rect", { x: r1(x0 + c * cs), y: r1(y0 + r * cs), width: r1(cs), height: r1(cs), class: revealed ? cls + " v-qr-reveal" : isFixed && fx && !bad.has(k) && !turn.has(k) ? cls + FR : cls });
 			if (fx && isFixed && !bad.has(k) && !turn.has(k)) fadeFixed(el, fx.j++ / fx.n * fx.ms / 2, fx.ms / 2);
 			if (revealed && el.style) el.style.animationDelay = (order.get(k) / reveal.order.length * reveal.ms) + "ms";
@@ -568,7 +570,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			parts.push(fadeFixed(svg("g", { class: "v-qr-legend" + FR },
 				svg("rect", { x: r1(lx), y: r1(box.y + box.h - LEG / 2 - 4), width: sw, height: 8, rx: 1.5, class: "v-qr-fixed off" }),
 				svg("rect", { x: r1(lx), y: r1(box.y + box.h - LEG / 2 - 4), width: sw, height: 8, rx: 1.5, fill: `url(#${hatchId || "none"})`, class: "v-qr-hatched" }),
-				text(lx + sw + 4, ly, 9, legend, { class: "v-qr-legend-text" })), 0, fx && fx.ms));
+				text(lx + sw + 4, ly, 9, legend, { class: "v-qr-legend-text" })), fx && fx.ms, 300));
 		}
 		// the mask's cells the cursor is not on (S.turnCursor's outline: a list of copies), a light outline round each copy's three
 		for (const copy of maskOutline) {

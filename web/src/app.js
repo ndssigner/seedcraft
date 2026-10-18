@@ -2430,7 +2430,8 @@
 			const light = () => {
 				const cells = pop.querySelectorAll(".v-pick");
 				cells.forEach((c, v) => { const on = matches[at] === v; c.classList.toggle("v-pick-hl", on); if (on) c.setAttribute("aria-current", "true"); else c.removeAttribute("aria-current"); });
-				typedEl.textContent = buf ? " «" + buf + "»" : "";
+				const lit = th[matches[at]];
+				typedEl.textContent = buf ? " «" + buf + "»" + (lit ? " → " + (matches[at] + 1) + ": " + (lit.name || shown[matches[at]] || "") : "") : "";
 				const c = cells[matches[at]];
 				if (c && c.scrollIntoView) c.scrollIntoView({ block: "nearest" });
 			};
@@ -2529,7 +2530,7 @@
 				const painted = new Map(before);
 				if (paintDrawn) paintTurn(painted, i);
 				// the mask's six cells, once its three bits are read: what they show
-				const mk = maskRead();
+				const mk = maskKnown(reached("cards"));
 				if (mk) S.maskCells(size).forEach((copy) => copy.forEach(([r, c], j) => painted.set(r * size + c, mk.seen[j])));
 				g.qr.replaceChildren(V.qr({ box: b.qr, size, modules: template, turnCells, painted, cursorCells: cur.cells, maskOutline: cur.outline,
 					markerLabel: cur.mask ? T().qrMask : T().qrPosition(i + 1), ...qrFixed(size, b.qr) }));
@@ -2571,12 +2572,14 @@
 
 		// the foot: what to do now; once it is read, what it gave (the header and the padding have no squares). A turn that
 		// brings the mask: once its 3 bits are read (this turn and those before), what its cells would show and the mask, instead
-		const maskRead = () => {
-			if (!withMask) return null;
-			const values = Array.from({ length: L * k }, (_, j) => { const x = Math.floor(j / k); return (x === i ? whole : wholeAt(x)) ? bitsOf(plainOf(x), k)[j - x * k] : null; });
-			const bits = J.headerBitsUpTo(["mask"], i, k, S.dataModulesRowMajor(size).length, values).mask.bits;
-			return bits.every((x) => x !== null) ? S.maskFrom({ mask: bits }) : null;
+		// the mask once its 3 bits are read, on any turn (those before, and this one's once `ofThis`)
+		const maskKnown = (ofThis) => {
+			if (!header) return null;
+			const values = Array.from({ length: L * k }, (_, j) => { const x = Math.floor(j / k); return (x === i ? ofThis : wholeAt(x)) ? bitsOf(plainOf(x), k)[j - x * k] : null; });
+			const bits = J.maskBitsKnown(i, k, S.dataModulesRowMajor(size).length, values);
+			return bits ? S.maskFrom({ mask: bits }) : null;
 		};
+		const maskRead = () => withMask ? maskKnown(whole) : null;
 		const note = header ? maskLineOf(maskRead()) || t.turnHeaderNoQr : null;
 		const caption = () => !whole ? (i === 0 && !st.seen.readTap ? t.forms[form].read : keyThings ? t.readTapBoth(pos) : t.readTap(pos))
 			: note || (pad ? t.readTurnPad(C, K, n, P) : t.readTurnBasic(P));

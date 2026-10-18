@@ -328,5 +328,11 @@ const SeedcraftJourneys = (() => {
 		if ((key !== "+" && key !== "=") || mods || buffer) return null;
 		return keyThings && typedCol === "key" ? "key" : "seed";
 	}
-	return { cardGrid, plusKey, headerBitsUpTo, ESTIMATE, ESTIMATE_BOTH, maxPerKind, uniqueInitials, onlyPadding, paddingOnlyRead, checkVerdict, typedPiece, pickMatch, pickKey, EXPLAINED, turnStages, readStages, checkRead, flipRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, splitMaterials, nameProblem, checkOrder, throwParts };
+	// the mask's three bits if all are read by turn turnIndex (values: the bits read so far, null where not), else null: it holds
+	// from the turn that brings the last one on, not only on the turns that bring mask bits
+	function maskBitsKnown(turnIndex, k, nmod, values) {
+		const bits = headerBitsUpTo(["mask"], turnIndex, k, nmod, values).mask.bits;
+		return bits.every((x) => x !== null) ? bits : null;
+	}
+	return { cardGrid, plusKey, headerBitsUpTo, maskBitsKnown, ESTIMATE, ESTIMATE_BOTH, maxPerKind, uniqueInitials, onlyPadding, paddingOnlyRead, checkVerdict, typedPiece, pickMatch, pickKey, EXPLAINED, turnStages, readStages, checkRead, flipRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, splitMaterials, nameProblem, checkOrder, throwParts };
 })();
