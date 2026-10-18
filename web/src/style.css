@@ -695,6 +695,12 @@ body { overflow: hidden; }
 .cf-result.ok > b { color: var(--ok); }
 .cf-result.bad > b { color: var(--err); }
 .cf-exact { color: var(--muted); }
+/* the line of a result with things to do, smaller (one line always), and its own row under it for the actions or a note */
+.cf-result.cf-line > b { font-size: 1.2em; white-space: nowrap; }
+.cf-actions, .cf-note { position: absolute; z-index: 1; box-sizing: border-box; overflow: hidden; margin: 0; }
+.cf-actions { display: flex; flex-wrap: nowrap; align-items: center; gap: .6em; }
+.cf-actions .btn { font-size: 1em; padding: .25em .8em; white-space: nowrap; }
+.cf-note { color: var(--muted); line-height: 1.2; }
 /* storing it (layouts.js's store): the places, the border «never together» between them, forgetting at the foot */
 .st-place { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.2; }
 .st-place.st-key { stroke: var(--key); }

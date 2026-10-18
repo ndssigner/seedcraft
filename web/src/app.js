@@ -1929,20 +1929,21 @@
 		const diff = readFrontier(rd) >= L ? J.checkRead({ taps: rd.taps.slice(0, L), keys: pad ? readKey(rd).slice(0, L) : null, symbols: m.symbols,
 			pad: pad ? m.pad : null, keyRead: pad && st.plan.padAs === "string" }) : null;
 		const same = !!rd.out && [...rd.out.entropy].join() === [...m.entropy].join();
-		m.checked = same && !!diff && ((!rd.out.fixed && !diff.wrong.length) || onlyPaddingDiffers(m, diff));
+		m.checked = same && !rd.out.fixed && !!diff && (!diff.wrong.length || onlyPaddingDiffers(m, diff));
 		if (m.checked) m.keyChanged = null;
 		if (rd.typing) return readTypingSlide(rd, done);
 		if (rd.turn >= L && diff) return checkEnd(rd, diff);
 		return readTurnSlide(rd, { checking: true, done });
 	}
-	// what was read differs from what was made, but only in the padding: every bit past the QR
-	// code's data squares and its header (plain values: with a key, each piece less its key's)
+	// what was read differs from what was made, but only in the padding: every wrong piece holds
+	// bits past the QR code's data squares and its header, and only those differ (plain values:
+	// with a key, each piece less its key's)
 	function onlyPaddingDiffers(m, diff) {
 		if (!diff || !diff.wrong.length) return false;
 		const n = st.dict.things.length, pad = st.mode === "pad";
 		const plain = (seed, key) => seed.map((c, p) => pad ? S.clockStep(c, key[p], n, -1).value : c);
 		const nbits = S.dataModulesRowMajor(S.compactSeedQR(m.entropy).size).length + 5;
-		return J.onlyPadding(plain(diff.seed, diff.key), plain(m.symbols, m.pad), Math.log2(n), nbits);
+		return J.paddingOnlyRead({ wrong: diff.wrong, readPlain: plain(diff.seed, diff.key), madePlain: plain(m.symbols, m.pad), k: Math.log2(n), nbits });
 	}
 	// what was read so far forgotten (once asked), to start again from the first piece; a key file stays
 	function restartRead(rd) {
@@ -1993,15 +1994,18 @@
 		};
 		const act = (label, fn) => h("button", { type: "button", class: "btn ghost small", on: { click: fn } }, label);
 		const reversed = diff.reversed || diff.keyReversed;
+		// exact: the result in its box; otherwise its line, and under it, on a row of its own (never clipped),
+		// the note (only the padding differs: read from the other end too, if so) or the actions
+		const line = (cls, text) => place(h("div", { class: "cf-result cf-line " + cls }, h("b", { text })), b.resultLine);
 		const result = padOnly
-			? h("div", { class: "cf-result ok" }, h("b", { text: "✓ " + t.checkSame }), h("span", { class: "cf-exact", text: t.checkPaddingOk }))
+			? [line("ok", "✓ " + t.checkSame), place(h("p", { class: "cf-note", text: (diff.reversed || diff.keyReversed || diff.swapped ? (diff.swapped ? t.checkSwapped : t.checkReversed) + " " : "") + t.checkPaddingOk }), b.actions)]
 			: exact
-			? h("div", { class: "cf-result ok" }, h("b", { text: "✓ " + t.checkSame }), h("span", { class: "cf-exact", text: t.checkExact(L) }), fingerprintLine(m.entropy))
-			: h("div", { class: "cf-result bad" },
-				h("b", { text: diff.swapped ? t.checkSwapped : reversed ? t.checkReversed : t.checkWrongPiece(w.turn + 1) }),
-				reversed ? act(t.checkFlip, () => turn(diff)) : null,
-				diff.swapped ? act(t.checkSwap, () => turn({ reversed: false, keyReversed: false, swapped: true })) : null,
-				act(t.checkRestart, () => restartRead(rd)));
+			? [place(h("div", { class: "cf-result ok" }, h("b", { text: "✓ " + t.checkSame }), h("span", { class: "cf-exact", text: t.checkExact(L) }), fingerprintLine(m.entropy)), b.result)]
+			: [line("bad", diff.swapped ? t.checkSwapped : reversed ? t.checkReversed : t.checkWrongPiece(w.turn + 1)),
+				place(h("div", { class: "cf-actions" },
+					reversed ? act(t.checkFlip, () => turn(diff)) : null,
+					diff.swapped ? act(t.checkSwap, () => turn({ reversed: false, keyReversed: false, swapped: true })) : null,
+					act(t.checkRestart, () => restartRead(rd))), b.actions)];
 		const same = !!rd.out && [...rd.out.entropy].join() === [...m.entropy].join();
 		return {
 			// the same seed: put right by the QR code, or wrong only in the padding (bits with no square)
@@ -2010,7 +2014,7 @@
 			prev: { go: () => readGo(rd, L - 1) },
 			next: exact ? { label: stepName("make", "store") + " ▶", go: () => goSlide("make", "store") }
 				: { label: t.checkGo(w.turn + 1) + " ▶", go: () => readGo(rd, w.turn) },
-			body: () => h("div", { class: "dict-slide cf-slide" }, canvas(...kids), place(result, b.result)),
+			body: () => h("div", { class: "dict-slide cf-slide" }, canvas(...kids), ...result),
 		};
 	}
 
