@@ -260,5 +260,11 @@ const SeedcraftJourneys = (() => {
 		return out;
 	}
 
-	return { headerBitsUpTo, ESTIMATE, ESTIMATE_BOTH, maxPerKind, uniqueInitials, onlyPadding, typedPiece, EXPLAINED, turnStages, readStages, checkRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, splitMaterials, nameProblem, checkOrder, throwParts };
+	// «+» / «=» on the read-a-turn slide: which column's picker it opens ("seed" | "key"), or null.
+	// Nothing with a modifier or with digits typed; a key file (no keyThings) is always "seed".
+	function plusKey({ key, mods, buffer, keyThings, typedCol }) {
+		if ((key !== "+" && key !== "=") || mods || buffer) return null;
+		return keyThings && typedCol === "key" ? "key" : "seed";
+	}
+	return { plusKey, headerBitsUpTo, ESTIMATE, ESTIMATE_BOTH, maxPerKind, uniqueInitials, onlyPadding, typedPiece, EXPLAINED, turnStages, readStages, checkRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, splitMaterials, nameProblem, checkOrder, throwParts };
 })();
