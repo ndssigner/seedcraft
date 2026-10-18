@@ -1100,6 +1100,18 @@ for (const pad of [false, true]) {
 		const counter = tbox(walk(c, cls("v-clock-by"))[0]);
 		check(t.every((x) => !overlap(tbox(x), counter)), `clock n=${n} ${from}${sign > 0 ? "+" : "−"}${by}: the numbers clear of the counter`);
 	}
+	{
+		const ck = V.clock({ box: lay.boxes.clock, n: 16, from: 1, by: 3, sign: -1, phase: "done", inputColour: "seed", formula: true });
+		check(textOf(walk(ck, cls("v-clock-formula"))[0]) === "(1 − 3) mod 16 = 14", "clock formula, reading");
+		const ck2 = V.clock({ box: lay.boxes.clock, n: 2, from: 1, by: 1, sign: 1, phase: "done", inputColour: "qr", formula: true });
+		check(textOf(walk(ck2, cls("v-clock-formula"))[0]) === "(1 + 1) mod 2 = 0", "clock formula, making, N = 2");
+		check(!walk(V.clock({ box: lay.boxes.clock, n: 16, from: 1, by: 3, phase: "inputs", formula: true }), cls("v-clock-formula")).some((t) => textOf(t)), "no formula before the result");
+		const ic = (g) => walk(g, (n) => n.attrs && n.attrs["data-icon"]).map((n) => n.attrs["data-icon"]).join();
+		check(ic(ck) === "seed,key,qr", "clock: each band's source icon (reading: seed, key → QR)");
+		check(ic(ck2) === "qr,key,seed", "clock: making: QR, key → seed");
+		check(ic(V.clock({ box: lay.boxes.clock, n: 16, from: null, by: 3, inputColour: "seed" })) === "seed,key,qr", "clock waiting: the icons too");
+		for (const L of [Lay.makeTurn({ pad: true, n: 16 }), Lay.readTurn({ pad: true, n: 16 })]) { const f = Lay.clockModule(L.boxes.clock).formula; check(Object.values(L.boxes).every((b) => b === L.boxes.clock || !(f.y - 8 < b.y + b.h && f.y + 2 > b.y && f.x - 50 < b.x + b.w && f.x + 50 > b.x)), "clock formula: room under the clock"); }
+	}
 	for (const n of [2, 16, 32]) for (const [from, by] of [[null, null], [5, null], [null, 3]]) {
 		const cw = V.clock({ box: rlay.boxes.clock, n, from, by, sign: -1, inputColour: "seed" }), ins = walk(cw, cls("v-clock-in")).map(textOf);
 		check(ins[0] === (from === null ? "" : String(from)) && ins[1] === (by === null ? "" : "−" + by) && !walk(cw, cls("v-clock-token")).length && !walk(cw, cls("v-clock-arc")).length

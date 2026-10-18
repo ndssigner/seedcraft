@@ -47,6 +47,8 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			svg("path", { d: `M${r1(c[0] - u)} ${r1(c[1])} H${r1(c[0] + 10 * u)} M${r1(c[0] + 6.5 * u)} ${r1(c[1])} V${r1(c[1] + 3.5 * u)} M${r1(c[0] + 10 * u)} ${r1(c[1])} V${r1(c[1] + 4.5 * u)}` })],
 		save: (c, u) => [svg("path", { d: `M${r1(c[0])} ${r1(c[1] - 9 * u)} V${r1(c[1] + 3 * u)} M${r1(c[0] - 5 * u)} ${r1(c[1] - 2 * u)} L${r1(c[0])} ${r1(c[1] + 3 * u)} L${r1(c[0] + 5 * u)} ${r1(c[1] - 2 * u)} M${r1(c[0] - 8 * u)} ${r1(c[1] + 8 * u)} H${r1(c[0] + 8 * u)}` })],
 		home: (c, u) => [svg("path", { d: `M${r1(c[0] - 9 * u)} ${r1(c[1])} L${r1(c[0])} ${r1(c[1] - 8 * u)} L${r1(c[0] + 9 * u)} ${r1(c[1])} M${r1(c[0] - 6 * u)} ${r1(c[1] - 2 * u)} V${r1(c[1] + 8 * u)} H${r1(c[0] + 6 * u)} V${r1(c[1] - 2 * u)}` })],
+		// qr: the three finder squares of a QR, in an L
+		qr: (c, u) => [[-9, -9], [1, -9], [-9, 1]].map(([dx, dy]) => svg("rect", { x: r1(c[0] + dx * u), y: r1(c[1] + dy * u), width: r1(8 * u), height: r1(8 * u) })),
 		info: (c, u) => [svg("circle", { cx: r1(c[0]), cy: r1(c[1]), r: r1(9 * u) }),
 			svg("path", { d: `M${r1(c[0])} ${r1(c[1] - 1.5 * u)} V${r1(c[1] + 5 * u)} M${r1(c[0])} ${r1(c[1] - 5 * u)} V${r1(c[1] - 4 * u)}` })],
 	};
@@ -449,17 +451,25 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	// choose): its band empty, the ring with its numbers, nothing turning.
 	// a step of the token: 220 ms, quicker when there are many, so a run lasts at most RUN_MS
 	const RUN_MS = 1200, clockStepMs = (steps) => Math.min(220, RUN_MS / Math.max(1, steps));
-	function clock({ box, n, from, by, sign = 1, phase = "done", inputColour = "qr", onDone, alive }) {
+	function clock({ box, n, from, by, sign = 1, phase = "done", inputColour = "qr", formula = false, onDone, alive }) {
 		const m = L.clockModule(box), { cx, cy, r } = m.dial;
 		const angle = (v) => 2 * Math.PI * v / n - Math.PI / 2;
 		const at = (v, rr = r) => [r1(cx + rr * Math.cos(angle(v))), r1(cy + rr * Math.sin(angle(v)))];
 		const cell = (c) => svg("rect", { x: c.x, y: c.y, width: c.w, height: c.h, class: "v-clock-cell" });
-		const bandText = (c, s, cls) => text(c.x + c.w / 2, c.y + c.h / 2 + Math.min(c.h * 0.62, 18) * 0.36, Math.min(c.h * 0.62, 18), s, { "text-anchor": "middle", class: "v-bold " + cls });
+		// a band's number, with the icon of where it comes from at its left (the number shifted over by half the icon's room)
+		const isz = (c) => Math.round(c.h * 0.55), shift = (c) => (isz(c) + 3) / 2;
+		const bandText = (c, s, cls, kind, left = true) => {
+			const fs = Math.min(c.h * 0.62, 18), tx = left ? c.x + 3 + isz(c) + (c.w - 3 - isz(c)) / 2 : c.x + c.w / 2 + shift(c);
+			return [text(tx, c.y + c.h / 2 + fs * 0.36, fs, s, { "text-anchor": "middle", class: "v-bold " + cls }),
+				icon(kind, left ? c.x + 3 + isz(c) / 2 : c.x + c.w / 2 - 8, c.y + c.h / 2, isz(c))];
+		};
+		const srcA = inputColour === "qr" ? "qr" : "seed", srcOut = inputColour === "qr" ? "seed" : "qr";
 		if (from === null || from === undefined || by === null || by === undefined) {
 			const fs = n <= 4 ? 11 : n <= 8 ? 10 : 9, lr = r - fs - 2, every = Math.max(1, n / 8), parts = [];
 			parts.push(svg("rect", { x: box.x, y: box.y, width: box.w, height: box.h, rx: 6, class: "v-clock-box" }), ...[...m.inputs, m.output].map(cell),
-				bandText(m.inputs[0], from === null || from === undefined ? "" : from, "v-clock-in " + colourClass(inputColour)),
-				bandText(m.inputs[1], by === null || by === undefined ? "" : (sign > 0 ? "+" : "−") + by, "v-clock-in v-c-key"),
+				...bandText(m.inputs[0], from === null || from === undefined ? "" : from, "v-clock-in " + colourClass(inputColour), srcA),
+				...bandText(m.inputs[1], by === null || by === undefined ? "" : (sign > 0 ? "+" : "−") + by, "v-clock-in v-c-key", "key"),
+				icon(srcOut, m.output.x + m.output.w / 2 - 8, m.output.y + m.output.h / 2, isz(m.output)),
 				svg("circle", { cx, cy, r, class: "v-clock-ring" }));
 			for (let v = 0; v < n; v++) { const [x, y] = at(v); parts.push(svg("circle", { cx: x, cy: y, r: n > 16 ? 1.5 : 2.5, class: "v-clock-tick" })); }
 			for (let v = 0; v < n; v += every) { const [x, y] = at(v, lr); parts.push(text(x, y + fs * 0.35, fs, v, { "text-anchor": "middle", class: "v-clock-n" })); }
@@ -467,8 +477,9 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 		}
 		const to = mod(from + sign * by, n), wrapped = sign > 0 ? from + by > n - 1 : from - by < 0;
 		const parts = [svg("rect", { x: box.x, y: box.y, width: box.w, height: box.h, rx: 6, class: "v-clock-box" }), ...[...m.inputs, m.output].map(cell),
-			bandText(m.inputs[0], from, "v-clock-in " + colourClass(inputColour)),
-			bandText(m.inputs[1], (sign > 0 ? "+" : "−") + by, "v-clock-in v-c-key"),
+			...bandText(m.inputs[0], from, "v-clock-in " + colourClass(inputColour), srcA),
+			...bandText(m.inputs[1], (sign > 0 ? "+" : "−") + by, "v-clock-in v-c-key", "key"),
+			icon(srcOut, m.output.x + m.output.w / 2 - 8, m.output.y + m.output.h / 2, isz(m.output)),
 			svg("circle", { cx, cy, r, class: "v-clock-ring" })];
 		// what shows first: everything with "done" (and "run" when it cannot or must not move), the inputs only otherwise
 		const moving = phase === "run" && by % n > 0 && animates(parts[0]), final = phase !== "inputs" && !moving;
@@ -508,8 +519,11 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 		const [tx, ty] = at(final ? to : from);
 		const token = svg("circle", { cx: tx, cy: ty, r: n > 16 ? 4 : 5, class: "v-clock-token" });
 		const counter = svg("text", { x: r1(cx), y: r1(cy + cfs * 0.36), "font-size": r1(cfs), "text-anchor": "middle", class: "v-t v-bold v-clock-by" }, final ? byText(by) : "");
-		const output = svg("text", { x: r1(m.output.x + m.output.w / 2), y: r1(m.output.y + m.output.h / 2 + ofs * 0.36), "font-size": r1(ofs), "text-anchor": "middle", class: "v-t v-bold v-clock-out" }, final ? String(to) : "");
+		const formulaText = `(${from} ${sign > 0 ? "+" : "−"} ${by}) mod ${n} = ${to}`;
+		const fml = formula ? svg("text", { x: r1(m.formula.x), y: r1(m.formula.y + 3), "font-size": 9, "text-anchor": "middle", class: "v-t v-clock-formula" }, final ? formulaText : "") : null;
+		const output = svg("text", { x: r1(m.output.x + m.output.w / 2 + shift(m.output)), y: r1(m.output.y + m.output.h / 2 + ofs * 0.36), "font-size": r1(ofs), "text-anchor": "middle", class: "v-t v-bold v-clock-out" }, final ? String(to) : "");
 		parts.push(token, counter, output);
+		if (fml) parts.push(fml);
 		const g = svg("g", { class: "v v-clock", role: "img", "aria-label": `${from} ${byText(by)} → ${to} (mod ${n})` }, parts);
 		if (moving) {
 			// the token goes round a step at a time, the counter counting; then the arc and the output
@@ -522,6 +536,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 				token.setAttribute("cx", x); token.setAttribute("cy", y); counter.textContent = byText(k);
 				if (k < by) { setTimeout(tick, step); return; }
 				output.textContent = String(to);
+				if (fml) fml.textContent = formulaText;
 				if (arc) arc.setAttribute("visibility", "visible");
 				if (onDone) later(onDone);
 			};

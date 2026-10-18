@@ -39,6 +39,8 @@ const SeedcraftLayouts = (() => {
 			inputs: [box(b.x, b.y, half, band), box(b.x + half, b.y, half, band)],
 			dial: { cx: b.x + half, cy: b.y + b.h / 2, r },
 			output: box(b.x, b.y + b.h - band, b.w, band),
+			// the centre of the formula's line, under the box
+			formula: { x: b.x + half, y: b.y + b.h + 9 },
 		};
 	}
 
@@ -119,7 +121,7 @@ const SeedcraftLayouts = (() => {
 		// the key string is a reference: vertical, its turn piece in the middle (y 126)
 		Object.assign(b, {
 			keyString: box(336, 36, 34, 180),
-			clock: box(520, 44, 128, 136),
+			clock: box(520, 44, 128, 124),
 			seedDict: box(520, 196, 128, 60),
 		});
 		const keyIn = clockModule(b.clock).inputs[1], keyX = keyIn.x + keyIn.w / 2;
@@ -140,7 +142,7 @@ const SeedcraftLayouts = (() => {
 				clockSeed, clockKey(44));
 		}
 		arrows.push(
-			arrow("output", "clock", "seedDict", "qr", [[584, 180], [584, 196]]),
+			arrow("output", "clock", "seedDict", "qr", [[636, 168], [636, 196]]),
 			arrow("slot", "seedDict", "seedSlot", "qr", [[584, 256], [584, RAIL], [360, RAIL], [360, SLOT.y]]));
 		return { boxes: b, arrows };
 	}
@@ -308,7 +310,7 @@ const SeedcraftLayouts = (() => {
 			seedDict: box(224, 176, 110, 66),
 			number: box(350, 191, 52, 36),
 			keyNumber: box(350, 111, 52, 36),
-			clock: box(418, 200, 80, 126),
+			clock: box(418, 200, 80, 114),
 			qr: box(490, 46, 150, 150),
 		});
 		if (!file) b.keyDict = box(224, 96, 110, 66);

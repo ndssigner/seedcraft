@@ -1964,7 +1964,7 @@
 					value: p >= keyAt ? K : null, from: turning && p === keyAt ? 0 : undefined }), reached("key")));
 				groups.keyNumber.replaceChildren(V.number({ box: b.keyNumber, value: p >= keyAt ? K : null, colour: "key" }));
 				const clockAt = at("clock");
-				groups.clock.replaceChildren(p < clockAt ? svg("g") : V.clock({ box: b.clock, n, from: P, by: K, sign: 1, inputColour: "qr",
+				groups.clock.replaceChildren(p < clockAt ? svg("g") : V.clock({ box: b.clock, n, from: P, by: K, sign: 1, inputColour: "qr", formula: true,
 					phase: p === clockAt ? "inputs" : p === at("out") && turning ? "run" : "done", onDone: p === at("out") ? onRun : undefined, alive }));
 			}
 			groups.seedDict.replaceChildren(wait(V.dictionary({ label: T().dictLabel, box: b.seedDict, things, mode: "reel", icon: "seed",
@@ -2555,7 +2555,7 @@
 			if (pad) {
 				// its inputs: while choosing, what is chosen; once whole, from the stage that feeds them
 				const fed = (has) => whole ? reached("in") : has;
-				g.clock.replaceChildren(V.clock({ box: b.clock, n, from: fed(hasC) ? C : null, by: fed(hasK) ? K : null, sign: -1, inputColour: "seed",
+				g.clock.replaceChildren(V.clock({ box: b.clock, n, from: fed(hasC) ? C : null, by: fed(hasK) ? K : null, sign: -1, inputColour: "seed", formula: true,
 					phase: !whole || p < at("out") ? "inputs" : p === at("out") && turning ? "run" : "done", onDone: p === at("out") ? onRun : undefined, alive }));
 			}
 			const pb = whole ? bitsOf(P, k) : [];
