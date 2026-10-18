@@ -150,7 +150,8 @@ const SeedcraftJourneys = (() => {
 		return out;
 	};
 	// One card per group: its pieces, and its assembly inside when it has one
-	const gatherCards = (groups) => groups.map((g) => ({ group: g, assembly: !!g.assembly }));
+	// (a key of the same collection, what "both", still gets its own card for the key: kind "sameAsString")
+	const gatherCards = (groups) => groups.flatMap((g) => [{ group: g, assembly: !!g.assembly, kind: "full" }, ...(g.what === "both" ? [{ group: g, assembly: false, kind: "sameAsString" }] : [])]);
 	// The materials text of a form, with the length or quantity apart to draw
 	// big: the first number (with its «cm»), or null when the text has none.
 	function splitMaterials(text) {

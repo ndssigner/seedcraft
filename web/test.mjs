@@ -1462,8 +1462,14 @@ for (const pad of [false, true]) {
 	check(!("sizeRecommended" in TX.es.cards) && !("sizeRecommended" in TX.en.cards) && TX.es.cards.recommended === "Recomendada" && TX.en.cards.recommended === "Recommended", "the recommended size is a star, not a line");
 	check(TX.es.keyWhyChance.startsWith("La llave solo protege") && TX.en.keyWhyChance.startsWith("The key only protects"), "keyWhyChance in both languages");
 	check(TX.es.gatherLater === "Te diremos la cantidad exacta cuando sepamos tu semilla." && TX.en.gatherLater === "We'll tell you the exact count once we know your seed.", "gatherLater: the new copy");
+		const gc = J.gatherCards([{ what: "seq", assembly: true }, { what: "key", assembly: false }]);
+		check(gc.length === 2 && gc[0].assembly && !gc[1].assembly && gc[0].group.what === "seq", "gatherCards: one per group, assembly inside");
+		const gb = J.gatherCards([{ what: "both", assembly: true }]);
+		check(gb.length === 2 && gb[0].kind === "full" && gb[0].assembly && gb[1].kind === "sameAsString" && !gb[1].assembly, "gatherCards: same-collection key gets its own card");
+		check(gc.every((c) => c.kind === "full"), "gatherCards: separate groups are full");
 		const tt = (lang) => TX[lang].gatherTip;
-		check(tt("es").box(4) === "Una cajita con 4 compartimentos" && tt("en").box(4) === "A box with 4 compartments" && !TX.es.gatherBox, "gatherTip: box moved");
+		for (const [lang, k] of [["es", "la llave y su diccionario"], ["en", "the key and its dictionary"]]) check(TX[lang].gatherTotalLine(3, "key").endsWith(k) && !TX[lang].gatherTotalLine(3, "seq").includes(k) && !TX[lang].gatherTotalLine(3, "both").includes(k), "gatherTotalLine: key group names the key " + lang);
+	check(tt("es").box(4) === "Una cajita con 4 compartimentos" && tt("en").box(4) === "A box with 4 compartments" && !TX.es.gatherBox, "gatherTip: box moved");
 	for (const lang of ["en", "es"]) { const f = TX[lang].gatherTotalLine; check(typeof f === "function" && f(144, "seq").includes("144") && f(144, "both").includes("144") && f(144, "seq") !== f(144, "both"), `gatherTotalLine ${lang}: the count, and a line for both`); }
 	check(TX.es.gatherTotalLine(5, "seq") === "En total: 5 piezas para la ristra y el diccionario" && TX.es.gatherTotalLine(5, "both") === "En total: 5 piezas para las dos ristras y los diccionarios" && TX.en.gatherTotalLine(5, "seq") === "In all: 5 pieces for the string and the dictionary" && TX.en.gatherTotalLine(5, "both") === "In all: 5 pieces for both strings and the dictionaries", "gatherTotalLine: exact copy");
 	check(TX.en.qrCompact.includes("SeedSigner") && TX.en.qrCompact.includes("NDS-Signer") && TX.es.qrCompact.includes("SeedSigner") && TX.es.qrCompact.includes("NDS-Signer"), "qrCompact names both readers");
@@ -1540,8 +1546,6 @@ for (const pad of [false, true]) {
 		check(tips(["other"]) === "box", "tips: something else");
 		check(tips(["necklace", "gems"]) === "box,tweezers?,needle?", "tips: two forms, no repeats, the first's order");
 		check(J.gatherTips(["necklace"]).every((x) => typeof x.art === "string"), "tips: each has its art");
-		const cards = J.gatherCards([{ what: "seq", assembly: true }, { what: "key", assembly: false }]);
-		check(cards.length === 2 && cards[0].assembly && !cards[1].assembly && cards[0].group.what === "seq", "gatherCards: one per group, assembly inside");
 	}
 	const TX = ctx.TEXT;
 	for (const lang of ["en", "es"]) check(!/real funds|dinero de verdad/i.test(TX[lang].storeBasic.join(" ")) && TX[lang].keysHintTab.length > TX[lang].keysHint.length && /Tab/.test(TX[lang].keysHintTab), `${lang}: store help keeps the test-only stance; the key string's typing hint mentions Tab`);
