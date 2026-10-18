@@ -356,6 +356,8 @@
 			mounted = true;
 		}
 		Slides.setLang(st.lang);
+		// the mask's bubble is over once a slide that is no turn is shown
+		if (!(st.screen === "make" && ["seq", "check"].includes(st.at.make)) && !(st.screen === "read" && st.at.read === "recover")) st.seen.maskWhy = st.seen.maskWhy || maskTipTurn !== null;
 		const reading = st.screen === "read" && st.at.read === "recover" ? st.read : st.screen === "make" && st.at.make === "check" ? st.make.check : null;
 		const view = [st.screen, st.at[st.screen], st.at[st.screen] === "seq" ? st.make.turn : "", reading ? `${reading.turn}${reading.typing ? "t" : ""}` : "", st.make.explain ? st.make.explain.run : "", st.make.key && st.make.key.by, st.make.key && st.make.key.pos, st.make.key && !!st.make.key.fix, st.edit && st.edit.kind, st.edit && st.edit.target, st.edit && st.edit.i].join();
 		Slides.show(slideNow(view));
@@ -503,7 +505,7 @@
 	}
 	// «?»: a few lines on what to think of, over the slide
 	const helpOf = (title, lead, items) => () => Slides.popup(h("div", { class: "slide-help" }, h("h2", { text: title }),
-		lead ? h("p", { text: lead }) : null, h("ul", {}, items.map((x) => h("li", { text: x })))), { label: title });
+		lead ? h("p", { text: lead }) : null, items.length ? h("ul", {}, items.map((x) => h("li", { text: x }))) : null), { label: title });
 
 	// the kinds of a form, as its example shows them (own: the dictionary, if it
 	// is made); a form whose example has fewer kinds than N: numbered pieces
@@ -1883,7 +1885,8 @@
 		];
 		return {
 			count: `${pos}/${L}`, steps: explaining ? stages.length : 1, startStep: explaining && back ? last : 0, caption, shortcuts, body,
-			help: header && header.includes("mask") ? helpOf(t.hdrMask, t.hdrMaskWhy, []) : explainTurn,
+			help: header && header.includes("mask") ? () => Slides.popup(h("div", { class: "slide-help" }, h("h2", { text: t.hdrMask }), h("p", { text: t.hdrMaskWhy }),
+				h("button", { type: "button", class: "btn", text: t.hdrMaskExplain, on: { click: () => { Slides.closePopup(true); explainTurn(); } } })), { label: t.hdrMask }) : explainTurn,
 			// Next while the advance or the cycle plays: first its end, then on
 			hurry,
 			prev: i > 0 ? { go: () => turnGo(i - 1) } : { go: () => goSlide("make", "seqIntro") },
