@@ -949,7 +949,7 @@
 				written ? h("p", { class: "gather-note", text: t.gatherNoPieces }) : h("div", { class: "gather-body" },
 					h("div", { class: "gather-nums" },
 						h("p", {}, h("b", { text: String(n) }), h("span", { text: t.gatherKinds })), h("p", {}, h("b", { text: String(each) }), h("span", { text: t.gatherEach }), h("small", { class: "gather-estimate", text: t.gatherEstimate }))),
-					h("p", { class: "gather-total" }, h("span", { text: t.gatherTotal }), h("b", { text: String(n * each) }))),
+					h("p", { class: "gather-total", text: t.gatherTotalLine(n * each, g.what) })),
 				written ? null : h("p", { class: "gather-later", text: t.gatherLater }),
 				written ? null : tick(g.what));
 		};
@@ -1613,7 +1613,7 @@
 	// the arrow on to the last thing. toWords: the other way round (QR, then
 	// number, then words: recovering's end). reveal: the QR filling in; fade: the
 	// number fading in (only when its step was just reached with Next).
-	function seedQrParts(lay, { words, entropy, qr, step, toWords = false, reveal = null, fade = false, plain = false }) {
+	function seedQrParts(lay, { words, entropy, qr, step, toWords = false, reveal = null, fade = false, plain = false, fixedStep = undefined }) {
 		const t = T(), b = lay.boxes, kids = [], over = [];
 		const digits = S.groupDigits(S.entropyNumber(entropy), 5);
 		const showWords = toWords ? step >= 2 : true, showNumber = step >= 1, showQr = toWords ? true : step >= 2;
@@ -1629,7 +1629,7 @@
 			over.push(fade ? V.fadeIn(num) : num);
 		}
 		if (showQr) {
-			kids.push(V.qr({ box: b.qr, size: qr.size, modules: (r, c) => qr.getModule(c, r), reveal, ...(plain ? {} : qrFixed(qr.size, b.qr)) }));
+			kids.push(V.qr({ box: b.qr, size: qr.size, modules: (r, c) => qr.getModule(c, r), reveal, ...(plain || fixedStep === null ? {} : { ...qrFixed(qr.size, b.qr), ...(fixedStep === "reveal" ? { fixedReveal: { ms: 800 } } : {}) }) }));
 			over.push(place(h("div", { class: "qr-label" }, V.iconTag("seed"), " " + t.qrLabel(qr.size)), { x: b.qr.x, y: b.qr.y + b.qr.h + 2, w: b.qr.w, h: 16 }));
 		}
 		// the arrow of each step is the current one, the one before it past
@@ -1642,17 +1642,18 @@
 		const t = T(), m = st.make, words = S.entropyToMnemonic(m.entropy).split(" "), qr = S.compactSeedQR(m.entropy), lay = Lay.seedQr({});
 		const back = qrBack;
 		qrBack = false;
-		if (back) qrSeen = 2;
+		if (back) qrSeen = 3;
 		return {
 			id: "qr", question: t.qrQ, wide: true, steps: 4, startStep: back ? 3 : 0, caption: (s) => [t.qrStepWords, t.qrStepNumber, t.qrStepQr, t.qrStepFixed][s],
 			help: helpOf(t.qrQ, null, [t.qrHelp]),
 			next: { go: () => goSlide("make", "seqIntro") },
 			body: (at) => {
-				const step = Math.min(at, 2);   // the last caption (the amber part) is said over the drawing of the step before
-				const grew = step > qrSeen && !calm();
-				qrSeen = step;
-				const reveal = step === 2 && grew ? { order: S.dataModulesRowMajor(qr.size), ms: 1000 } : null;
-				const parts = seedQrParts(lay, { words, entropy: m.entropy, qr, step, reveal, fade: step === 1 && grew });
+				const step = Math.min(at, 2), amber = at === 3;   // the last step draws the QR again, now with its fixed part
+				const grew = at > qrSeen && !calm();
+				const grewFrom = qrSeen;
+				qrSeen = at;
+				const reveal = step === 2 && grew && at === 2 ? { order: S.dataModulesRowMajor(qr.size), ms: 1000 } : null;
+				const parts = seedQrParts(lay, { words, entropy: m.entropy, qr, step, reveal, fade: step === 1 && grew, fixedStep: amber ? (grew && grewFrom === 2 ? "reveal" : "shown") : null });
 				// with the QR, under its label: what kind of QR it is, who reads it (links that open apart)
 				const note = step === 2 ? [place(h("p", { class: "qr-compact" }, ...compactNote()), { x: lay.boxes.qr.x, y: lay.boxes.qr.y + lay.boxes.qr.h + 20, w: lay.boxes.qr.w, h: 30 })] : [];
 				return h("div", { class: "dict-slide" }, canvas(...parts.kids), ...parts.over, ...note);
