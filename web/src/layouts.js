@@ -104,7 +104,7 @@ const SeedcraftLayouts = (() => {
 			guide: { ...GUIDE },
 		};
 		const arrows = [
-			arrow("position", "posBox", "qr", "qr", [[326, 266], [106, 266], [106, 216]]),
+			arrow("position", "posBox", "qr", "qr", underQr(b.qr, 266)),
 			arrow("bits", "qr", "bits", "qr", [[196, 67], [212, 67]]),
 			arrow("number", "bits", "number", "qr", [[232, 78], [232, 94]]),
 		];
@@ -566,6 +566,13 @@ const SeedcraftLayouts = (() => {
 	}
 	// the bounding rectangle of QR cells [r, c] in a box, as vocab.js's qr places
 	// them (side = min(w, h), centred), 2 units out on each side; null if none
+	// The position's route into a QR from below, along the row y: a QR with its legend (from 150 high) keeps
+	// the legend centred under its square, so the arrow rises on the left, clear of it (a QR without one:
+	// its middle), ending on the drawn square's bottom edge.
+	function underQr(b, y) {
+		const legend = b.h >= 150, q = qrSquare(b, { legend }), x = legend ? Math.round(q.x + 18) : b.x + b.w / 2;
+		return [[326, y], [x, y], [x, q.y + q.h]];
+	}
 	// the QR's square as V.qr draws it in its box b (14 smaller with a legend under it)
 	function qrSquare(b, { legend = false } = {}) {
 		const side = Math.min(b.w, b.h) - (legend ? 14 : 0);
@@ -607,8 +614,8 @@ const SeedcraftLayouts = (() => {
 			string: { ...BUILT }, posBox: { ...POSBOX }, stringTip: box(440, 218, 224, 36) };
 		if (pad) Object.assign(b, { qrTip: box(212, 70, 150, 64), keyString: box(380, 66, 34, 180), count: box(430, 66, 234, 96), keyTip: box(430, 170, 234, 40) });
 		else Object.assign(b, { qrTip: box(212, 80, 180, 56), count: box(424, 66, 240, 120) });
-		const x = b.qr.x + b.qr.w / 2, y = b.posBox.y + b.posBox.h / 2;
-		return { boxes: b, arrows: [arrow("position", "posBox", "qr", "qr", [[b.posBox.x, y], [x, y], [x, b.qr.y + b.qr.h]])] };
+		const y = b.posBox.y + b.posBox.h / 2;
+		return { boxes: b, arrows: [arrow("position", "posBox", "qr", "qr", [[b.posBox.x, y], ...underQr(b.qr, y).slice(1)])] };
 	}
 	// Before checking (spec §7): the string to read, a column as readTurn's
 	// (and the key's beside it, a gap for the seed's bubble between them), each
@@ -628,5 +635,5 @@ const SeedcraftLayouts = (() => {
 		const s = Math.max(1, Math.min(Math.max(32, side), iw, ih));
 		return { x: Math.min(Math.max(0, x), iw - s), y: Math.min(Math.max(0, y), ih - s), side: s };
 	}
-	return { cropClamp, BUILT, SLOT, POSBOX, RAIL, pitch, qrSquare, qrCellsBox, digitFont, seedQr, seqIntro, checkIntro, VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readColumn, readTurn, pickerPopup, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, REJECT, BADGE, fileRow, fileColumn, store, dictName, dictCheck, dictAsIs };
+	return { cropClamp, BUILT, SLOT, POSBOX, RAIL, pitch, qrSquare, qrCellsBox, digitFont, seedQr, seqIntro, underQr, checkIntro, VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readColumn, readTurn, pickerPopup, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, REJECT, BADGE, fileRow, fileColumn, store, dictName, dictCheck, dictAsIs };
 })();

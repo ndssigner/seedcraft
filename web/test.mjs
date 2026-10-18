@@ -353,7 +353,7 @@ const inCell = ([x, y], c) => onBorder([x, y], c);
 for (const n of [2, 4, 8, 16, 32]) for (const pad of [false, true]) {
 	for (const [name, lay] of [["make", Lay.makeTurn({ pad, n })], ["read", Lay.readTurn({ pad, n })]]) {
 		checkLayout(`${name} n=${n} pad=${pad}`, lay);
-		for (const a of lay.arrows) check(onBorder(starts(a), lay.boxes[a.from]) && onBorder(ends(a), lay.boxes[a.to]), `${name} n=${n} pad=${pad} arrow ${a.id} leaves and reaches its boxes`);
+		for (const a of lay.arrows) check(onBorder(starts(a), lay.boxes[a.from]) && onBorder(ends(a), a.id === "position" && lay.boxes.qr.h >= 150 ? Lay.qrSquare(lay.boxes.qr, { legend: true }) : lay.boxes[a.to]), `${name} n=${n} pad=${pad} arrow ${a.id} leaves and reaches its boxes`);
 		const keyed = ["keyString", "keyDict", "keyNumber", "keyColumn", "keySlot", "clock"].filter((k) => k in lay.boxes);
 		check(pad ? keyed.length === (name === "make" ? 4 : 5) : keyed.length === 0, `${name} n=${n} pad=${pad} has the key only with a key`);
 		check("seedSlot" in lay.boxes && contains(lay.boxes[name === "make" ? "seedString" : "seedColumn"], lay.boxes.seedSlot), `${name} n=${n} pad=${pad} the turn's slot is in its string`);
@@ -463,7 +463,14 @@ for (const pad of [false, true]) {
 	const sb = si.boxes, cb = ci.boxes, pos = si.arrows.find((a) => a.id === "position");
 	check(["qr", "qrTip", "count", "string", "stringTip", "posBox"].every((id) => id in sb) && sb.qr.h >= 150 && JSON.stringify(sb.string) === JSON.stringify(Lay.BUILT)
 		&& ("keyString" in sb) === pad && ("keyTip" in sb) === pad, `seqIntro pad=${pad}: the QR, the count, the string being built and their bubbles (the key's with a key)`);
-	check(!!pos && pos.from === "posBox" && pos.to === "qr" && onBorder(starts(pos), sb.posBox) && onBorder(ends(pos), sb.qr), `seqIntro pad=${pad}: the position's arrow from its box to the QR`);
+	check(!!pos && pos.from === "posBox" && pos.to === "qr" && onBorder(starts(pos), sb.posBox) && onBorder(ends(pos), Lay.qrSquare(sb.qr, { legend: true })), `seqIntro pad=${pad}: the position's arrow from its box to the QR`);
+	// no arrow into a QR from below crosses the legend drawn under it (V.qr: centred at the box's bottom, a swatch and the text at 9 high)
+	const legendBox = (qr, text) => { const w = 10 + 4 + 0.5 * 9 * text.length; return { x: qr.x + (qr.w - w) / 2, y: qr.y + qr.h - 14, w, h: 14 }; };
+	for (const text of [...read("src/i18n.js").matchAll(/qrFixedLegend: "([^"]*)"/g)].map((m) => m[1]))
+		for (const [name, lay] of [["seqIntro", si], ["makeTurn", Lay.makeTurn({ pad, n: 16 })]]) {
+			const p = lay.arrows.find((a) => a.id === "position"), lb = legendBox(lay.boxes.qr, text);
+			check(p.points.slice(1).every((pt, i) => !Lay.segmentHitsBox(p.points[i], pt, lb)) && (p.points.at(-1)[0] < lb.x || p.points.at(-1)[0] > lb.x + lb.w), `${name} pad=${pad}: the position's arrow clear of the legend «${text}»`);
+		}
 	check(sb.stringTip.y + sb.stringTip.h <= Lay.BUILT.y && sb.qrTip.x >= sb.qr.x + sb.qr.w, `seqIntro pad=${pad}: the string's bubble above it, the QR's beside it`);
 	check(["column", "columnTip", "qr", "qrTip"].every((id) => id in cb) && cb.column.w === Lay.readTurn({ pad, n: 16 }).boxes.seedColumn.w && ("keyColumn" in cb) === pad && ("keyTip" in cb) === pad
 		&& !!ci.columns.seed && !!ci.columns.key === pad, `checkIntro pad=${pad}: the column to read, the QR and their bubbles (the key's with a key)`);
@@ -479,7 +486,7 @@ check(Lay.makeTurn({ pad: true, n: 16 }).arrows.map((a) => a.id).join() === "pos
 for (const n of [2, 4, 8, 16, 32]) {
 	const lay = Lay.makeTurn({ pad: true, n, file: true }), m = Lay.clockModule(lay.boxes.clock), into = (id) => ends(lay.arrows.find((a) => a.id === id));
 	checkLayout(`make n=${n} file`, lay);
-	for (const a of lay.arrows) check(onBorder(starts(a), lay.boxes[a.from]) && onBorder(ends(a), lay.boxes[a.to]), `make n=${n} file: arrow ${a.id} leaves and reaches its boxes`);
+	for (const a of lay.arrows) check(onBorder(starts(a), lay.boxes[a.from]) && onBorder(ends(a), a.id === "position" && lay.boxes.qr.h >= 150 ? Lay.qrSquare(lay.boxes.qr, { legend: true }) : lay.boxes[a.to]), `make n=${n} file: arrow ${a.id} leaves and reaches its boxes`);
 	check(!lay.boxes.keyDict && lay.arrows.map((a) => `${a.id}:${a.from}>${a.to}`).join() === "position:posBox>qr,bits:qr>bits,number:bits>number,keyNumber:keyString>keyNumber,clockSeed:number>clock,clockKey:keyNumber>clock,output:clock>seedDict,slot:seedDict>seedSlot",
 		`make n=${n} file: no key dictionary, the file's row → its number → the clock`);
 	check(inCell(into("clockSeed"), m.inputs[0]) && inCell(into("clockKey"), m.inputs[1]), `make n=${n} file: each number enters its own input cell`);
