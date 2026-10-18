@@ -1832,13 +1832,13 @@
 	}
 	// the parts of a turn that are not squares (S.turnBits's), or false: none
 	const headerOf = (turn) => { const parts = [...new Set(turn.map((x) => x.part).filter((p) => p !== "data"))]; return parts.length ? parts : false; };
-	// the line under a turn that brings the mask (spec §4): what its three cells show (the mask mixed with 101, bits
-	// 12-10 of S.FORMAT_XOR) and the mask itself; mask: its 3 bits (null: not all known, no line)
-	const MASK_XOR = [12, 11, 10].map((b) => (S.FORMAT_XOR >>> b) & 1);
-	const maskLineOf = (mask) => mask && mask.every((x) => x === 0 || x === 1) ? T().hdrMaskSeen(mask.map((x, j) => x ^ MASK_XOR[j]).join(""), mask.join("")) : null;
-	// the mask's «?»: why it is there, what its cells show, where the 8 masks are; explain: the button that explains the turn
+	// the line under a turn that brings the mask (spec §4): what its three cells show and the mask itself
+	// (m: S.maskSeen's or S.maskFrom's; null: not all known, no line)
+	const maskLineOf = (m) => m ? T().hdrMaskSeen(m.seen.join(""), m.mask.join("")) : null;
+	// the mask's «?»: why it is there, what its cells show, that its bits are not squares, where the 8 masks are;
+	// explain: the button that explains the turn
 	const maskHelp = (line, explain) => Slides.popup(h("div", { class: "slide-help" }, h("h2", { text: T().hdrMask }), h("p", { text: T().hdrMaskWhy }),
-		line ? h("p", { text: line }) : null, h("p", { text: T().hdrMaskCatalog }),
+		line ? h("p", { text: line }) : null, h("p", { text: T().turnHeaderNoQr }), h("p", { text: T().hdrMaskCatalog }),
 		h("button", { type: "button", class: "btn", text: T().hdrMaskExplain, on: { click: () => { Slides.closePopup(true); explain(); } } })), { label: T().hdrMask });
 	// the key file's characters around turn i (pad: the key's values), a column like the key string's: the turn's framed
 	function keyFileReference(box, pad, i, L) {
@@ -1862,8 +1862,8 @@
 		const qr = S.compactSeedQR(m.entropy), size = qr.size;
 		const bits = S.symbolsToBits(plain, k), turn = S.turnBits(size, i, k), roles = turn.map((x) => x.part);
 		const turnCells = turn.filter((x) => x.cell).map((x) => x.cell), header = headerOf(turn), data = turnCells.length > 0;
-		// a turn that brings the mask: its three cells outlined in the QR (both copies), the line on what they show
-		const withMask = !!header && header.includes("mask"), maskLine = withMask ? maskLineOf(S.maskSeen(qr).mask) : null;
+		// a turn that brings the mask: the line on what its cells show; the cursor on them (S.turnCursor), unless the turn has squares too
+		const withMask = !!header && header.includes("mask"), maskLine = withMask ? maskLineOf(S.maskSeen(qr)) : null, cur = S.turnCursor(size, turn);
 		// a last turn (header): the cards its bits come from, beside a smaller QR
 		const lay = Lay.makeTurn({ pad, n, file, header, data, size }), b = lay.boxes, stages = J.turnStages({ pad, file, header: !!header, data }), last = stages.length - 1;
 		const explaining = i < J.EXPLAINED || !!(m.explain && m.explain.turn === i);
@@ -1893,7 +1893,7 @@
 		let keyDrawn = false, slotDrawn = null, qrDrawn = false, arrowsOn = true;
 		function draw(p, turning, onRun, alive) {
 			const reached = (id) => at(id) >= 0 && at(id) <= p;
-			if (!qrDrawn) groups.qr.replaceChildren(V.qr({ box: b.qr, size, modules, turnCells, markerLabel: T().qrPosition(i + 1), ...qrFixed(size, b.qr), maskCells: withMask ? S.maskCells(size) : [] }));
+			if (!qrDrawn) groups.qr.replaceChildren(V.qr({ box: b.qr, size, modules, turnCells, cursorCells: cur.cells, maskOutline: cur.outline, markerLabel: cur.mask ? T().qrMask : T().qrPosition(i + 1), ...qrFixed(size, b.qr) }));
 			qrDrawn = true;
 			// the cards, filled from their stage on (the mask is the QR's, written in its format band)
 			if (header) groups.cards.replaceChildren(...headerCardsOf(b, header, size, k, i, bits.map((x, j) => Math.floor(j / k) === i && !reached("cards") ? null : x)));
@@ -1930,7 +1930,7 @@
 		// the bits and the number fade in. Its glides, while they play
 		function advance(f) {
 			const out = [], q = groups.qr.lastChild, marker = q && q.querySelector && q.querySelector(".v-qr-cursor");
-			const was = Lay.qrCellsBox(b.qr, size, S.turnBits(size, f, k).filter((x) => x.cell).map((x) => x.cell), { legend: b.qr.h >= 150 }), now = Lay.qrCellsBox(b.qr, size, turnCells, { legend: b.qr.h >= 150 });
+			const was = Lay.qrCellsBox(b.qr, size, S.turnCursor(size, S.turnBits(size, f, k)).cells, { legend: b.qr.h >= 150 }), now = Lay.qrCellsBox(b.qr, size, S.turnCursor(size, turn).cells, { legend: b.qr.h >= 150 });
 			if (was && now && marker) out.push(V.glide(marker, { dx: was.x - now.x, dy: was.y - now.y }));
 			out.push(V.glide(runOf(groups.seedString), { dx: (i - f) * Lay.pitch(b.seedString, 13) }));
 			if (pad) out.push(V.glide(runOf(groups.key), { dy: (i - f) * (file ? Lay.fileColumn(b.keyString, { role: "reference" }).pitch : Lay.pitch(b.keyString, 7, { vertical: true })) }));
@@ -2361,7 +2361,7 @@
 		const wholeAt = (j) => rd.taps[j] !== undefined && (!key || key[j] !== undefined);
 		const P = whole ? plainOf(i) : null;
 		const turn = S.turnBits(size, i, k), roles = turn.map((x) => x.part), turnCells = turn.filter((x) => x.cell).map((x) => x.cell), header = headerOf(turn);
-		const withMask = !!header && header.includes("mask");
+		const withMask = !!header && header.includes("mask"), cur = S.turnCursor(size, turn);
 		// the turn's squares in the QR's box (none for the header and the padding): where the position and the bits arrive;
 		// a last turn (header): its bits go to their cards, beside a smaller QR
 		const probe = Lay.readTurn({ pad, n, file, header }).boxes.qr, cursor = Lay.qrCellsBox(probe, size, turnCells, { legend: probe.h >= 150 });
@@ -2480,7 +2480,11 @@
 				paintDrawn = reached("paint");
 				const painted = new Map(before);
 				if (paintDrawn) paintTurn(painted, i);
-				g.qr.replaceChildren(V.qr({ box: b.qr, size, modules: template, turnCells, painted, markerLabel: T().qrPosition(i + 1), ...qrFixed(size, b.qr), maskCells: withMask ? S.maskCells(size) : [] }));
+				// the mask's six cells, once its three bits are read: what they show
+				const mk = maskRead();
+				if (mk) S.maskCells(size).forEach((copy) => copy.forEach(([r, c], j) => painted.set(r * size + c, mk.seen[j])));
+				g.qr.replaceChildren(V.qr({ box: b.qr, size, modules: template, turnCells, painted, cursorCells: cur.cells, maskOutline: cur.outline,
+					markerLabel: cur.mask ? T().qrMask : T().qrPosition(i + 1), ...qrFixed(size, b.qr) }));
 			}
 			lay.arrows.forEach((a, j) => arrowGroups[j].replaceChildren(V.arrow({ points: a.points, colour: a.colour, state: arrowsOn ? arrowState(a.id, p) : "hidden" })));
 		}
@@ -2489,7 +2493,7 @@
 			const rows = lay.columns.seed.rows, dy = (i - f) * (rows[1].y - rows[0].y), out = [V.glide(runOf(g.seed), { dy })];
 			if (pad) out.push(V.glide(runOf(g.key), { dy }));
 			const q = g.qr.lastChild, marker = q && q.querySelector && q.querySelector(".v-qr-cursor");
-			const was = Lay.qrCellsBox(b.qr, size, S.turnBits(size, f, k).filter((x) => x.cell).map((x) => x.cell), { legend: b.qr.h >= 150 }), now = Lay.qrCellsBox(b.qr, size, turnCells, { legend: b.qr.h >= 150 });
+			const was = Lay.qrCellsBox(b.qr, size, S.turnCursor(size, S.turnBits(size, f, k)).cells, { legend: b.qr.h >= 150 }), now = Lay.qrCellsBox(b.qr, size, S.turnCursor(size, turn).cells, { legend: b.qr.h >= 150 });
 			if (was && now && marker) out.push(V.glide(marker, { dx: was.x - now.x, dy: was.y - now.y }));
 			V.fadeIn(g.bits); V.fadeIn(g.numbers);
 			return out;
@@ -2515,9 +2519,10 @@
 		const maskRead = () => {
 			if (!withMask) return null;
 			const values = Array.from({ length: L * k }, (_, j) => { const x = Math.floor(j / k); return (x === i ? whole : wholeAt(x)) ? bitsOf(plainOf(x), k)[j - x * k] : null; });
-			return maskLineOf(J.headerBitsUpTo(["mask"], i, k, S.dataModulesRowMajor(size).length, values).mask.bits);
+			const bits = J.headerBitsUpTo(["mask"], i, k, S.dataModulesRowMajor(size).length, values).mask.bits;
+			return bits.every((x) => x !== null) ? S.maskFrom({ mask: bits }) : null;
 		};
-		const note = header ? maskRead() || t.turnHeaderNoQr : null;
+		const note = header ? maskLineOf(maskRead()) || t.turnHeaderNoQr : null;
 		const caption = () => !whole ? (i === 0 && !st.seen.readTap ? t.forms[form].read : keyThings ? t.readTapBoth(pos) : t.readTap(pos))
 			: note || (pad ? t.readTurnPad(C, K, n, P) : t.readTurnBasic(P));
 		const checking = rd !== st.read;
@@ -2551,7 +2556,7 @@
 			hurry: () => { const playing = !!glides && glides.playing; if (glides) glides.finish(); const held = !!hold && hold.finish(); return (!!cycle && cycle.finish()) || held || playing; },
 			help: helpOf(stepName(checking ? "make" : "read", checking ? "check" : "recover"), checking ? (pad ? t.checkHelpPad : t.checkReadHelp) : null,
 				[t.forms[form].read, keyThings ? t.keysHintTab : t.keysHint, keyThings ? t.tapPadHelp : null, pad ? null : t.whyBasic(n, k), t.readLockedWhy,
-					withMask ? t.hdrMaskWhy : null, withMask ? maskRead() : null, withMask ? t.hdrMaskCatalog : null].filter(Boolean)),
+					withMask ? t.hdrMaskWhy : null, withMask ? maskLineOf(maskRead()) : null, withMask ? t.turnHeaderNoQr : null, withMask ? t.hdrMaskCatalog : null].filter(Boolean)),
 			shortcuts: readShortcuts(rd, L, opts.done),
 			prev: i > 0 ? { go: () => readGo(rd, i - 1) } : undefined,
 			next: { go: () => { if (i < L - 1) readGo(rd, i + 1); else opts.done(); }, ready: whole },

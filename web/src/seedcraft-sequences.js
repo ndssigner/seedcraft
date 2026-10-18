@@ -116,11 +116,23 @@ const SeedcraftSequences = (() => {
 	function maskCells(size) {
 		return [[12, 11, 10].map((i) => [8, 14 - i]), [12, 11, 10].map((i) => [size - 15 + i, 8])];
 	}
-	// What the QR's mask cells show (copy 1), the pattern mixed in (bits 12-10 of FORMAT_XOR: 101) and the mask they give.
-	function maskSeen(qr) {
-		const seen = maskCells(qr.size)[0].map(([r, c]) => qr.getModule(c, r) ? 1 : 0);
-		const xor = [12, 11, 10].map((i) => (FORMAT_XOR >>> i) & 1), mask = seen.map((b, j) => b ^ xor[j]);
+	// The mask's three bits both ways: what its cells show (seen) and the mask (mask), one from the other through the
+	// pattern mixed in (xor: bits 12-10 of FORMAT_XOR, 101). Given { seen } or { mask }.
+	const MASK_XOR = [12, 11, 10].map((i) => (FORMAT_XOR >>> i) & 1);
+	function maskFrom({ seen, mask }) {
+		const xor = MASK_XOR.slice(), other = (seen || mask).map((b, j) => b ^ xor[j]);
+		[seen, mask] = seen ? [seen.slice(), other] : [other, mask.slice()];
 		return { seen, xor, mask, value: parseInt(mask.join(""), 2) };
+	}
+	// What the QR's mask cells show (copy 1) and the mask they give.
+	const maskSeen = (qr) => maskFrom({ seen: maskCells(qr.size)[0].map(([r, c]) => qr.getModule(c, r) ? 1 : 0) });
+	// Where the QR's cursor sits in a turn (turnBits's): on its data squares; a turn of mask bits and no squares, on
+	// the mask's first copy (mask: true), the second copy outlined; a turn mixing both, on the squares, both copies
+	// outlined; otherwise nowhere (cells []).
+	function turnCursor(size, turn) {
+		const data = turn.filter((x) => x.cell).map((x) => x.cell), mask = turn.some((x) => x.part === "mask"), mc = maskCells(size);
+		if (data.length) return { cells: data, mask: false, outline: mask ? mc : [] };
+		return mask ? { cells: mc[0], mask: true, outline: [mc[1]] } : { cells: [], mask: false, outline: [] };
 	}
 
 	// The colour of a function module that does not depend on the mask: finders,
@@ -830,7 +842,7 @@ const SeedcraftSequences = (() => {
 		FORMAT_VERSION, HEADER_BITS, LAYOUTS, DecodeError,
 		sha512, hmac512, hmacKey, pbkdf2Sha512, ripemd160, mnemonicToSeed, fingerprint,
 		sha256, mnemonicToEntropy, entropyToMnemonic,
-		functionModules, formatModules, FORMAT_XOR, maskCells, maskSeen, templateModule, dataModulesRowMajor, compactSeedQR, encode, decode,
+		functionModules, formatModules, FORMAT_XOR, maskCells, maskSeen, maskFrom, turnCursor, templateModule, dataModulesRowMajor, compactSeedQR, encode, decode,
 		symbolsToBits, readSequence, decodeObjects, physicalSequence, piecesToBuy, rsCorrect,
 		PAD_DIGITS, PAD_ROW, PAD_GROUP, PadFileError, newPad, DICE, diceBits, throwsToNumber, keyMove, keyAddPiece, keyAddThrow, keyUndoThrow, keyFix, changedPieces, addPads, encrypt, decrypt, encodePad, decodePad, decodePadObjects,
 		checkCharacter, writePadFile, readPadFile,

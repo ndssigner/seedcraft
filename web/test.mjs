@@ -418,6 +418,18 @@ for (const words of [12, 24]) for (let t = 0; t < 8; t++) {
 	const qr = S.compactSeedQR(e), m = S.maskSeen(qr), cells = S.maskCells(qr.size);
 	check(cells.length === 2 && cells.every((c) => c.length === 3) && m.value === qr.mask && m.mask.join("") === qr.mask.toString(2).padStart(3, "0"), `maskSeen words=${words} #${t}: the three format cells give the QR's mask`);
 	check(cells[1].every(([r, c], j) => (qr.getModule(c, r) ? 1 : 0) === m.seen[j]), `maskSeen words=${words} #${t}: both copies show the same`);
+	check(JSON.stringify(S.maskFrom({ mask: m.mask })) === JSON.stringify(m), `maskFrom words=${words} #${t}: the mask read gives what its cells show`);
+}
+// where the QR's cursor sits in a turn: its data squares; a turn of mask bits alone, the mask's first copy (the second
+// outlined); a turn mixing both, the data squares (both copies outlined); the rest, nowhere
+for (const size of [21, 25]) for (const n of [2, 4, 8, 16, 32]) {
+	const k = Math.log2(n), L = Math.ceil((S.dataModulesRowMajor(size).length + 5) / k) + 1;
+	for (let i = 0; i < L; i++) {
+		const turn = S.turnBits(size, i, k); if (!turn.length) continue;
+		const c = S.turnCursor(size, turn), data = turn.filter((x) => x.cell).map((x) => x.cell), mask = turn.some((x) => x.part === "mask"), mc = S.maskCells(size);
+		const want = data.length ? { cells: data, mask: false, outline: mask ? mc : [] } : mask ? { cells: mc[0], mask: true, outline: [mc[1]] } : { cells: [], mask: false, outline: [] };
+		check(JSON.stringify(c) === JSON.stringify(want), `turnCursor size=${size} n=${n} turn ${i}`);
+	}
 }
 for (const n of [2, 16, 32]) for (const pad of [false, true]) {
 	checkLayout(`make header n=${n} pad=${pad}`, Lay.makeTurn({ pad, n, header: true }));
@@ -437,13 +449,11 @@ for (const size of [21, 25]) for (const n of [2, 4, 8, 16, 32]) for (const pad o
 			checkLayout(`${what} ${name}`, lay);
 			margin(`${what} ${name}`, lay);
 			const b = lay.boxes, mask = lay.arrows.find((a) => a.id === "mask"), ids = lay.arrows.map((a) => a.id);
-			// (the mask's leaves from the outline round its cells, inside the QR)
-			for (const a of lay.arrows) if (!((a.id === "mask" || onBorder(starts(a), b[a.from])) && onBorder(ends(a), b[a.to]))) check(false, `${what} ${name}: arrow ${a.id} leaves and reaches its boxes`);
+			for (const a of lay.arrows) if (!(onBorder(starts(a), b[a.from]) && onBorder(ends(a), b[a.to]))) check(false, `${what} ${name}: arrow ${a.id} leaves and reaches its boxes`);
 			check(parts.every((p) => b["card" + p[0].toUpperCase() + p.slice(1)]) && ["version", "mask", "padding"].every((p) => parts.includes(p) === !!b["card" + p[0].toUpperCase() + p.slice(1)])
 				&& Object.keys(b).filter((id) => id.startsWith("card")).every((id) => contains(b.cards, b[id])), `${what} ${name}: a card for each part it brings, in the column`);
-			const mc = Lay.qrCellsBox(b.qr, size, S.maskCells(size)[0], { legend: b.qr.h >= 150 });
-			check(!!mask === parts.includes("mask") && (!mask || (starts(mask)[0] === mc.x + mc.w && Math.abs(starts(mask)[1] - (b.qr.y + 8.5 * b.qr.h / size)) < 1e-9 && ends(mask)[0] === b.cardMask.x)),
-				`${what} ${name}: the mask's arrow from the right edge of its three cells (format row 8) into its card`);
+			check(!!mask === parts.includes("mask") && (!mask || (starts(mask)[0] === b.qr.x + b.qr.w && starts(mask)[1] === b.qr.y + 8.5 * b.qr.h / size && ends(mask)[0] === b.cardMask.x)),
+				`${what} ${name}: the mask's arrow from the QR's edge level with format row 8 (the mask's cursor) into its card`);
 			check(ids.includes("cards") && b.qr.h < 150 && b.qr.w === b.qr.h, `${what} ${name}: the cards' arrow, the QR smaller`);
 			const tip = lay.maskTip, hit = (p, q) => p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q.y < p.y + p.h;
 			check(!!tip === parts.includes("mask") && (!tip || (tip.box.x >= 16 && tip.box.x + tip.box.w <= 664 && tip.box.y >= 30 && tip.box.y + tip.box.h <= 334
@@ -836,10 +846,13 @@ for (const pad of [false, true]) {
 		check(cls("v-qr-cursor")(cursor) && cls("v-qr-marker")(last) && last.attrs.x === want.x && last.attrs.y === want.y && last.attrs.width === want.w && last.attrs.height === want.h, "qr: a marker round the turn's cells, in the last child (the cursor), at qrCellsBox");
 		check(walk(V.qr({ box: qb, size: 25, modules: dark, turnCells: [] }), cls("v-qr-marker")).length === 0, "qr: no turn cells, no marker");
 		{
-			// the mask's cells: an amber outline round each copy's three, at qrCellsBox
-			const mc = S.maskCells(25), lines = walk(V.qr({ box: qb, size: 25, modules: dark, maskCells: mc }), cls("v-qr-mask-line"));
-			check(lines.length === 2 && lines.every((r, j) => { const w = Lay.qrCellsBox(qb, 25, mc[j]); return Math.abs(r.attrs.x - w.x) < 0.1 && Math.abs(r.attrs.y - w.y) < 0.1 && Math.abs(r.attrs.width - w.w) < 0.1; })
-				&& walk(V.qr({ box: qb, size: 25, modules: dark }), cls("v-qr-mask")).length === 0, "qr: the mask's two copies outlined, none unasked");
+			// the mask's turn: the cursor (marker and tab) on its first copy, not filled as the turn's squares; the other copy lightly outlined
+			const mc = S.maskCells(25), q = V.qr({ box: qb, size: 25, modules: dark, cursorCells: mc[0], markerLabel: "Mask", maskOutline: [mc[1]] });
+			const mk = walk(q, cls("v-qr-marker")), w0 = Lay.qrCellsBox(qb, 25, mc[0]), lines = walk(q, cls("v-qr-mask-line")), w1 = Lay.qrCellsBox(qb, 25, mc[1]);
+			check(mk.length === 1 && mk[0].attrs.x === w0.x && mk[0].attrs.y === w0.y && mk[0].attrs.width === w0.w && walk(q, cls("v-qr-tab")).length === 1 && walk(q, cls("v-qr-turn")).length === 0,
+				"qr: cursorCells places the cursor, without turn squares");
+			check(lines.length === 1 && Math.abs(lines[0].attrs.x - w1.x) < 0.1 && Math.abs(lines[0].attrs.y - w1.y) < 0.1 && walk(V.qr({ box: qb, size: 25, modules: dark }), cls("v-qr-mask-line")).length === 0,
+				"qr: the mask's other copy lightly outlined, none unasked");
 		}
 		const order = [[0, 0], [0, 1], [0, 2], [0, 3]];
 		const rev = V.qr({ box: qb, size: 25, modules: dark, reveal: { order, ms: 1000 } });
@@ -1357,7 +1370,8 @@ for (const pad of [false, true]) {
 	// the explained turn's last step with a changed piece: the slot's sentence and the key's change together
 	for (const lang of ["en", "es"]) check((TX[lang].turnSlot(364) + " " + TX[lang].seqKeyChanged).length <= 110, `caption ${lang}: slot + key changed fits`);
 	check(TX.es.hdrMaskSeen("001", "100") === "Aquí está escrita tu máscara, mezclada con 101: se ve 001, es 100." && TX.en.hdrMaskSeen("001", "100") === "Your mask is written here, mixed with 101: it shows 001, it is 100."
-		&& TX.es.hdrMaskCatalog === "El catálogo de las 8 máscaras está en el manual en PDF y en la documentación del proyecto." && /8 masks/.test(TX.en.hdrMaskCatalog), "hdrMaskSeen, hdrMaskCatalog: exact copy");
+		&& TX.es.hdrMaskCatalog === "El catálogo de las 8 máscaras está en el manual en PDF y en la documentación del proyecto." && /8 masks/.test(TX.en.hdrMaskCatalog)
+		&& TX.es.qrMask === "Máscara" && TX.en.qrMask === "Mask", "hdrMaskSeen, hdrMaskCatalog, qrMask: exact copy");
 	// the first turn read: how to read each form
 	for (const lang of ["en", "es"]) for (const [id, f] of Object.entries(TX[lang].forms)) check(f.read.length <= 110, `caption ${lang}.forms.${id}.read at most 110 characters (${f.read.length})`);
 }
