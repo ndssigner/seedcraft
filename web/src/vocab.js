@@ -195,6 +195,8 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			const [x, y] = place(i), pos = firstPosition + i, thing = idx === null ? null : things[idx] || null, isCur = i === current;
 			const rr = isCur && role === "build" ? (curR !== null ? curR : Math.min(r * 1.6, box.w / 2 - 1)) : r;
 			const kids = [];
+			// an empty slot's invisible, larger target (36 canvas units, about 44 px at the lectern), under the bead
+			if (idx === null && onSlot) kids.push(svg("rect", { x: r1(x - 18), y: r1(y - 18), width: 36, height: 36, class: "v-slot-hit", fill: "transparent", "pointer-events": "all" }));
 			if (isCur && role === "reference") kids.push(svg("rect", { x: r1(x - rr - 2), y: r1(y - pitch / 2 + 0.5), width: r1(2 * rr + 4), height: r1(pitch - 1), rx: 3, class: "v-turn-frame" }));
 			kids.push(bead(thing, x, y, rr, isCur && role === "build"));
 			if (idx === null && onSlot) kids.push(text(x, y + rr * 0.4, rr * 1.1, "+", { "text-anchor": "middle", class: "v-plus" }));

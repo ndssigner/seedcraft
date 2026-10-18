@@ -2388,6 +2388,8 @@
 				showPos(); markCol();
 				return true;
 			}
+			// «+» (or «=», the same key unshifted) opens the active column's picker, when nothing is being typed
+			if ((e.key === "+" || e.key === "=") && !buf) { choose(typedKey() ? "key" : "seed"); return true; }
 			const digit = /^[0-9]$/.test(e.key);
 			if (!digit && !((e.key === "Enter" || e.key === "Backspace") && buf)) return false;
 			rd.keyed = true;
