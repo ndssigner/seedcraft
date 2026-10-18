@@ -70,9 +70,14 @@ const SeedcraftLayouts = (() => {
 		b.cards = box(x, top, w, bottom - top);
 		return parts;
 	}
-	// the mask's arrow: out of the QR's right edge at its format row 8 (where the
-	// mask is written), into its card's left edge (amber, as the QR's fixed areas)
-	const maskArrow = (b, size) => arrow("mask", "qr", "cardMask", "key", [[b.qr.x + b.qr.w, b.qr.y + 8.5 * b.qr.h / size], [b.cardMask.x, b.qr.y + 8.5 * b.qr.h / size]]);
+	// the mask's arrow: out of the right edge of the outline round the mask's three cells by the top-left
+	// finder (S.maskCells(size)[0]: row 8, columns 2-4, where it is written), along that row, into its card's
+	// left edge (amber, as the QR's fixed areas)
+	const MASK_CELLS_TOP = [[8, 2], [8, 3], [8, 4]];
+	const maskArrow = (b, size) => {
+		const m = qrCellsBox(b.qr, size, MASK_CELLS_TOP), y = m.y + m.h / 2;
+		return arrow("mask", "qr", "cardMask", "key", [[m.x + m.w, y], [b.cardMask.x, y]]);
+	};
 
 	// The one-time bubble that says why the mask is what it is (a turn that brings it): over a free place
 	// near the cards (it may cover an arrow while it is open), its tail to the cards' column: dir the side
