@@ -1,4 +1,4 @@
-"""Seedcraft Sequences, reference implementation (draft v0, SPEC-sequences.md).
+"""SeedCraft Sequences, reference implementation (format v0, SPEC-sequences.md).
 
 A BIP-39 seed's entropy -> its CompactSeedQR -> the QR code's data modules,
 row by row -> data bits + header -> symbols of k bits (N = 2**k kinds of
