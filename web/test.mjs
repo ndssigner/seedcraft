@@ -331,7 +331,7 @@ const checkLayout = (name, lay) => {
 	}));
 	for (const a of lay.arrows) {
 		Lay.route(a.points);
-		check(a.from in lay.boxes && a.to in lay.boxes && (a.colour === "qr" || a.colour === "key"), `${name} arrow ${a.id} joins two boxes, in a colour`);
+		check(a.from in lay.boxes && a.to in lay.boxes && (a.colour === "qr" || a.colour === "pos" || a.colour === "key"), `${name} arrow ${a.id} joins two boxes, in a colour`);
 		check(a.points.every(([x, y]) => x >= 0 && y >= 0 && x <= Lay.VIEW.w && y <= Lay.VIEW.h), `${name} arrow ${a.id} fits`);
 		const segs = segments(a);
 		check(segs.reduce((s, g) => s + len(g), 0) >= 16 && len(segs[segs.length - 1]) >= 12, `${name} arrow ${a.id} long enough to read`);
@@ -722,6 +722,11 @@ for (const pad of [false, true]) {
 		check(!bad.length, `${what} fits its box ${bad.slice(0, 3).join("; ")}`);
 	};
 	const things = Array.from({ length: 32 }, (_, i) => ({ name: "Piece " + i, emoji: i % 3 ? "" : "🍎", colour: i % 2 ? "#d04040" : "", photo: "", symbol: "" }));
+	{ // the position is neutral, not the QR's blue
+		const mk = Lay.makeTurn({ pad: true, n: 16 }), bs = V.string({ box: mk.boxes.seedString, role: "build", kind: "seed", things, items: Array(13).fill(null), current: 6, firstPosition: 1, posBox: mk.boxes.posBox });
+		const cur = walk(bs, (n) => /v-pos-current/.test(n.attrs.class || ""));
+		check(cur.length > 0 && cur.every((n) => !/v-c-qr/.test(n.attrs.class) && /v-c-pos/.test(n.attrs.class)), "the turn's position: v-c-pos, not v-c-qr");
+	}
 	const lay = Lay.makeTurn({ pad: true, n: 16 }), rlay = Lay.readTurn({ pad: true, n: 16 });
 
 	// a last turn's cards: the mask's value beside its bits (amber), the padding's die, each bit with its card's border
@@ -1156,8 +1161,8 @@ for (const pad of [false, true]) {
 		];
 		const small = drawn.flatMap((d) => walk(d, (n) => n.tag === "text" && !cls("v-glyph")(n) && !cls("v-pick-corner")(n) && num(n.attrs["font-size"]) < 9));
 		check(!small.length, `no text under 9 units ${small.slice(0, 3).map((t) => textOf(t) + "@" + t.attrs["font-size"]).join(", ")}`);
-		// the turn's position in blue and bold, whatever the string
-		check([s, ref, rd].every((d) => { const p = walk(d, cls("v-pos-current")); return p.length === 1 && cls("v-c-qr")(p[0]) && cls("v-bold")(p[0]); }), "string: the turn's position blue and bold in every role");
+		// the turn's position neutral and bold, whatever the string
+		check([s, ref, rd].every((d) => { const p = walk(d, cls("v-pos-current")); return p.length === 1 && cls("v-c-pos")(p[0]) && cls("v-bold")(p[0]); }), "string: the turn's position neutral and bold in every role");
 	}
 	// QR: a grid; the turn's squares in blue
 	const q = V.qr({ box: lay.boxes.qr, size: 21, modules: (r, c) => (r + c) % 2 === 0, turnCells: [[9, 9], [9, 10], [10, 9]], painted: new Map([[0, 1]]) });
@@ -1584,6 +1589,12 @@ for (const pad of [false, true]) {
 	const fields = [...new Set([...slidesSrc.matchAll(/\bs\.([a-zA-Z]+)/g)].map((m) => m[1]))].filter((f) => f !== "page");
 	const dropped = fields.filter((f) => !new RegExp("\\b" + f + "\\b").test(pass.slice(pass.indexOf("return { id: view"))));
 	check(dropped.length === 0, "journeySlide passes on every field slides.js reads" + (dropped.length ? ": drops " + dropped.join(", ") : ""));
+	for (const pad of [false, true]) for (const [nm, lay] of [["make", Lay.makeTurn({ pad, n: 16 })], ["read", Lay.readTurn({ pad, n: 16 })], ["makeFile", Lay.makeTurn({ pad, n: 16, file: true })]])
+		check(lay.arrows.filter((a) => a.id === "position").every((a) => a.colour === "pos"), `${nm} pad=${pad}: the position's arrow in the position colour`);
+	const css = fs.readFileSync(here + "src/style.css", "utf8");
+	for (const sel of [".v-pos-current", ".v-pos-box", ".v-turn-frame", ".v-qr-tab", ".v-qr-marker", ".v-c-pos"])
+		check(new RegExp(sel.replace(/\./g, "\\.") + "\\s*\\{[^}]*var\\(--pos\\)").test(css), sel + " uses --pos");
+	check(/\.v-qr\s*\{[^}]*--pos:\s*#2b2f33/.test(css) && /:root\s*\{[^}]*--pos:\s*var\(--fg\)/.test(css), "--pos: the text colour, a fixed dark inside the QR");
 	const q = Lay.seedQr({ toWords: true, end: true }).boxes;
 	check(q.words.y + q.words.h / 2 === 165 && q.words.y + q.words.h <= q.fingerprint.y, "seedQr end: the words centred on the arrows' line, clear of the fingerprint");
 	const kt = Lay.keyThrow({ sides: 6, bits: 3, tool: "dice", n: 8 }), sl = kt.arrows.find((a) => a.id === "slot");

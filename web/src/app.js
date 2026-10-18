@@ -1893,7 +1893,7 @@
 		return Array.from({ length: col.rows.length + 2 }, (_, j) => [at(j - 1), j - 1]);
 	};
 	// a key file reference's row j (place x): its place and its character
-	const fileRefRow = (r, j, x, pad) => [svg("text", { x: r.pos[0], y: r.pos[1], "font-size": j === 3 ? 10 : 8, "text-anchor": "middle", class: "v-t v-pos" + (j === 3 ? " v-pos-current v-c-qr v-bold" : "") }, x + 1),
+	const fileRefRow = (r, j, x, pad) => [svg("text", { x: r.pos[0], y: r.pos[1], "font-size": j === 3 ? 10 : 8, "text-anchor": "middle", class: "v-t v-pos" + (j === 3 ? " v-pos-current v-c-pos v-bold" : "") }, x + 1),
 		svg("text", { x: r.digit[0], y: r.digit[1], "font-size": 14, "text-anchor": "middle", class: "v-t v-mono v-bold v-c-key" + (j === 3 ? "" : " tn-dim") }, S.PAD_DIGITS[pad[x]])];
 	// the key file's characters around turn i (pad: the key's values), a column like the key string's: the turn's framed
 	function keyFileReference(box, pad, i, L) {
@@ -2380,7 +2380,7 @@
 				svg("rect", { x: r.ring.x, y: r.ring.y, width: r.ring.w, height: r.ring.h, rx: 4, class: "rt-file-ring" }),
 				svg("text", { x: r.digit[0], y: r.digit[1], "font-size": 17, "text-anchor": "middle", class: "v-t v-mono v-bold v-c-key" }, S.PAD_DIGITS[v]),
 				svg("text", { x: r.value[0], y: r.value[1], "font-size": 13, "text-anchor": "middle", class: "v-t v-value v-bold v-c-key" }, String(v)),
-				svg("text", { x: r.pos[0], y: r.pos[1], "font-size": 9, "text-anchor": "middle", class: "v-t v-pos" + (j === 3 ? " v-pos-current v-c-qr v-bold" : "") }, String(x + 1)),
+				svg("text", { x: r.pos[0], y: r.pos[1], "font-size": 9, "text-anchor": "middle", class: "v-t v-pos" + (j === 3 ? " v-pos-current v-c-pos v-bold" : "") }, String(x + 1)),
 				out ? null : svg("title", {}, T().readLockedFile(x + 1, S.PAD_DIGITS[v], v)));
 			if (onTap && !out) tapOn(g, () => onTap(x));
 			parts.push(g);
@@ -2524,7 +2524,7 @@
 		let posText = null;
 		const shownPos = () => rd.typedBuf && rd.typedTurn === i ? rd.typedBuf : String(pos);
 		// the typed number is no position: underlined, and in its column's colour
-		const posClass = () => "v-t v-pos v-pos-current v-c-qr v-bold" + (rd.typedBuf && rd.typedTurn === i ? " v-pos-typed" + (typedKey() ? " v-pos-key" : "") : "");
+		const posClass = () => "v-t v-pos v-pos-current v-c-pos v-bold" + (rd.typedBuf && rd.typedTurn === i ? " v-pos-typed" + (typedKey() ? " v-pos-key" : "") : "");
 		const showPos = () => { if (posText) { posText.textContent = shownPos(); posText.setAttribute("class", posClass()); } };
 		// the column that takes the typed digits is ringed (a key as string only)
 		const markCol = () => { if (keyThings) { g.seed.classList.toggle("v-col-typing", keyboard() && !typedKey()); g.key.classList.toggle("v-col-typing", keyboard() && typedKey()); } };

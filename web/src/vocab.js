@@ -144,7 +144,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 		const parts = [];
 		// start: where the thread begins when the first positions are empty (right of its icon); step: the pitch place() spaces them by
 		let place, r, label, curR = null, start = null, iconEl = null, step = pitch;
-		const posClass = (i) => "v-pos" + (i === current ? " v-pos-current v-c-qr v-bold" : "");
+		const posClass = (i) => "v-pos" + (i === current ? " v-pos-current v-c-pos v-bold" : "");
 		if (!vertical && role === "build") {
 			// the turn's piece by far the largest, its position (blue) and name under it, ~3 pitches wide;
 			// the other pieces smaller, each with its position above it and no name
@@ -256,7 +256,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 				const cx = place(current)[0];
 				fixed.push(svg("rect", { x: r1(cx - pitch / 2), y: box.y, width: r1(pitch), height: box.h, rx: 4, class: "v-slot-frame" }));
 				fixed.push(svg("rect", { x: posBox.x, y: posBox.y, width: posBox.w, height: posBox.h, rx: 4, class: "v-pos-box" }),
-					text(posBox.x + posBox.w / 2, posBox.y + posBox.h / 2 + 4, 11, firstPosition + current, { "text-anchor": "middle", class: "v-pos v-pos-current v-c-qr v-bold" }));
+					text(posBox.x + posBox.w / 2, posBox.y + posBox.h / 2 + 4, 11, firstPosition + current, { "text-anchor": "middle", class: "v-pos v-pos-current v-c-pos v-bold" }));
 			}
 			return svg("g", { class: `v v-string v-${role} v-${kind}` }, [defs, svg("g", { class: "v-string-fixed" }, fixed),
 				svg("g", { class: "v-string-icon" }, iconEl),
