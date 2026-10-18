@@ -197,6 +197,12 @@ const SeedcraftJourneys = (() => {
 		return { bits, used, rejected, done: bits.length >= k };
 	}
 
+	// the throws' order badges (a ring round its number): only when a piece takes several throws,
+	// or a face was thrown again (then the order tells the throws apart)
+	const showOrder = (sides, k, rejected = 0) => Math.ceil(k / SeedcraftSequences.diceBits(sides).b) > 1 || rejected > 0;
+	// the throw slide's intro bubbles (spec §6): once a session, before the first throw
+	const throwIntro = (seen, throwsSoFar) => !(seen && seen.throwIntro) && throwsSoFar === 0;
+
 	// ---- a turn of the sequence, a relation at a time ------------------------
 	// The stages of a turn being made, in the cycle's order (the spec's «first
 	// turns explained»): each its id (what its caption says) and the arrows of
@@ -363,5 +369,5 @@ const SeedcraftJourneys = (() => {
 	}
 	// a key file holds no bag: the tool a bag key had becomes the best die
 	const keyByForFile = (by, n, dice) => by === "bag" ? "d" + bestDie(n, dice) : by;
-	return { bestDie, keyByForFile, cardGrid, plusKey, headerBitsUpTo, maskBitsKnown, ESTIMATE, ESTIMATE_BOTH, maxPerKind, uniqueInitials, onlyPadding, paddingOnlyRead, checkVerdict, typedPiece, pickMatch, pickKey, EXPLAINED, turnStages, readStages, checkRead, flipRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, gatherTips, gatherCards, splitMaterials, nameProblem, checkOrder, throwParts };
+	return { bestDie, keyByForFile, cardGrid, plusKey, headerBitsUpTo, maskBitsKnown, ESTIMATE, ESTIMATE_BOTH, maxPerKind, uniqueInitials, onlyPadding, paddingOnlyRead, checkVerdict, typedPiece, pickMatch, pickKey, EXPLAINED, turnStages, readStages, checkRead, flipRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, gatherTips, gatherCards, splitMaterials, nameProblem, checkOrder, throwParts, showOrder, throwIntro };
 })();

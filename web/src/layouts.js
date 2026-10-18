@@ -367,8 +367,9 @@ const SeedcraftLayouts = (() => {
 	// row stays at the middle of a 5-bit tower, whatever N, so it never climbs
 	// into the question. tool "bag": the key's dictionary as buttons (picker)
 	// instead of faces, and no tower; "device": one die (die) instead of the
-	// faces. file: the key is a file, so the number goes straight to its slot
-	// in the file (no dictionary, no piece).
+	// faces. file: the key is a file, so the number goes through the file's
+	// dictionary (number → character) to its place in the file (no piece).
+	// tips: the intro's bubbles, when the faces are thrown by hand.
 	function keyThrow({ sides = 6, bits = 5, tool = "dice", file = false, n = 2 ** bits, value = null }) {
 		const mid = 70 + 5 * BIT / 2, h = bits * BIT, y = mid - h / 2;
 		const b = { guide: { ...GUIDE }, question: box(190, 30, 300, 30), keyString: { ...BUILT }, keySlot: { ...SLOT }, posBox: { ...POSBOX } };
@@ -413,15 +414,32 @@ const SeedcraftLayouts = (() => {
 			b.info = box(200, Math.max(y + h, b.rejected.y + b.rejected.h) + 6, 156, 14);
 		}
 		arrows.push(arrow("number", "brace", "number", "key", [[378, mid], [394, mid]]));
-		if (file) arrows.push(arrow("slot", "number", "keySlot", "key", [[422, mid + 20], [422, RAIL], [360, RAIL], [360, SLOT.y]]));
-		else {
-			Object.assign(b, { keyDict: box(466, mid - 36, 116, 72), piece: box(598, mid - 25, 56, 50) });
+		b.keyDict = box(466, mid - 36, 116, 72);
+		arrows.push(arrow("dict", "number", "keyDict", "key", [[450, mid], [466, mid]]));
+		if (file) {
+			// the file's dictionary (number → character), then down to its place in the
+			// file; the file's box a little taller, for the line under its row
+			b.keyString = box(BUILT.x, BUILT.y, BUILT.w, 70);
+			arrows.push(arrow("slot", "keyDict", "keySlot", "key", [[524, mid + 36], [524, RAIL], [360, RAIL], [360, SLOT.y]]));
+		} else {
+			b.piece = box(598, mid - 25, 56, 50);
 			arrows.push(
-				arrow("dict", "number", "keyDict", "key", [[450, mid], [466, mid]]),
 				arrow("piece", "keyDict", "piece", "key", [[582, mid], [598, mid]]),
 				arrow("slot", "piece", "keySlot", "key", [[626, mid + 25], [626, RAIL], [360, RAIL], [360, SLOT.y]]));
 		}
-		return { boxes: b, faces, arrows };
+		// the intro's bubbles, thrown by hand (spec §6): beside the faces (what to do; with
+		// faces thrown again, why), under the tower and under the piece (or the file's
+		// dictionary), each its tail («left», or «up» at `at` from its left) at what it explains.
+		// Before the first throw the room beside the faces (the faces thrown again) is empty.
+		let tips;
+		if (faces) {
+			const to = b.piece || b.keyDict, tw = b.tower;
+			tips = { faces: { box: box(208, 64, 116, 54), side: "left" },
+				tower: { box: box(tw.x, 192, 140, 44), side: "up", at: tw.w / 2 },
+				piece: { box: box(486, 172, 178, 56), side: "up", at: to.x + to.w / 2 - 486 } };
+			if (2 ** Math.floor(Math.log2(sides)) < sides) tips.reroll = { box: box(208, 124, 116, 84), side: "left" };
+		}
+		return { boxes: b, faces, arrows, tips };
 	}
 	// A dictionary opened as buttons (vocab.js's picker): inside its card, under
 	// its book's tab, a grid as square as the box allows; pickerCell: piece v's.

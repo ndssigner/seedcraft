@@ -540,9 +540,14 @@ for (const bits of [1, 2, 3, 4, 5]) for (const file of [false, true]) {
 	for (const sides of [2, 6, 20]) {
 		const lay = Lay.keyThrow({ sides, bits, file });
 		checkLayout(`throw d${sides} bits=${bits} file=${file}`, lay);
-		check(file ? !lay.boxes.keyDict && !lay.boxes.piece && lay.arrows.map((a) => a.id).join() === "number,slot" && lay.arrows[1].from === "number"
+		check(file ? !!lay.boxes.keyDict && !lay.boxes.piece && lay.arrows.map((a) => a.id).join() === "number,dict,slot" && lay.arrows[2].from === "keyDict"
 			: lay.arrows.map((a) => a.id).join() === "number,dict,piece,slot", `throw d${sides} bits=${bits} file=${file}: the arrows in order`);
+		// the intro's bubbles (spec §6): in the view, apart, off the faces, the tower, the number, the dictionary and the piece
+		const tips = Object.values(lay.tips || {}), solid = ["faces", "tower", "brace", "number", "keyDict", "piece", "keyString"].map((id) => lay.boxes[id]).filter(Boolean);
+		check(tips.length === (S.diceBits(sides).keep < sides ? 4 : 3) && tips.every((x) => inside(x.box) && solid.every((b) => !overlap(b, x.box)))
+			&& tips.every((x, i) => tips.slice(i + 1).every((y) => !overlap(x.box, y.box))), `throw d${sides} bits=${bits} file=${file}: the intro's bubbles fit, apart, off what they explain`);
 	}
+	check(!Lay.keyThrow({ bits, tool: "device", file }).tips, `throw device bits=${bits}: no intro bubbles`);
 }
 for (const sides of [2, 4, 6, 8, 10, 12, 16, 20]) {
 	const lay = Lay.keyThrow({ sides, bits: 4 }), fb = Array.from({ length: sides }, (_, i) => Lay.faceBox(lay, i));
@@ -563,6 +568,17 @@ for (const sides of [2, 4, 6, 8, 10, 12, 16, 20]) {
 		`throw d${sides} N=${n}: the faces thrown again big enough to read (faces ≥ 24, badges ≥ ${Lay.BADGE}), apart`);
 	}
 }
+check(S.fileDictThings(16).map((x) => x.name).join("") === "0123456789ABCDEF" && S.fileDictThings(32)[31].name === "V" && S.fileDictThings(32)[31].emoji === "V", "fileDictThings");
+{
+	const kf = Lay.keyThrow({ sides: 6, bits: 4, tool: "dice", file: true, n: 16 }), dv = Lay.keyThrow({ bits: 4, tool: "device", file: true, n: 16 });
+	check(kf.boxes.keyDict && kf.arrows.map((a) => a.id).join() === "number,dict,slot" && dv.boxes.keyDict && dv.arrows.map((a) => a.id).join() === "number,dict,slot", "keyThrow file: number → its dictionary → the file (dice and device)");
+	checkLayout("keyThrow file d6 n=16", kf);
+	// the file's box holds the line under the row (9 units, under the slot's frame)
+	check(kf.boxes.keyString.y + kf.boxes.keyString.h >= kf.boxes.keySlot.y + kf.boxes.keySlot.h + 12, "keyThrow file: room under the row for its line");
+}
+// one throw per piece: no order badges
+check(J.showOrder(16, 4) === false && J.showOrder(6, 4) === true && J.showOrder(20, 5) === true && J.showOrder(20, 4, 1) === true && J.showOrder(2, 1) === false, "order badges only with several throws a piece");
+check(J.throwIntro({}, 0) === true && J.throwIntro({}, 1) === false && J.throwIntro({ throwIntro: true }, 0) === false, "throw intro: once, before the first throw");
 for (const pos of [0, 3, 15, 16, 53, 90]) {
 	const r = Lay.fileRow(pos, { row: S.PAD_ROW, group: S.PAD_GROUP }), x = r.xs[r.col], built = Lay.keyThrow({ sides: 6, file: true }).boxes;
 	check(r.row === Math.floor(pos / 16) && x === built.keySlot.x + built.keySlot.w / 2 && r.xs.every((v) => v - 7 >= built.keyString.x && v + 7 <= built.keyString.x + built.keyString.w)
@@ -1460,6 +1476,12 @@ for (const pad of [false, true]) {
 	for (const lang of ["en", "es"]) { const c = TX[lang].seqCount(7, 8); check(!c.includes("7") && c.includes("8"), `seqCount ${lang}: the estimate only (the count is the big figure beside it)`); }
 	check(TX.es.cards.dieTitle(6) === "Dado de 6 caras (d6)" && TX.en.cards.dieTitle(6) === "6-sided die (d6)", "dieTitle");
 	check(!("sizeRecommended" in TX.es.cards) && !("sizeRecommended" in TX.en.cards) && TX.es.cards.recommended === "Recomendada" && TX.en.cards.recommended === "Recommended", "the recommended size is a star, not a line");
+	check(TX.es.keyRowCheckLine === "El último carácter comprueba la fila: si copias mal otro carácter, deja de cuadrar." && !!TX.en.keyRowCheckLine, "row check line");
+	check(TX.es.keyPrevRow === "Fila anterior" && TX.en.keyPrevRow === "Previous row", "previous row label");
+	check(TX.es.keyFileHead === "Cabecera: piezas y clases" && TX.en.keyFileHead === "Header: pieces and kinds" && TX.es.keyFileDictLabel === "Diccionario del archivo" && TX.en.keyFileDictLabel === "File dictionary", "the key file's header and dictionary");
+	check(TX.es.keyRowCheckHow === "Cómo se calcula: de derecha a izquierda, se dobla un carácter sí y otro no (si el doble pasa de N−1, se le resta N−1); se suman todos, y el control es lo que falta para el siguiente múltiplo de N." && !!TX.en.keyRowCheckHow, "the check's steps");
+	check(TX.es.throwTipFaces === "Tira y toca la cara que ha salido." && TX.es.throwTipTower === "Cada tiro da unos bits; se apilan aquí." && TX.es.throwTipPiece === "Con los bits suficientes sale el número de tu pieza de llave."
+		&& TX.es.throwTipFile === "Con los bits suficientes sale el número que va al archivo." && TX.es.throwTipReroll === "Si sale una cara de más, se tira otra vez: así todas las piezas salen igual de a menudo.", "the throw's intro bubbles");
 	check(TX.es.keyWhyChance.startsWith("La llave solo protege") && TX.en.keyWhyChance.startsWith("The key only protects"), "keyWhyChance in both languages");
 	check(TX.es.gatherLater === "Te diremos la cantidad exacta cuando sepamos tu semilla." && TX.en.gatherLater === "We'll tell you the exact count once we know your seed.", "gatherLater: the new copy");
 		const gc = J.gatherCards([{ what: "seq", assembly: true }, { what: "key", assembly: false }]);

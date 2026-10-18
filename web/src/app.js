@@ -57,7 +57,7 @@
 		mode: null,  // "basic" or "pad" (SPEC §10), chosen before making or reading
 		make: { seed: "", entropy: null, symbols: null, turn: 0 },
 		read: freshRead(),
-		seen: {},  // the one-line explanations already shown once: keyWhy, reroll, keyPart, rowCheck, readTap
+		seen: {},  // the one-line explanations already shown once: keyWhy, reroll, keyPart, readTap; throwIntro: the throw's bubbles
 	});
 	const st = { lang: (navigator.language || "en").toLowerCase().startsWith("es") ? "es" : "en", ...freshState() };
 	// What is being read, turn by turn (readTurnSlide): the turn shown (L: the
@@ -1257,12 +1257,10 @@
 	// are there. A piece once drawn stays: moving only shows it again, and only
 	// the first missing one is drawn. One set by hand can be marked again
 	// ("Fix"), never thrown again.
-	const KEY_ROW = S.PAD_ROW;  // numbers per row of the key file, each row closed by its check character
 	const keyLength = () => symbolsFor(st.plan.words, st.dict.things.length);
 	// a coin is a die of 2 sides; the bag and the device throw nothing
 	const sidesOf = (by) => by === "coin" ? 2 : /^d\d+$/.test(by || "") ? Number(by.slice(1)) : 0;
 	const hasReroll = (throws, by) => sidesOf(by) > 0 && throws.some((f) => f >= S.diceBits(sidesOf(by)).keep);
-	const closesRow = (i, L) => (i + 1) % KEY_ROW === 0 || i === L - 1;
 	// the key is complete, and as long as the seed planned
 	const keyReady = () => !!st.make.pad && !!st.dict && st.make.pad.length === keyLength();
 	// the key as it now is and, once complete, its numbers. A sequence already
@@ -1292,9 +1290,9 @@
 		if (keyRolling) return;
 		const key = st.make.key, p = key.pieces[key.pos], L = keyLength();
 		st.seen.keyWhy = true;
+		st.seen.throwIntro = true;
 		if (p && hasReroll(p.throws, p.by)) st.seen.reroll = true;
 		if (p && lastPart(p.throws, sidesOf(p.by), Math.log2(st.dict.things.length))) st.seen.keyPart = true;
-		if (p && st.plan.padAs === "file" && closesRow(key.pos, L)) st.seen.rowCheck = true;
 		setKey(S.keyMove(key, to, L));
 		throwFrom = Math.abs(st.make.key.pos - key.pos) === 1 ? key.pos : null;
 		render();
@@ -1317,7 +1315,9 @@
 	// (a ring round its number) and joined to its bits, those thrown again aside, dimmed, with ↻;
 	// then brace → the number → the key's dictionary turning to it → the piece
 	// → its slot in the key string at the bottom. A key file: the number goes
-	// to its place in the file, growing at the bottom. The bag: the dictionary
+	// through the file's dictionary (number → character) to its place in the
+	// file, growing at the bottom. Order badges only when a piece takes several
+	// throws; the first time, before the first throw, bubbles say what each part is. The bag: the dictionary
 	// as buttons. The device: one die that rolls and stops on the number. Only
 	// the current arrow shows whole. Moving never throws again: a piece drawn
 	// is shown as it was drawn, and a piece half thrown keeps its throws.
@@ -1336,6 +1336,8 @@
 		const by = key.fix ? key.pieces[key.fix.at].by : piece ? piece.by : key.by;
 		const sides = sidesOf(by), coin = sides === 2, tool = by === "bag" ? "bag" : by === "device" ? "device" : "dice";
 		const lay = Lay.keyThrow({ sides: sides || 6, bits: k, tool, file: !asString, n, value }), b = lay.boxes;
+		// the key file's dictionary: number → its character in the file
+		const keyDictThings = asString ? things : S.fileDictThings(n), keyDictLabel = asString ? t.dictLabel : t.keyFileDictLabel;
 		const throws = piece ? piece.throws : key.draft, parts = sides ? J.throwParts(throws, sides, k) : null;
 		const update = (next) => { setKey(next); render(); };
 		const fresh = keyFresh === pos && !!piece && !calm();
@@ -1348,6 +1350,7 @@
 		// a throw marked: the piece's own coin or die (marking one again, the one it was thrown with)
 		const mark = (f) => {
 			if (piece || keyRolling) return;
+			st.seen.throwIntro = true;
 			const before = m.key, after = S.keyAddThrow({ ...before, by }, f, sides, k, L);
 			if (after.pieces.length > before.pieces.length || (before.fix && !after.fix)) keyFresh = pos;
 			const at = document.activeElement;
@@ -1391,6 +1394,7 @@
 
 		// what to do now
 		const last = throws.length ? throws[throws.length - 1] : null;
+		const intro = !!lay.tips && !key.fix && J.throwIntro(st.seen, throws.length + (piece ? 1 : 0));
 		const instruction = piece ? (tool === "bag" ? t.keyBagBack : t.keyPieceReady)
 			: tool === "bag" ? t.keyBagHow : tool === "device" ? t.keyTapDie
 			: !throws.length ? (coin ? t.keyThrowCoin : t.keyThrowDie)
@@ -1410,17 +1414,19 @@
 			}
 			// the faces thrown: those that count beside their bits, the others aside
 			if (parts) {
+				// (the order of the throws only when a piece takes several, or a face was thrown again)
+				const order = J.showOrder(sides, k, parts.rejected.length);
 				const marks = Lay.throwMarks(lay, { bits: k, used: parts.used, rejected: parts.rejected });
 				marks.used.forEach((u) => kids.push(svg("g", { class: "kt-thrown" },
 					svg("path", { class: "kt-join", d: `M${u.join[0][0]} ${u.join[0][1]} H${u.join[1][0]} M${u.span[0][0]} ${u.span[0][1]} V${u.span[1][1]}` }),
 					faceOf(throws[u.at], u.face, "kt-small"),
-					V.badge(u.at + 1, u.badge.x + u.badge.w / 2, u.badge.y + u.badge.h / 2, Lay.BADGE, "kt-order"))));
+					order ? V.badge(u.at + 1, u.badge.x + u.badge.w / 2, u.badge.y + u.badge.h / 2, Lay.BADGE, "kt-order") : null)));
 				// those thrown again: dimmed, each its badge and ↻ under it, side by side
 				marks.rejected.forEach((r) => {
 					const cy = r.badge.y + r.badge.h / 2, bw = V.badgeSize(r.at + 1, Lay.BADGE).w, sw = 0.7 * Lay.BADGE;
 					const x0 = r.badge.x + (r.badge.w - bw - 2 - sw) / 2;
 					kids.push(svg("g", { class: "kt-again" }, faceOf(throws[r.at], r.face, "kt-small"),
-						V.badge(r.at + 1, x0 + bw / 2, cy, Lay.BADGE, "kt-order"),
+						order ? V.badge(r.at + 1, x0 + bw / 2, cy, Lay.BADGE, "kt-order") : null,
 						svg("text", { x: x0 + bw + 2 + sw / 2, y: cy + Lay.BADGE * 0.36, "font-size": Lay.BADGE, "text-anchor": "middle", class: "v-t kt-reroll" }, "↻"),
 						svg("title", {}, t.keyNoCount)));
 				});
@@ -1444,7 +1450,7 @@
 				const shown = (id) => !!piece && at(id) < p;
 				if (b.number) groups.number.replaceChildren(V.number({ box: b.number, value: shown("number") ? value : null, colour: "key" }));
 				if (b.keyDict) {
-					const reel = V.dictionary({ label: T().dictLabel, box: b.keyDict, things, mode: "reel", value: shown("dict") ? value : null, icon: "key", from: turning ? 0 : undefined });
+					const reel = V.dictionary({ label: keyDictLabel, box: b.keyDict, things: keyDictThings, mode: "reel", value: shown("dict") ? value : null, icon: "key", from: turning ? 0 : undefined });
 					groups.dict.replaceChildren(svg("g", { class: shown("dict") ? null : "kt-wait" }, reel));
 				}
 				if (b.piece) groups.piece.replaceChildren(V.piece({ box: b.piece, thing: shown("piece") ? things[value] : null }));
@@ -1483,6 +1489,15 @@
 					dieOf(piece ? String(value) : "?", false));
 				over.push(place(dieEl, b.die));
 			}
+			// the first time here, before the first throw: what each part is (spec §6)
+			if (intro) {
+				const say = { faces: t.throwTipFaces, tower: t.throwTipTower, piece: asString ? t.throwTipPiece : t.throwTipFile, reroll: t.throwTipReroll };
+				Object.entries(lay.tips).forEach(([id, x]) => {
+					const el = tip(x.side + " kt-tip", say[id], x.box);
+					if (x.at !== undefined) el.style.setProperty("--at", `calc(var(--u) * ${x.at})`);
+					over.push(el);
+				});
+			}
 			over.push(place(h("p", { class: "kt-instr" + (piece ? " ready" : ""), "aria-live": "polite", text: instruction }), b.instruction));
 			const act = (label, fn, cls = "btn ghost small") => h("button", { type: "button", class: cls, on: { click: fn } }, label);
 			const tools = [];
@@ -1515,13 +1530,22 @@
 			const lineOf = (vals) => S.writePadFile(vals, n).trimEnd().split("\n");
 			const parts = [V.icon("key", box.x + 8, box.y + 43, 14)];
 			const y1 = box.y + 16, y2 = box.y + 48;
-			if (r.row === 0) parts.push(svg("text", { x: r.xs[0] - 5, y: y1, "font-size": 11, class: "v-t v-mono kt-file-before" }, `${L} ${n}`));
-			else Array.from(lineOf(values.slice(start - ROW, start))[1].replace(/ /g, "")).forEach((c, j) =>
-				parts.push(svg("text", { x: r.xs[j], y: y1, "font-size": 11, "text-anchor": "middle", class: "v-t v-mono kt-file-before" }, c)));
+			// the line before, named: the header (after it) or the row before (on the side with room)
+			const label = (x, anchor, text) => svg("text", { x, y: y1, "font-size": 9, "text-anchor": anchor, class: "v-t kt-file-label" }, text);
+			if (r.row === 0) parts.push(svg("text", { x: r.xs[0] - 5, y: y1, "font-size": 11, class: "v-t v-mono kt-file-before" }, `${L} ${n}`),
+				label(r.xs[0] + 44, "start", t.keyFileHead));
+			else {
+				Array.from(lineOf(values.slice(start - ROW, start))[1].replace(/ /g, "")).forEach((c, j) =>
+					parts.push(svg("text", { x: r.xs[j], y: y1, "font-size": 11, "text-anchor": "middle", class: "v-t v-mono kt-file-before" }, c)));
+				const left = r.xs[0] - 7 - (box.x + 20), right = box.x + box.w - (r.xs[ROW] + 7);
+				parts.push(left >= right ? label(r.xs[0] - 12, "end", t.keyPrevRow) : label(r.xs[ROW] + 12, "start", t.keyPrevRow));
+			}
 			parts.push(svg("rect", { x: slot.x + slot.w / 2 - 13, y: y2 - 21, width: 26, height: 28, rx: 4, class: "kt-file-slot" }));
 			row.forEach((v, j) => parts.push(svg("text", { x: r.xs[j], y: y2, "font-size": 20, "text-anchor": "middle",
 				class: "v-t v-mono v-bold" + (start + j === pos ? " kt-file-now" : "") + (v === null ? " kt-file-hole" : "") }, v === null ? "·" : S.PAD_DIGITS[v])));
 			if (whole) parts.push(svg("text", { x: r.xs[ROW], y: y2, "font-size": 20, "text-anchor": "middle", class: "v-t v-mono kt-file-check" }, lineOf(row)[1].split(" ").pop()));
+			// under the row being written, what its last character is (under the slot's frame)
+			parts.push(svg("text", { x: box.x + box.w / 2, y: box.y + box.h - 4, "font-size": 9, "text-anchor": "middle", class: "v-t kt-file-label" }, t.keyRowCheckLine));
 			return svg("g", { class: "v v-file", role: "img", "aria-label": t.padFileTitle }, parts);
 		}
 
@@ -1541,16 +1565,17 @@
 			: changed.length ? t.keyChanged(changed.length)
 			: parts && parts.rejected.length && !st.seen.reroll ? t.keyRerollWhy
 			: sides && lastPart(throws, sides, k) && !st.seen.keyPart ? t.keyPartUsed(k)
-			: !asString && piece && closesRow(pos, L) && !st.seen.rowCheck ? t.keyRowCheck
 			: !st.seen.keyWhy ? t.keyWhy : null;
 		const shortcuts = keyChangedWays();
 		if (key.by === "device" && have < L) shortcuts.push({ icon: "⏩", label: t.seeAll, go: all });
 		if (have === L) shortcuts.push(asString ? { icon: V.iconTag("save"), label: t.saveList, go: saveList } : { icon: V.iconTag("save"), label: t.padFileSave, go: saveFile });
-		const why = tool === "bag" ? [t.keyBagPutBack] : tool === "device" ? [] : coin ? [t.keyCoinBits]
-			: [sides === 10 ? null : t.keyFirstZero, t.keyRerollWhy, t.keyPartUsed(k)].filter(Boolean);
+		// by hand, the intro's lines first (the reroll's when the die has faces thrown again)
+		const tips = [t.throwTipFaces, t.throwTipTower, asString ? t.throwTipPiece : t.throwTipFile];
+		const why = tool === "bag" ? [t.keyBagPutBack] : tool === "device" ? [] : coin ? [...tips, t.keyCoinBits]
+			: [...tips, S.diceBits(sides).keep < sides ? t.throwTipReroll : null, sides === 10 ? null : t.keyFirstZero, t.keyPartUsed(k)].filter(Boolean);
 		return {
 			question: t.keyThrowQ, count: `${pos + 1}/${L}`, caption: () => caption, shortcuts,
-			help: helpOf(stepName("make", "key"), t.keyWhy, asString ? why : [...why, t.padFileHelp]),
+			help: helpOf(stepName("make", "key"), t.keyWhy, asString ? why : [...why, t.padFileHelp, t.keyRowCheckHow]),
 			prev: pos > 0 ? { go: () => keyGo(pos - 1) } : undefined, next, body,
 			// Next while the key string glides: first its end, then on
 			hurry: () => { const playing = !!glides && glides.playing; if (glides) glides.finish(); return (!!hold && hold.finish()) || playing; },

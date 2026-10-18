@@ -597,6 +597,10 @@ body { overflow: hidden; }
 .tip.mask-tip.left::after { top: var(--at); margin-top: calc(var(--u) * -6); }
 .tip.mask-tip.up::after { top: auto; bottom: 100%; left: var(--at); margin-top: 0; margin-left: calc(var(--u) * -6); border-bottom: calc(var(--u) * 10) solid var(--accent);
 	border-left: calc(var(--u) * 6) solid transparent; border-right: calc(var(--u) * 6) solid transparent; border-top: 0; }
+/* «up»: under its subject, the tail on top at --at (from the bubble's left); the throw's intro bubbles let taps through */
+.tip.up::after { top: auto; bottom: 100%; left: var(--at, 50%); margin-top: 0; margin-left: calc(var(--u) * -6); border-bottom: calc(var(--u) * 10) solid var(--accent);
+	border-left: calc(var(--u) * 6) solid transparent; border-right: calc(var(--u) * 6) solid transparent; border-top: 0; }
+.tip.kt-tip { pointer-events: none; font-size: .74em; }
 .tip-close { flex: none; align-self: flex-start; border: 0; background: none; color: inherit; font: inherit; font-size: 1.3em; line-height: 1; padding: 0 calc(var(--u) * 2); cursor: pointer; }
 /* the bits a last turn brings: ringed; the others dimmed */
 .v-bit-ring { fill: none; stroke: var(--accent); stroke-width: 1.6; }
@@ -667,7 +671,7 @@ body { overflow: hidden; }
 .kt-again .kt-order { color: var(--fg); }
 .kt-reroll { font-weight: 700; }
 .kt-info { color: var(--muted); }
-.kt-file-before, .kt-file-hole { fill: var(--muted); }
+.kt-file-before, .kt-file-hole, .kt-file-label { fill: var(--muted); }
 .kt-file-now { fill: var(--key); }
 .kt-file-check { fill: var(--muted); font-style: italic; }
 .kt-file-slot { fill: var(--key-soft); stroke: var(--key); stroke-width: 1.4; }
