@@ -1281,7 +1281,7 @@ for (const pad of [false, true]) {
 {
 	vm.runInContext(read("src/i18n.js") + ";globalThis.TEXT = SEEDCRAFT_TEXT;", ctx, { filename: "src/i18n.js" });
 	const TX = ctx.TEXT;
-	for (const lang of ["en", "es"]) { const c = TX[lang].seqCount(7, 8); check(c.includes("7") && c.includes("8"), `seqCount ${lang}: the exact count and the estimate`); }
+	for (const lang of ["en", "es"]) { const c = TX[lang].seqCount(7, 8); check(!c.includes("7") && c.includes("8"), `seqCount ${lang}: the estimate only (the count is the big figure beside it)`); }
 	check(TX.en.qrCompact.includes("SeedSigner") && TX.en.qrCompact.includes("NDS-Signer") && TX.es.qrCompact.includes("SeedSigner") && TX.es.qrCompact.includes("NDS-Signer"), "qrCompact names both readers");
 	for (const n of [2, 4, 8, 16, 32]) { const L = J.symbolsFor(12, n); check(TX.es.wordsLen(12, L).includes(String(L)) && TX.en.wordsLen(24, L).includes(String(L)), `wordsLen names the string's length (n=${n})`); }
 	const args = { turnPosition: [364], turnNumber: ["11111", 31], turnKeyAt: [364], turnKeyFile: [364, "V", 31], turnKeyNumber: [31], turnClockOf: [32],
