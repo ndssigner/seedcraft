@@ -330,7 +330,8 @@ const SeedcraftLayouts = (() => {
 			guide: { ...GUIDE },
 			made: box(24, 44, 200, 200), sign: box(232, 119, 50, 50), read: box(290, 44, 200, 200),
 			madeLabel: box(24, 248, 200, 18), readLabel: box(290, 248, 200, 18),
-			result: box(24, 272, 466, 62),
+			// the result; in it, when there are things to do, its line and under it the actions (or a note)
+			result: box(24, 272, 466, 62), resultLine: box(24, 272, 466, 28), actions: box(24, 302, 466, 32),
 			seedColumn: box(510, top, 70, 7 * piece), seedRow: box(510, rowY, 70, piece),
 		};
 		if (pad) Object.assign(b, { keyColumn: box(590, top, 70, 7 * piece), keyRow: box(590, rowY, 70, piece) });

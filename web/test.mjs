@@ -581,6 +581,8 @@ check(typeof Lay.readFinal === "undefined", "readFinal gone: recovering ends on 
 for (const pad of [false, true]) {
 	const cf = Lay.checkFinal({ pad }), b = cf.boxes, rt = Lay.readTurn({ pad, n: 16 }).boxes;
 	checkLayout(`checkFinal pad=${pad}`, cf);
+	check(contains(b.result, b.resultLine) && contains(b.result, b.actions) && !overlap(b.resultLine, b.actions) && b.actions.y >= b.resultLine.y + b.resultLine.h
+		&& b.actions.h >= 30 && b.actions.w >= 400 && b.resultLine.h >= 26, `checkFinal pad=${pad}: the result's line, and under it a row of its own for the actions, never clipped`);
 	check(b.made.w === b.read.w && b.made.h === b.read.h && b.made.y === b.read.y && b.sign.x > b.made.x + b.made.w && b.sign.x + b.sign.w < b.read.x, `checkFinal pad=${pad}: the two QR codes side by side, the sign between them`);
 	check(b.seedColumn.h === rt.seedColumn.h && b.seedRow.y === rt.row.y && contains(b.seedColumn, b.seedRow) && (!pad || contains(b.keyColumn, b.keyRow)) && !!b.keyColumn === pad, `checkFinal pad=${pad}: the strings as the turn reads them, a row each to frame`);
 }
@@ -1183,6 +1185,14 @@ for (const pad of [false, true]) {
 		const f = J.checkRead({ taps: rev(sym), keys: key, symbols: sym, pad: key, keyRead: false });
 		check(f.reversed && !f.swapped && !f.keyReversed && f.wrong.length === 0, "checkRead: a key file is read as it is");
 	}
+	// only the padding differs: every wrong piece holds padding bits, and only those differ (12 words, k = 4: 54 pieces; bits from 213 on are padding)
+	{ const made = Array(54).fill(0), k = 4, nbits = 213, at = (p, v) => { const r = made.slice(); r[p] = v; return r; };
+	  check(J.paddingOnlyRead({ wrong: [{ pos: 53, turn: 53, column: "seed" }], readPlain: at(53, 1), madePlain: made, k, nbits }), "paddingOnlyRead: a last piece differing in its padding bits");
+	  check(!J.paddingOnlyRead({ wrong: [{ pos: 3, turn: 3, column: "seed" }, { pos: 3, turn: 3, column: "key" }, { pos: 53, turn: 53, column: "seed" }], readPlain: at(53, 1), madePlain: made, k, nbits }),
+		"paddingOnlyRead: a data piece misread in the seed and the key, cancelling out, still blocks");
+	  check(!J.paddingOnlyRead({ wrong: [{ pos: 52, turn: 52, column: "seed" }], readPlain: at(52, 1), madePlain: made, k, nbits })
+		&& !J.paddingOnlyRead({ wrong: [{ pos: 53, turn: 53, column: "seed" }], readPlain: at(53, 8), madePlain: made, k, nbits }), "paddingOnlyRead: a header bit differing blocks");
+	  check(!J.paddingOnlyRead({ wrong: [], readPlain: made, madePlain: made, k, nbits }), "paddingOnlyRead: nothing wrong is not a padding difference"); }
 	// a read from the other end (or the two strings swapped), turned the way the copy was made
 	{ const symbols = [1, 2, 3, 4], read = [4, 3, 2, 1], d = J.checkRead({ taps: read, symbols });
 	  const f = J.flipRead({ taps: read, keyTaps: [], reversed: d.reversed, keyReversed: false, swapped: false });

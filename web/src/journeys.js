@@ -44,6 +44,12 @@ const SeedcraftJourneys = (() => {
 		}
 		return differ;
 	}
+	// a reading that differs from the copy made only in its padding: every wrong piece (checkRead's
+	// wrong) holds padding bits (from nbits on), and only padding bits differ. A data piece misread
+	// in both strings, the two cancelling out, still blocks.
+	function paddingOnlyRead({ wrong, readPlain, madePlain, k, nbits }) {
+		return wrong.length > 0 && wrong.every((w) => (w.pos + 1) * k > nbits) && onlyPadding(readPlain, madePlain, k, nbits);
+	}
 	// how many pieces a seed takes (SPEC §2)
 	const symbolsFor = (words, n) => Math.ceil((words === 12 ? 213 : 364) / Math.log2(n));
 
@@ -273,5 +279,5 @@ const SeedcraftJourneys = (() => {
 		if ((key !== "+" && key !== "=") || mods || buffer) return null;
 		return keyThings && typedCol === "key" ? "key" : "seed";
 	}
-	return { plusKey, headerBitsUpTo, ESTIMATE, ESTIMATE_BOTH, maxPerKind, uniqueInitials, onlyPadding, typedPiece, EXPLAINED, turnStages, readStages, checkRead, flipRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, splitMaterials, nameProblem, checkOrder, throwParts };
+	return { plusKey, headerBitsUpTo, ESTIMATE, ESTIMATE_BOTH, maxPerKind, uniqueInitials, onlyPadding, paddingOnlyRead, typedPiece, EXPLAINED, turnStages, readStages, checkRead, flipRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, splitMaterials, nameProblem, checkOrder, throwParts };
 })();
