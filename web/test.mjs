@@ -1018,6 +1018,13 @@ for (const pad of [false, true]) {
 			"headerBitsUpTo: turn 52 brings the mask's first two bits, the third is not yet");
 		check(same(b.mask.bits, [vals[210], vals[211], vals[212]]) && same(b.mask.now, [false, false, true]) && same(b.padding.bits, [...vals.slice(213, 216), null, null, null, null]) && same(b.padding.now, [true, true, true, false, false, false, false]),
 			"headerBitsUpTo: turn 53 has all three, only the third is this turn's, plus the padding");
+		{
+			// k = 5 with nmod 212: the version (212, 213) and the mask's first bit (214) are in turn 42, its other two (215, 216) in turn 43
+			const v5 = Array.from({ length: 225 }, (_, j) => j % 2), d = J.headerBitsUpTo(["version", "mask"], 42, 5, 212, v5), e = J.headerBitsUpTo(["mask", "padding"], 43, 5, 212, v5);
+			check(same(d.version.bits, [v5[212], v5[213]]) && same(d.mask.bits, [v5[214], null, null]) && same(d.mask.now, [true, false, false])
+				&& same(e.mask.bits, [v5[214], v5[215], v5[216]]) && same(e.mask.now, [false, true, true]) && e.padding.bits[0] === v5[217] && e.padding.bits[3] === null,
+				"headerBitsUpTo: k = 5, a mask straddling turns 42 and 43");
+		}
 		const c = J.headerBitsUpTo(["mask"], 52, 4, nmod, vals.map((x, j) => j === 210 ? null : x));
 		check(same(c.mask.bits, [null, vals[211], null]), "headerBitsUpTo: a bit not read (null) stays null");
 	}
