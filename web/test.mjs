@@ -977,6 +977,21 @@ for (const pad of [false, true]) {
 		const fh = walk(fr, cls("v-empty"));
 		check(fh.length === 1 && !cls("v-slot")(fh[0]) && !fh[0].attrs.tabindex && !walk(fh[0], cls("v-plus")).length, "a hole that is not the current place's (the frontier, seen from a turn before): a plain empty place, no «+»");
 	}
+	// spill along the string being built: the piece leaving the window and the one coming in are drawn a pitch
+	// beyond each end (unseen under the fade), and the thread starts beyond the box's left edge, so a run glided
+	// a pitch over shows at its first frame what the drawing before showed
+	{
+		const box = lay.boxes.string || Lay.makeTurn({ pad: false, n: 16 }).boxes.seedString, pitch = Lay.pitch(box, 13);
+		const items = Array.from({ length: 13 }, (_, j) => j < 6 ? j : j === 6 ? null : null);
+		const sp = V.string({ box, role: "build", kind: "seed", things, items, current: 6, firstPosition: 3, spill: [5, null] });
+		const out = walk(sp, cls("v-spill")), xs = out.map((g) => num(walk(g, (n) => n.tag === "circle")[0].attrs.cx)), th = walk(sp, cls("v-thread"))[0];
+		const p0 = num(walk(walk(sp, cls("v-piece")).find((g) => !cls("v-spill")(g)), (n) => n.tag === "circle")[0].attrs.cx);
+		check(out.length === 2 && out.every((g) => g.attrs["aria-hidden"] === "true" && !g.attrs.tabindex) && Math.abs(xs[0] - (p0 - pitch)) < 0.1 && Math.abs(xs[1] - (p0 + 13 * pitch)) < 0.1,
+			"spill along: a place a pitch beyond each end, hidden and untouchable");
+		check(th && num(th.attrs.x1) <= box.x - pitch + 0.1 && num(th.attrs.x2) >= xs[1], "spill along: the thread from beyond the left edge on past the last place");
+		const nos = V.string({ box, role: "build", kind: "seed", things, items, current: 6, firstPosition: 3 });
+		check(!walk(nos, cls("v-spill")).length, "spill along: none unless asked");
+	}
 	// the key's icon is drawn (⚿ is missing from common fonts), with no text, the same in SVG and in HTML
 	{
 		const ki = V.icon("key", 50, 50, 24), tag = V.iconTag("key");
@@ -1252,6 +1267,9 @@ for (const pad of [false, true]) {
 	{ const ini = (s) => s.split(/\s+/).map((w) => w[0]).join("").toUpperCase();
 	  const u = J.uniqueInitials(["Brown Lentil", "Black Lentil", "Wood Pipe", "Wood Pear", "Pink Disk"], ini);
 	  check(u[4] === "PD" && u[0] !== u[1] && u[2] !== u[3] && u.slice(0, 4).every((x) => x.length >= 3) && new Set(u).size === 5, "uniqueInitials: collisions get three letters, the rest keep theirs"); }
+	{ const ini = (nm) => nm.split(" ").map((w) => w[0]).join("").toUpperCase();
+	  const u = J.uniqueInitials(["Red bead", "Green bead", "Blue bead", "Purple bead", "Pink bead", "Brown bead", "Black bead", "Grey bead"], ini);
+	  check(u.join() === "RB,GRN,BLU,PUR,PIN,BRO,BLA,GRY", `uniqueInitials: the letters come from where the names differ ${u.join()}`); }
 	{ const k = 4, made = Array.from({ length: 54 }, (_, i) => i % 16), padOnly = made.slice(); padOnly[53] ^= 1; const header = made.slice(); header[53] ^= 8;
 	  check(J.onlyPadding(padOnly, made, k, 213) && !J.onlyPadding(header, made, k, 213) && !J.onlyPadding(made, made, k, 213), "onlyPadding: only bits past the header differ"); }
 	{ const src = read("src/app.js"), s0 = src.indexOf("function recoverEnd"), body = src.slice(s0, src.indexOf("\n\tfunction ", s0 + 10)), calls = src.match(/seedQrParts\(lay, \{[^\n]*\}\)/g) || [], plain = calls.filter((c) => /plain: true/.test(c));

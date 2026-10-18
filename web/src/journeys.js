@@ -21,18 +21,29 @@ const SeedcraftJourneys = (() => {
 		for (const str of strings) for (const v of str) { const c = (count.get(v) || 0) + 1; count.set(v, c); if (c > max) max = c; }
 		return max;
 	};
-	// initials, but three letters for the entries that collide (BLE, BLE2 if still equal)
+	// initials, but three letters for the entries that collide, taken where the names differ:
+	// Blue/Black/Brown bead → BLU/BLA/BRO, Green/Grey bead → GRN/GRY, Wood Pipe/Wood Pear → WPI/WPE;
+	// a number is added only if no three letters tell them apart
 	function uniqueInitials(names, initialsOf) {
-		const ini = names.map(initialsOf), three = (name) => {
-			const w = name.trim().split(/\s+/);
-			return (w.length > 1 ? w[0][0] + w[1].slice(0, 2) : w[0].slice(0, 3)).toUpperCase();
-		};
-		const out = ini.map((x, i) => ini.filter((y) => y === x).length > 1 ? three(names[i]) : x), seen = new Map();
-		return out.map((x, i) => {
-			if (ini.filter((y) => y === ini[i]).length < 2 && out.filter((y) => y === x).length < 2) return x;
-			const c = (seen.get(x) || 0) + 1; seen.set(x, c);
-			return c > 1 && out.filter((y) => y === x).length > 1 ? x + c : x;
-		});
+		const ini = names.map(initialsOf), out = ini.slice();
+		const ways = [
+			(w) => w[0].slice(0, 3),
+			(w) => w[0].length > 3 ? w[0].slice(0, 2) + w[0].slice(-1) : "",
+			(w) => w.length > 1 ? w[0][0] + w[1].slice(0, 2) : "",
+			(w) => w.length > 1 && w[1].length > 2 ? w[0][0] + w[1][0] + w[1].slice(-1) : "",
+		];
+		for (const x of new Set(ini)) {
+			const group = ini.map((y, i) => y === x ? i : -1).filter((i) => i >= 0);
+			if (group.length < 2) continue;
+			const others = new Set(out.filter((y, i) => !group.includes(i))), words = group.map((i) => names[i].trim().split(/\s+/));
+			const way = ways.find((f) => {
+				const c = words.map((w) => f(w).toUpperCase());
+				return c.every((y) => y.length === 3 && !others.has(y)) && new Set(c).size === c.length;
+			});
+			if (way) group.forEach((i, j) => { out[i] = way(words[j]).toUpperCase(); });
+			else group.forEach((i, j) => { out[i] = ways[0](words[j]).toUpperCase() + (j ? j + 1 : ""); });
+		}
+		return out;
 	}
 	// the two sequences differ, but only in bits past nbits (the padding)
 	function onlyPadding(readPlain, madePlain, k, nbits) {

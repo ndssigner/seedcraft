@@ -1486,13 +1486,13 @@
 
 		// the key string being built: the piece's slot in the middle, six on each side
 		function keyString(withPiece) {
-			const items = Array.from({ length: 13 }, (_, j) => {
-				const i = pos - 6 + j;
+			const item = (i) => {
 				if (i < 0 || i >= L) return undefined;
 				if (i === pos) return withPiece ? value : null;
 				return i < have ? values[i] : null;
-			});
-			return V.string({ box: b.keyString, role: "build", kind: "key", things, items, current: 6, firstPosition: pos - 5, posBox: b.posBox });
+			};
+			const items = Array.from({ length: 13 }, (_, j) => item(pos - 6 + j));
+			return V.string({ box: b.keyString, role: "build", kind: "key", things, items, current: 6, firstPosition: pos - 5, posBox: b.posBox, spill: [item(pos - 7), item(pos + 7)] });
 		}
 		// the key file growing (writePadFile's format): the line before (its first line, «L N», or
 		// the row before), then the row with this piece, its place framed under the slot, its check once the row is whole
@@ -1933,7 +1933,8 @@
 			if (slotDrawn !== reached("slot")) {
 				slotDrawn = reached("slot");
 				groups.seedString.replaceChildren(V.string({ box: b.seedString, role: "build", kind: "seed", things, current: 6, firstPosition: i - 5, posBox: b.posBox,
-					items: Array.from({ length: 13 }, (_, j) => { const x = i - 6 + j; return x < 0 || x >= L ? undefined : x < i ? m.symbols[x] : x === i && slotDrawn ? C : null; }) }));
+					items: Array.from({ length: 13 }, (_, j) => { const x = i - 6 + j; return x < 0 || x >= L ? undefined : x < i ? m.symbols[x] : x === i && slotDrawn ? C : null; }),
+					spill: [i - 7, i + 7].map((x) => x < 0 || x >= L ? undefined : x < i ? m.symbols[x] : null) }));
 			}
 			lay.arrows.forEach((a, j) => {
 				const s = stageOf(a.id);
