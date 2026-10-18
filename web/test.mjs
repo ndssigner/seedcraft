@@ -758,6 +758,19 @@ for (const pad of [false, true]) {
 		const run = walk(vr, cls("v-string-run"))[0], icon = walk(vr, cls("v-string-icon"))[0];
 		check(run && icon && walk(run, cls("v-piece")).length === 7 && !walk(run, cls("v-icon")).length && walk(icon, cls("v-icon")).length === 1, "string reference: the icon apart from the run");
 	}
+	{
+		// vertical read string and the key-file column: the run in a masked wrapper (gradient on y), the icon outside
+		const vr = V.string({ box: { x: 20, y: 40, w: 40, h: 200 }, orientation: "v", role: "read", kind: "seed", things, items: [0, 1, 2, 3, 4, 5, 6], current: 3, firstPosition: 2 });
+		const aboveMask = (root) => {
+			const m = walk(root, (n) => n.tag === "mask")[0], gr = walk(root, (n) => n.tag === "linearGradient")[0];
+			const wrap = walk(root, (n) => n.tag === "g" && n.attrs.mask)[0];
+			return !!m && !!gr && num(gr.attrs.x1) === num(gr.attrs.x2) && num(gr.attrs.y1) < num(gr.attrs.y2) && !!wrap
+				&& walk(wrap, cls("v-string-run")).length === 1 && walk(wrap, cls("v-icon")).length === 0 && walk(root, cls("v-string-icon")).length === 1 && walk(wrap, cls("v-string-icon")).length === 0;
+		};
+		check(aboveMask(vr), "string read: a vertical mask fades the run's top and bottom, its icon outside it");
+		const vf = V.string({ box: { x: 20, y: 40, w: 40, h: 200 }, orientation: "v", role: "reference", kind: "key", things, items: [0, 1, 2, 3, 4, 5, 6], current: 3, firstPosition: 2 });
+		check(aboveMask(vf), "string reference (vertical): the same mask");
+	}
 	const midCx = (p) => num(walk(p, (n) => n.tag === "circle")[0].attrs.cx), sl = lay.boxes.seedSlot;
 	check(Math.abs(midCx(cur[0]) - (sl.x + sl.w / 2)) < 1, "string: the turn's piece is in the slot's box");
 	within(s, { x: lay.boxes.seedString.x, y: lay.boxes.posBox.y, w: lay.boxes.seedString.w, h: lay.boxes.seedString.y + lay.boxes.seedString.h - lay.boxes.posBox.y }, "string build");
