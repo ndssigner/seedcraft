@@ -944,11 +944,14 @@
 	const formArt = (id) => ({ necklace: "cord", gems: "cord", book: "book", stickers: "book", photos: "book", bricks: "brick" })[id] || "bag";
 	function piecesSlide() {
 		const t = T(), { n, L, groups, keyFile } = gatherPlan(), done = J.gatherDone(st.gathered, groups);
-		const tick = (what) => h("label", { class: "gather-tick" }, h("input", { type: "checkbox", checked: st.gathered[what] ? "" : null,
-			on: { change: (e) => { st.gathered[what] = e.target.checked; render(); } } }), h("span", { text: t.piecesHave }));
+		const tick = (what, label) => h("label", { class: "gather-tick" }, h("input", { type: "checkbox", checked: st.gathered[what] ? "" : null,
+			on: { change: (e) => { st.gathered[what] = e.target.checked; render(); } } }), h("span", { text: label || t.piecesHave }));
 		const card = (cls, ...kids) => h("section", { class: "gather-card " + cls }, ...kids);
 		// one card per group: the pieces, then (if it has one) the assembly under a thin rule, both ticks at the bottom
-		const groupCard = ({ group: g, assembly }) => {
+		const groupCard = ({ group: g, assembly, kind }) => {
+			if (kind === "sameAsString") return card("pieces-card key", kindDots(kindThings(g.form, n, st.dict && st.dict.things), true),
+				h("h2", {}, h("span", { class: "pieces-icon", "aria-hidden": "true" }, V.iconTag("key")), h("span", { text: t.piecesFor.key }), h("small", { text: t.forms[g.form].name })),
+				h("p", { class: "gather-note", text: t.gatherSameAsString }));
 			const written = formOf(g.form).family === "written", key = g.kinds[0] === "key", own = key ? st.padDict : st.dict, each = g.each + g.copies;
 			const other = key && g.what === "key";
 			const mat = assembly ? materialsOf(g.form, L, n) : null, { big, text } = mat ? J.splitMaterials(mat) : {};
@@ -965,11 +968,10 @@
 					h("div", { class: "gather-assembly-head" }, gatherArt(formArt(g.form)), h("h3", {}, t.gatherAssembly)),
 					big ? h("p", { class: "gather-big" }, h("b", { text: big })) : null,
 					h("p", { class: "gather-note", text: g.what === "both" ? t.piecesTwice(text) : text })) : null,
-				h("div", { class: "gather-ticks" }, written ? null : tick(g.what), assembly ? tick("assembly:" + g.what) : null));
+				h("div", { class: "gather-ticks" }, ...(written || !assembly ? [written ? null : tick(g.what)] : [tick(g.what, t.piecesHavePieces), tick("assembly:" + g.what, t.piecesHaveAssembly)])));
 		};
 		const item = (kind, text, tag) => h("li", {}, gatherArt(kind), h("span", { text }), tag ? h("small", { text: tag }) : null);
-		const tips = J.gatherTips(groups.filter((g) => !g.written).map((g) => g.form));
-		const recommended = groups.some((g) => !g.written)
+		const tips = J.gatherTips(groups.map((g) => g.form)), recommended = tips.length || groups.some((g) => !g.written)
 			? card("recommended-card", h("h2", {}, h("span", { text: t.gatherRecommended })),
 				tips.length ? h("ul", {}, ...tips.map((x) => item(x.art, typeof t.gatherTip[x.text] === "function" ? t.gatherTip[x.text](n) : t.gatherTip[x.text], x.optional ? t.gatherOptional : null)))
 					: h("p", { class: "gather-note", text: t.gatherTip.nothing })) : null;
