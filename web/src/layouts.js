@@ -623,5 +623,10 @@ const SeedcraftLayouts = (() => {
 		return { boxes: b, columns, arrows: [] };
 	}
 
-	return { BUILT, SLOT, POSBOX, RAIL, pitch, qrSquare, qrCellsBox, digitFont, seedQr, seqIntro, checkIntro, VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readColumn, readTurn, pickerPopup, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, REJECT, BADGE, fileRow, fileColumn, store, dictName, dictCheck, dictAsIs };
+	// a crop square (image pixels) kept inside the photo, no smaller than 32 nor larger than the photo's short side
+	function cropClamp({ iw, ih, x, y, side }) {
+		const s = Math.max(1, Math.min(Math.max(32, side), iw, ih));
+		return { x: Math.min(Math.max(0, x), iw - s), y: Math.min(Math.max(0, y), ih - s), side: s };
+	}
+	return { cropClamp, BUILT, SLOT, POSBOX, RAIL, pitch, qrSquare, qrCellsBox, digitFont, seedQr, seqIntro, checkIntro, VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readColumn, readTurn, pickerPopup, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, REJECT, BADGE, fileRow, fileColumn, store, dictName, dictCheck, dictAsIs };
 })();

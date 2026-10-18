@@ -736,3 +736,12 @@ body { overflow: hidden; }
 	/* upright on a phone: the sheet still prints */
 	.lectern.upright .slide-frame { display: block; }
 }
+
+/* framing a piece's photo (app.js's cropPopup) */
+.crop-pop { display: flex; flex-direction: column; align-items: center; gap: calc(var(--u) * 6); }
+.crop-stage { position: relative; overflow: hidden; touch-action: none; user-select: none; cursor: grab; outline-offset: 2px; }
+.crop-img { display: block; width: 100%; height: 100%; pointer-events: none; }
+.crop-frame { position: absolute; box-sizing: border-box; border: 2px solid #fff; box-shadow: 0 0 0 9999px rgba(0, 0, 0, .55); pointer-events: none; }
+.crop-row { display: flex; align-items: center; gap: calc(var(--u) * 6); }
+.crop-size { width: calc(var(--u) * 110); }
+.dict-note { margin: 0; }
