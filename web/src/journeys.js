@@ -79,13 +79,17 @@ const SeedcraftJourneys = (() => {
 	const READ = [["mode", "have"], ["form", "have"], ["size", "have"], ["dict", "have"], ["dictHave", "have"],
 		["keyAs", "have"], ["keyColl", "have"], ["keyForm", "have"], ["keyDict", "have"], ["keyDictHave", "have"], ["keyFile", "have"],
 		["words", "have"], ["recover", "recover"], ["seed", "seed"]];
+	// the start page: what SeedCraft is, why, how, and why trust it (or not yet)
+	const INTRO = [["start", "seedcraft"], ["what", "seedcraft"], ["blend", "why"], ["modes", "why"], ["hand", "how"], ["calm", "how"], ["audit", "trust"], ["notice", "trust"]];
+	const ORDER = { make: MAKE, read: READ, intro: INTRO };
 
-	// The slides there are now. s: { mode, padAs ("string" | "file"),
+	// The slides there are now (the start page's are always all there). s: { mode, padAs ("string" | "file"),
 	// padForm (the key's own collection, or null), dict, padDict (whether
 	// each dictionary is there yet) and, making one, keyWho ("me" | "device"),
 	// keyBy (what the key is being drawn with, once chosen) and made (whether
 	// the sequence is made: its turns follow the seed's words) }.
 	function slides(flow, s) {
+		if (flow === "intro") return INTRO.map(([id, step]) => ({ id, step }));
 		const pad = s.mode === "pad", things = pad && s.padAs === "string", own = things && !!s.padForm;
 		const there = {
 			keyAs: pad, keyColl: things, keyForm: own, dictHave: !!s.dict, keyDict: own, keyDictHave: own && !!s.padDict,
@@ -93,13 +97,13 @@ const SeedcraftJourneys = (() => {
 		};
 		// recovering, the seed's length is asked unless a key file tells it
 		if (flow === "read") there.words = !(pad && s.padAs === "file");
-		return (flow === "make" ? MAKE : READ).filter(([id]) => there[id] !== false).map(([id, step]) => ({ id, step }));
+		return ORDER[flow].filter(([id]) => there[id] !== false).map(([id, step]) => ({ id, step }));
 	}
 	// The slide to show for `at`: itself if it is there, else the nearest one
 	// before it that is (a slide that went: a dictionary forgotten, a key's
 	// method changed), else the first.
 	function resolve(flow, list, at) {
-		const order = (flow === "make" ? MAKE : READ).map(([id]) => id), ids = list.map((x) => x.id);
+		const order = ORDER[flow].map(([id]) => id), ids = list.map((x) => x.id);
 		if (ids.includes(at)) return at;
 		for (let i = order.indexOf(at) - 1; i >= 0; i--) if (ids.includes(order[i])) return order[i];
 		return ids[0];

@@ -104,8 +104,6 @@ header.top { position: sticky; top: 0; z-index: 5; display: flex; align-items: c
 	/* what you do: flat on the paper; what it gives: the raised tray, always in view */
 	.tool > .panel:first-child { background: none; border-color: transparent; padding: 4px 0; }
 	.tool > .panel:last-child { position: sticky; top: 72px; max-height: calc(100vh - 92px); overflow: auto; box-shadow: var(--tray); }
-	.intro .tool > .panel:first-child { background: var(--surface); border-color: var(--line); padding: var(--sp-4); }
-	.intro .tool > .panel:last-child { position: static; max-height: none; box-shadow: none; }
 }
 @media (max-width: 640px) { .wrap { padding: var(--sp-4); } .panel { padding: var(--sp-3); } }
 .page { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-l); padding: 22px 26px; max-width: 760px; margin: 0 auto; }
@@ -115,11 +113,6 @@ header.top { position: sticky; top: 0; z-index: 5; display: flex; align-items: c
 .page ol.how-to li b { display: block; }
 .page .item { border-top: 1px solid var(--line); padding: 10px 0; }
 .page .item b { display: block; margin-bottom: 2px; }
-footer { padding: 8px 16px 32px; color: var(--muted); font-size: var(--fs-s); }
-footer > div { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 20px; }
-footer a { color: var(--muted); }
-footer button { background: none; border: 0; padding: 0; color: var(--muted); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
-footer a:hover, footer button:hover { color: var(--fg); }
 
 /* text */
 .label { font-size: var(--fs-s); font-weight: 650; color: var(--fg); }
@@ -185,13 +178,7 @@ pre.code { font-family: var(--mono); font-size: var(--fs-s); background: var(--s
 .string rect.tick { fill: #ffffff; stroke: #8e9693; stroke-width: 1.2; }
 .string g.pick { cursor: pointer; }
 
-/* start page */
-.intro { display: flex; flex-direction: column; gap: 22px; }
-.hero { display: grid; gap: 8px 40px; align-items: center; padding: 18px 0 6px; }
-@media (min-width: 880px) { .hero { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); } }
-.hero h1 { margin: 0; font-size: clamp(30px, 4.2vw, 46px); line-height: 1.08; letter-spacing: -0.025em; max-width: 15ch; }
-.hero .lead { margin: 4px 0 8px; font-size: var(--fs-l); max-width: 58ch; color: var(--fg); }
-.hero-text { display: flex; flex-direction: column; gap: 10px; }
+/* the start page's example string */
 .hero-string { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-l); padding: 10px 6px 0; box-shadow: var(--tray); }
 .hero-string figcaption { font-size: var(--fs-xs); color: var(--muted); padding: 0 14px 10px; }
 /* one moment only: the beads are threaded once, from the clasp */
@@ -234,24 +221,13 @@ ul.list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; 
 }
 .string .ring-cur { stroke: var(--current); }
 @media print { body { background-image: none; } }
-/* phones: the repository is in the footer; the tabs share the width */
+/* phones: the repository is at the notice's foot; the tabs share the width */
 @media (max-width: 640px) {
 	#gh { display: none; }
 	.brand { min-width: 96px; }
 	.tabs button { font-size: var(--fs-s); padding: 0 4px; flex: 1 0 auto; }
 }
 
-/* the start page: two doors, and the two journeys as they will go */
-.doors .btn { min-width: 12em; }
-.doors-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px 36px; }
-.door-steps h3 { margin: 0 0 8px; font-size: var(--fs-l); }
-.door-steps ol { margin: 0; padding: 0 0 0 26px; list-style: none; counter-reset: step; border-left: 3px solid var(--thread); }
-.door-steps li { counter-increment: step; position: relative; padding: 0 0 10px; display: flex; flex-direction: column; gap: 1px; }
-.door-steps li::before { content: counter(step); position: absolute; left: -38px; top: 0; width: 21px; height: 21px; border-radius: 50%;
-	background: var(--surface); border: 3px solid var(--thread); font-size: var(--fs-xs); font-weight: 700; display: grid; place-items: center; color: var(--fg); box-sizing: border-box; }
-.door-steps li.pad::before { border-color: var(--pad); }
-.door-steps li b { font-family: var(--book); font-size: var(--fs-m); font-weight: 600; }
-.door-steps li span { font-size: var(--fs-s); color: var(--muted); }
 
 /* an address book's entries: ruled lines, a blank for any name, the kind of street */
 ol.entries { list-style: none; margin: 0; padding: 0; columns: 2 220px; column-gap: 28px; }
@@ -448,7 +424,7 @@ ol.entries.paper li { color: #111; border-bottom-color: #ccc; }
    350) fills its width, and the foot takes the 32.5 left under it. Fixed
    places: the guide and «?» «⋯» over the canvas's top band (0–26), the
    question under them, «Back» and «Next» at the foot's ends with the caption
-   between. A page (the start page, about, donate, the printable sheet) is
+   between. A page (about, the printable sheet) is
    shown as it is, under the guide's band: only what does not fit scrolls,
    inside its own body. */
 html, body { height: 100%; }
@@ -456,6 +432,10 @@ body { overflow: hidden; }
 .lectern { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; overflow: hidden;
 	--fw: min(100vw, 100vh * 680 / 382.5); }
 @supports (height: 100dvh) { .lectern { --fw: min(100vw, 100dvh * 680 / 382.5); } }
+/* the start page's slides: the top bar over the lectern, which takes the height left (--top-h: the bar's, set by app.js) */
+.top-slot { position: relative; z-index: 5; }
+.with-top .lectern { top: var(--top-h, 52px); --fw: min(100vw, (100vh - var(--top-h, 52px)) * 680 / 382.5); }
+@supports (height: 100dvh) { .with-top .lectern { --fw: min(100vw, (100dvh - var(--top-h, 52px)) * 680 / 382.5); } }
 .slide-frame { --u: calc(var(--fw) / 680); position: relative; flex: none; width: calc(var(--u) * 680); height: calc(var(--u) * 382.5);
 	font-size: calc(var(--u) * 11); line-height: 1.3; background: var(--surface); box-shadow: var(--tray); overflow: hidden; }
 .slide-top { position: absolute; z-index: 3; left: 0; right: 0; top: 0; height: calc(var(--u) * 26); display: flex; align-items: center;
@@ -792,3 +772,28 @@ body { overflow: hidden; }
 .crop-size { width: calc(var(--u) * 110); }
 .crop-gap { flex: 1 1 0; }
 .dict-note { margin: 0; }
+
+/* the start page's slides (app.js's SLIDES.intro, on layouts.js's introSlide boxes) */
+.intro-slide > :not(svg) { position: absolute; z-index: 1; box-sizing: border-box; margin: 0; }
+.intro-slide .hero-string { display: flex; flex-direction: column; padding: calc(var(--u) * 6) calc(var(--u) * 6) 0; box-shadow: none; }
+.intro-slide .hero-string svg { flex: 1 1 auto; min-height: 0; width: 100%; }
+.intro-slide .hero-string figcaption { font-size: .75em; text-align: center; padding: 0 1em calc(var(--u) * 6); }
+.intro-doors { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(var(--u) * 6); }
+.intro-doors .doors { display: flex; justify-content: center; gap: calc(var(--u) * 12); }
+.intro-doors .btn.big { font-size: 1.1em; padding: .55em 1.3em; min-width: 12em; }
+.intro-doors .btn.small { font-size: .85em; padding: .35em .9em; }
+.intro-text { display: flex; flex-direction: column; justify-content: center; gap: .6em; font-size: 1.15em; line-height: 1.4; overflow: hidden; }
+.intro-text p { margin: 0; }
+.intro-text h2 { margin: 0; font-size: 1.1em; }
+.intro-notice { font-size: 1em; }
+.intro-tip { color: var(--muted); font-size: .9em; }
+.intro-label { text-align: center; font-size: .85em; color: var(--muted); }
+.intro-links { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .25em; font-size: .85em; }
+.intro-more { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: .3em 1.6em; font-size: .85em; color: var(--muted); }
+.intro-more a { color: var(--muted); }
+.intro-more button { background: none; border: 0; padding: 0; color: var(--muted); cursor: pointer; font: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.intro-more a:hover, .intro-more button:hover { color: var(--fg); }
+.intro-pop { max-width: calc(var(--u) * 520); max-height: calc(var(--u) * 290); overflow: auto; }
+.intro-pop .sib-cards, .intro-pop .donate { grid-template-columns: 1fr 1fr; gap: .6em; margin: .5em 0; }
+.intro-pop .donate-box { padding: .6em; gap: .3em; }
+.intro-pop .donate-box img { width: calc(var(--u) * 90); height: calc(var(--u) * 90); }
