@@ -1610,11 +1610,14 @@ for (const pad of [false, true]) {
 		const v = TX[lang][k], s = typeof v === "function" ? v(...(args[k] || [])) : v;
 		check(typeof s === "string" && s.length <= 110, `caption ${lang}.${k} at most 110 characters (${s && s.length}: ${s})`);
 	}
-	// the alerts next to a seed: the plain test-only stance, offline or online (spec §0)
-	for (const lang of ["en", "es"]) for (const k of ["seedOnline", "seedTest"]) {
-		check(/NDS-Signer/.test(TX[lang][k]) && /TEST|PRUEBA/.test(TX[lang][k]) && /online or not|conectado o no/.test(TX[lang][k]), `seed alert ${lang}.${k}: test seeds only, real money elsewhere, online or not`);
-		check(!/seed on a computer that is online|semilla en un ordenador conectado/i.test(TX[lang][k]), `seed alert ${lang}.${k}: does not imply offline is fine`);
-	}
+	// the alerts next to a seed: real seeds offline at your own risk, test seeds only when online (spec Postura)
+	for (const lang of ["en", "es"]) { const t = TX[lang];
+		check(!/never the seed of real money on a computer|nunca la semilla de dinero de verdad en un ordenador/.test(t.seedTest), `${lang}: offline, real seeds allowed at own risk`);
+		check(/test|prueba/i.test(t.seedOnline), `${lang}: online, still test seeds only`);
+		check(!!t.screenWarn, `${lang}: the screen warning line`);
+		check(/own risk|responsabilidad/.test(t.seedTest + t.aboutRisk) && /audited|auditad/.test(t.aboutRisk) && !/never on a computer|nunca en un ordenador/i.test(t.aboutRisk), `${lang}: About states own risk, not audited, no blanket ban`);
+		check(!/test seed|semilla de prueba/.test(t.storeBasic.join(" ")), `${lang}: passphrase line says this seed`); }
+	check(/t\.aboutRisk/.test(read("src/app.js")) && /t\.screenWarn/.test(read("src/app.js")), "About shows aboutRisk; the words slide shows screenWarn");
 	// the dictionary choice's explanation lives under the question, whole: in the body, not clamped in the foot
 	const appSrc0 = read("src/app.js");
 	// the start page's copy (spec «La portada, en láminas»)
