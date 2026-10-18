@@ -62,7 +62,7 @@ piezas, una caja de huevos con un tipo en cada hueco.</td></tr>
   semilla: es la semilla. Lo que la esconde es el propio objeto, siempre que
   el diccionario no esté al lado; **no es una cerradura**: quien conozca este
   método lee la semilla de la ristra sola en una fracción de segundo
-  ([SPEC §9](SPEC-sequences.md#9-security-considerations),
+  ([SPEC §9](SPEC-sequences.es.md#9-consideraciones-de-seguridad),
   `tools/dictionary_attack.py`). Para una copia en un sitio que controlas;
   añade una frase de contraseña BIP-39 para una protección de verdad.
 - **Con llave.** Dos ristras (o una ristra y un archivo) que se guardan por
@@ -70,11 +70,11 @@ piezas, una caja de huevos con un tipo en cada hueco.</td></tr>
   para reconstruirla. Para sitios que no controlas: viajes, hoteles,
   inspecciones. El precio: **perder cualquiera de las dos mitades es perder
   la semilla.** La especificación lo llama modo *pad*
-  ([SPEC §10](SPEC-sequences.md#10-pad-mode)).
+  ([SPEC §10](SPEC-sequences.es.md#10-modo-con-llave)).
 
-La [SPEC §11](SPEC-sequences.md#11-choosing-a-mode-and-a-form) ayuda a elegir
-modo y forma, y dice qué no hacer. [RISK-AUDIT.md](RISK-AUDIT.md), el modelo
-de amenazas, expone de qué protege cada modo y de qué no, con las pruebas.
+La [SPEC §11](SPEC-sequences.es.md#11-elegir-modo-y-forma) ayuda a elegir
+modo y forma, y dice qué no hacer.
+[RISK-AUDIT.es.md](RISK-AUDIT.es.md), el modelo de amenazas, expone de qué protege cada modo y de qué no, con las pruebas.
 
 ## Cómo funciona
 
@@ -89,7 +89,7 @@ hacerla.
 
 Las cosas pueden ser cualquier cosa en cualquier soporte, siempre que el
 orden quede fijo para siempre y ninguna pieza se pueda soltar. Ver
-[SPEC-sequences.md](SPEC-sequences.md).
+[SPEC-sequences.es.md](SPEC-sequences.es.md).
 
 ## A mano, o con la herramienta
 
@@ -157,10 +157,11 @@ En el repositorio está la documentación importante: el modelo de amenazas,
 el desarrollo matemático del sistema y el código, abiertos a que cualquiera
 los revise.
 
-- [`SPEC-sequences.md`](SPEC-sequences.md): la especificación, versión 0 del
-  formato: el modo sin llave y el modo *pad* (con llave).
-- [`RISK-AUDIT.md`](RISK-AUDIT.md): el modelo de amenazas: de qué protege
-  cada modo, y las pruebas.
+- [`SPEC-sequences.es.md`](SPEC-sequences.es.md)
+  ([English](SPEC-sequences.md)): la especificación, versión 0 del formato:
+  el modo sin llave y el modo *pad* (con llave).
+- [`RISK-AUDIT.es.md`](RISK-AUDIT.es.md) ([English](RISK-AUDIT.md)): el
+  modelo de amenazas: de qué protege cada modo, y las pruebas.
 - `reference/python/seedcraft_sequences.py`: implementación de referencia
   (solo la biblioteca estándar, más el generador de códigos QR de Project
   Nayuki, MIT, sin modificar); `seedcraft_pad.py`: el modo *pad*, encima de
@@ -174,7 +175,7 @@ los revise.
   diccionario; dale un binario `qrdecode` de quirc para comprobar además que
   el código QR dibujado de vuelta es el CompactSeedQR de la semilla.
 - `tests/test_pad.py`: el modo *pad* frente a sus vectores, y las pruebas de
-  `RISK-AUDIT.md` §6 (el ataque no encuentra nada, errores reparados,
+  `RISK-AUDIT.es.md` §6 (el ataque no encuentra nada, errores reparados,
   uniformidad, caracteres de control, todas las máscaras).
 - `tools/dictionary_attack.py`: lee una semilla de su secuencia sin el
   diccionario (SPEC §9).
