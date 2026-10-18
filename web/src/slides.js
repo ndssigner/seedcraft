@@ -92,6 +92,7 @@ const SeedcraftSlides = (() => {
 			else if (panelOpen) { panel(false); e.preventDefault(); }
 			return;
 		}
+		if (e.key === "Tab" && !popup && !panelOpen && !e.defaultPrevented && !typing(e.target) && keyRoute(slide, e)) { e.preventDefault(); return; }
 		if (e.key === "Tab") {
 			if (popup) trap(e, popup.box);
 			else if (panelOpen && el.aside) trap(e, el.aside);
@@ -100,11 +101,18 @@ const SeedcraftSlides = (() => {
 		if (panelOpen || popup || e.defaultPrevented || typing(e.target)) return;
 		// a phone held upright shows only «Turn your phone»: no slide to move
 		if (el.lectern && el.lectern.classList.contains("upright")) return;
+		if (keyRoute(slide, e)) { e.preventDefault(); return; }
 		const space = e.key === " " || e.key === "Spacebar";
 		// the space bar on a focused button presses that button, whatever the slide
 		if (space && pressable(e.target)) return;
 		if (space || e.key === "ArrowRight") { e.preventDefault(); move("next"); }
 		else if (e.key === "ArrowLeft") { e.preventDefault(); move("prev"); }
+	}
+
+	// A slide may have keys(e) -> bool, called on keydown before the default
+	// handling (never while typing in a field); true consumes the key.
+	function keyRoute(sl, e) {
+		return !!(sl && typeof sl.keys === "function" && sl.keys(e) === true);
 	}
 
 	// Next (the button, the space bar, →) while the slide is still playing
@@ -149,8 +157,8 @@ const SeedcraftSlides = (() => {
 		// the lasting nodes: what is read aloud when it changes is changed, not made anew
 		el.turnText = h("b");
 		el.turn = h("div", { class: "slide-turn", role: "alert" }, h("span", { class: "slide-turn-icon", "aria-hidden": "true", text: "📱↻" }), el.turnText);
-		el.captionText = h("p"); el.captionStep = h("small");
-		el.caption = h("div", { class: "slide-caption", "aria-live": "polite" }, el.captionText, el.captionStep);
+		el.captionText = h("p"); el.captionStep = h("small"); el.captionHint = h("small", { class: "slide-hint" });
+		el.caption = h("div", { class: "slide-caption", "aria-live": "polite" }, el.captionText, el.captionStep, el.captionHint);
 		el.lectern = h("div", { class: "lectern" }, el.frame, el.turn);
 		root.replaceChildren(el.lectern);
 		document.addEventListener("keydown", onKey);
@@ -222,6 +230,9 @@ const SeedcraftSlides = (() => {
 		el.captionText.hidden = !caption;
 		el.captionStep.textContent = steps > 1 ? say("slidesStepOf", `step ${step + 1} of ${steps}`, step + 1, steps) : "";
 		el.captionStep.hidden = steps <= 1;
+		const hint = s.hint ? s.hint() : null;
+		el.captionHint.textContent = hint || "";
+		el.captionHint.hidden = !hint;
 		const foot = h("div", { class: "slide-foot" },
 			back ? h("button", { class: "btn ghost slide-prev", id: "slide-prev", on: { click: () => move("prev") } }, back.label || say("slidesPrev", "◀ Back")) : h("span", { class: "slide-prev" }),
 			el.caption,
@@ -299,6 +310,6 @@ const SeedcraftSlides = (() => {
 		if (!quiet && p.onClose) p.onClose();
 	}
 
-	return { nextOf, mount, show, setLang, setReady, wakeLock, popup: openPopup, closePopup,
+	return { nextOf, keyRoute, mount, show, setLang, setReady, wakeLock, popup: openPopup, closePopup,
 		get step() { return step; }, get panelOpen() { return panelOpen; } };
 })();

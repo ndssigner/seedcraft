@@ -192,5 +192,23 @@ const SeedcraftJourneys = (() => {
 		return best;
 	}
 
-	return { BUY, PAD_BUY, EXPLAINED, turnStages, readStages, checkRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, splitMaterials, nameProblem, checkOrder, throwParts };
+	// A piece typed by number: digits fill a buffer; with String(n - 1).length
+	// digits it is chosen (if below n), or on Enter with a non-empty buffer.
+	// Out of range (or Enter on nothing): the buffer clears. Backspace drops one.
+	function typedPiece(buffer, key, n) {
+		const digits = String(n - 1).length, keep = { buffer, value: null, clear: false };
+		if (key === "Backspace") return { ...keep, buffer: buffer.slice(0, -1) };
+		if (key === "Enter") {
+			if (!buffer) return { buffer: "", value: null, clear: true };
+			const v = Number(buffer);
+			return v < n ? { buffer: "", value: v, clear: false } : { buffer: "", value: null, clear: true };
+		}
+		if (!/^[0-9]$/.test(key)) return keep;
+		const nb = buffer + key;
+		if (nb.length < digits) return { ...keep, buffer: nb };
+		const v = Number(nb);
+		return v < n ? { buffer: "", value: v, clear: false } : { buffer: "", value: null, clear: true };
+	}
+
+	return { BUY, PAD_BUY, typedPiece, EXPLAINED, turnStages, readStages, checkRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, splitMaterials, nameProblem, checkOrder, throwParts };
 })();

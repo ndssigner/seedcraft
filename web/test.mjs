@@ -966,6 +966,16 @@ for (const pad of [false, true]) {
 	fb.attrs.on.click(); check(pressed === 4, "faceButton: a press gives its face");
 	check(V.faceButton({ sides: 6, face: 1, disabled: true }).attrs.disabled === true, "faceButton: disabled");
 }
+{
+	let r = J.typedPiece("", "1", 16); check(r.value === null && r.buffer === "1", "typed: one digit of two waits");
+	r = J.typedPiece("1", "2", 16); check(r.value === 12 && r.buffer === "", "typed: two digits choose 12");
+	r = J.typedPiece("1", "7", 16); check(r.value === null && r.clear && r.buffer === "", "typed: 17 of 16 clears");
+	r = J.typedPiece("3", "Enter", 16); check(r.value === 3, "typed: Enter confirms one digit");
+	r = J.typedPiece("", "5", 8); check(r.value === 5, "typed: N ≤ 10 takes one digit");
+	r = J.typedPiece("", "9", 8); check(r.value === null && r.clear, "typed: 9 of 8 clears");
+	r = J.typedPiece("2", "Backspace", 16); check(r.buffer === "" && r.value === null, "typed: Backspace drops a digit");
+	r = J.typedPiece("", "Enter", 16); check(r.clear && r.value === null, "typed: Enter on nothing clears");
+}
 // the lectern (slides.js): what Next and Back do, within a slide's steps and between slides
 {
 	vm.runInContext(read("src/slides.js"), ctx, { filename: "src/slides.js" });
@@ -978,6 +988,11 @@ for (const pad of [false, true]) {
 	check(JSON.stringify(Sl.nextOf({ step: 2, dir: "prev" }, slide)) === JSON.stringify({ step: 1 }), "nextOf: Back within a slide's steps gives the step before");
 	check(Sl.nextOf({ step: 0 }, { steps: 1, prev, next: { ...next, ready: false } }) === null, "nextOf: Next waits while the slide is not ready");
 	check(JSON.stringify(Sl.nextOf({ step: 0 }, { steps: 2, prev, next: { ...next, ready: false } })) === JSON.stringify({ step: 1 }), "nextOf: a slide not ready still walks its own steps");
+	{
+		let hit = 0;
+		check(Sl.keyRoute({ keys: () => { hit++; return true; } }, { key: "5" }) === true && hit === 1, "keyRoute: a slide's keys returning true consumes the key");
+		check(Sl.keyRoute({ keys: () => false }, { key: " " }) === false && Sl.keyRoute({}, { key: " " }) === false && Sl.keyRoute(null, {}) === false, "keyRoute: otherwise the default handling goes on");
+	}
 	check(Sl.nextOf({ step: 0 }, { steps: 1, prev: null, next: null }) === null && Sl.nextOf({ step: 0, dir: "prev" }, { steps: 1, prev: null, next }) === null, "nextOf: nothing to go to, nothing done");
 	check(Sl.nextOf({ step: 7 }, { steps: 3, next }).go === next.go, "nextOf: a step past the end counts as the last");
 	check(Sl.nextOf({ step: 0 }, { next }).go === next.go, "nextOf: steps default to 1");
