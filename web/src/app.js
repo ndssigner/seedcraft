@@ -2623,7 +2623,8 @@
 		};
 		const maskRead = () => withMask ? maskKnown(whole) : null;
 		const note = header ? maskLineOf(maskRead()) || t.turnHeaderNoQr : null;
-		const caption = () => !whole ? (i === 0 && !st.seen.readTap ? t.forms[form].read : keyThings ? t.readTapBoth(pos) : t.readTap(pos))
+		const withKey = !!keyThings || file;   // a key column (or a key file) is read alongside
+		const caption = () => !whole ? (i === 0 && !st.seen.readTap ? J.readHint(t.forms, form, withKey) : keyThings ? t.readTapBoth(pos) : t.readTap(pos))
 			: note || (pad ? t.readTurnPad(C, K, n, P) : t.readTurnBasic(P));
 		const checking = rd !== st.read;
 		// typing a piece's number: digits, Enter, Backspace for the active column; Tab switches column (a key as string only)
@@ -2655,7 +2656,7 @@
 			// Next while the advance or the cycle plays: first its end, then on
 			hurry: () => { const playing = !!glides && glides.playing; if (glides) glides.finish(); const held = !!hold && hold.finish(); return (!!cycle && cycle.finish()) || held || playing; },
 			help: helpOf(stepName(checking ? "make" : "read", checking ? "check" : "recover"), checking ? (pad ? t.checkHelpPad : t.checkReadHelp) : null,
-				[t.forms[form].read, keyThings ? t.keysHintTab : t.keysHint, keyThings ? t.tapPadHelp : null, pad ? null : t.whyBasic(n, k), t.readLockedWhy,
+				[J.readHint(t.forms, form, withKey), keyThings ? t.keysHintTab : t.keysHint, keyThings ? t.tapPadHelp : null, pad ? null : t.whyBasic(n, k), t.readLockedWhy,
 					withMask ? t.hdrMaskWhy : null, withMask ? maskLineOf(maskRead()) : null, withMask ? t.turnHeaderNoQr : null, withMask ? t.hdrMaskCatalog : null].filter(Boolean)),
 			shortcuts: readShortcuts(rd, L, opts.done),
 			prev: i > 0 ? { go: () => readGo(rd, i - 1) } : undefined,

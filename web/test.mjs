@@ -1571,6 +1571,25 @@ for (const pad of [false, true]) {
 	// the first turn read: how to read each form
 	for (const lang of ["en", "es"]) for (const [id, f] of Object.entries(TX[lang].forms)) check(f.read.length <= 110, `caption ${lang}.forms.${id}.read at most 110 characters (${f.read.length})`);
 }
+// reading with a key: both strings are read from their start, so the copy never says either end (the key column is only shown with a key)
+{
+	const copy = vm.createContext({});   // its own context: the i18n file declares top-level names
+	vm.runInContext(read("src/i18n.js") + ";globalThis.TEXT = SEEDCRAFT_TEXT;", copy, { filename: "src/i18n.js" });
+	const TX = copy.TEXT;
+	for (const lang of ["en", "es"]) {
+		const t = TX[lang];
+		for (const f of Object.keys(t.forms)) check(!/cualquiera|either/i.test(J.readHint(t.forms, f, true)), `${lang} ${f}: with a key the hint never says either end`);
+		for (const f of Object.keys(t.forms)) check(J.readHint(t.forms, f, false) === t.forms[f].read, `${lang} ${f}: without a key, as before`);
+		check(!/cualquiera|either/i.test(t.tapPadHelp), `${lang}: the key column's hint starts at its first piece`);
+		for (const id of ["necklace", "other"]) check(typeof t.forms[id].readKey === "string" && t.forms[id].readKey.length > 0 && t.forms[id].readKey.length <= 110, `${lang}.forms.${id}.readKey: present, at most 110 characters`);
+	}
+	check(TX.es.forms.necklace.readKey === "Empieza cada ristra por su inicio, el cierre, y toca cada cuenta, en orden, hasta el otro extremo.", "es necklace readKey: exact copy");
+	check(TX.es.forms.other.readKey === "Empieza cada una por su primera pieza y toca cada pieza, en orden, hasta la última.", "es other readKey: exact copy");
+	check(TX.es.tapPadHelp === "Empieza la llave por su primera pieza, la que va con la primera de tu ristra, y toca cada una, en orden.", "es tapPadHelp: exact copy");
+	check(TX.en.forms.necklace.readKey === "Start each string at its beginning, the clasp, and tap each bead, in order, to the other end.", "en necklace readKey: exact copy");
+	check(TX.en.forms.other.readKey === "Start each one at its first piece and tap each piece, in order, to the last.", "en other readKey: exact copy");
+	check(TX.en.tapPadHelp === "Start the key at its first piece, the one that goes with your string's first, and tap each one, in order.", "en tapPadHelp: exact copy");
+}
 // the lectern's foot: two lines of caption at most and «step n of m», all inside the foot (style.css, in the frame's units)
 {
 	const css = read("src/style.css"), rule = (sel) => { const m = new RegExp(sel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*\\{([^}]*)\\}").exec(css); return m ? m[1] : ""; };
