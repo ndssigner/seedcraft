@@ -22,13 +22,20 @@ FILES = [  # (path in the repository, name in the bundle)
     ("docs/seedqr-templates-es.pdf", "seedqr-templates-es.pdf"),
     ("SPEC-sequences.md", "SPEC-sequences.md"),
     ("RISK-AUDIT.md", "RISK-AUDIT.md"),
+    ("README.es.md", "README.es.md"),
+    ("SPEC-sequences.es.md", "SPEC-sequences.es.md"),
+    ("RISK-AUDIT.es.md", "RISK-AUDIT.es.md"),
     ("LICENSE", "LICENSE"),
 ]
 
 README = """Seedcraft {version}
 https://github.com/ndssigner/seedcraft
 
-Drafts: do not back up the seed of real funds with a draft format.
+Notice: SeedCraft is a mathematics exercise with a creative and artistic
+spirit, offered as is, without any warranty. No one independent has audited
+it yet. With a real seed, use it only on an offline computer and at your own
+risk; online, test seeds only. Let no one see your screen: it shows seeds
+and QR codes that a camera can capture from afar.
 
 seedcraft-sequences.html      Web tool. Open it in a browser, offline: make a
                               sequence of things from a test seed, print a
@@ -39,12 +46,17 @@ seedcraft-by-hand-*.pdf       From a sequence to its QR code and back, with a
 seedqr-templates-*.pdf        Templates to copy a SeedQR (Standard or Compact)
                               from SeedSigner or a compatible signer, like
                               NDS-Signer, with the fixed parts already drawn.
-SPEC-sequences.md             The specification.
+SPEC-sequences.md             The specification (…es.md: in Spanish).
 RISK-AUDIT.md                 What each mode protects against, and the
                               evidence.
 SHA256SUMS                    Check the files: sha256sum -c SHA256SUMS
 
-Borradores: no guardes con un formato en borrador la semilla de fondos reales.
+Aviso: SeedCraft es un ejercicio de matemáticas con espíritu creativo y
+artístico, y se ofrece tal cual, sin ninguna garantía. Nadie independiente
+lo ha auditado todavía. Con una semilla real, úsalo solo en un ordenador
+desconectado y bajo tu propia responsabilidad; en línea, solo semillas de
+prueba. Que nadie vea tu pantalla: muestra semillas y códigos QR que una
+cámara puede captar desde lejos.
 
 seedcraft-sequences.html      Herramienta web. Ábrela en un navegador, sin
                               conexión: haz una secuencia de cosas con una

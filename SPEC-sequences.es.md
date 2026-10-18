@@ -220,8 +220,8 @@ por simulación):
 
 | N | 2 | 4 | 8 | 16 | 32 |
 | :--- | ---: | ---: | ---: | ---: | ---: |
-| 12 palabras: unas, de cada tipo | 119 | 36 | 16 | **8** | 5 |
-| 24 palabras: unas, de cada tipo | 198 | 57 | 24 | **12** | 7 |
+| 12 palabras: aprox., de cada tipo | 119 | 36 | 16 | **8** | 5 |
+| 24 palabras: aprox., de cada tipo | 198 | 57 | 24 | **12** | 7 |
 
 Una vez sabida la semilla, da la **cantidad exacta**: lo más que se usa
 cualquier tipo en esa secuencia (solo ese máximo, no tipo a tipo). Hasta una
@@ -467,8 +467,8 @@ y después la cantidad exacta:
 
 | N | 2 | 4 | 8 | 16 | 32 |
 | :--- | ---: | ---: | ---: | ---: | ---: |
-| 12 palabras: unas, de cada tipo, las dos ristras | 230 | 66 | 27 | **14** | 8 |
-| 24 palabras: unas, de cada tipo, las dos ristras | 386 | 107 | 43 | **20** | 11 |
+| 12 palabras: aprox., de cada tipo, las dos ristras | 230 | 66 | 27 | **14** | 8 |
+| 24 palabras: aprox., de cada tipo, las dos ristras | 386 | 107 | 43 | **20** | 11 |
 
 Para ir sobre seguro de antemano, suficientes para el 99,9 % de las llaves
 con una de repuesto, en paquetes de 5:
