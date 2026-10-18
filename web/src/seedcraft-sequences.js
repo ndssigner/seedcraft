@@ -586,6 +586,12 @@ const SeedcraftSequences = (() => {
 		return (n - total % n) % n;
 	}
 
+	// the key file's dictionary: number v is the character PAD_DIGITS[v] (0-9, then A-V, as N goes)
+	function fileDictThings(n) {
+		checkN(n);
+		return Array.from(PAD_DIGITS.slice(0, n), (c) => ({ name: c, emoji: c }));
+	}
+
 	// the pad as text: "L N", then rows of 16 symbols in groups of 4, each row
 	// ending in its check character. No header says what it is.
 	function writePadFile(pad, n) {
@@ -844,7 +850,7 @@ const SeedcraftSequences = (() => {
 		sha256, mnemonicToEntropy, entropyToMnemonic,
 		functionModules, formatModules, FORMAT_XOR, maskCells, maskSeen, maskFrom, turnCursor, templateModule, dataModulesRowMajor, compactSeedQR, encode, decode,
 		symbolsToBits, readSequence, decodeObjects, physicalSequence, piecesToBuy, rsCorrect,
-		PAD_DIGITS, PAD_ROW, PAD_GROUP, PadFileError, newPad, DICE, diceBits, throwsToNumber, keyMove, keyAddPiece, keyAddThrow, keyUndoThrow, keyFix, changedPieces, addPads, encrypt, decrypt, encodePad, decodePad, decodePadObjects,
+		PAD_DIGITS, PAD_ROW, PAD_GROUP, fileDictThings, PadFileError, newPad, DICE, diceBits, throwsToNumber, keyMove, keyAddPiece, keyAddThrow, keyUndoThrow, keyFix, changedPieces, addPads, encrypt, decrypt, encodePad, decodePad, decodePadObjects,
 		checkCharacter, writePadFile, readPadFile,
 		sizeFor, turnBits, clockStep, decodeTurns,
 	};
