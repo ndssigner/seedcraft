@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Writes vectors/seedcraft-v0.json: public test seeds encoded as Seedcraft
+"""Writes vectors/seedcraft-v0.json: public test seeds encoded as SeedCraft
 for every alphabet size, with and without a PIN. Needs embit
 (mnemonic -> entropy); the reference implementation itself does not.
 
