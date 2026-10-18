@@ -369,7 +369,7 @@ const SeedcraftJourneys = (() => {
 	}
 	// a key file holds no bag: the tool a bag key had becomes the best die
 	const keyByForFile = (by, n, dice) => by === "bag" ? "d" + bestDie(n, dice) : by;
-	// the first turn's read: with a key read alongside, both strings are read from their start (the form's readKey)
-	const readHint = (forms, form, withKey) => withKey && forms[form].readKey || forms[form].read;
+	// the first turn's read: with a key read alongside (keyAs: "string" or "file"), one line for every form; else the form's own
+	const readHint = (t, form, keyAs) => keyAs === "file" ? t.readKeyFileHint : keyAs ? t.readKeyHint : t.forms[form].read;
 	return { bestDie, keyByForFile, readHint, cardGrid, plusKey, headerBitsUpTo, maskBitsKnown, ESTIMATE, ESTIMATE_BOTH, maxPerKind, uniqueInitials, onlyPadding, paddingOnlyRead, checkVerdict, typedPiece, pickMatch, pickKey, EXPLAINED, turnStages, readStages, checkRead, flipRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, gatherTips, gatherCards, splitMaterials, nameProblem, checkOrder, throwParts, showOrder, throwIntro };
 })();

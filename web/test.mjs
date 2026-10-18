@@ -1201,7 +1201,8 @@ for (const pad of [false, true]) {
 		check(stars.length === 1 && textOf(stars[0]).includes("★") && /Recom/.test(stars[0].attrs.title || "") && /Recom/.test(stars[0].attrs["aria-label"] || "") && stars[0].attrs.role === "img", "cards: the starred option's star, with its title"); }
 	// the relief edge (6 down) stays inside the 100-unit viewBox
 	for (const s of [4, 8, 10, 12, 16, 20]) { const d = V.diceShape({ sides: s, size: 56 }); const ys = walk(d, (n) => n.tag === "polygon").flatMap((p) => p.attrs.points.split(" ").map((q) => +q.split(",")[1] + (/translate\(0 6\)/.test(p.attrs.transform || "") ? 6 : 0))); check(Math.max(...ys) <= 100, `diceShape d${s}: the edge inside the viewBox`); }
-	for (const s of [4, 6, 8, 10, 12, 16, 20]) { const d = V.diceShape({ sides: s, size: 56 }); check(walk(d, (n) => n.tag === "path" || n.tag === "polygon" || n.tag === "rect").length >= 1 && walk(d, (n) => n.tag === "text").some((t) => textOf(t) === String(s)), `diceShape d${s}`); }
+	for (const s of [4, 6, 8, 10, 12, 16, 20]) { const d = V.diceShape({ sides: s, size: 56 }); check(walk(d, (n) => n.tag === "path" || n.tag === "polygon" || n.tag === "rect").length >= 1 && (s === 6 ? walk(d, cls("v-die-pip")).length === 6 && walk(d, (n) => n.tag === "text").length === 0 : walk(d, (n) => n.tag === "text").some((t) => textOf(t) === String(s))), `diceShape d${s}`); }
+	check(walk(V.qr({ box: { x: 0, y: 0, w: 200, h: 200 }, size: 25, modules: () => true, turnCells: [[3, 3]], markerLabel: "Mask", maskMarker: true }), cls("v-qr-cursor-mask")).length === 1 && walk(V.qr({ box: { x: 0, y: 0, w: 200, h: 200 }, size: 25, modules: () => true, turnCells: [[3, 3]], markerLabel: "Position 1" }), cls("v-qr-cursor-mask")).length === 0, "qr: the mask turn's cursor is amber, a position's is not");
 	// a card: art, title, one list; pros then cons; each li is the mark, then the text; nothing centred
 	const grid3 = V.cards({ options: [{ id: "a", art: node("svg", {}), title: "A", sub: "small", pros: ["p"], cons: ["c"] }, { id: "b", title: "B", pros: [], cons: [] }, { id: "c", title: "C", cons: ["c"] }], chosen: null });
 	const [g1, g2] = walk(grid3, cls("v-card"));
@@ -1525,6 +1526,8 @@ for (const pad of [false, true]) {
 			}
 		}
 	}
+	check(TX.es.throwTipCoin === "Lanza la moneda y toca lo que ha salido." && TX.en.throwTipCoin === "Toss the coin and tap what came up." && TX.es.readKeyHint === "Empieza las dos ristras por su primera pieza y toca cada una, en orden." && TX.en.readKeyHint === "Start both strings at their first piece and tap each one, in order."
+		&& TX.es.readKeyFileHint === "Empieza tu ristra por su primera pieza; el archivo, por su primera fila." && TX.en.readKeyFileHint === "Start your string at its first piece, and the file at its first row.", "coin bubble and key read hints");
 	check(TX.es.throwTipFaces === "Tira y toca la cara que ha salido." && TX.es.throwTipTower === "Cada tiro da unos bits; se apilan aquí." && TX.es.throwTipPiece === "Con los bits suficientes sale el número de tu pieza de llave."
 		&& TX.es.throwTipFile === "Con los bits suficientes sale el número que va al archivo." && TX.es.throwTipReroll === "Si sale una cara de más, se tira otra vez: así todas las piezas salen igual de a menudo.", "the throw's intro bubbles");
 	check(TX.es.keyWhyChance.startsWith("La llave solo protege") && TX.en.keyWhyChance.startsWith("The key only protects"), "keyWhyChance in both languages");
@@ -1578,16 +1581,12 @@ for (const pad of [false, true]) {
 	const TX = copy.TEXT;
 	for (const lang of ["en", "es"]) {
 		const t = TX[lang];
-		for (const f of Object.keys(t.forms)) check(!/cualquiera|either/i.test(J.readHint(t.forms, f, true)), `${lang} ${f}: with a key the hint never says either end`);
-		for (const f of Object.keys(t.forms)) check(J.readHint(t.forms, f, false) === t.forms[f].read, `${lang} ${f}: without a key, as before`);
+		for (const f of Object.keys(t.forms)) for (const ka of ["string", "file"]) check(!/cualquiera|either/i.test(J.readHint(t, f, ka)) && J.readHint(t, f, ka) === (ka === "file" ? t.readKeyFileHint : t.readKeyHint), `${lang} ${f} ${ka}: with a key the hint is the one line, never either end`);
+		for (const f of Object.keys(t.forms)) check(J.readHint(t, f, null) === t.forms[f].read, `${lang} ${f}: without a key, as before`);
+		for (const f of Object.keys(t.forms)) check(t.forms[f].readKey === undefined, `${lang} ${f}: no readKey`);
 		check(!/cualquiera|either/i.test(t.tapPadHelp), `${lang}: the key column's hint starts at its first piece`);
-		for (const id of ["necklace", "other"]) check(typeof t.forms[id].readKey === "string" && t.forms[id].readKey.length > 0 && t.forms[id].readKey.length <= 110, `${lang}.forms.${id}.readKey: present, at most 110 characters`);
 	}
-	check(TX.es.forms.necklace.readKey === "Empieza cada ristra por su inicio, el cierre, y toca cada cuenta, en orden, hasta el otro extremo.", "es necklace readKey: exact copy");
-	check(TX.es.forms.other.readKey === "Empieza cada una por su primera pieza y toca cada pieza, en orden, hasta la última.", "es other readKey: exact copy");
 	check(TX.es.tapPadHelp === "Empieza la llave por su primera pieza, la que va con la primera de tu ristra, y toca cada una, en orden.", "es tapPadHelp: exact copy");
-	check(TX.en.forms.necklace.readKey === "Start each string at its beginning, the clasp, and tap each bead, in order, to the other end.", "en necklace readKey: exact copy");
-	check(TX.en.forms.other.readKey === "Start each one at its first piece and tap each piece, in order, to the last.", "en other readKey: exact copy");
 	check(TX.en.tapPadHelp === "Start the key at its first piece, the one that goes with your string's first, and tap each one, in order.", "en tapPadHelp: exact copy");
 }
 // the lectern's foot: two lines of caption at most and «step n of m», all inside the foot (style.css, in the frame's units)

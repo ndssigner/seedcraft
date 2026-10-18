@@ -1495,7 +1495,7 @@
 			// the first time here, before the first throw: what each part is (spec §6)
 			if (intro) {
 				throwIntroShown = true;
-				const say = { faces: t.throwTipFaces, tower: t.throwTipTower, piece: asString ? t.throwTipPiece : t.throwTipFile, reroll: t.throwTipReroll };
+				const say = { faces: coin ? t.throwTipCoin : t.throwTipFaces, tower: t.throwTipTower, piece: asString ? t.throwTipPiece : t.throwTipFile, reroll: t.throwTipReroll };
 				Object.entries(lay.tips).forEach(([id, x]) => {
 					const el = tip(x.side + " kt-tip", say[id], x.box);
 					if (x.at !== undefined) el.style.setProperty("--at", `calc(var(--u) * ${x.at})`);
@@ -1574,7 +1574,7 @@
 		if (key.by === "device" && have < L) shortcuts.push({ icon: "⏩", label: t.seeAll, go: all });
 		if (have === L) shortcuts.push(asString ? { icon: V.iconTag("save"), label: t.saveList, go: saveList } : { icon: V.iconTag("save"), label: t.padFileSave, go: saveFile });
 		// by hand, the intro's lines first (the reroll's when the die has faces thrown again)
-		const tips = [t.throwTipFaces, t.throwTipTower, asString ? t.throwTipPiece : t.throwTipFile];
+		const tips = [coin ? t.throwTipCoin : t.throwTipFaces, t.throwTipTower, asString ? t.throwTipPiece : t.throwTipFile];
 		const why = tool === "bag" ? [t.keyBagPutBack] : tool === "device" ? [] : coin ? [...tips, t.keyCoinBits]
 			: [...tips, S.diceBits(sides).keep < sides ? t.throwTipReroll : null, sides === 10 ? null : t.keyFirstZero, t.keyPartUsed(k)].filter(Boolean);
 		return {
@@ -1948,7 +1948,7 @@
 		let keyDrawn = false, slotDrawn = null, qrDrawn = false, arrowsOn = true;
 		function draw(p, turning, onRun, alive) {
 			const reached = (id) => at(id) >= 0 && at(id) <= p;
-			if (!qrDrawn) groups.qr.replaceChildren(V.qr({ box: b.qr, size, modules, turnCells, cursorCells: cur.cells, maskOutline: cur.outline, markerLabel: cur.mask ? T().qrMask : T().qrPosition(i + 1), ...qrFixed(size, b.qr) }));
+			if (!qrDrawn) groups.qr.replaceChildren(V.qr({ box: b.qr, size, modules, turnCells, cursorCells: cur.cells, maskOutline: cur.outline, markerLabel: cur.mask ? T().qrMask : T().qrPosition(i + 1), maskMarker: !!cur.mask, ...qrFixed(size, b.qr) }));
 			qrDrawn = true;
 			// the cards, filled from their stage on (the mask is the QR's, written in its format band)
 			if (header) groups.cards.replaceChildren(...headerCardsOf(b, header, size, k, i, bits.map((x, j) => Math.floor(j / k) === i && !reached("cards") ? null : x)));
@@ -2575,7 +2575,7 @@
 				const mk = maskKnown(reached("cards"));
 				if (mk) S.maskCells(size).forEach((copy) => copy.forEach(([r, c], j) => painted.set(r * size + c, mk.seen[j])));
 				g.qr.replaceChildren(V.qr({ box: b.qr, size, modules: template, turnCells, painted, cursorCells: cur.cells, maskOutline: cur.outline,
-					markerLabel: cur.mask ? T().qrMask : T().qrPosition(i + 1), ...qrFixed(size, b.qr) }));
+					markerLabel: cur.mask ? T().qrMask : T().qrPosition(i + 1), maskMarker: !!cur.mask, ...qrFixed(size, b.qr) }));
 			}
 			lay.arrows.forEach((a, j) => arrowGroups[j].replaceChildren(V.arrow({ points: a.points, colour: a.colour, state: arrowsOn ? arrowState(a.id, p) : "hidden" })));
 		}
@@ -2623,8 +2623,8 @@
 		};
 		const maskRead = () => withMask ? maskKnown(whole) : null;
 		const note = header ? maskLineOf(maskRead()) || t.turnHeaderNoQr : null;
-		const withKey = !!keyThings || file;   // a key column (or a key file) is read alongside
-		const caption = () => !whole ? (i === 0 && !st.seen.readTap ? J.readHint(t.forms, form, withKey) : keyThings ? t.readTapBoth(pos) : t.readTap(pos))
+		const keyAs = file ? "file" : keyThings ? "string" : null, withKey = !!keyAs;   // a key column (or a key file) is read alongside
+		const caption = () => !whole ? (i === 0 && !st.seen.readTap ? J.readHint(t, form, keyAs) : keyThings ? t.readTapBoth(pos) : t.readTap(pos))
 			: note || (pad ? t.readTurnPad(C, K, n, P) : t.readTurnBasic(P));
 		const checking = rd !== st.read;
 		// typing a piece's number: digits, Enter, Backspace for the active column; Tab switches column (a key as string only)
@@ -2656,7 +2656,7 @@
 			// Next while the advance or the cycle plays: first its end, then on
 			hurry: () => { const playing = !!glides && glides.playing; if (glides) glides.finish(); const held = !!hold && hold.finish(); return (!!cycle && cycle.finish()) || held || playing; },
 			help: helpOf(stepName(checking ? "make" : "read", checking ? "check" : "recover"), checking ? (pad ? t.checkHelpPad : t.checkReadHelp) : null,
-				[J.readHint(t.forms, form, withKey), keyThings ? t.keysHintTab : t.keysHint, keyThings ? t.tapPadHelp : null, pad ? null : t.whyBasic(n, k), t.readLockedWhy,
+				[t.forms[form].read, keyAs ? J.readHint(t, form, keyAs) : null, keyThings ? t.keysHintTab : t.keysHint, keyThings ? t.tapPadHelp : null, pad ? null : t.whyBasic(n, k), t.readLockedWhy,
 					withMask ? t.hdrMaskWhy : null, withMask ? maskLineOf(maskRead()) : null, withMask ? t.turnHeaderNoQr : null, withMask ? t.hdrMaskCatalog : null].filter(Boolean)),
 			shortcuts: readShortcuts(rd, L, opts.done),
 			prev: i > 0 ? { go: () => readGo(rd, i - 1) } : undefined,

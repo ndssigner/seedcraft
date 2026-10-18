@@ -554,7 +554,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	// legendSpace: keep the legend's room (the square as if drawn with a legend) and draw nothing in it;
 	// legend: a short string under the QR (the QR is then 14 smaller); markerLabel: a tab on the marker (the position's neutral colour),
 	// both in one g.v-qr-cursor (the last child) so that they glide together
-	function qr({ box, size, modules, turnCells = [], painted = new Map(), wrong = [], reveal = null, fixed = null, legend = null, markerLabel = null, fixedReveal = null, legendSpace = false, cursorCells = turnCells, maskOutline = [] }) {
+	function qr({ box, size, modules, turnCells = [], painted = new Map(), wrong = [], reveal = null, fixed = null, legend = null, markerLabel = null, maskMarker = false, fixedReveal = null, legendSpace = false, cursorCells = turnCells, maskOutline = [] }) {
 		const room = !!legend || legendSpace, LEG = 14, side = Math.min(box.w, box.h) - (room ? LEG : 0), cs = side / size, x0 = box.x + (box.w - side) / 2, y0 = box.y + (box.h - side - (room ? LEG : 0)) / 2;
 		const get = typeof modules === "function" ? modules : (r, c) => modules ? modules[r][c] : null;
 		const turn = new Set(turnCells.map(([r, c]) => r * size + c)), bad = new Set(wrong.map(([r, c]) => r * size + c));
@@ -603,7 +603,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 				kids.push(svg("rect", { x: r1(tx), y: r1(ty), width: r1(tw), height: th, rx: 3, class: "v-qr-tab" }),
 					text(tx + tw / 2, ty + th - 3.5, fs, markerLabel, { "text-anchor": "middle", class: "v-qr-tab-text" }));
 			}
-			parts.push(svg("g", { class: "v-qr-cursor" }, kids));
+			parts.push(svg("g", { class: "v-qr-cursor" + (maskMarker ? " v-qr-cursor-mask" : "") }, kids));
 		}
 		return svg("g", { class: "v v-qr" }, parts);
 	}
@@ -713,9 +713,11 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 		const body = sh
 			? [svg("polygon", { points: sh.poly, transform: "translate(0 6)", class: "v-die-edge" }), svg("polygon", { points: sh.poly, class: "v-die-body" }), sh.facet ? svg("polygon", { points: sh.facet, class: "v-die-rim" }) : null]
 			: [svg("rect", { x: 8, y: 13, width: 84, height: 84, rx: 18, class: "v-die-edge" }), svg("rect", { x: 8, y: 6, width: 84, height: 84, rx: 18, class: "v-die-body" })];
+		const six = !sh && sides === 6;
 		const cy = sh && sh.ty ? sh.ty : 48, f = sh && sh.facet ? 30 : sh && sh.ty && s.length === 1 ? 46 : fs;
 		return svg("svg", { class: "v-die v-die-shape", width: size, height: size, viewBox: "0 0 100 100", "aria-hidden": "true", ...(x !== undefined ? { x: r1(x), y: r1(y) } : {}) },
-			body, svg("text", { x: 50, y: cy + f * 0.36, "font-size": f, "text-anchor": "middle", class: "v-t v-bold v-die-face" }, s));
+			body, six ? svg("g", { class: "v-die-pips" }, PIPS[6].map(([c, r]) => svg("circle", { cx: 28 + 22 * c, cy: 26 + 22 * r, r: 9, class: "v-die-pip" })))
+				: svg("text", { x: 50, y: cy + f * 0.36, "font-size": f, "text-anchor": "middle", class: "v-t v-bold v-die-face" }, s));
 	}
 	const faceButton = ({ sides, face, onPress, disabled = false, label, size = 48 }) =>
 		h("button", { type: "button", class: "v-face", disabled: disabled || undefined, "aria-label": faceLabel(sides, face, label), on: { click: () => onPress && onPress(face) } },
