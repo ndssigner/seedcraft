@@ -54,13 +54,36 @@ const SeedcraftLayouts = (() => {
 	// the slide's fixed top band, the guide on the left and «?» «⋯» on the right: nothing else goes there
 	const GUIDE = box(0, 0, VIEW.w, 26);
 
+	// The last turns' cards (spec §8): where their bits come from when they are no
+	// longer squares of the QR, in a column x … x + w: the format version on top, the
+	// QR's mask in the middle (level with the QR's format row 8: the QRs of
+	// makeHeaderTurn and readTurn's header keep it there), the padding under it. parts: those the turn brings (they always
+	// follow one another); one alone takes the middle place, so the column's middle
+	// (CARDS_MID) always has a card. cards: the column, as tall as its cards.
+	const HEADER_PARTS = ["version", "mask", "padding"];
+	const CARD_SLOT = { version: [36, 46], mask: [86, 60], padding: [150, 56] }, CARDS_MID = 116;
+	const cardId = (p) => "card" + p[0].toUpperCase() + p.slice(1);
+	function headerCards(b, x, w, header) {
+		const parts = HEADER_PARTS.filter((p) => header === true || header.includes(p));
+		parts.forEach((p) => { const [y, h] = parts.length === 1 ? CARD_SLOT.mask : CARD_SLOT[p]; b[cardId(p)] = box(x, y, w, h); });
+		const top = Math.min(...parts.map((p) => b[cardId(p)].y)), bottom = Math.max(...parts.map((p) => b[cardId(p)].y + b[cardId(p)].h));
+		b.cards = box(x, top, w, bottom - top);
+		return parts;
+	}
+	// the mask's arrow: out of the QR's right edge at its format row 8 (where the
+	// mask is written), into its card's left edge (amber, as the QR's fixed areas)
+	const maskArrow = (b, size) => arrow("mask", "qr", "cardMask", "key", [[b.qr.x + b.qr.w, b.qr.y + 8.5 * b.qr.h / size], [b.cardMask.x, b.qr.y + 8.5 * b.qr.h / size]]);
+
 	// The turn while making the copy. Bottom to top, left to right: the seed
 	// string being built, its slot's position → the QR → its bits → their
 	// number; with a key, the key string's piece → its dictionary → its number,
 	// both numbers → the clock → the seed's dictionary → the slot.
 	// file: the key is a file, so its column holds the file's characters and
 	// its number comes straight from the turn's row (no key dictionary).
-	function makeTurn({ pad, n, file = false }) {
+	// header: a last turn (true, or the parts it brings: "version", "mask",
+	// "padding"): makeHeaderTurn's. data, size: there.
+	function makeTurn({ pad, n, file = false, header = false, data = false, size = 21 }) {
+		if (header) return makeHeaderTurn({ pad, n, file, header, data, size });
 		const bits = bitsOf(n);
 		const b = {
 			qr: box(16, 36, 180, 180),
@@ -112,6 +135,43 @@ const SeedcraftLayouts = (() => {
 		return { boxes: b, arrows };
 	}
 
+	// A last turn while making the copy: its bits are no longer (all) squares of the
+	// QR. The QR smaller, on the left; the cards in a column between it and the
+	// bits, the mask's from the QR's format band; the column → the bits (level with
+	// the middle card). data: the turn also has its last data squares, so the
+	// position still goes to the QR (to its bottom, as always) and the QR's bits
+	// go over the top into the bits. Then as usual: the number under the bits,
+	// → the dictionary (with a key, the clock) → the slot. size: the QR's (21 or 25).
+	function makeHeaderTurn({ pad, n, file, header, data, size }) {
+		const bw = bitsOf(n) * BIT;
+		// (with a key the bits must end before its string: all of it narrower)
+		const [qr, cx, cw, bx] = pad ? [box(16, 66, 68, 68), 100, 104, 220] : [box(16, 50, 120, 120), 152, 116, 284];
+		const b = { qr, bits: box(bx, CARDS_MID - BIT / 2, bw, BIT), number: box(bx, 143, 72, 40),
+			seedString: { ...BUILT }, seedSlot: { ...SLOT }, posBox: { ...POSBOX }, guide: { ...GUIDE } };
+		const parts = headerCards(b, cx, cw, header), qx = qr.x + qr.w / 2, mid = bx + bw / 2;
+		const arrows = [];
+		if (data) arrows.push(arrow("position", "posBox", "qr", "qr", [[326, 266], [qx, 266], [qx, qr.y + qr.h]]));
+		if (parts.includes("mask")) arrows.push(maskArrow(b, size));
+		arrows.push(arrow("cards", "cards", "bits", "qr", [[cx + cw, CARDS_MID], [bx, CARDS_MID]]));
+		if (data) arrows.push(arrow("bits", "qr", "bits", "qr", [[qx, qr.y], [qx, 30], [mid, 30], [mid, b.bits.y]]));
+		arrows.push(arrow("number", "bits", "number", "qr", [[bx + 20, b.bits.y + BIT], [bx + 20, 143]]));
+		if (!pad) {
+			b.seedDict = box(400, 127, 140, 72);
+			arrows.push(
+				arrow("dict", "number", "seedDict", "qr", [[bx + 72, 163], [400, 163]]),
+				arrow("slot", "seedDict", "seedSlot", "qr", [[470, 199], [470, RAIL], [360, RAIL], [360, SLOT.y]]));
+			return { boxes: b, arrows };
+		}
+		// with a key, as makeTurn's (the seed's number leaves from its own place, under the bits)
+		const usual = makeTurn({ pad, n, file });
+		for (const id of ["keyString", "clock", "seedDict", "keyNumber", "keyDict"]) if (usual.boxes[id]) b[id] = usual.boxes[id];
+		const keep = (id) => usual.arrows.find((a) => a.id === id);
+		arrows.push(...usual.arrows.filter((a) => ["keyPiece", "keyNumber"].includes(a.id)),
+			arrow("clockSeed", "number", "clock", "qr", [[bx + 36, 183], [bx + 36, 236], [506, 236], [506, 56], [520, 56]]),
+			keep("clockKey"), keep("output"), keep("slot"));
+		return { boxes: b, arrows };
+	}
+
 	// A string read, vertical (vocab.js's "read" role), 7 places (count): each place's
 	// row split in three, side by side, never one over the other: its position
 	// on the column's outer side (outer "left": the seed's, the leftmost; "right":
@@ -148,7 +208,15 @@ const SeedcraftLayouts = (() => {
 	// dictionary goes over the seed's: the key's chain must run outside the
 	// seed's, or one would cross the other (or the bits' way to the QR).
 	// file: the key is a file, its number straight from the row (no key dictionary).
-	function readTurn({ pad, n, file = false, cursor = null }) {
+	// header: a last turn (true, or the parts it brings), as makeTurn's: the QR
+	// smaller (90, at x 410) with the cards' column on its right, the mask's from
+	// its format band; the bits at the bottom right (with a key, out of the clock
+	// as usual), from where they go up into the column (bits → cards: reading,
+	// they go to their cards, not to the QR). With data squares (cursor), the
+	// position over the top as usual, and «paint» up a corridor between the QR
+	// and the column into the QR's right edge beside the cursor. With a key the
+	// key's number goes under the QR into the clock. size: the QR's.
+	function readTurn({ pad, n, file = false, cursor = null, header = false, size = 21 }) {
 		const bits = bitsOf(n), bw = bits * BIT, piece = 41, top = 40, rowY = top + 3 * piece, TOP = 32, OUTER = 654;
 		const seedColumn = box(20, top, 70, 7 * piece), seed = readColumn(seedColumn, { outer: "left" });
 		const slotIn = (c) => box(c.rows[3].piece.x, rowY + 2, c.rows[3].piece.w, piece - 4);
@@ -164,7 +232,22 @@ const SeedcraftLayouts = (() => {
 			const q = qrSquare(b.qr, { legend: b.qr.h >= 150 }), cy = Math.round(cursor.y + cursor.h / 2), right = q.x + q.w;
 			return arrow("paint", "bits", "qr", "qr", [from, [OUTER, from[1]], [OUTER, cy], [right, cy]]);
 		};
-		const ends = (list) => cursor ? [position(), ...list, paint(list.end)] : list;
+		const HB = { x: 520, y: 304 };   // a last turn's bits: under the cards' column (with a key, beside the clock's output)
+		const ends = (list) => {
+			if (!header) return cursor ? [position(), ...list, paint(list.end)] : list;
+			// the cards' column on the QR's right; the bits under it, into its bottom
+			b.qr = box(410, 60, 90, 90);
+			b.bits = box(HB.x, HB.y, bw, BIT);
+			const parts = headerCards(b, 540, 116, header), by = HB.y + BIT / 2, up = HB.x + bw / 2, qrRight = b.qr.x + b.qr.w;
+			const out = cursor ? [position(), ...list] : [...list];
+			if (cursor) {
+				const cy = Math.round(cursor.y + cursor.h / 2);
+				out.push(arrow("paint", "bits", "qr", "qr", [[up, HB.y], [up, 280], [qrRight + 16, 280], [qrRight + 16, cy], [qrRight, cy]]));
+			}
+			out.push(arrow("cards", "bits", "cards", "qr", [[HB.x + bw, by], [648, by], [648, b.cards.y + b.cards.h]]));
+			if (parts.includes("mask")) out.push(maskArrow(b, size));
+			return out;
+		};
 		if (!pad) {
 			Object.assign(b, {
 				row: box(16, rowY, 80, piece),
@@ -177,7 +260,9 @@ const SeedcraftLayouts = (() => {
 			const list = [
 				arrow("piece", "row", "seedDict", "qr", [[96, rowY + 29], [224, rowY + 29]]),
 				arrow("number", "seedDict", "number", "qr", [[334, 209], [350, 209]]),
-				arrow("bits", "number", "bits", "qr", [[376, 227], [376, 260]]),
+				// (a last turn: its bits at the bottom right, under the cards)
+				header ? arrow("bits", "number", "bits", "qr", [[376, 227], [376, HB.y + BIT / 2], [HB.x, HB.y + BIT / 2]])
+					: arrow("bits", "number", "bits", "qr", [[376, 227], [376, 260]]),
 			];
 			list.end = [376 + bw / 2, 260 + BIT / 2];
 			return { boxes: b, columns, arrows: ends(list) };
@@ -207,8 +292,10 @@ const SeedcraftLayouts = (() => {
 				: [arrow("keyPiece", "row", "keyDict", "key", [[202, rowY + 9], [212, rowY + 9], [212, 129], [224, 129]]),
 					arrow("keyNumber", "keyDict", "keyNumber", "key", [[334, 129], [350, 129]])]),
 			arrow("clockSeed", "number", "clock", "qr", [[402, 209], [seedIn.x, 209]]),
-			arrow("clockKey", "keyNumber", "clock", "key", [[402, 129], [keyX, 129], [keyX, keyIn.y]]),
-			arrow("bits", "clock", "bits", "qr", [[b.clock.x + b.clock.w, outY], [514, outY]]),
+			// (a last turn: under its QR, which stands where this way usually runs)
+			header ? arrow("clockKey", "keyNumber", "clock", "key", [[390, 147], [390, 170], [keyX, 170], [keyX, keyIn.y]])
+				: arrow("clockKey", "keyNumber", "clock", "key", [[402, 129], [keyX, 129], [keyX, keyIn.y]]),
+			arrow("bits", "clock", "bits", "qr", [[b.clock.x + b.clock.w, outY], [header ? HB.x : 514, outY]]),
 		];
 		list.end = [514 + bw, outY];
 		return { boxes: b, columns, arrows: ends(list) };

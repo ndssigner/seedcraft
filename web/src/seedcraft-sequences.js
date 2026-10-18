@@ -490,14 +490,16 @@ const SeedcraftSequences = (() => {
 		throw new Error(L + " symbols of " + k + " bits is not a sequence of this format");
 	}
 
-	// the k bits of turn i: { bit (global index), role, cell } where role is
-	// "data", "header" or "padding", and cell is [r, c] only for data
+	// the k bits of turn i: { bit (global index), role, part, cell } where role is
+	// "data", "header" or "padding"; part splits the header into "version"
+	// (its 2 first bits) and "mask" (its 3 last); cell is [r, c] only for data
 	function turnBits(size, i, k) {
 		const modules = dataModulesRowMajor(size), nmod = modules.length;
 		const out = [];
 		for (let j = i * k; j < (i + 1) * k; j++) {
-			if (j < nmod) out.push({ bit: j, role: "data", cell: modules[j] });
-			else out.push({ bit: j, role: j < nmod + HEADER_BITS ? "header" : "padding", cell: null });
+			if (j < nmod) out.push({ bit: j, role: "data", part: "data", cell: modules[j] });
+			else if (j < nmod + HEADER_BITS) out.push({ bit: j, role: "header", part: j < nmod + 2 ? "version" : "mask", cell: null });
+			else out.push({ bit: j, role: "padding", part: "padding", cell: null });
 		}
 		return out;
 	}

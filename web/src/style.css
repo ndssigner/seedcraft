@@ -340,6 +340,11 @@ ol.entries.paper li { color: #111; border-bottom-color: #ccc; }
 .v-bit-0 .v-bit-box { fill: #ffffff; } .v-bit-1 .v-bit-box { fill: #111111; }
 .v-bit-box { fill: var(--surface); stroke: currentColor; stroke-width: 1.2; }
 .v-bit-dashed .v-bit-box { stroke-dasharray: 3 2; }
+/* a last turn's bits, each with its card's border: the version neutral, the mask amber, the padding dashed */
+.v-bit-version .v-bit-box { stroke: var(--muted); } .v-bit-mask .v-bit-box { stroke: var(--key); }
+.v-hcard-box { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.2; }
+.v-hcard-mask .v-hcard-box { stroke: var(--key); stroke-width: 1.6; }
+.v-hcard-padding .v-hcard-box { stroke-dasharray: 4 3; }
 .v-bit-empty .v-bit-box { stroke: var(--line-strong); stroke-dasharray: 2 2; }
 .v-bit .v-t { fill: var(--fg); }
 .v-bit.v-bit-0 .v-t { fill: #111111; } .v-bit.v-bit-1 .v-t { fill: #ffffff; }

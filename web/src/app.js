@@ -1662,14 +1662,32 @@
 		const close = Slides.popup(h("div", { class: "seq-map" }, drawSeq(st.dict.things, m.symbols, { current: m.turn || 0, perRow, form: st.plan.form,
 			onPick: (j) => { close(); turnGo(j, true); } })), { label: T().seqWhole });
 	}
+	// A last turn's cards (layouts.js's header boxes, spec §8): each part's bits
+	// (valueAt(j): bit j of the sequence, null while it is not known), the
+	// mask's value (null: not known), the padding's die. total: the sequence's bits.
+	function headerCardsOf(b, parts, size, total, valueAt, mask) {
+		const t = T(), nmod = S.dataModulesRowMajor(size).length;
+		const range = (a, z) => Array.from({ length: Math.max(0, z - a) }, (_, j) => valueAt(a + j));
+		const pb = range(nmod + S.HEADER_BITS, total), known = pb.every((x) => x !== null);
+		const of = {
+			version: { title: t.hdrVersion, bits: range(nmod, nmod + 2), note: t.hdrVersionNote },
+			mask: { title: t.hdrMask, bits: range(nmod + 2, nmod + S.HEADER_BITS), value: mask },
+			padding: { title: t.hdrPadding, bits: pb, note: t.hdrPaddingNote, face: known ? parseInt(pb.join("") || "0", 2) % 6 : null },
+		};
+		return parts.map((p) => V.headerCard({ box: b["card" + p[0].toUpperCase() + p.slice(1)], kind: p, ...of[p] }));
+	}
+	// the parts of a turn that are not squares (S.turnBits's), or false: none
+	const headerOf = (turn) => { const parts = [...new Set(turn.map((x) => x.part).filter((p) => p !== "data"))]; return parts.length ? parts : false; };
 	function turnSlide() {
 		const t = T(), m = st.make, things = st.dict.things, n = things.length, k = Math.log2(n), pad = st.mode === "pad";
 		const file = pad && st.plan.padAs === "file", keyThings = keyThingsMade();
 		const L = m.symbols.length, i = m.turn = Math.max(0, Math.min(L - 1, m.turn || 0)), pos = i + 1;
 		const plain = pad ? m.basic : m.symbols, P = plain[i], C = m.symbols[i], K = pad ? m.pad[i] : null;
-		const lay = Lay.makeTurn({ pad, n, file }), b = lay.boxes, stages = J.turnStages({ pad, file }), last = stages.length - 1;
 		const qr = S.compactSeedQR(m.entropy), size = qr.size;
-		const bits = S.symbolsToBits(plain, k), turn = S.turnBits(size, i, k), roles = turn.map((x) => x.role);
+		const bits = S.symbolsToBits(plain, k), turn = S.turnBits(size, i, k), roles = turn.map((x) => x.part);
+		const turnCells = turn.filter((x) => x.cell).map((x) => x.cell), header = headerOf(turn), data = turnCells.length > 0;
+		// a last turn (header): the cards its bits come from, beside a smaller QR
+		const lay = Lay.makeTurn({ pad, n, file, header, data, size }), b = lay.boxes, stages = J.turnStages({ pad, file, header: !!header, data }), last = stages.length - 1;
 		const explaining = i < J.EXPLAINED || !!(m.explain && m.explain.turn === i);
 		const fresh = !explaining && turnFresh === i && !calm(), back = turnBack;
 		// an adjacent Next or Back: the slide glides in from the turn left (once, on the first drawing)
@@ -1677,19 +1695,18 @@
 		turnFresh = null; turnBack = false; turnFrom = null;
 		const changed = (m.keyChanged || []).includes(i);
 		// the header (version and mask) and the padding have no squares in the QR code
-		const note = roles.includes("header") ? t.turnHeader : roles.includes("padding") ? t.turnPadding : null;
+		const note = header ? t.turnHeaderNoQr : null;
 		// the last turn, once whole: why it is made this way (with a key: why both strings are needed)
 		const end = i === L - 1 ? (pad ? t.endPad : t.endBasic) : null;
 
 		// the QR code, whole in every turn; this turn's squares in blue
 		const modules = (r, c) => qr.getModule(c, r);
-		const turnCells = turn.filter((x) => x.cell).map((x) => x.cell);
 		const stageOf = (arrowId) => stages.findIndex((s) => s.arrows.includes(arrowId));
 		const at = (id) => stages.findIndex((s) => s.id === id);
 
 		// the slide as it is at stage p (0 … last); turning: the dictionaries reaching their row now turn to it
 		const groups = {}, arrowGroups = lay.arrows.map(() => svg("g"));
-		["qr", "bits", "number", "key", "keyDict", "keyNumber", "clock", "seedDict", "seedString"].forEach((g) => { groups[g] = svg("g"); });
+		["qr", "cards", "bits", "number", "key", "keyDict", "keyNumber", "clock", "seedDict", "seedString"].forEach((g) => { groups[g] = svg("g"); });
 		const wait = (el, on) => on ? el : svg("g", { class: "tn-wait" }, el);
 		// the strings are drawn again only when they change (the key's never, the seed's when its slot
 		// fills): a stage drawn while the advance plays does not replace the run that glides
@@ -1700,6 +1717,8 @@
 			const reached = (id) => at(id) >= 0 && at(id) <= p;
 			if (!qrDrawn) groups.qr.replaceChildren(V.qr({ box: b.qr, size, modules, turnCells, markerLabel: T().qrPosition(i + 1), ...qrFixed(size, b.qr) }));
 			qrDrawn = true;
+			// the cards, filled from their stage on (the mask is the QR's, written in its format band)
+			if (header) groups.cards.replaceChildren(...headerCardsOf(b, header, size, bits.length, (j) => reached("cards") ? bits[j] : null, reached("cards") ? qr.mask : null));
 			groups.bits.replaceChildren(V.bits({ box: b.bits, bits: turn.map((x) => reached("bits") ? bits[x.bit] : null), roles, colour: "qr" }));
 			groups.number.replaceChildren(V.number({ box: b.number, value: reached("number") ? P : null, colour: "qr" }));
 			if (pad) {
@@ -1756,7 +1775,7 @@
 		}
 		let cycle = null, glides = null, hold = null;
 		function body(step) {
-			const kids = [groups.qr, groups.bits, groups.number, groups.key, groups.keyDict, groups.keyNumber, groups.clock, groups.seedDict, groups.seedString, ...arrowGroups];
+			const kids = [groups.qr, groups.cards, groups.bits, groups.number, groups.key, groups.keyDict, groups.keyNumber, groups.clock, groups.seedDict, groups.seedString, ...arrowGroups];
 			cycle = null;
 			if (hold) { hold.cancel(); hold = null; }
 			// a fade left from an advance does not replay on this redraw (the groups are re-inserted)
@@ -1784,7 +1803,7 @@
 		// the sentences: one per relation (the first turns, or «?»); else what this turn has to say
 		const bitsText = turn.map((x) => bits[x.bit]).join("");
 		const say = (id) => ({
-			position: t.turnPosition(pos), bits: note || t.turnBitsAre, number: t.turnNumber(bitsText, P),
+			position: t.turnPosition(pos), cards: note, bits: note || t.turnBitsAre, number: t.turnNumber(bitsText, P),
 			key: file ? t.turnKeyFile(pos, S.PAD_DIGITS[K], K) : t.turnKeyAt(pos), keyNumber: t.turnKeyNumber(K),
 			clock: t.turnClockOf(n), out: t.turnOut(C), dict: t.turnDict(C), slot: t.turnSlot(pos),
 		})[id];
@@ -2121,10 +2140,11 @@
 		const plainOf = (j) => key ? S.clockStep(rd.taps[j], key[j], n, -1).value : rd.taps[j];
 		const wholeAt = (j) => rd.taps[j] !== undefined && (!key || key[j] !== undefined);
 		const P = whole ? plainOf(i) : null;
-		const turn = S.turnBits(size, i, k), roles = turn.map((x) => x.role), turnCells = turn.filter((x) => x.cell).map((x) => x.cell);
-		// the turn's squares in the QR's box (none for the header and the padding): where the position and the bits arrive
-		const probe = Lay.readTurn({ pad, n, file }).boxes.qr, cursor = Lay.qrCellsBox(probe, size, turnCells, { legend: probe.h >= 150 });
-		const lay = Lay.readTurn({ pad, n, file, cursor }), b = lay.boxes, stages = J.readStages({ pad, file }), last = stages.length - 1;
+		const turn = S.turnBits(size, i, k), roles = turn.map((x) => x.part), turnCells = turn.filter((x) => x.cell).map((x) => x.cell), header = headerOf(turn);
+		// the turn's squares in the QR's box (none for the header and the padding): where the position and the bits arrive;
+		// a last turn (header): its bits go to their cards, beside a smaller QR
+		const probe = Lay.readTurn({ pad, n, file, header }).boxes.qr, cursor = Lay.qrCellsBox(probe, size, turnCells, { legend: probe.h >= 150 });
+		const lay = Lay.readTurn({ pad, n, file, cursor, header, size }), b = lay.boxes, stages = J.readStages({ pad, file, header: !!header, data: !!cursor }), last = stages.length - 1;
 		const at = (id) => stages.findIndex((s) => s.id === id), stageOf = (id) => stages.findIndex((s) => s.arrows.includes(id));
 		const fresh = whole && readFresh === i && !calm();
 		readFresh = null;
@@ -2181,7 +2201,7 @@
 		// the columns (the same at every stage) drawn once, the QR only when its painting changes: a stage or
 		// the arrows' drawing never replaces what glides; arrowsOn false: every arrow hidden (until the glide has stopped)
 		let colsDrawn = false, paintDrawn = null, arrowsOn = true;
-		const g = { frame: svg("g"), seed: svg("g"), key: svg("g"), dicts: svg("g"), numbers: svg("g"), clock: svg("g"), bits: svg("g"), qr: svg("g") }, arrowGroups = lay.arrows.map(() => svg("g"));
+		const g = { frame: svg("g"), seed: svg("g"), key: svg("g"), dicts: svg("g"), numbers: svg("g"), clock: svg("g"), bits: svg("g"), cards: svg("g"), qr: svg("g") }, arrowGroups = lay.arrows.map(() => svg("g"));
 		function draw(p, turning, onRun, alive) {
 			const reached = (id) => whole && at(id) >= 0 && p >= at(id);
 			// what is known of each string: while choosing, what has been chosen; once whole, as far as the cycle has gone
@@ -2212,6 +2232,12 @@
 			}
 			const pb = whole ? bitsOf(P, k) : [];
 			g.bits.replaceChildren(V.bits({ box: b.bits, bits: turn.map((x, j) => reached("bits") ? pb[j] : null), roles, colour: "qr" }));
+			// the cards, with the bits as read: the other turns' read, this one's once its cycle reaches them
+			if (header) {
+				const valueAt = (j) => { const x = Math.floor(j / k); return (x === i ? reached("cards") : wholeAt(x)) ? bitsOf(plainOf(x), k)[j - x * k] : null; };
+				const ms = Array.from({ length: 3 }, (_, j) => valueAt(cells.length + 2 + j));
+				g.cards.replaceChildren(...headerCardsOf(b, header, size, L * k, valueAt, ms.includes(null) ? null : parseInt(ms.join(""), 2)));
+			}
 			if (paintDrawn !== reached("paint")) {
 				paintDrawn = reached("paint");
 				const painted = new Map(before);
@@ -2242,11 +2268,11 @@
 			else if (!fresh) draw(whole ? last : 0, false);
 			if (from !== null) glides = glideIn(from, advance);
 			from = null;
-			return h("div", { class: "dict-slide rt-slide" }, canvas(g.frame, g.seed, g.key, g.dicts, g.numbers, g.clock, g.bits, g.qr, ...arrowGroups));
+			return h("div", { class: "dict-slide rt-slide" }, canvas(g.frame, g.seed, g.key, g.dicts, g.numbers, g.clock, g.bits, g.cards, g.qr, ...arrowGroups));
 		}
 
 		// the foot: what to do now; once it is read, what it gave (the header and the padding have no squares)
-		const note = roles.includes("header") ? t.turnHeader : roles.includes("padding") ? t.turnPadding : null;
+		const note = header ? t.turnHeaderNoQr : null;
 		const caption = () => !whole ? (i === 0 && !st.seen.readTap ? t.forms[form].read : keyThings ? t.readTapBoth(pos) : t.readTap(pos))
 			: note || (pad ? t.readTurnPad(C, K, n, P) : t.readTurnBasic(P));
 		const checking = rd !== st.read;

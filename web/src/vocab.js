@@ -312,9 +312,10 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	}
 
 	// ---- binary: each bit in its little box, with «₂» --------------------
-	// bits: 0, 1 or null (still to come: an empty box). roles[i]: "header" and
-	// "padding" are dashed (they have no square in the QR code). colour: "qr" or
-	// "key", where they come from.
+	// bits: 0, 1 or null (still to come: an empty box). roles[i]: where bit i
+	// comes from (S.turnBits's part): "data" (a square), or the border of its
+	// header card: "version" neutral, "mask" amber, "padding" dashed ("header",
+	// the version and the mask together, dashed too). colour: "qr" or "key".
 	function bits({ box, bits = [], orientation = "row", roles = [], colour = "qr" }) {
 		const n = Math.max(1, bits.length), SUB = 8, parts = [], tower = orientation === "tower";
 		const pitch = tower ? box.h / n : (box.w - SUB) / n;
@@ -322,7 +323,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 		bits.forEach((b, i) => {
 			const x = tower ? box.x + (box.w - SUB - size) / 2 : box.x + i * pitch + (pitch - size) / 2;
 			const y = tower ? box.y + i * pitch + (pitch - size) / 2 : box.y + (box.h - size) / 2;
-			const role = roles[i] && roles[i] !== "data" ? " v-bit-dashed v-bit-" + roles[i] : "";
+			const role = roles[i] && roles[i] !== "data" ? (roles[i] === "padding" || roles[i] === "header" ? " v-bit-dashed" : "") + " v-bit-" + roles[i] : "";
 			parts.push(svg("g", { class: "v-bit" + (b === 0 ? " v-bit-0" : b === 1 ? " v-bit-1" : "") + (b === null || b === undefined ? " v-bit-empty" : "") + role },
 				svg("rect", { x: r1(x), y: r1(y), width: r1(size), height: r1(size), rx: 3, class: "v-bit-box" }),
 				b === null || b === undefined ? null : text(x + size / 2, y + size * 0.72, size * 0.62, b, { "text-anchor": "middle", class: "v-mono" })));
@@ -331,6 +332,23 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 		const sy = tower ? box.y + last * pitch + (pitch + size) / 2 : box.y + (box.h + size) / 2;
 		parts.push(text(sx, Math.min(sy, box.y + box.h), 9, "₂", { "text-anchor": "middle", class: "v-sub" }));
 		return svg("g", { class: `v v-bits v-bits-${orientation} ${colourClass(colour)}` }, parts);
+	}
+
+	// ---- a last turn's card: where bits that are no squares come from ------
+	// kind "version" (neutral), "mask" (amber, as the QR's fixed areas: its
+	// value beside its bits) or "padding" (dashed, with a die: by chance).
+	// title over the bits (0, 1 or null: not known yet), note under them.
+	function headerCard({ box: b, title, bits: values = [], note = null, kind = "version", value = null, face = 3 }) {
+		const BW = 14, row = { x: b.x + 6, y: b.y + 18, w: values.length * BW + 8, h: 14 };
+		const parts = [svg("rect", { x: b.x, y: b.y, width: b.w, height: b.h, rx: 5, class: "v-hcard-box" }),
+			text(b.x + 6, b.y + 12, 8.5, fit(title, b.w - 12, 8.5), { class: "v-bold" }),
+			bits({ box: row, bits: values, roles: values.map(() => kind), colour: kind === "mask" ? "key" : "seed" })];
+		if (kind === "mask" && value !== null && value !== undefined) parts.push(text(row.x + row.w + 6, row.y + 12, 14, "= " + value, { class: "v-bold v-c-key v-hcard-value" }));
+		if (kind === "padding") {
+			parts.push(die({ sides: 6, face, size: 22, x: b.x + b.w - 28, y: b.y + 15 }));
+		}
+		if (note) parts.push(text(b.x + 6, b.y + b.h - 7, 8, fit(note, b.w - 12, 8), { class: "v-sub" }));
+		return svg("g", { class: `v v-hcard v-hcard-${kind}` }, parts);
 	}
 
 	// ---- decimal: a big number, no box ------------------------------------
@@ -568,7 +586,8 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	const PIPS = [null, [[1, 1]], [[0, 0], [2, 2]], [[0, 0], [1, 1], [2, 2]], [[0, 0], [2, 0], [0, 2], [2, 2]],
 		[[0, 0], [2, 0], [1, 1], [0, 2], [2, 2]], [[0, 0], [2, 0], [0, 1], [2, 1], [0, 2], [2, 2]]];
 	const pipped = (sides, face, label) => label === undefined && (sides === 4 || sides === 6) && face !== null && face !== undefined && face >= 0 && face < sides;
-	function die({ sides, face = null, size = 56, label, rolling = false }) {
+	// x, y: where it goes inside another drawing
+	function die({ sides, face = null, size = 56, label, rolling = false, x, y }) {
 		const coin = sides === 2, s = faceLabel(sides, face, label);
 		const body = coin
 			? [svg("circle", { cx: 50, cy: 53, r: 42, class: "v-die-edge" }), svg("circle", { cx: 50, cy: 48, r: 42, class: "v-die-body" }), svg("circle", { cx: 50, cy: 48, r: 33, class: "v-die-rim" })]
@@ -577,12 +596,12 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 		const mark = pipped(sides, face, label)
 			? svg("g", { class: "v-die-pips", "data-face": s }, PIPS[face + 1].map(([c, r]) => svg("circle", { cx: 28 + 22 * c, cy: 26 + 22 * r, r: 9, class: "v-die-pip" })))
 			: svg("text", { x: 50, y: 48 + fs * 0.36, "font-size": fs, "text-anchor": "middle", class: "v-t v-bold v-die-face" }, s);
-		return svg("svg", { class: "v-die" + (coin ? " v-coin" : "") + (rolling ? " v-rolling" : ""), width: size, height: size, viewBox: "0 0 100 100", "aria-hidden": "true" },
+		return svg("svg", { class: "v-die" + (coin ? " v-coin" : "") + (rolling ? " v-rolling" : ""), width: size, height: size, viewBox: "0 0 100 100", "aria-hidden": "true", ...(x !== undefined ? { x: r1(x), y: r1(y) } : {}) },
 			body, mark);
 	}
 	const faceButton = ({ sides, face, onPress, disabled = false, label, size = 48 }) =>
 		h("button", { type: "button", class: "v-face", disabled: disabled || undefined, "aria-label": faceLabel(sides, face, label), on: { click: () => onPress && onPress(face) } },
 			die({ sides, face, size, label }));
 
-	return { RUN_MS, clockStepMs, icon, iconTag, badge, badgeSize, string, dictionary, bits, number, piece, frame, clock, qr, ADVANCE_MS, glide, fadeIn, arrow, cards, die, faceButton };
+	return { RUN_MS, clockStepMs, icon, iconTag, badge, badgeSize, string, dictionary, bits, headerCard, number, piece, frame, clock, qr, ADVANCE_MS, glide, fadeIn, arrow, cards, die, faceButton };
 }
