@@ -476,7 +476,13 @@ for (const sides of [2, 6, 20]) for (const tool of ["dice", "device", "bag"]) ma
 for (const toWords of [false, true]) for (const end of toWords ? [false, true] : [false]) checkLayout(`seedQr toWords=${toWords} end=${end}`, Lay.seedQr({ toWords, end }));
 // the start page's slides (temporary boxes, Task 2 refines them): art left, text right, the guide's band free
 for (const kind of ["start", "what", "blend", "modes", "hand", "calm", "audit", "notice"]) { const lay = Lay.introSlide(kind); checkLayout(`introSlide ${kind}`, lay);
-	check(Object.entries(lay.boxes).every(([id, b]) => id === "guide" || b.y >= 66), `introSlide ${kind}: under the question`); }
+	check(Object.entries(lay.boxes).every(([id, b]) => id === "guide" || b.y >= 66), `introSlide ${kind}: under the question`);
+	check(Object.entries(lay.boxes).every(([id, b]) => id === "guide" || (b.x >= 16 && b.x + b.w <= Lay.VIEW.w - 16 && b.y + b.h <= Lay.VIEW.h - 16)), `introSlide ${kind}: 16 margins`);
+	if (kind !== "start" && kind !== "notice") check(lay.boxes.art && (lay.boxes.text || lay.boxes.textBasic), `introSlide ${kind}: a drawing and its text`); }
+// blend: its labels are drawn in the art (no HTML label boxes); modes: a row per mode, the drawing's row level with its text
+check(!("seen" in Lay.introSlide("blend").boxes) && !("hidden" in Lay.introSlide("blend").boxes), "introSlide blend: the labels inside the drawing");
+{ const m = Lay.introSlide("modes").boxes, rows = Lay.introRows(m.art);
+	check(rows.length === 2 && rows[0].y === m.textBasic.y && rows[0].h === m.textBasic.h && rows[1].y === m.textKey.y && rows[1].h === m.textKey.h && rows[0].y + rows[0].h < rows[1].y, "introSlide modes: two rows, each a drawing beside its text"); }
 // the intros before the sequence and before checking (spec §5, §7): with a key, its string and its bubble
 for (const pad of [false, true]) {
 	const si = Lay.seqIntro({ pad }), ci = Lay.checkIntro({ pad });
@@ -725,6 +731,32 @@ for (const pad of [false, true]) {
 		go(root);
 		check(!bad.length, `${what} fits its box ${bad.slice(0, 3).join("; ")}`);
 	};
+	// the start page's drawings (spec «La portada» §3): drawn, inside their box, nothing under 9 units, colours by meaning
+	{ const SHAPE = new Set(["rect", "circle", "path", "line", "polygon", "ellipse"]);
+		const labels = { seen: "recognised", hidden: "passes for something ordinary" };
+		for (const k of ["what", "blend", "modes", "hand", "calm", "audit"]) for (const b of [Lay.introSlide(k).boxes.art, { x: 16, y: 66, w: 240, h: 200 }]) {
+			const art = V.introArt(k, b, labels);
+			check(walk(art, (n) => SHAPE.has(n.tag)).length >= 3, `introArt ${k}: drawn`);
+			within(art, b, `introArt ${k} ${b.w}x${b.h}`);
+			const small = walk(art, (n) => n.tag === "text" && !cls("v-glyph")(n) && num(n.attrs["font-size"]) < 9);
+			check(!small.length, `introArt ${k}: no text under 9 units ${small.slice(0, 2).map(textOf).join(", ")}`);
+			check(walk(art, (n) => /style/.test(Object.keys(n.attrs).join(" "))).length === 0, `introArt ${k}: no style attribute`);
+		}
+		const art = (k) => V.introArt(k, Lay.introSlide(k).boxes.art, labels), all = (k) => textOf(art(k));
+		check(walk(art("what"), cls("v-qr")).length === 1 && walk(art("what"), cls("v-arrow")).length === 2 && walk(art("what"), cls("v-intro-word")).length === 4 && walk(art("what"), cls("v-bead-ring")).length >= 4, "introArt what: four words → a QR → a string");
+		check(walk(art("what"), cls("v-arrow")).every(cls("v-c-qr")), "introArt what: its arrows blue (from the QR)");
+		{ const ls = walk(art("blend"), cls("v-intro-label"));
+			check(ls.length >= 2 && ls.every((t) => num(t.attrs["font-size"]) >= 9) && all("blend").includes("recognised") && ls.map(textOf).join(" ").replace(/\s+/g, " ").includes("passes for something ordinary"), "introArt blend: both labels drawn, ≥ 9 units");
+			check(walk(art("blend"), cls("v-qr")).length === 1 && walk(art("blend"), cls("v-intro-necklace")).length === 1 && walk(art("blend"), cls("v-intro-album")).length === 1, "introArt blend: a sheet with its QR; a necklace and an album"); }
+		{ const m = art("modes"), rows = Lay.introRows(Lay.introSlide("modes").boxes.art), threads = walk(m, cls("v-thread"));
+			check(threads.length === 3 && walk(m, cls("v-intro-key")).length === 1 && walk(m, cls("v-intro-lock")).length === 1 && cls("v-c-key")(walk(m, cls("v-intro-lock"))[0]), "introArt modes: one string; a seed string and an amber key string, a padlock between");
+			const ys = threads.map((t) => num(t.attrs.y1));
+			check(ys[0] > rows[0].y && ys[0] < rows[0].y + rows[0].h && ys.slice(1).every((y) => y > rows[1].y && y < rows[1].y + rows[1].h), "introArt modes: each row level with its text"); }
+		check(walk(art("hand"), cls("v-intro-grid")).length === 1 && walk(art("hand"), cls("v-qr-dark")).length >= 10 && walk(art("hand"), cls("v-intro-pencil")).length === 1 && walk(art("hand"), cls("v-intro-clock")).length === 1, "introArt hand: a pencil on grid paper, part of a QR, a clock");
+		check(walk(art("calm"), cls("v-intro-laptop")).length === 1 && walk(art("calm"), cls("v-intro-cross")).length === 1 && walk(art("calm"), cls("v-intro-box")).length === 1 && walk(art("calm"), cls("v-intro-clock")).length === 1, "introArt calm: a laptop off the network, a box of pieces, a clock");
+		check(walk(art("audit"), cls("v-intro-doc")).length === 1 && /C = \(P \+ K\) mod N/.test(all("audit")) && walk(art("audit"), cls("v-intro-lens")).length === 1, "introArt audit: a document with the formula, a magnifying glass");
+		const css = read("src/style.css");
+		check(["v-intro-card", "v-intro-word", "v-intro-label", "v-intro-necklace-thread", "v-intro-cover", "v-intro-photo", "v-intro-lock-body", "v-intro-grid", "v-intro-pencil-body", "v-intro-dial", "v-intro-screen", "v-intro-cross", "v-intro-crate", "v-intro-sheet-edge", "v-intro-formula", "v-intro-glass"].every((c) => css.includes("." + c)), "introArt: its shapes styled in style.css"); }
 	const things = Array.from({ length: 32 }, (_, i) => ({ name: "Piece " + i, emoji: i % 3 ? "" : "🍎", colour: i % 2 ? "#d04040" : "", photo: "", symbol: "" }));
 	{ // the position is neutral, not the QR's blue
 		const mk = Lay.makeTurn({ pad: true, n: 16 }), bs = V.string({ box: mk.boxes.seedString, role: "build", kind: "seed", things, items: Array(13).fill(null), current: 6, firstPosition: 1, posBox: mk.boxes.posBox });
@@ -1365,7 +1397,9 @@ for (const pad of [false, true]) {
 		check(/REPO_URL \+ "\/blob\/main\/RISK-AUDIT\.md"/.test(src) && /REPO_URL \+ "\/blob\/main\/SPEC-sequences\.md"/.test(src) && /REPO_URL \+ "\/tree\/main\/docs"/.test(src) && /seedcraft-by-hand-" \+ st\.lang \+ "\.pdf"/.test(src), "intro: the links to the audit, the spec, the docs and the manual");
 		const fs = await import("node:fs"), root = new URL("../", import.meta.url).pathname;
 		for (const f of ["RISK-AUDIT.md", "SPEC-sequences.md", "docs/seedcraft-by-hand-en.pdf", "docs/seedcraft-by-hand-es.pdf"]) check(fs.existsSync(root + f), `linked file ${f}`);
-		check(/\.with-top \.lectern\s*\{[^}]*top:\s*var\(--top-h/.test(read("src/style.css")), "intro: the top bar above the lectern, which takes the height left"); }
+		check(/\.with-top \.lectern\s*\{[^}]*top:\s*var\(--top-h/.test(read("src/style.css")), "intro: the top bar above the lectern, which takes the height left"); 	check(/\.with-top \.lectern\s*\{[^}]*align-items:\s*flex-start/.test(read("src/style.css")), "intro: the lectern right under the top bar, not centred in the height left");
+		{ const b = src.slice(src.indexOf("function introBlend"), src.indexOf("function introModes"));
+			check(/V\.introArt\("blend", b\.art, \{ seen: t\.introBlendSeen, hidden: t\.introBlendHidden \}\)/.test(b) && !/intro-label/.test(src), "intro blend: the labels drawn in the art, no HTML labels"); } }
 	check(ids("make", { mode: "basic", made: true }) === "mode form words size pieces dict seed qr seqIntro seq checkIntro check store", "make: the turns once the sequence is made");
 	check(ids("make", { mode: "basic", made: true }).includes("seed qr seqIntro seq") && !ids("make", { mode: "basic" }).includes("qr"), "make: «Your QR» between the words and the turns, once the sequence is made");
 	for (const s of [{ mode: "basic" }, { mode: "pad", padAs: "string" }, { mode: "pad", padAs: "file" }]) {
