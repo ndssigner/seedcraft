@@ -422,7 +422,7 @@
 		const next = d.hidden ? null : d.next !== undefined ? d.next
 			: after ? { go: forward, ready: d.ready !== false } : null;
 		return { id: view, guide, question: d.question || null, steps: d.steps || 1, startStep: d.startStep || 0, wide: !!d.wide, body: d.body, caption: d.caption || null,
-			prev, next, shortcuts: [...(d.shortcuts || []), home], help: d.help || null, hurry: d.hurry || null };
+			prev, next, shortcuts: [...(d.shortcuts || []), home], help: d.help || null, hurry: d.hurry || null, keys: d.keys || null, hint: d.hint || null };
 	}
 	// ---- small building blocks ----------------------------------------
 	const panel = (...children) => h("section", { class: "panel" }, ...children);
@@ -2157,19 +2157,22 @@
 		for (let j = 0; j < L; j++) if (j !== i && wholeAt(j)) paintTurn(before, j);
 		const template = (r, c) => S.templateModule(size, r, c);
 
+		// a piece chosen, by the picker or typed: it goes in, and on to what is left
+		function put(which, v) {
+			(which === "key" ? rd.keyTaps : rd.taps)[i] = v;
+			st.seen.readTap = true;
+			Slides.closePopup(true);
+			if (wholeAt(i)) readFresh = i;
+			rd.typedBuf = "";
+			render();
+			// on to what is left: the other string's «+», or Next
+			const hole = $("app").querySelector(".v-slot"), nb = $("slide-next");
+			if (hole) hole.focus(); else if (nb && !nb.disabled) nb.focus();
+		}
 		// a «+» tapped (or the turn's piece, to change it): the string's dictionary as buttons, over the slide
 		function choose(which) {
 			const th = which === "key" ? keyThings : things, cur = which === "key" ? K : C, pl = Lay.pickerPopup({ n });
-			const pick = (v) => {
-				(which === "key" ? rd.keyTaps : rd.taps)[i] = v;
-				st.seen.readTap = true;
-				Slides.closePopup(true);
-				if (wholeAt(i)) readFresh = i;
-				render();
-				// on to what is left: the other string's «+», or Next
-				const hole = $("app").querySelector(".v-slot"), nb = $("slide-next");
-				if (hole) hole.focus(); else if (nb && !nb.disabled) nb.focus();
-			};
+			const pick = (v) => put(which, v);
 			Slides.popup(h("div", { class: "rt-pick" }, h("h2", { class: "rt-pick-q" }, V.iconTag(which), " ", t.readWhich(pos)),
 				svg("svg", { class: "rt-pick-canvas", viewBox: `0 0 ${pl.view.w} ${pl.view.h}` },
 					V.dictionary({ label: T().dictLabel, box: pl.boxes.picker, things: th, mode: "picker", value: cur === undefined ? null : cur, icon: which, onPick: pick }))),
@@ -2200,6 +2203,8 @@
 		};
 		// the columns (the same at every stage) drawn once, the QR only when its painting changes: a stage or
 		// the arrows' drawing never replaces what glides; arrowsOn false: every arrow hidden (until the glide has stopped)
+		let posText = null;
+		const shownPos = () => rd.typedBuf && rd.typedTurn === i ? rd.typedBuf : String(pos);
 		let colsDrawn = false, paintDrawn = null, arrowsOn = true;
 		const g = { frame: svg("g"), seed: svg("g"), key: svg("g"), dicts: svg("g"), numbers: svg("g"), clock: svg("g"), bits: svg("g"), cards: svg("g"), qr: svg("g") }, arrowGroups = lay.arrows.map(() => svg("g"));
 		function draw(p, turning, onRun, alive) {
@@ -2209,7 +2214,7 @@
 			// the row's frame and, beside it, the turn's position in its own box
 			g.frame.replaceChildren(V.frame({ box: b.row, colour: "qr" }),
 				svg("rect", { x: b.posBox.x, y: b.posBox.y, width: b.posBox.w, height: b.posBox.h, rx: 4, class: "v-pos-box" }),
-				svg("text", { x: b.posBox.x + b.posBox.w / 2, y: b.posBox.y + b.posBox.h / 2 + 4, "font-size": 11, "text-anchor": "middle", class: "v-t v-pos v-pos-current v-c-qr v-bold" }, String(pos)));
+				posText = svg("text", { x: b.posBox.x + b.posBox.w / 2, y: b.posBox.y + b.posBox.h / 2 + 4, "font-size": 11, "text-anchor": "middle", class: "v-t v-pos v-pos-current v-c-qr v-bold" }, shownPos()));
 			// the dictionaries, each turned to its piece (the key file's numbers need none), and the numbers
 			g.dicts.replaceChildren(
 				V.dictionary({ label: t.dictLabel, box: b.seedDict, things, mode: "reel", icon: "seed", value: seedAt("piece") ? C : null, from: turning && p === at("piece") ? 0 : undefined }),
@@ -2276,12 +2281,32 @@
 		const caption = () => !whole ? (i === 0 && !st.seen.readTap ? t.forms[form].read : keyThings ? t.readTapBoth(pos) : t.readTap(pos))
 			: note || (pad ? t.readTurnPad(C, K, n, P) : t.readTurnBasic(P));
 		const checking = rd !== st.read;
+		// typing a piece's number: digits, Enter, Backspace for the active column; Tab switches column (a key as string only)
+		const keys = (e) => {
+			if (e.ctrlKey || e.metaKey || e.altKey) return false;
+			if (rd.typedTurn !== i) { rd.typedTurn = i; rd.typedBuf = ""; }
+			const buf = rd.typedBuf || "";
+			if (e.key === "Tab") {
+				if (!keyThings) return false;
+				rd.typedCol = rd.typedCol === "key" ? "seed" : "key"; rd.typedBuf = "";
+				if (posText) posText.textContent = shownPos();
+				return true;
+			}
+			const digit = /^[0-9]$/.test(e.key);
+			if (!digit && !((e.key === "Enter" || e.key === "Backspace") && buf)) return false;
+			const which = keyThings && rd.typedCol === "key" ? "key" : "seed", r = J.typedPiece(buf, e.key, (which === "key" ? keyThings : things).length);
+			rd.typedBuf = r.buffer;
+			if (r.value !== null) put(which, r.value);
+			else if (posText) posText.textContent = shownPos();
+			return true;
+		};
 		return {
-			count: `${pos}/${L}`, caption, body,
+			count: `${pos}/${L}`, caption, body, keys,
+			hint: () => i < 3 ? t.keysHint : null,
 			// Next while the advance or the cycle plays: first its end, then on
 			hurry: () => { const playing = !!glides && glides.playing; if (glides) glides.finish(); const held = !!hold && hold.finish(); return (!!cycle && cycle.finish()) || held || playing; },
 			help: helpOf(stepName(checking ? "make" : "read", checking ? "check" : "recover"), checking ? (pad ? t.checkHelpPad : t.checkReadHelp) : null,
-				[t.forms[form].read, keyThings ? t.tapPadHelp : null, pad ? null : t.whyBasic(n, k), t.readLockedWhy].filter(Boolean)),
+				[t.forms[form].read, t.keysHint, keyThings ? t.tapPadHelp : null, pad ? null : t.whyBasic(n, k), t.readLockedWhy].filter(Boolean)),
 			shortcuts: readShortcuts(rd, L, opts.done),
 			prev: i > 0 ? { go: () => readGo(rd, i - 1) } : undefined,
 			next: { go: () => { if (i < L - 1) readGo(rd, i + 1); else opts.done(); }, ready: whole },
