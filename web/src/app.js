@@ -2525,10 +2525,12 @@
 				const valueAt = (j) => { const x = Math.floor(j / k); return (x === i ? reached("cards") : wholeAt(x)) ? bitsOf(plainOf(x), k)[j - x * k] : null; };
 				g.cards.replaceChildren(...headerCardsOf(b, header, size, k, i, Array.from({ length: L * k }, (_, j) => valueAt(j))));
 			}
-			if (paintDrawn !== reached("paint")) {
-				paintDrawn = reached("paint");
+			// redrawn when the paint stage or the cards stage is reached (the mask's cells show from the cards on)
+			const drawKey = reached("paint") + "/" + reached("cards");
+			if (paintDrawn !== drawKey) {
+				paintDrawn = drawKey;
 				const painted = new Map(before);
-				if (paintDrawn) paintTurn(painted, i);
+				if (reached("paint")) paintTurn(painted, i);
 				// the mask's six cells, once its three bits are read: what they show
 				const mk = maskKnown(reached("cards"));
 				if (mk) S.maskCells(size).forEach((copy) => copy.forEach(([r, c], j) => painted.set(r * size + c, mk.seen[j])));
