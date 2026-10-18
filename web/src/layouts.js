@@ -636,7 +636,7 @@ const SeedcraftLayouts = (() => {
 		const b = { guide: { ...GUIDE }, question: box(16, 28, 648, 32),
 			words: box(16, 75, 200, 180),
 			number: box(240, 100, 184, 130), qr: box(448, 68, 216, 216) };
-		if (end) Object.assign(b, { fingerprint: box(16, 256, 200, 28), note: box(16, 290, 408, 44) });
+		if (end) Object.assign(b, { fingerprint: box(16, 256, 200, 28), note: box(16, 290, 408, 44), screen: box(440, 290, 224, 44) });
 		const arrows = toWords
 			? [arrow("qr>number", "qr", "number", "qr", [[448, 165], [424, 165]]), arrow("number>words", "number", "words", "qr", [[240, 165], [216, 165]])]
 			: [arrow("words>number", "words", "number", "qr", [[216, 165], [240, 165]]), arrow("number>qr", "number", "qr", "qr", [[424, 165], [448, 165]])];

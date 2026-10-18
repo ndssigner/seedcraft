@@ -461,7 +461,7 @@
 			h("div", { class: "brand", id: "logo", on: { click: goHome } }, h("b", {}, "Seed", h("span", { text: "craft" })),
 				h("span", { class: "badge", id: "draft", title: t.warnTest }, h("span", { class: "long", text: t.draft + " " }), "v0"),
 				h("small", { id: "tagline", text: t.subtitle })),
-			h("nav", { class: "tabs", id: "tabs" }, TABS.map(([name, label, short]) => h("button", { class: name === "intro" ? "on" : "", on: { click: () => go(name) } },
+			h("nav", { class: "tabs", id: "tabs" }, TABS.map(([name, label, short]) => h("button", { class: name === "intro" ? "on" : "", on: { click: () => (name === "intro" ? goHome() : go(name)) } },
 				h("span", { class: "long", text: t[label] }), h("span", { class: "short", text: t[short] })))),
 			h("div", { class: "net-wrap" },
 				h("button", { class: "net", id: "net", "aria-describedby": "net-why", on: { click: (e) => { e.stopPropagation(); $("net-why").classList.toggle("open"); } } }),
@@ -2895,7 +2895,8 @@
 				const parts = seedQrParts(lay, { words, entropy: out.entropy, qr, step, toWords: true, fade: step === 1 && grew, plain: true });
 				if (how.length) parts.over.push(place(h("div", { class: "qr-how" }, how.map((x) => h("small", { text: x }))), { x: 240, y: 62, w: 200, h: 36 }));
 				if (step >= 2) parts.over.push(place(h("div", { class: "qr-print" }, fingerprintLine(out.entropy)), b.fingerprint),
-					place(h("div", { class: "qr-note" + (out.fixed ? " warn" : "") }, ...note), b.note));
+					place(h("div", { class: "qr-note" + (out.fixed ? " warn" : "") }, ...note), b.note),
+					place(h("p", { class: "qr-screen", text: t.screenWarn }), b.screen));
 				return h("div", { class: "dict-slide" }, canvas(...parts.kids), ...parts.over);
 			},
 		};
