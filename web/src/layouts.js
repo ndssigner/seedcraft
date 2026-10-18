@@ -61,7 +61,7 @@ const SeedcraftLayouts = (() => {
 	// follow one another); one alone takes the middle place, so the column's middle
 	// (CARDS_MID) always has a card. cards: the column, as tall as its cards.
 	const HEADER_PARTS = ["version", "mask", "padding"];
-	const CARD_SLOT = { version: [32, 42], mask: [78, 72], padding: [154, 52] }, CARDS_MID = 116;
+	const CARD_SLOT = { version: [27, 48], mask: [78, 72], padding: [154, 52] }, CARDS_MID = 116;
 	const cardId = (p) => "card" + p[0].toUpperCase() + p.slice(1);
 	function headerCards(b, x, w, header) {
 		const parts = HEADER_PARTS.filter((p) => header === true || header.includes(p));
