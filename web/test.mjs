@@ -474,6 +474,9 @@ for (const size of [21, 25]) for (const n of [2, 4, 8, 16, 32]) for (const pad o
 }
 for (const sides of [2, 6, 20]) for (const tool of ["dice", "device", "bag"]) margin(`throw d${sides} ${tool}`, Lay.keyThrow({ sides, tool }));
 for (const toWords of [false, true]) for (const end of toWords ? [false, true] : [false]) checkLayout(`seedQr toWords=${toWords} end=${end}`, Lay.seedQr({ toWords, end }));
+// the start page's slides (temporary boxes, Task 2 refines them): art left, text right, the guide's band free
+for (const kind of ["start", "what", "blend", "modes", "hand", "calm", "audit", "notice"]) { const lay = Lay.introSlide(kind); checkLayout(`introSlide ${kind}`, lay);
+	check(Object.entries(lay.boxes).every(([id, b]) => id === "guide" || b.y >= 66), `introSlide ${kind}: under the question`); }
 // the intros before the sequence and before checking (spec §5, §7): with a key, its string and its bubble
 for (const pad of [false, true]) {
 	const si = Lay.seqIntro({ pad }), ci = Lay.checkIntro({ pad });
@@ -704,6 +707,7 @@ for (const pad of [false, true]) {
 	vm.runInContext(read("src/vocab.js"), ctx, { filename: "src/vocab.js" });
 	const V = vm.runInContext("SeedcraftVocab", ctx)(node, node);
 	const walk = (n, pred, out = []) => { if (n && typeof n === "object") { if (pred(n)) out.push(n); n.children.forEach((c) => walk(c, pred, out)); } return out; };
+	for (const k of ["what", "blend", "modes", "hand", "calm", "audit"]) check(V.introArt(k, { x: 16, y: 66, w: 300, h: 268 }).tag === "g", `introArt ${k}: a group to draw in`);
 	const cls = (c) => (n) => (" " + (n.attrs.class || "") + " ").includes(" " + c + " ");
 	const textOf = (n) => typeof n === "string" ? n : n.children.map(textOf).join("");
 	const num = (v) => parseFloat(v);
@@ -1350,6 +1354,18 @@ for (const pad of [false, true]) {
 			&& /\blink\(/.test(body) && /step === 2 \? \[place\(h\("p", \{ class: "qr-compact" \}, ...compactNote\(\)\)/.test(body) && /const link = \(href[^\n]*target: "_blank", rel: "noopener noreferrer"/.test(src), "«Your QR»: the CompactSeedQR note links SeedSigner, NDS-Signer and the standard, opened apart"); }
 	check(J.symbolsFor(12, 16) === 54 && J.symbolsFor(24, 16) === 91 && J.symbolsFor(12, 32) === 43 && J.symbolsFor(24, 2) === 364, "symbolsFor: SPEC §2");
 	check(ids("make", { mode: "basic" }) === "mode form words size pieces dict seed check store", "make: the basic mode's slides");
+	// the start page as slides (spec «La portada, en láminas» §1)
+	check(J.slides("intro", {}).map((x) => x.id).join() === "start,what,blend,modes,hand,calm,audit,notice", "intro: the eight slides in order");
+	check(J.slides("intro", {}).map((x) => x.step).join() === "seedcraft,seedcraft,why,why,how,how,trust,trust", "intro: their steps");
+	{ const list = J.slides("intro", {});
+		check(J.resolve("intro", list, "calm") === "calm" && J.resolve("intro", list, "nothing") === "start" && J.jump(list, "how", () => true) === "hand" && J.jump(list, "trust", (id) => id !== "what") === "what", "intro: resolve and jump as the other journeys"); }
+	{ const src = read("src/app.js"), sn = src.slice(src.indexOf("function slideNow"), src.indexOf("// ---- the journeys, slide by slide"));
+		check(/return journeySlide\("intro", view, null, null\)/.test(sn) && !/footBar\(\)/.test(src) && !/function intro\(\)/.test(src), "intro: drawn through journeySlide, no foot bar, no old start page");
+		check(/intro: \{/.test(src) && ["start", "what", "blend", "modes", "hand", "calm", "audit", "notice"].every((id) => new RegExp("\\b" + id + ": \\(\\) =>").test(src.slice(src.indexOf("intro: {", src.indexOf("const SLIDES"))))), "intro: SLIDES.intro draws every slide");
+		check(/REPO_URL \+ "\/blob\/main\/RISK-AUDIT\.md"/.test(src) && /REPO_URL \+ "\/blob\/main\/SPEC-sequences\.md"/.test(src) && /REPO_URL \+ "\/tree\/main\/docs"/.test(src) && /seedcraft-by-hand-" \+ st\.lang \+ "\.pdf"/.test(src), "intro: the links to the audit, the spec, the docs and the manual");
+		const fs = await import("node:fs"), root = new URL("../", import.meta.url).pathname;
+		for (const f of ["RISK-AUDIT.md", "SPEC-sequences.md", "docs/seedcraft-by-hand-en.pdf", "docs/seedcraft-by-hand-es.pdf"]) check(fs.existsSync(root + f), `linked file ${f}`);
+		check(/\.with-top \.lectern\s*\{[^}]*top:\s*var\(--top-h/.test(read("src/style.css")), "intro: the top bar above the lectern, which takes the height left"); }
 	check(ids("make", { mode: "basic", made: true }) === "mode form words size pieces dict seed qr seqIntro seq checkIntro check store", "make: the turns once the sequence is made");
 	check(ids("make", { mode: "basic", made: true }).includes("seed qr seqIntro seq") && !ids("make", { mode: "basic" }).includes("qr"), "make: «Your QR» between the words and the turns, once the sequence is made");
 	for (const s of [{ mode: "basic" }, { mode: "pad", padAs: "string" }, { mode: "pad", padAs: "file" }]) {
@@ -1565,6 +1581,18 @@ for (const pad of [false, true]) {
 	}
 	// the dictionary choice's explanation lives under the question, whole: in the body, not clamped in the foot
 	const appSrc0 = read("src/app.js");
+	// the start page's copy (spec «La portada, en láminas»)
+	{ const keys = ["introSteps", "introTitle", "introWhatQ", "introWhat", "introBlendQ", "introBlend", "introBlendSeen", "introBlendHidden", "introBlendTip", "introModesQ", "introModesBasic", "introModesKey",
+		"introHandQ", "introHand", "introHandLink", "introCalmQ", "introCalm", "introAuditQ", "introAudit", "introAuditRepo", "introAuditDocs", "introAuditRisk", "introAuditSpec", "introNoticeQ", "introNotice", "siblingsTitle", "supportTitle"];
+		for (const lang of ["en", "es"]) for (const k of keys) check(!!TX[lang][k], `${lang}: ${k}`);
+		for (const lang of ["en", "es"]) check(["seedcraft", "why", "how", "trust"].every((k) => !!TX[lang].introSteps[k]) && TX[lang].introNotice.length === 2 && TX[lang].introModesBasic.length === 2 && TX[lang].introModesKey.length === 2, `${lang}: the intro's steps, the notice's two paragraphs, each mode its name and line`);
+		check(TX.es.introSteps.seedcraft === "SeedCraft" && TX.es.introSteps.why === "Por qué" && TX.es.introSteps.how === "Cómo" && TX.es.introSteps.trust === "Confianza" && TX.en.introSteps.why === "Why" && TX.en.introSteps.trust === "Trust", "introSteps: the guide's names");
+		check(TX.es.introNotice.join(" ").includes("bajo tu propia responsabilidad") && TX.es.introNotice.join(" ").includes("una cámara"), "notice: own risk and the screen");
+		check(TX.es.introNotice[0] === "SeedCraft es un ejercicio de matemáticas con espíritu creativo y artístico, y se ofrece tal cual, sin ninguna garantía. Nadie independiente lo ha auditado todavía. Si lo usas con una semilla real, hazlo en un ordenador desconectado y bajo tu propia responsabilidad. No respondemos de pérdidas de fondos ni de ningún otro daño, ni del uso que cada cual haga de esta herramienta o de este método."
+			&& TX.es.introNotice[1] === "Mientras lo usas, que nadie vea tu pantalla: muestra semillas y códigos QR que una cámara puede captar desde lejos.", "notice: the spec's words");
+		check(/own risk/.test(TX.en.introNotice[0]) && /without any warranty/.test(TX.en.introNotice[0]) && /camera/.test(TX.en.introNotice[1]), "notice en: not softened");
+		check(TX.es.introBlendTip === "Si se hace bien: elige una forma que tenga sentido donde la guardes." && TX.es.introBlendSeen === "se reconoce" && TX.es.introBlendHidden === "pasa por algo normal", "blend: the spec's labels and line");
+		for (const lang of ["en", "es"]) for (const k of ["stepsTitle", "expectTitle", "expect", "safeTitle", "safe", "introLead", "releases"]) check(!(k in TX[lang]), `${lang}: ${k} is gone with the old start page`); }
 	check(/intro: t\.dictIntro/.test(appSrc0) && !/caption: \(\) => ways\.error \|\| t\.dictIntro/.test(appSrc0), "dictIntro is under the question, not in the clamped caption");
 	// the explained turn's last step with a changed piece: the slot's sentence and the key's change together
 	for (const lang of ["en", "es"]) check((TX[lang].turnSlot(364) + " " + TX[lang].seqKeyChanged).length <= 110, `caption ${lang}: slot + key changed fits`);
@@ -1640,7 +1668,6 @@ for (const pad of [false, true]) {
 	}
 	const TX = ctx.TEXT;
 	for (const lang of ["en", "es"]) check(!/real funds|dinero de verdad/i.test(TX[lang].storeBasic.join(" ")) && TX[lang].keysHintTab.length > TX[lang].keysHint.length && /Tab/.test(TX[lang].keysHintTab), `${lang}: store help keeps the test-only stance; the key string's typing hint mentions Tab`);
-	check(!/ordenador (desconectado|sin conexión)|offline computer|disconnected computer/i.test([TX.en.safe, TX.es.safe].flat().join(" ")), "About: no real seed on an offline computer (test-only stance)");
 	// a form with materials (not written) has an assembly card; the others do not
 	check(J.pieces({ words: 12, n: 16, mode: "basic", form: "book", padForm: null }, () => 1).groups[0].assembly === false, "pieces: no assemblyOf, no assembly card");
 	// the big number of the assembly card, split out of the materials text

@@ -41,11 +41,11 @@
 	// ---- state -------------------------------------------------------
 	// everything but the language, as on opening the page (and after «Forget everything»)
 	const freshState = () => ({
-		screen: "intro",  // intro, make, read, print, about, donate
-		// the two journeys, each a sequence of steps (see MAKE_STEPS, READ_STEPS)
-		step: { make: "plan", read: "have" },
+		screen: "intro",  // intro, make, read, print, about
+		// the journeys (the start page's slides, and the two journeys, each a sequence of steps: see MAKE_STEPS, READ_STEPS)
+		step: { intro: "seedcraft", make: "plan", read: "have" },
 		// the slide each journey is at (journeys.js's ids); step above is its step in the guide
-		at: { make: "mode", read: "mode" },
+		at: { intro: "start", make: "mode", read: "mode" },
 		// what was picked on a slide before it has any other trace: the dictionary to be named (dict, keyDict: "name")
 		ways: { make: {}, read: {} },
 		gathered: {},  // the pieces slide's «I have them», per group
@@ -451,14 +451,14 @@
 		});
 	}
 
-	// ---- the start page's top bar and foot ------------------------------
-	// (the slides have neither: the lectern's guide, «⋯» and foot instead)
+	// ---- the start page's top bar ------------------------------------------
+	// (over the start page's slides only: the journeys have the lectern's guide and «⋯» instead)
 	// each tab's label, and its short one for phones
 	const TABS = [["intro", "tabIntro", "tabIntro"], ["make", "tabMakeFlow", "tabMakeShort"], ["read", "tabReadFlow", "tabReadShort"]];
 	function topBar() {
 		const t = T();
 		return h("header", { class: "top" },
-			h("div", { class: "brand", id: "logo", on: { click: () => go("intro") } }, h("b", {}, "Seed", h("span", { text: "craft" })),
+			h("div", { class: "brand", id: "logo", on: { click: goHome } }, h("b", {}, "Seed", h("span", { text: "craft" })),
 				h("span", { class: "badge", id: "draft", title: t.warnTest }, h("span", { class: "long", text: t.draft + " " }), "v0"),
 				h("small", { id: "tagline", text: t.subtitle })),
 			h("nav", { class: "tabs", id: "tabs" }, TABS.map(([name, label, short]) => h("button", { class: name === "intro" ? "on" : "", on: { click: () => go(name) } },
@@ -469,11 +469,19 @@
 			h("a", { class: "pill", id: "gh", href: REPO_URL, title: t.repo, target: "_blank", rel: "noopener noreferrer" }, "GitHub ↗"),
 			h("button", { class: "pill", id: "lang", on: { click: () => { st.lang = t.langSwitch; render(); } } }, t.langName));
 	}
-	function footBar() {
-		const t = T();
-		return h("footer", {}, h("div", {}, link(REPO_URL, t.repo),
-			h("button", { id: "about", on: { click: () => go("about") } }, t.aboutTitle),
-			h("button", { id: "donate", on: { click: () => go("donate") } }, t.donateTitle)));
+	// the top bar sits over the lectern, which takes the height left (style.css's .with-top; --top-h: the bar's height)
+	let topSlot = null;
+	function showTop(on) {
+		if (!topSlot) {
+			topSlot = h("div", { class: "top-slot" });
+			$("app").before(topSlot);
+			const measure = () => document.documentElement.style.setProperty("--top-h", `${topSlot.offsetHeight}px`);
+			if (typeof ResizeObserver === "function") new ResizeObserver(measure).observe(topSlot);
+			else addEventListener("resize", measure);
+		}
+		topSlot.replaceChildren(...(on ? [topBar()] : []));
+		document.body.classList.toggle("with-top", on);
+		document.documentElement.style.setProperty("--top-h", `${topSlot.offsetHeight}px`);
 	}
 	// the connection, in sight on the start page; the warnings themselves appear next to a seed (seedAlert)
 	const online = () => {
@@ -498,14 +506,16 @@
 	document.addEventListener("click", () => { if ($("net-why")) $("net-why").classList.remove("open"); });
 	// (a dictionary being named or checked is left behind: it belongs to the journey it was in)
 	function go(screen) { if (screen !== st.screen) st.edit = null; st.screen = screen; render(); scrollTo(0, 0); }
+	// the start page from its first slide
+	function goHome() { st.at.intro = "start"; go("intro"); }
 	// the repository, and the sister projects (plain links: the page itself still connects nowhere)
 	const REPO_URL = "https://github.com/ndssigner/seedcraft";
 	const SIBLINGS = [["NDS-Signer", "https://github.com/ndssigner/nds-signer", "sibNds"], ["ur-tones", "https://github.com/ndssigner/ur-tones", "sibUrTones"]];
 	const link = (href, text, tip) => h("a", { href, target: "_blank", rel: "noopener noreferrer", title: tip || null }, text);
 
 	// ---- the lectern -----------------------------------------------------
-	// Every screen is a slide (slides.js): the journeys' slides, and the
-	// start page, about, donate and the printable sheet as they are, each a
+	// Every screen is a slide (slides.js): the journeys' slides (the start
+	// page's among them), and about and the printable sheet as they are, each a
 	// page fitted into the frame (slides.js's page: under the guide's band,
 	// scrolling inside only what does not fit).
 	const Slides = SeedcraftSlides;
@@ -525,23 +535,26 @@
 		if (throwIntroShown && !(st.screen === "make" && st.at.make === "keyThrow")) st.seen.throwIntro = true;
 		const reading = st.screen === "read" && st.at.read === "recover" ? st.read : st.screen === "make" && st.at.make === "check" ? st.make.check : null;
 		const view = [st.screen, st.at[st.screen], st.at[st.screen] === "seq" ? st.make.turn : "", reading ? `${reading.turn}${reading.typing ? "t" : ""}` : "", st.make.explain ? st.make.explain.run : "", st.make.key && st.make.key.by, st.make.key && st.make.key.pos, st.make.key && !!st.make.key.fix, st.edit && st.edit.kind, st.edit && st.edit.target, st.edit && st.edit.i].join();
-		Slides.show(slideNow(view));
+		const slide = slideNow(view);
+		showTop(st.screen === "intro");
+		Slides.show(slide);
 		online();
 	}
 	// the slide for what is on screen now
 	function slideNow(view) {
-		const t = T(), home = { icon: V.iconTag("home"), label: t.slidesHome, go: () => go("intro") };
+		const t = T(), home = { icon: V.iconTag("home"), label: t.slidesHome, go: goHome };
 		const toStart = { label: "◀ " + t.tabIntro, go: () => go("intro") };
 		const page = (body, prev) => ({ id: view, page: true, guide: [], question: null, steps: 1, body: () => body,
-			prev, next: null, shortcuts: st.screen === "intro" ? [] : [home], help: null });
+			prev, next: null, shortcuts: [home], help: null });
 		if (st.screen === "print") {
 			const sheet = printSheet();
 			if (sheet) return page(h("div", { class: "wrap" }, sheet), { label: "◀ " + t.back, go: () => goSlide("make", "seq") });
 		}
 		if (st.screen === "make" || st.screen === "read") return journeySlide(st.screen, view, home, toStart);
 		if (st.screen === "about") return page(h("div", { class: "wrap" }, about()), toStart);
-		if (st.screen === "donate") return page(h("div", { class: "wrap" }, donate()), toStart);
-		return page(h("div", { class: "start" }, topBar(), h("div", { class: "wrap" }, intro()), footBar()), null);
+		// the start page: its slides, under the top bar; nothing before the first, no shortcut home
+		st.screen = "intro";
+		return journeySlide("intro", view, null, null);
 	}
 	// ---- the journeys, slide by slide ----------------------------------------
 	// Each journey is a list of slides (journeys.js: which there are now, in
@@ -550,7 +563,7 @@
 	// pieces, a dictionary, a throw, a turn, an end, storing it. Back and Next
 	// go to the slides before and after it; a step of the guide goes to its
 	// first slide, or to the first one before it that is not done yet.
-	const journeyState = (flow) => flow === "make"
+	const journeyState = (flow) => flow === "intro" ? {} : flow === "make"
 		? { mode: st.mode, padAs: st.plan.padAs, padForm: st.plan.padForm, dict: !!st.dict, padDict: !!st.padDict, keyWho: st.make.keyWho, keyBy: st.make.key && st.make.key.by, made: !!st.make.symbols }
 		: { mode: st.read.mode, padAs: st.read.padAs, padForm: st.read.padForm, dict: !!st.read.dict, padDict: !!st.read.padDict };
 	const journeyOf = (flow) => J.slides(flow, journeyState(flow));
@@ -562,6 +575,7 @@
 	}
 	// whether a slide has done its job: what a later one needs first
 	function slideDone(flow, id) {
+		if (flow === "intro") return true;
 		const p = st.plan, rd = st.read, m = st.make;
 		if (flow === "make") return ({ mode: !!st.mode, form: !!p.chosen.form, words: !!p.chosen.words, size: !!st.dict || !!p.chosen.size,
 			keyAs: !!p.chosen.padAs, keyColl: !!p.chosen.padColl, keyForm: !!p.chosen.padForm, dict: !!st.dict, keyDict: !!st.padDict, keyWho: !!m.keyWho,
@@ -589,10 +603,9 @@
 		const next = d.hidden ? null : d.next !== undefined ? d.next
 			: after ? { go: forward, ready: d.ready !== false } : null;
 		return { id: view, guide, question: d.question || null, steps: d.steps || 1, startStep: d.startStep || 0, wide: !!d.wide, body: d.body, caption: d.caption || null,
-			prev, next, shortcuts: [...(d.shortcuts || []), home], help: d.help || null, hurry: d.hurry || null, keys: d.keys || null, hint: d.hint || null };
+			prev, next, shortcuts: [...(d.shortcuts || []), ...(home ? [home] : [])], help: d.help || null, hurry: d.hurry || null, keys: d.keys || null, hint: d.hint || null };
 	}
 	// ---- small building blocks ----------------------------------------
-	const panel = (...children) => h("section", { class: "panel" }, ...children);
 	// the two modes (SPEC §10, §11.1), chosen before making or reading: what
 	// each one keeps safe, and what it doesn't. Recovering, it is what is read's
 	// (st.read.mode), apart from the backup being made (st.mode). Choosing the
@@ -620,9 +633,10 @@
 	// the rest of what you have, and both strings are read together, turn by turn.
 	const MAKE_STEPS = ["plan", "gather", "dict", "key", "seq", "check", "store"];
 	const READ_STEPS = ["have", "recover", "seed"];
+	const INTRO_STEPS = ["seedcraft", "why", "how", "trust"];
 	const keyThread = (step) => step === "key";
-	const stepsOf = (flow) => (flow === "make" ? MAKE_STEPS : READ_STEPS).filter((x) => !keyThread(x) || st.mode === "pad");
-	const stepName = (flow, step) => (flow === "make" ? T().makeSteps[MAKE_STEPS.indexOf(step)] : T().readSteps[READ_STEPS.indexOf(step)])[0];
+	const stepsOf = (flow) => flow === "intro" ? INTRO_STEPS : (flow === "make" ? MAKE_STEPS : READ_STEPS).filter((x) => !keyThread(x) || st.mode === "pad");
+	const stepName = (flow, step) => flow === "intro" ? T().introSteps[step] : (flow === "make" ? T().makeSteps[MAKE_STEPS.indexOf(step)] : T().readSteps[READ_STEPS.indexOf(step)])[0];
 	// to a step: its first slide
 	function toStep(flow, step) { const x = journeyOf(flow).find((y) => y.step === step); goSlide(flow, x && x.id); }
 	// the key's step has done its job: the key is whole and, as a file, saved
@@ -809,6 +823,18 @@
 
 	// ---- the slides of each journey ------------------------------------------
 	const SLIDES = {
+		// the start page (spec «La portada, en láminas»): what it is, why, how, and the notice
+		intro: {
+			start: () => introStart(),
+			what: () => introText("what"),
+			blend: () => introBlend(),
+			modes: () => introModes(),
+			hand: () => introText("hand", [[REPO_URL + "/blob/main/docs/seedcraft-by-hand-" + st.lang + ".pdf", T().introHandLink]]),
+			calm: () => introText("calm"),
+			audit: () => introText("audit", [[REPO_URL, T().introAuditRepo], [REPO_URL + "/tree/main/docs", T().introAuditDocs],
+				[REPO_URL + "/blob/main/RISK-AUDIT.md", T().introAuditRisk], [REPO_URL + "/blob/main/SPEC-sequences.md", T().introAuditSpec]]),
+			notice: () => introNotice(),
+		},
 		make: {
 			mode: () => decide({ question: T().modeHelp, options: modeOptions(), chosen: st.mode, choose: setMode }),
 			form: () => {
@@ -2935,43 +2961,60 @@
 		});
 		return h("figure", { class: "hero-string" }, drawing, h("figcaption", { text: T().heroCaption }));
 	}
-	// ---- start: what Seedcraft is, how it goes, what protects what, offline use, the sister projects ----
-	function intro() {
-		const t = T();
+	// ---- the start page, slide by slide (SLIDES.intro) ------------------------
+	// layouts.js's introSlide: the drawing (vocab.js's introArt) on the canvas, its text beside it
+	const QS = { what: "introWhatQ", blend: "introBlendQ", modes: "introModesQ", hand: "introHandQ", calm: "introCalmQ", audit: "introAuditQ" };
+	const TXT = { what: "introWhat", blend: "introBlend", hand: "introHand", calm: "introCalm", audit: "introAudit" };
+	// the example: a backup started with the example beads, at its first slide
+	function tryExample() {
+		const set = SETS[0];
+		// a backup under way with another dictionary: asked first, and no keeps it all
+		if (!changeDict({ things: thingsOf(set, st.plan.n), checked: false, way: "ready" })) return;
+		st.ways.make.dict = "ready";
+		toStep("make", "plan");
+	}
+	// the two doors, and the example
+	const doors = () => { const t = T(); return h("div", { class: "intro-doors" },
+		h("div", { class: "doors" },
+			h("button", { class: "btn big", on: { click: () => go("make") } }, t.tabMakeFlow),
+			h("button", { class: "btn ghost big", on: { click: () => go("read") } }, t.tabReadFlow)),
+		h("button", { class: "btn ghost small", on: { click: tryExample } }, t.startTry)); };
+	const introLinks = (links) => links.length ? h("ul", { class: "intro-links" }, links.map(([href, text]) => h("li", {}, link(href, text)))) : null;
+	function introStart() {
+		const b = Lay.introSlide("start").boxes;
+		return { question: T().introTitle, wide: true, body: () => h("div", { class: "dict-slide intro-slide" }, place(heroString(), b.art), place(doors(), b.doors)) };
+	}
+	function introText(kind, links = []) {
+		const t = T(), b = Lay.introSlide(kind).boxes;
+		return { question: t[QS[kind]], body: () => h("div", { class: "dict-slide intro-slide" }, canvas(V.introArt(kind, b.art)),
+			place(h("div", { class: "intro-text" }, h("p", { text: t[TXT[kind]] }), introLinks(links)), b.text)) };
+	}
+	// a copy in words or a QR, recognised; a string, passing for something ordinary
+	function introBlend() {
+		const t = T(), b = Lay.introSlide("blend").boxes;
+		return { question: t.introBlendQ, body: () => h("div", { class: "dict-slide intro-slide" }, canvas(V.introArt("blend", b.art)),
+			place(h("p", { class: "intro-label", text: t.introBlendSeen }), b.seen), place(h("p", { class: "intro-label", text: t.introBlendHidden }), b.hidden),
+			place(h("div", { class: "intro-text" }, h("p", { text: t.introBlend }), h("p", { class: "intro-tip", text: t.introBlendTip })), b.text)) };
+	}
+	// one string; two strings and the key between them
+	function introModes() {
+		const t = T(), b = Lay.introSlide("modes").boxes, block = ([name, line]) => h("div", { class: "intro-text" }, h("h2", { text: name }), h("p", { text: line }));
+		return { question: t.introModesQ, body: () => h("div", { class: "dict-slide intro-slide" }, canvas(V.introArt("modes", b.art)),
+			place(block(t.introModesBasic), b.textBasic), place(block(t.introModesKey), b.textKey)) };
+	}
+	// the notice, the doors again, and at its foot the repository, about, the sister projects and support
+	function introNotice() {
+		const t = T(), b = Lay.introSlide("notice").boxes;
 		const card = (name, url, desc) => h("a", { class: "sib-card", href: url, target: "_blank", rel: "noopener noreferrer" },
 			h("b", { text: name + " ↗" }), h("span", { text: desc }));
-		const tryExample = () => {
-			const set = SETS[0];
-			// a backup under way with another dictionary: asked first, and no keeps it all
-			if (!changeDict({ things: thingsOf(set, st.plan.n), checked: false, way: "ready" })) return;
-			st.ways.make.dict = "ready";
-			toStep("make", "plan");
-		};
-		// the two journeys, as they will go: one door each
-		const journeyList = (flow, steps) => h("div", { class: "door-steps" },
-			h("h3", { text: flow === "make" ? t.tabMakeFlow : t.tabReadFlow }),
-			h("ol", {}, steps.map(([a, b], i) => h("li", { class: keyThread((flow === "make" ? MAKE_STEPS : READ_STEPS)[i]) ? "pad" : null },
-				h("b", { text: a }), h("span", { text: b })))));
-		return h("div", { class: "intro" },
-			h("section", { class: "hero" },
-				h("div", { class: "hero-text" }, h("h1", { text: t.introTitle }), h("p", { class: "lead", text: t.introLead }),
-					h("div", { class: "row doors" },
-						h("button", { class: "btn big", on: { click: () => go("make") } }, t.tabMakeFlow),
-						h("button", { class: "btn ghost big", on: { click: () => go("read") } }, t.tabReadFlow)),
-					h("div", { class: "row" }, h("button", { class: "btn ghost small", on: { click: tryExample } }, t.startTry))),
-				heroString()),
-			h("section", { class: "panel" }, h("h2", { class: "panel-title", text: t.stepsTitle }),
-				h("div", { class: "doors-steps" }, journeyList("make", t.makeSteps), journeyList("read", t.readSteps))),
-			h("div", { class: "tool" },
-				panel(h("h2", { class: "panel-title", text: t.expectTitle }),
-					h("ul", { class: "list" }, t.expect.map((x) => h("li", { text: x })))),
-				panel(h("h2", { class: "panel-title", text: t.safeTitle }),
-					h("ul", { class: "list" }, t.safe.map((x) => h("li", { text: x }))),
-					h("div", { class: "row" }, link(REPO_URL + "/releases", t.releases),
-						link(REPO_URL + "/blob/main/docs/seedcraft-by-hand-" + st.lang + ".pdf", t.manual)))),
-			h("section", { class: "panel" }, h("h2", { class: "panel-title", text: t.siblingsTitle }),
-				h("div", { class: "sib-cards" }, SIBLINGS.map(([name, url, key]) => card(name, url, t[key])))),
-			h("section", { class: "panel" }, h("h2", { class: "panel-title", text: t.supportTitle }), donateBody()));
+		const pop = (title, ...kids) => () => Slides.popup(h("div", { class: "slide-help intro-pop" }, h("h2", { text: title }), ...kids), { label: title });
+		return { question: t.introNoticeQ, body: () => h("div", { class: "dict-slide intro-slide" },
+			place(h("div", { class: "intro-text intro-notice" }, t.introNotice.map((x) => h("p", { text: x }))), b.text),
+			place(doors(), b.doors),
+			place(h("div", { class: "intro-more" }, link(REPO_URL, t.repo),
+				h("button", { on: { click: () => go("about") } }, t.aboutTitle),
+				h("button", { on: { click: pop(t.siblingsTitle, h("div", { class: "sib-cards" }, SIBLINGS.map(([name, url, key]) => card(name, url, t[key])))) } }, t.siblingsTitle),
+				h("button", { on: { click: pop(t.supportTitle, donateBody()) } }, t.supportTitle)), b.more)) };
 	}
 
 	// ---- donate ------------------------------------------------------
@@ -2985,10 +3028,6 @@
 			b.textContent = "✓ " + t.copied; setTimeout(() => { b.textContent = t.copy; }, 1500);
 		} } }, t.copy);
 		return b;
-	}
-	function donate() {
-		const t = T();
-		return h("div", { class: "page" }, h("h2", { text: t.donateTitle }), donateBody());
 	}
 	function donateBody() {
 		const t = T();

@@ -669,6 +669,20 @@ const SeedcraftLayouts = (() => {
 		return { boxes: b, columns, arrows: [] };
 	}
 
+	// The start page's slides (temporary: Task 2 draws them and refines these):
+	// the drawing on the left, its text on the right, under the question; "modes"
+	// a block of text per mode, "blend" a label under each side of its drawing;
+	// "start" the example string and the doors, "notice" its text, the doors and a foot.
+	function introSlide(kind) {
+		const b = { guide: { ...GUIDE } };
+		if (kind === "modes") Object.assign(b, { art: box(16, 66, 300, 268), textBasic: box(332, 66, 332, 124), textKey: box(332, 210, 332, 124) });
+		else if (kind === "blend") Object.assign(b, { art: box(16, 66, 300, 236), seen: box(16, 310, 142, 24), hidden: box(174, 310, 142, 24), text: box(332, 66, 332, 268) });
+		else if (kind === "start") Object.assign(b, { art: box(16, 66, 648, 176), doors: box(16, 254, 648, 80) });
+		else if (kind === "notice") Object.assign(b, { text: box(56, 66, 568, 164), doors: box(16, 238, 648, 56), more: box(16, 302, 648, 32) });
+		else Object.assign(b, { art: box(16, 66, 300, 268), text: box(332, 66, 332, 268) });
+		return { boxes: b, arrows: [] };
+	}
+
 	// a crop square (image pixels) kept inside the photo, no smaller than 32 nor larger than the photo's short side
 	function cropClamp({ iw, ih, x, y, side }) {
 		const s = Math.max(1, Math.min(Math.max(32, side), iw, ih));
@@ -707,5 +721,5 @@ const SeedcraftLayouts = (() => {
 		const side = Math.max(32, Math.min(room, Math.max(west ? fx - ix : ix - fx, north ? fy - iy : iy - fy)));
 		return cropClamp({ iw, ih, x: west ? fx - side : fx, y: north ? fy - side : fy, side });
 	}
-	return { cropClamp, cropZoomRange, cropViewClamp, cropViewFit, cropToImage, cropViewOn, cropZoomAt, cropCorner, CROP_STEP, cropKeyScale, cropPinch, BUILT, SLOT, POSBOX, RAIL, pitch, qrSquare, qrCellsBox, digitFont, seedQr, seqIntro, underQr, checkIntro, VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readColumn, placeShift, readTurn, pickerPopup, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, REJECT, BADGE, fileRow, fileColumn, store, dictName, dictCheck, dictAsIs };
+	return { introSlide, cropClamp, cropZoomRange, cropViewClamp, cropViewFit, cropToImage, cropViewOn, cropZoomAt, cropCorner, CROP_STEP, cropKeyScale, cropPinch, BUILT, SLOT, POSBOX, RAIL, pitch, qrSquare, qrCellsBox, digitFont, seedQr, seqIntro, underQr, checkIntro, VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readColumn, placeShift, readTurn, pickerPopup, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, REJECT, BADGE, fileRow, fileColumn, store, dictName, dictCheck, dictAsIs };
 })();

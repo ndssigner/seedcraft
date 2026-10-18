@@ -723,5 +723,8 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 		h("button", { type: "button", class: "v-face", disabled: disabled || undefined, "aria-label": faceLabel(sides, face, label), on: { click: () => onPress && onPress(face) } },
 			die({ sides, face, size, label }));
 
-	return { RUN_MS, clockStepMs, icon, iconTag, badge, badgeSize, string, fadeRun, dictionary, bits, headerCard, number, piece, frame, clock, qr, ADVANCE_MS, glide, fadeIn, arrow, cards, die, diceShape, faceButton };
+	// the start page's drawings (kinds "what" | "blend" | "modes" | "hand" | "calm" | "audit"), in their box: drawn by Task 2
+	const introArt = (kind, box) => svg("g", { class: "v-intro-art v-intro-" + kind });
+
+	return { introArt, RUN_MS, clockStepMs, icon, iconTag, badge, badgeSize, string, fadeRun, dictionary, bits, headerCard, number, piece, frame, clock, qr, ADVANCE_MS, glide, fadeIn, arrow, cards, die, diceShape, faceButton };
 }
