@@ -355,7 +355,7 @@ for (const n of [2, 4, 8, 16, 32]) for (const pad of [false, true]) {
 		checkLayout(`${name} n=${n} pad=${pad}`, lay);
 		for (const a of lay.arrows) check(onBorder(starts(a), lay.boxes[a.from]) && onBorder(ends(a), lay.boxes[a.to]), `${name} n=${n} pad=${pad} arrow ${a.id} leaves and reaches its boxes`);
 		const keyed = ["keyString", "keyDict", "keyNumber", "keyColumn", "keySlot", "clock"].filter((k) => k in lay.boxes);
-		check(pad ? keyed.length === (name === "make" ? 4 : 3) : keyed.length === 0, `${name} n=${n} pad=${pad} has the key only with a key`);
+		check(pad ? keyed.length === (name === "make" ? 4 : 5) : keyed.length === 0, `${name} n=${n} pad=${pad} has the key only with a key`);
 		check("seedSlot" in lay.boxes && contains(lay.boxes[name === "make" ? "seedString" : "seedColumn"], lay.boxes.seedSlot), `${name} n=${n} pad=${pad} the turn's slot is in its string`);
 		if (pad) {
 			const m = Lay.clockModule(lay.boxes.clock), into = (id) => ends(lay.arrows.find((a) => a.id === id));
@@ -381,6 +381,25 @@ for (const n of [2, 4, 8, 16, 32]) for (const pad of [false, true]) for (const f
 	margin(`read n=${n} pad=${pad}`, Lay.readTurn({ pad, n }));
 }
 for (const pad of [false, true]) margin(`checkFinal pad=${pad}`, Lay.checkFinal({ pad }));
+// a turn read, at each turn's cursor: the position over the top into the QR above the cursor, the bits round its outer side beside it
+for (const size of [21, 25]) for (const n of [2, 16, 32]) for (const pad of [false, true]) for (const file of pad ? [false, true] : [false]) {
+	const k = Math.log2(n), cells = S.dataModulesRowMajor(size), turns = Math.ceil(cells.length / k);
+	for (let i = 0; i < turns; i++) {
+		const tc = S.turnBits(size, i, k).filter((x) => x.cell).map((x) => x.cell);
+		const probe = Lay.readTurn({ pad, n, file, cursor: null }).boxes.qr, cursor = Lay.qrCellsBox(probe, size, tc, { legend: probe.h >= 150 });
+		const lay = Lay.readTurn({ pad, n, file, cursor });
+		checkLayout(`read size=${size} n=${n} pad=${pad} file=${file} turn ${i}`, lay);
+		margin(`read size=${size} n=${n} pad=${pad} file=${file} turn ${i}`, lay);
+		const into = (id) => lay.arrows.find((a) => a.id === id);
+		for (const a of lay.arrows) if (!(onBorder(starts(a), lay.boxes[a.from]) && onBorder(ends(a), lay.boxes[a.to]))) check(false, `read size=${size} n=${n} pad=${pad} file=${file} turn ${i}: arrow ${a.id} leaves and reaches its boxes`);
+		check(!into("position") === !cursor && !into("paint") === !cursor, `read size=${size} n=${n} pad=${pad} turn ${i}: position and paint only with a cursor`);
+		if (cursor) {
+			const p = into("position").points.at(-1), q = into("paint").points.at(-1), mid = (a, b) => a + b / 2;
+			check(p[1] === lay.boxes.qr.y && Math.abs(p[0] - mid(cursor.x, cursor.w)) <= 1 && q[0] === lay.boxes.qr.x + lay.boxes.qr.w && Math.abs(q[1] - mid(cursor.y, cursor.h)) <= 1,
+				`read size=${size} n=${n} pad=${pad} turn ${i}: position reaches the QR above the cursor, the bits beside it`);
+		}
+	}
+}
 for (const sides of [2, 6, 20]) for (const tool of ["dice", "device", "bag"]) margin(`throw d${sides} ${tool}`, Lay.keyThrow({ sides, tool }));
 for (const toWords of [false, true]) for (const end of toWords ? [false, true] : [false]) checkLayout(`seedQr toWords=${toWords} end=${end}`, Lay.seedQr({ toWords, end }));
 { const q = Lay.seedQr({}), r = Lay.seedQr({ toWords: true });
@@ -927,10 +946,15 @@ for (const pad of [false, true]) {
 	check(ids("read", { mode: "pad", padAs: "string", padForm: "necklace", dict: true }) === "mode form size dict dictHave keyAs keyColl keyForm keyDict words recover seed", "read: a key of another collection");
 	// a turn read back: its stages show every arrow of readTurn once, in the cycle's order
 	for (const pad of [false, true]) for (const n of [2, 16, 32]) {
-		const stages = J.readStages({ pad }), arrows = Lay.readTurn({ pad, n }).arrows.map((a) => a.id);
-		check(stages.flatMap((x) => x.arrows).join() === arrows.join() && stages[0].id === "position" && stages[stages.length - 1].id === "paint", `readStages pad=${pad} n=${n}: every arrow once, in order, from the position to the squares painted`);
+	for (const file of pad ? [false, true] : [false]) {
+		const probe = Lay.readTurn({ pad, n, file }).boxes.qr, cursor = Lay.qrCellsBox(probe, 21, [[10, 10]], { legend: probe.h >= 150 });
+		const stages = J.readStages({ pad, file }), arrows = Lay.readTurn({ pad, n, file, cursor }).arrows.map((a) => a.id);
+		check(stages.flatMap((x) => x.arrows).join() === arrows.join() && stages[0].id === "position" && stages[stages.length - 1].id === "paint", `readStages pad=${pad} file=${file} n=${n}: every arrow once, in order, from the position to the squares painted`);
 	}
-	check(J.readStages({ pad: true }).map((x) => x.id).join() === "position,in,out,bits,paint" && J.readStages({ pad: true })[2].arrows.length === 0, "readStages: with a key, the clock's inputs, then what comes out (no arrow)");
+	}
+	check(J.readStages({}).map((x) => x.id).join() === "position,piece,number,bits,paint", "readStages: the position, the piece into its dictionary, its number, the bits, the squares");
+	check(J.readStages({ pad: true }).map((x) => x.id).join() === "position,piece,number,keyPiece,keyNumber,in,out,bits,paint" && J.readStages({ pad: true })[6].arrows.length === 0, "readStages: with a key, its piece and number, the clock's inputs, then what comes out (no arrow)");
+	check(J.readStages({ pad: true, file: true }).map((x) => x.id).join() === "position,piece,number,keyNumber,in,out,bits,paint", "readStages: a key file gives its number straight from the row");
 	// a copy read back against the one made: the reading that fits best, and the pieces that differ
 	{
 		const sym = [3, 1, 4, 1, 5, 9, 2, 6].map((x) => x % 8), key = [2, 7, 1, 8, 2, 8, 1, 8].map((x) => x % 8), rev = (a) => [...a].reverse();

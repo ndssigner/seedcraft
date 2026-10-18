@@ -2099,13 +2099,17 @@
 	// string's dictionary as buttons in a popup («Which one do you see at
 	// 14?»), closed by Esc or a tap outside (nothing chosen, the hole stays
 	// empty and Next waits). A key file gives its number by itself. The rows
-	// before are locked: a tap only says where the number comes from. With a
-	// key, the two numbers go into the clock («n | −k»); what comes out (with
-	// no key, the seed's number) gives the bits that paint the turn's squares
-	// of the QR code, on the right and the largest. Every arrow leaves from the
-	// row's frame, and only the current one shows whole. Once a turn's pieces
-	// are in, its cycle plays once (at once with reduced motion, or coming
-	// back to it). opts.done: on from the last turn.
+	// before are locked: a tap only says where the number comes from. The
+	// turn's position in its own box beside the row, from where an arrow goes
+	// over the top into the QR above the turn's squares; the row's piece goes
+	// straight into its dictionary, then its number. With a key, its piece
+	// into its own dictionary (stacked over the seed's) and the two numbers
+	// into the clock («n | −k»); what comes out (with no key, the seed's
+	// number) gives the bits, which go round the QR's outer side into the
+	// turn's squares of the QR code, on the right and the largest. Only the
+	// current arrow shows whole. Once a turn's pieces are in, its cycle plays
+	// once (at once with reduced motion, or coming back to it). opts.done: on
+	// from the last turn.
 	let readFresh = null;   // a turn whose pieces were just chosen: its cycle plays once
 	function readTurnSlide(rd, opts) {
 		const t = T(), things = dictFor(rd).things, n = things.length, k = Math.log2(n), pad = rd.mode === "pad";
@@ -2117,9 +2121,11 @@
 		const plainOf = (j) => key ? S.clockStep(rd.taps[j], key[j], n, -1).value : rd.taps[j];
 		const wholeAt = (j) => rd.taps[j] !== undefined && (!key || key[j] !== undefined);
 		const P = whole ? plainOf(i) : null;
-		const lay = Lay.readTurn({ pad, n }), b = lay.boxes, stages = J.readStages({ pad }), last = stages.length - 1;
-		const at = (id) => stages.findIndex((s) => s.id === id), stageOf = (id) => stages.findIndex((s) => s.arrows.includes(id));
 		const turn = S.turnBits(size, i, k), roles = turn.map((x) => x.role), turnCells = turn.filter((x) => x.cell).map((x) => x.cell);
+		// the turn's squares in the QR's box (none for the header and the padding): where the position and the bits arrive
+		const probe = Lay.readTurn({ pad, n, file }).boxes.qr, cursor = Lay.qrCellsBox(probe, size, turnCells, { legend: probe.h >= 150 });
+		const lay = Lay.readTurn({ pad, n, file, cursor }), b = lay.boxes, stages = J.readStages({ pad, file }), last = stages.length - 1;
+		const at = (id) => stages.findIndex((s) => s.id === id), stageOf = (id) => stages.findIndex((s) => s.arrows.includes(id));
 		const fresh = whole && readFresh === i && !calm();
 		readFresh = null;
 		let from = typeof rd.from === "number" && Math.abs(i - rd.from) === 1 && !calm() ? rd.from : null;
@@ -2165,8 +2171,8 @@
 		const arrowState = (id, p) => {
 			if (!whole) {
 				if (id === "position") return hasC || (keyThings && hasK) ? "past" : "current";
-				if (id === "clockSeed") return hasC ? "current" : "hidden";
-				if (id === "clockKey") return hasK ? "current" : "hidden";
+				if (id === "piece" || id === "number" || id === "clockSeed") return hasC ? "current" : "hidden";
+				if (id === "keyPiece" || id === "keyNumber" || id === "clockKey") return hasK ? "current" : "hidden";
 				return "hidden";
 			}
 			const s = stageOf(id);
@@ -2175,10 +2181,21 @@
 		// the columns (the same at every stage) drawn once, the QR only when its painting changes: a stage or
 		// the arrows' drawing never replaces what glides; arrowsOn false: every arrow hidden (until the glide has stopped)
 		let colsDrawn = false, paintDrawn = null, arrowsOn = true;
-		const g = { frame: svg("g"), seed: svg("g"), key: svg("g"), clock: svg("g"), bits: svg("g"), qr: svg("g") }, arrowGroups = lay.arrows.map(() => svg("g"));
+		const g = { frame: svg("g"), seed: svg("g"), key: svg("g"), dicts: svg("g"), numbers: svg("g"), clock: svg("g"), bits: svg("g"), qr: svg("g") }, arrowGroups = lay.arrows.map(() => svg("g"));
 		function draw(p, turning, onRun, alive) {
 			const reached = (id) => whole && at(id) >= 0 && p >= at(id);
-			g.frame.replaceChildren(V.frame({ box: b.row, colour: "qr" }));
+			// what is known of each string: while choosing, what has been chosen; once whole, as far as the cycle has gone
+			const seedAt = (id) => whole ? reached(id) : hasC, keyAt = (id) => whole ? reached(id) : hasK;
+			// the row's frame and, beside it, the turn's position in its own box
+			g.frame.replaceChildren(V.frame({ box: b.row, colour: "qr" }),
+				svg("rect", { x: b.posBox.x, y: b.posBox.y, width: b.posBox.w, height: b.posBox.h, rx: 4, class: "v-pos-box" }),
+				svg("text", { x: b.posBox.x + b.posBox.w / 2, y: b.posBox.y + b.posBox.h / 2 + 4, "font-size": 11, "text-anchor": "middle", class: "v-t v-pos v-pos-current v-c-qr v-bold" }, String(pos)));
+			// the dictionaries, each turned to its piece (the key file's numbers need none), and the numbers
+			g.dicts.replaceChildren(
+				V.dictionary({ label: t.dictLabel, box: b.seedDict, things, mode: "reel", icon: "seed", value: seedAt("piece") ? C : null, from: turning && p === at("piece") ? 0 : undefined }),
+				b.keyDict ? V.dictionary({ label: t.dictLabel, box: b.keyDict, things: keyThings, mode: "reel", icon: "key", value: keyAt("keyPiece") ? K : null, from: turning && p === at("keyPiece") ? 0 : undefined }) : svg("g"));
+			g.numbers.replaceChildren(V.number({ box: b.number, value: seedAt("number") ? C : null, colour: pad ? "seed" : "qr" }),
+				pad ? V.number({ box: b.keyNumber, value: keyAt("keyNumber") ? K : null, colour: "key" }) : svg("g"));
 			if (!colsDrawn) g.seed.replaceChildren(readColumn(b.seedColumn, "seed", things, rd.taps, i, L, { column: lay.columns.seed, slot: () => choose("seed"), piece: (x) => x === i ? choose("seed") : locked("seed", x),
 				title: (x) => x === i ? null : lockLine("seed", x) }));
 			if (pad && !colsDrawn) {
@@ -2208,22 +2225,22 @@
 			const q = g.qr.lastChild, marker = q && q.querySelector && q.querySelector(".v-qr-cursor");
 			const was = Lay.qrCellsBox(b.qr, size, S.turnBits(size, f, k).filter((x) => x.cell).map((x) => x.cell), { legend: b.qr.h >= 150 }), now = Lay.qrCellsBox(b.qr, size, turnCells, { legend: b.qr.h >= 150 });
 			if (was && now && marker) out.push(V.glide(marker, { dx: was.x - now.x, dy: was.y - now.y }));
-			V.fadeIn(g.bits);
+			V.fadeIn(g.bits); V.fadeIn(g.numbers);
 			return out;
 		}
 		let cycle = null, glides = null, hold = null;
 		function body() {
-			// the pieces just chosen: the cycle plays from the numbers in, a relation at a time, the clock
+			// the pieces just chosen: the cycle plays from the piece into its dictionary, a relation at a time, the clock
 			// turning step by step (the first stage now, before the body is on the page; each later one
 			// only while nothing has been drawn since)
-			cycle = fresh ? playCycle(stages, pad ? at("in") : at("bits"), draw) : null;
+			cycle = fresh ? playCycle(stages, at("piece"), draw) : null;
 			if (hold) { hold.cancel(); hold = null; }
 			// an arrival that glides: its arrows once the columns have stopped
 			if (!fresh && from !== null) hold = afterGlide((on) => { arrowsOn = on; draw(whole ? last : 0, false); arrowsOn = true; });
 			else if (!fresh) draw(whole ? last : 0, false);
 			if (from !== null) glides = glideIn(from, advance);
 			from = null;
-			return h("div", { class: "dict-slide rt-slide" }, canvas(g.frame, g.seed, g.key, g.clock, g.bits, g.qr, ...arrowGroups));
+			return h("div", { class: "dict-slide rt-slide" }, canvas(g.frame, g.seed, g.key, g.dicts, g.numbers, g.clock, g.bits, g.qr, ...arrowGroups));
 		}
 
 		// the foot: what to do now; once it is read, what it gave (the header and the padding have no squares)

@@ -142,14 +142,16 @@ const SeedcraftJourneys = (() => {
 
 	// ---- a turn read back (recovering, checking a copy) ----------------------
 	// The stages of a turn once its pieces are in, in the cycle's order, each
-	// with the arrows of layouts.js's readTurn it shows: the position (the turn's
-	// squares, while the pieces are chosen), then with a key the two numbers
-	// into the clock and what comes out of it (no arrow), then its bits, then
-	// the squares painted.
-	function readStages({ pad = false } = {}) {
+	// with the arrows of layouts.js's readTurn it shows: the position (over the
+	// top to the turn's squares, while the pieces are chosen), the seed's piece
+	// into its dictionary and its number; with a key its piece (none for a key
+	// file) and number, the two numbers into the clock and what comes out of it
+	// (no arrow); then the bits, then the squares painted.
+	function readStages({ pad = false, file = false } = {}) {
 		const st = (id, ...arrows) => ({ id, arrows });
-		return pad ? [st("position", "position"), st("in", "clockSeed", "clockKey"), st("out"), st("bits", "bits"), st("paint", "paint")]
-			: [st("position", "position"), st("bits", "bits"), st("paint", "paint")];
+		const seed = [st("position", "position"), st("piece", "piece"), st("number", "number")];
+		return pad ? [...seed, ...(file ? [] : [st("keyPiece", "keyPiece")]), st("keyNumber", "keyNumber"), st("in", "clockSeed", "clockKey"), st("out"), st("bits", "bits"), st("paint", "paint")]
+			: [...seed, st("bits", "bits"), st("paint", "paint")];
 	}
 	// A copy read back against the one just made, piece by piece. taps and
 	// keys: what was read, turn by turn (keys: the key's column, null with no
