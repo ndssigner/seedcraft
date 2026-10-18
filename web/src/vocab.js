@@ -511,7 +511,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	// legendSpace: keep the legend's room (the square as if drawn with a legend) and draw nothing in it;
 	// legend: a short string under the QR (the QR is then 14 smaller); markerLabel: a blue tab on the marker,
 	// both in one g.v-qr-cursor (the last child) so that they glide together
-	function qr({ box, size, modules, turnCells = [], painted = new Map(), wrong = [], reveal = null, fixed = null, legend = null, markerLabel = null, fixedReveal = null, legendSpace = false, maskCells = [] }) {
+	function qr({ box, size, modules, turnCells = [], painted = new Map(), wrong = [], reveal = null, fixed = null, legend = null, markerLabel = null, fixedReveal = null, legendSpace = false, cursorCells = turnCells, maskOutline = [] }) {
 		const room = !!legend || legendSpace, LEG = 14, side = Math.min(box.w, box.h) - (room ? LEG : 0), cs = side / size, x0 = box.x + (box.w - side) / 2, y0 = box.y + (box.h - side - (room ? LEG : 0)) / 2;
 		const get = typeof modules === "function" ? modules : (r, c) => modules ? modules[r][c] : null;
 		const turn = new Set(turnCells.map(([r, c]) => r * size + c)), bad = new Set(wrong.map(([r, c]) => r * size + c));
@@ -542,14 +542,13 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 				svg("rect", { x: r1(lx), y: r1(box.y + box.h - LEG / 2 - 4), width: sw, height: 8, rx: 1.5, fill: `url(#${hatchId || "none"})`, class: "v-qr-hatched" }),
 				text(lx + sw + 4, ly, 9, legend, { class: "v-qr-legend-text" })), 0, fx && fx.ms));
 		}
-		// the mask's cells (S.maskCells: a list of copies), an amber outline round each copy's three cells, a light halo under it
-		for (const copy of maskCells) {
+		// the mask's cells the cursor is not on (S.turnCursor's outline: a list of copies), a light outline round each copy's three
+		for (const copy of maskOutline) {
 			const mk = L.qrCellsBox(box, size, copy, { legend: room });
-			if (mk) parts.push(svg("g", { class: "v-qr-mask" },
-				svg("rect", { x: r1(mk.x), y: r1(mk.y), width: r1(mk.w), height: r1(mk.h), rx: 1.5, class: "v-qr-mask-halo" }),
-				svg("rect", { x: r1(mk.x), y: r1(mk.y), width: r1(mk.w), height: r1(mk.h), rx: 1.5, class: "v-qr-mask-line" })));
+			if (mk) parts.push(svg("rect", { x: r1(mk.x), y: r1(mk.y), width: r1(mk.w), height: r1(mk.h), rx: 1.5, class: "v-qr-mask-line" }));
 		}
-		const m = L.qrCellsBox(box, size, turnCells, { legend: room });
+		// the cursor: on the turn's squares, or where cursorCells says (the mask's turn: its first copy)
+		const m = L.qrCellsBox(box, size, cursorCells, { legend: room });
 		if (m) {
 			const kids = [svg("rect", { x: m.x, y: m.y, width: m.w, height: m.h, rx: 2, class: "v-qr-marker" })];
 			if (markerLabel) {

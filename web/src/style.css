@@ -382,8 +382,7 @@ ol.entries.paper li { color: #111; border-bottom-color: #ccc; }
 .v-qr-tab { fill: var(--qr); } .v-qr-tab-text { fill: #ffffff; font-family: var(--sans); font-weight: 600; }
 .v-dict-label { fill: var(--fg); font-family: var(--sans); }
 .v-qr-marker { fill: none; stroke: var(--qr); stroke-width: 2.5; pointer-events: none; }
-.v-qr-mask { pointer-events: none; } .v-qr-mask rect { fill: none; }
-.v-qr-mask-halo { stroke: #ffffff; stroke-width: 3; } .v-qr-mask-line { stroke: var(--key); stroke-width: 1.6; }
+.v-qr-mask-line { fill: none; stroke: var(--key); stroke-width: 1; opacity: .7; pointer-events: none; }
 .v-qr-reveal { animation: v-reveal 1ms both; }
 .v-qr-fixed-reveal { animation: v-reveal 400ms both; }
 @keyframes v-reveal { from { opacity: 0; } to { opacity: 1; } }
