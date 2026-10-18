@@ -626,7 +626,8 @@
 		return SIZES.map((n) => {
 			const L = symbolsFor(words || 12, n), L2 = words ? undefined : symbolsFor(24, n);
 			return { id: n, title: c.sizeTitle(n), art: artOf(artString(kindThings(formId, n), [0, n - 1, 1, n - 2])),
-				pros: [n <= 8 ? c.sizeEasy : c.sizeShort(L, L2), n === rec ? c.sizeRecommended : null].filter(Boolean),
+				star: n === rec, starLabel: c.recommended,
+				pros: [n <= 8 ? c.sizeEasy : c.sizeShort(L, L2)],
 				cons: [n <= 8 ? c.sizeLong(L, L2) : c.sizeKinds(n)] };
 		});
 	}
@@ -702,6 +703,8 @@
 		const work = reading ? !!(st.read.keyTaps.length || st.read.keyFile) : !!(m.key && m.key.pieces.length);
 		if (work && !confirm(reading ? T().keyAsChangeAskRead : T().keyAsChangeAsk)) return false;
 		p.padAs = v; if (!reading) st.gathered = {};
+		// a key file holds no bag: a bag key becomes the best die, thrown again from the start
+		if (!reading && v === "file" && m.key && m.key.by === "bag") setKey({ ...m.key, by: J.keyByForFile(m.key.by, st.dict.things.length, S.DICE.filter((x) => x !== 2)), draft: [], fix: null });
 		if (reading) forgetKeyRead(st.read, true);
 		else Object.assign(m, { padKept: false, check: null, checked: false, storedAt: {} });
 		return true;
@@ -870,7 +873,7 @@
 			if (who === "device") setKey({ ...key, by: "device", draft: [], fix: null });
 			else if (key.by === "device" || !m.key) setKey({ ...key, by: null, draft: [], fix: null });
 		};
-		return decide({ question: T().keyWhoQ, chosen: m.keyWho || null, choose,
+		return decide({ question: T().keyWhoQ, intro: T().keyWhyChance, chosen: m.keyWho || null, choose,
 			options: [{ id: "device", art: deviceArt(), ...c.device }, { id: "me", art: dieArt({ sides: 6, face: 3 }), ...c.me }] });
 	}
 	function keyToolSlide() {
@@ -879,11 +882,11 @@
 		// a die gives b bits a throw (SPEC §10.2): the throws a piece takes, and whether some faces are thrown again
 		const die = (sides) => {
 			const { b, keep } = S.diceBits(sides), per = Math.ceil(k / b);
-			return { id: "d" + sides, art: dieArt({ sides, label: "d" + sides }), title: "d" + sides,
+			return { id: "d" + sides, art: V.diceShape({ sides, size: 56 }), title: c.dieTitle(sides),
 				pros: per === 1 ? [c.dieOne] : [], cons: [per > 1 ? c.dieMany(per) : null, keep < sides ? c.dieAgain : null].filter(Boolean) };
 		};
 		// a bag only of pieces you can hold
-		const options = [formOf(form).family !== "written" ? { id: "bag", art: bagArt(), ...c.bag } : null,
+		const options = [st.plan.padAs === "string" && formOf(form).family !== "written" ? { id: "bag", art: bagArt(), ...c.bag } : null,
 			{ id: "coin", art: dieArt({ sides: 2, label: t.coinHeads }), title: c.coin.title, pros: c.coin.pros, cons: [c.coinMany(k)] },
 			...S.DICE.filter((x) => x !== 2).map(die)].filter(Boolean);
 		return decide({ question: t.keyTools, options, chosen: key && key.by !== "device" ? key.by : null,

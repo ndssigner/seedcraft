@@ -1153,6 +1153,11 @@ for (const pad of [false, true]) {
 		&& walk(cardList[1], cls("v-con")).length === 2 && textOf(cardList[0]).includes("✓") && textOf(cardList[1]).includes("✕"), "cards: two cards, with their ✓ and ✕ (two at most)");
 	check(cls("on")(cardList[1]) && cardList[1].attrs["aria-pressed"] === "true" && !cls("on")(cardList[0]), "cards: the chosen one marked");
 	cardList[0].attrs.on.click(); check(chose === "a", "cards: a tap chooses");
+	// a starred option shows a star top-right with its title; nothing else changes
+	{ const st1 = V.cards({ options: [{ id: "a", title: "A", star: true, starLabel: "Recommended" }, { id: "b", title: "B" }], chosen: null });
+		const stars = walk(st1, cls("v-card-star"));
+		check(stars.length === 1 && textOf(stars[0]).includes("★") && /Recom/.test(stars[0].attrs.title || "") && /Recom/.test(stars[0].attrs["aria-label"] || ""), "cards: the starred option's star, with its title"); }
+	for (const s of [4, 6, 8, 10, 12, 16, 20]) { const d = V.diceShape({ sides: s, size: 56 }); check(walk(d, (n) => n.tag === "path" || n.tag === "polygon" || n.tag === "rect").length >= 1 && walk(d, (n) => n.tag === "text").some((t) => textOf(t) === String(s)), `diceShape d${s}`); }
 	// a card: art, title, one list; pros then cons; each li is the mark, then the text; nothing centred
 	const grid3 = V.cards({ options: [{ id: "a", art: node("svg", {}), title: "A", sub: "small", pros: ["p"], cons: ["c"] }, { id: "b", title: "B", pros: [], cons: [] }, { id: "c", title: "C", cons: ["c"] }], chosen: null });
 	const [g1, g2] = walk(grid3, cls("v-card"));
@@ -1280,6 +1285,9 @@ for (const pad of [false, true]) {
 {
 	const J = vm.runInContext("SeedcraftJourneys", ctx);
 	const ids = (flow, s) => J.slides(flow, s).map((x) => x.id).join(" ");
+	{ const dice = S.DICE.filter((x) => x !== 2);
+		check(J.bestDie(16, dice) === 16 && J.bestDie(32, dice) === 8 && J.bestDie(4, dice) === 4, "bestDie: d16 for 16, d8 for 32, d4 for 4");
+		check(J.keyByForFile("bag", 16, dice) === "d16" && J.keyByForFile("bag", 32, dice) === "d8" && J.keyByForFile("d6", 16, dice) === "d6" && J.keyByForFile("coin", 16, dice) === "coin", "a key file holds no bag: the bag becomes the best die"); }
 	check(J.buyFor(12, 16, "basic") === 8 && J.buyFor(12, 16, "pad", "string") === 14 && J.buyFor(12, 16, "pad", "file") === 8 && J.buyFor(24, 32, "basic") === 7, "buyFor: the 90th percentile");
 	check(J.maxPerKind([1, 2, 2, 3], [2, 5]) === 3 && J.maxPerKind([0]) === 1, "maxPerKind: across strings together");
 	{ const ini = (s) => s.split(/\s+/).map((w) => w[0]).join("").toUpperCase();
@@ -1448,6 +1456,9 @@ for (const pad of [false, true]) {
 	vm.runInContext(read("src/i18n.js") + ";globalThis.TEXT = SEEDCRAFT_TEXT;", ctx, { filename: "src/i18n.js" });
 	const TX = ctx.TEXT;
 	for (const lang of ["en", "es"]) { const c = TX[lang].seqCount(7, 8); check(!c.includes("7") && c.includes("8"), `seqCount ${lang}: the estimate only (the count is the big figure beside it)`); }
+	check(TX.es.cards.dieTitle(6) === "Dado de 6 caras (d6)" && TX.en.cards.dieTitle(6) === "6-sided die (d6)", "dieTitle");
+	check(!("sizeRecommended" in TX.es.cards) && !("sizeRecommended" in TX.en.cards) && TX.es.cards.recommended === "Recomendada" && TX.en.cards.recommended === "Recommended", "the recommended size is a star, not a line");
+	check(TX.es.keyWhyChance.startsWith("La llave solo protege") && TX.en.keyWhyChance.startsWith("The key only protects"), "keyWhyChance in both languages");
 	check(TX.es.gatherLater === "Te diremos la cantidad exacta cuando sepamos tu semilla." && TX.en.gatherLater === "We'll tell you the exact count once we know your seed.", "gatherLater: the new copy");
 	for (const lang of ["en", "es"]) { const f = TX[lang].gatherTotalLine; check(typeof f === "function" && f(144, "seq").includes("144") && f(144, "both").includes("144") && f(144, "seq") !== f(144, "both"), `gatherTotalLine ${lang}: the count, and a line for both`); }
 	check(TX.es.gatherTotalLine(5, "seq") === "En total: 5 piezas para la ristra y el diccionario" && TX.es.gatherTotalLine(5, "both") === "En total: 5 piezas para las dos ristras y los diccionarios" && TX.en.gatherTotalLine(5, "seq") === "In all: 5 pieces for the string and the dictionary" && TX.en.gatherTotalLine(5, "both") === "In all: 5 pieces for both strings and the dictionaries", "gatherTotalLine: exact copy");

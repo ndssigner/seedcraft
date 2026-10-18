@@ -260,7 +260,7 @@ const SEEDCRAFT_TEXT = {
 		cards: {
 			basic: { title: "One string", pros: ["One thing to keep", "Quicker to make"], cons: ["Whoever finds it and can read it has your seed"] },
 			pad: { title: "String + key", pros: ["Alone, each one says nothing", "You can keep them in two places"], cons: ["Two things to make and keep", "Lose one and you lose the seed"] },
-			sizeTitle: (n) => `${n} kinds`, sizeEasy: "Kinds easy to tell apart", sizeRecommended: "Recommended for this form",
+			sizeTitle: (n) => `${n} kinds`, sizeEasy: "Kinds easy to tell apart", recommended: "Recommended", dieTitle: (s) => `${s}-sided die (d${s})`,
 			sizeShort: (L, L2) => `A short string: ${L2 ? L + " or " + L2 : L} pieces`, sizeLong: (L, L2) => `A long string: ${L2 ? L + " or " + L2 : L} pieces`, sizeKinds: (n) => `${n} kinds never to confuse`,
 			keyString: { title: "Pieces, like the string", pros: ["No file that can be copied"], cons: ["More pieces, and twice the stringing"] },
 			keyFile: { title: "A file", pros: ["Nothing to get or string"], cons: ["A digital copy can last for years", "Never on a device that travels with the string"] },
@@ -278,6 +278,7 @@ const SEEDCRAFT_TEXT = {
 		},
 		haveFormQ: "What form has it?", keyAsQ: "What will the key be?", keyCollQ: "Which pieces for the key?", keyCollQRead: "What pieces is the key of?",
 		keyFormQ: "Which form for the key?", keyFormQRead: "What form has the key?", dictQ: "Where does the dictionary come from?", keyDictQ: "And the key's dictionary?",
+		keyWhyChance: "The key only protects if it is truly random: if it can be guessed, whoever finds the string can try it. No numbers you think up.",
 		keyWhoQ: "Who draws the key?", keyFileQ: "Type or open the key file", piecesQ: "Gather these before you start",
 		piecesFor: { seq: "Your string", key: "Your key", both: "Your string and your key" }, piecesHave: "I have them",
 		piecesTwice: (x) => `For each string: ${x}`,
@@ -662,7 +663,7 @@ const SEEDCRAFT_TEXT = {
 		cards: {
 			basic: { title: "Una ristra", pros: ["Una sola cosa que guardar", "Más rápida de hacer"], cons: ["Quien la encuentre y sepa leerla, tiene tu seed"] },
 			pad: { title: "Ristra + llave", pros: ["Sola, cada una no dice nada", "Puedes guardarlas en dos sitios"], cons: ["Dos cosas que hacer y guardar", "Si pierdes una, pierdes la seed"] },
-			sizeTitle: (n) => `${n} clases`, sizeEasy: "Clases fáciles de distinguir", sizeRecommended: "La recomendada para esta forma",
+			sizeTitle: (n) => `${n} clases`, sizeEasy: "Clases fáciles de distinguir", recommended: "Recomendada", dieTitle: (s) => `Dado de ${s} caras (d${s})`,
 			sizeShort: (L, L2) => `Ristra corta: ${L2 ? L + " o " + L2 : L} piezas`, sizeLong: (L, L2) => `Ristra larga: ${L2 ? L + " o " + L2 : L} piezas`, sizeKinds: (n) => `${n} clases que no confundir`,
 			keyString: { title: "En piezas, como la ristra", pros: ["Ningún archivo que se pueda copiar"], cons: ["Más piezas, y el doble de enhebrar"] },
 			keyFile: { title: "Un archivo", pros: ["Nada que reunir ni enhebrar"], cons: ["Una copia digital puede durar años", "Nunca en un aparato que viaje con la ristra"] },
@@ -680,6 +681,7 @@ const SEEDCRAFT_TEXT = {
 		},
 		haveFormQ: "¿Qué forma tiene?", keyAsQ: "¿Cómo será la llave?", keyCollQ: "¿Con qué piezas, la llave?", keyCollQRead: "¿De qué piezas es la llave?",
 		keyFormQ: "¿Qué forma tendrá la llave?", keyFormQRead: "¿Qué forma tiene la llave?", dictQ: "¿De dónde sale el diccionario?", keyDictQ: "¿Y el diccionario de la llave?",
+		keyWhyChance: "La llave solo protege si es azar de verdad: si se puede adivinar, quien encuentre la ristra puede probarla. Nada de números pensados por ti.",
 		keyWhoQ: "¿Quién pone el azar?", keyFileQ: "Escribe o abre el archivo de la llave", piecesQ: "Reúne esto antes de empezar",
 		piecesFor: { seq: "Tu ristra", key: "Tu llave", both: "Tu ristra y tu llave" }, piecesHave: "Lo tengo",
 		piecesTwice: (x) => `Para cada ristra: ${x}`,
