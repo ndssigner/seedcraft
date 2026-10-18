@@ -1022,8 +1022,13 @@ for (const pad of [false, true]) {
 {
 	const J = vm.runInContext("SeedcraftJourneys", ctx);
 	const ids = (flow, s) => J.slides(flow, s).map((x) => x.id).join(" ");
-	check(J.buyFor(12, 16, "basic") === 15 && J.buyFor(24, 16, "basic") === 20 && J.buyFor(12, 16, "pad", "string") === 20 && J.buyFor(24, 32, "pad", "string") === 20
-		&& J.buyFor(12, 2, "pad", "file") === 135 && J.buyFor(12, 2, "basic") === 130, "buyFor: SPEC §6 and §10.6");
+	check(J.buyFor(12, 16, "basic") === 8 && J.buyFor(12, 16, "pad", "string") === 14 && J.buyFor(12, 16, "pad", "file") === 8 && J.buyFor(24, 32, "basic") === 7, "buyFor: the 90th percentile");
+	check(J.maxPerKind([1, 2, 2, 3], [2, 5]) === 3 && J.maxPerKind([0]) === 1, "maxPerKind: across strings together");
+	{ const ini = (s) => s.split(/\s+/).map((w) => w[0]).join("").toUpperCase();
+	  const u = J.uniqueInitials(["Brown Lentil", "Black Lentil", "Wood Pipe", "Wood Pear", "Pink Disk"], ini);
+	  check(u[4] === "PD" && u[0] !== u[1] && u[2] !== u[3] && u.slice(0, 4).every((x) => x.length >= 3) && new Set(u).size === 5, "uniqueInitials: collisions get three letters, the rest keep theirs"); }
+	{ const k = 4, made = Array.from({ length: 54 }, (_, i) => i % 16), padOnly = made.slice(); padOnly[53] ^= 1; const header = made.slice(); header[53] ^= 8;
+	  check(J.onlyPadding(padOnly, made, k, 213) && !J.onlyPadding(header, made, k, 213) && !J.onlyPadding(made, made, k, 213), "onlyPadding: only bits past the header differ"); }
 	check(J.symbolsFor(12, 16) === 54 && J.symbolsFor(24, 16) === 91 && J.symbolsFor(12, 32) === 43 && J.symbolsFor(24, 2) === 364, "symbolsFor: SPEC §2");
 	check(ids("make", { mode: "basic" }) === "mode form words size pieces dict seed check store", "make: the basic mode's slides");
 	check(ids("make", { mode: "basic", made: true }) === "mode form words size pieces dict seed qr seq check store", "make: the turns once the sequence is made");
@@ -1080,11 +1085,11 @@ for (const pad of [false, true]) {
 			`jump: Store with no Check lands on Check (${s.mode}); checked, on Store`);
 	}
 	const one = (p) => JSON.stringify(J.pieces({ words: 12, n: 16, form: "necklace", padForm: null, ...p }, (f) => f === "book" ? 0 : 1, (f) => f !== "book"));
-	check(one({ mode: "basic" }) === JSON.stringify({ keyFile: false, groups: [{ kinds: ["seed"], form: "necklace", each: 15, copies: 1, what: "seq", assembly: true }] }), "pieces: the basic mode, one group");
-	check(one({ mode: "pad", padAs: "string" }) === JSON.stringify({ keyFile: false, groups: [{ kinds: ["seed", "key"], form: "necklace", each: 20, copies: 2, what: "both", assembly: true }] }), "pieces: a key of the same collection, one group with more of each");
-	check(one({ mode: "pad", padAs: "string", padForm: "book" }) === JSON.stringify({ keyFile: false, groups: [{ kinds: ["seed"], form: "necklace", each: 15, copies: 1, what: "seq", assembly: true },
-		{ kinds: ["key"], form: "book", each: 15, copies: 0, what: "key", assembly: false }] }), "pieces: a key of another collection, a group each");
-	check(one({ mode: "pad", padAs: "file" }) === JSON.stringify({ keyFile: true, groups: [{ kinds: ["seed"], form: "necklace", each: 15, copies: 2, what: "seq", assembly: true }] }), "pieces: a key file, a copy of the dictionary for it");
+	check(one({ mode: "basic" }) === JSON.stringify({ keyFile: false, groups: [{ kinds: ["seed"], form: "necklace", each: 8, copies: 1, what: "seq", assembly: true }] }), "pieces: the basic mode, one group");
+	check(one({ mode: "pad", padAs: "string" }) === JSON.stringify({ keyFile: false, groups: [{ kinds: ["seed", "key"], form: "necklace", each: 14, copies: 2, what: "both", assembly: true }] }), "pieces: a key of the same collection, one group with more of each");
+	check(one({ mode: "pad", padAs: "string", padForm: "book" }) === JSON.stringify({ keyFile: false, groups: [{ kinds: ["seed"], form: "necklace", each: 8, copies: 1, what: "seq", assembly: true },
+		{ kinds: ["key"], form: "book", each: 8, copies: 0, what: "key", assembly: false }] }), "pieces: a key of another collection, a group each");
+	check(one({ mode: "pad", padAs: "file" }) === JSON.stringify({ keyFile: true, groups: [{ kinds: ["seed"], form: "necklace", each: 8, copies: 2, what: "seq", assembly: true }] }), "pieces: a key file, a copy of the dictionary for it");
 	// a turn of the sequence: its stages reveal every arrow of makeTurn once, in the cycle's order
 	for (const [pad, file, count] of [[false, false, 5], [true, false, 9], [true, true, 8]]) {
 		const stages = J.turnStages({ pad, file }), arrows = Lay.makeTurn({ pad, n: 16, file }).arrows.map((a) => a.id);

@@ -872,8 +872,9 @@
 					h("span", { text: other ? t.gatherKeyPieces : t.piecesFor[g.what] }), h("small", { text: t.forms[g.form].name })),
 				written ? h("p", { class: "gather-note", text: t.gatherNoPieces }) : h("div", { class: "gather-body" },
 					h("div", { class: "gather-nums" },
-						h("p", {}, h("b", { text: String(n) }), h("span", { text: t.gatherKinds })), h("p", {}, h("b", { text: String(each) }), h("span", { text: t.gatherEach }))),
+						h("p", {}, h("b", { text: String(n) }), h("span", { text: t.gatherKinds })), h("p", {}, h("b", { text: String(each) }), h("span", { text: t.gatherEach }), h("small", { class: "gather-estimate", text: t.gatherEstimate }))),
 					h("p", { class: "gather-total" }, h("span", { text: t.gatherTotal }), h("b", { text: String(n * each) }))),
+				written ? null : h("p", { class: "gather-later", text: t.gatherLater }),
 				written ? null : tick(g.what));
 		};
 		const assemblyCard = (g) => {
