@@ -1832,6 +1832,14 @@
 	}
 	// the parts of a turn that are not squares (S.turnBits's), or false: none
 	const headerOf = (turn) => { const parts = [...new Set(turn.map((x) => x.part).filter((p) => p !== "data"))]; return parts.length ? parts : false; };
+	// the line under a turn that brings the mask (spec §4): what its three cells show (the mask mixed with 101, bits
+	// 12-10 of S.FORMAT_XOR) and the mask itself; mask: its 3 bits (null: not all known, no line)
+	const MASK_XOR = [12, 11, 10].map((b) => (S.FORMAT_XOR >>> b) & 1);
+	const maskLineOf = (mask) => mask && mask.every((x) => x === 0 || x === 1) ? T().hdrMaskSeen(mask.map((x, j) => x ^ MASK_XOR[j]).join(""), mask.join("")) : null;
+	// the mask's «?»: why it is there, what its cells show, where the 8 masks are; explain: the button that explains the turn
+	const maskHelp = (line, explain) => Slides.popup(h("div", { class: "slide-help" }, h("h2", { text: T().hdrMask }), h("p", { text: T().hdrMaskWhy }),
+		line ? h("p", { text: line }) : null, h("p", { text: T().hdrMaskCatalog }),
+		h("button", { type: "button", class: "btn", text: T().hdrMaskExplain, on: { click: () => { Slides.closePopup(true); explain(); } } })), { label: T().hdrMask });
 	// the key file's characters around turn i (pad: the key's values), a column like the key string's: the turn's framed
 	function keyFileReference(box, pad, i, L) {
 		const col = Lay.fileColumn(box, { role: "reference" }), parts = [];
@@ -1854,6 +1862,8 @@
 		const qr = S.compactSeedQR(m.entropy), size = qr.size;
 		const bits = S.symbolsToBits(plain, k), turn = S.turnBits(size, i, k), roles = turn.map((x) => x.part);
 		const turnCells = turn.filter((x) => x.cell).map((x) => x.cell), header = headerOf(turn), data = turnCells.length > 0;
+		// a turn that brings the mask: its three cells outlined in the QR (both copies), the line on what they show
+		const withMask = !!header && header.includes("mask"), maskLine = withMask ? maskLineOf(S.maskSeen(qr).mask) : null;
 		// a last turn (header): the cards its bits come from, beside a smaller QR
 		const lay = Lay.makeTurn({ pad, n, file, header, data, size }), b = lay.boxes, stages = J.turnStages({ pad, file, header: !!header, data }), last = stages.length - 1;
 		const explaining = i < J.EXPLAINED || !!(m.explain && m.explain.turn === i);
@@ -1862,8 +1872,8 @@
 		let from = turnFrom !== null && Math.abs(i - turnFrom) === 1 && !calm() ? turnFrom : null;
 		turnFresh = null; turnBack = false; turnFrom = null;
 		const changed = (m.keyChanged || []).includes(i);
-		// the header (version and mask) and the padding have no squares in the QR code
-		const note = header ? t.turnHeaderNoQr : null;
+		// the header (version and mask) and the padding have no squares in the QR code (a turn with the mask: where it is written instead)
+		const note = header ? maskLine || t.turnHeaderNoQr : null;
 		// the last turn, once whole: why it is made this way (with a key: why both strings are needed)
 		const end = i === L - 1 ? (pad ? t.endPad : t.endBasic) : null;
 
@@ -1883,7 +1893,7 @@
 		let keyDrawn = false, slotDrawn = null, qrDrawn = false, arrowsOn = true;
 		function draw(p, turning, onRun, alive) {
 			const reached = (id) => at(id) >= 0 && at(id) <= p;
-			if (!qrDrawn) groups.qr.replaceChildren(V.qr({ box: b.qr, size, modules, turnCells, markerLabel: T().qrPosition(i + 1), ...qrFixed(size, b.qr) }));
+			if (!qrDrawn) groups.qr.replaceChildren(V.qr({ box: b.qr, size, modules, turnCells, markerLabel: T().qrPosition(i + 1), ...qrFixed(size, b.qr), maskCells: withMask ? S.maskCells(size) : [] }));
 			qrDrawn = true;
 			// the cards, filled from their stage on (the mask is the QR's, written in its format band)
 			if (header) groups.cards.replaceChildren(...headerCardsOf(b, header, size, k, i, bits.map((x, j) => Math.floor(j / k) === i && !reached("cards") ? null : x)));
@@ -1977,8 +1987,7 @@
 		];
 		return {
 			count: `${pos}/${L}`, steps: explaining ? stages.length : 1, startStep: explaining && back ? last : 0, caption, shortcuts, body,
-			help: header && header.includes("mask") ? () => Slides.popup(h("div", { class: "slide-help" }, h("h2", { text: t.hdrMask }), h("p", { text: t.hdrMaskWhy }),
-				h("button", { type: "button", class: "btn", text: t.hdrMaskExplain, on: { click: () => { Slides.closePopup(true); explainTurn(); } } })), { label: t.hdrMask }) : explainTurn,
+			help: withMask ? () => maskHelp(maskLine, explainTurn) : explainTurn,
 			// Next while the advance or the cycle plays: first its end, then on
 			hurry,
 			prev: i > 0 ? { go: () => turnGo(i - 1) } : { go: () => goSlide("make", "seqIntro") },
@@ -2352,6 +2361,7 @@
 		const wholeAt = (j) => rd.taps[j] !== undefined && (!key || key[j] !== undefined);
 		const P = whole ? plainOf(i) : null;
 		const turn = S.turnBits(size, i, k), roles = turn.map((x) => x.part), turnCells = turn.filter((x) => x.cell).map((x) => x.cell), header = headerOf(turn);
+		const withMask = !!header && header.includes("mask");
 		// the turn's squares in the QR's box (none for the header and the padding): where the position and the bits arrive;
 		// a last turn (header): its bits go to their cards, beside a smaller QR
 		const probe = Lay.readTurn({ pad, n, file, header }).boxes.qr, cursor = Lay.qrCellsBox(probe, size, turnCells, { legend: probe.h >= 150 });
@@ -2470,7 +2480,7 @@
 				paintDrawn = reached("paint");
 				const painted = new Map(before);
 				if (paintDrawn) paintTurn(painted, i);
-				g.qr.replaceChildren(V.qr({ box: b.qr, size, modules: template, turnCells, painted, markerLabel: T().qrPosition(i + 1), ...qrFixed(size, b.qr) }));
+				g.qr.replaceChildren(V.qr({ box: b.qr, size, modules: template, turnCells, painted, markerLabel: T().qrPosition(i + 1), ...qrFixed(size, b.qr), maskCells: withMask ? S.maskCells(size) : [] }));
 			}
 			lay.arrows.forEach((a, j) => arrowGroups[j].replaceChildren(V.arrow({ points: a.points, colour: a.colour, state: arrowsOn ? arrowState(a.id, p) : "hidden" })));
 		}
@@ -2500,8 +2510,14 @@
 			return h("div", { class: "dict-slide rt-slide" }, canvas(g.frame, g.seed, g.key, g.dicts, g.numbers, g.clock, g.bits, g.cards, g.qr, ...arrowGroups), ...maskTip(lay, header, i));
 		}
 
-		// the foot: what to do now; once it is read, what it gave (the header and the padding have no squares)
-		const note = header ? t.turnHeaderNoQr : null;
+		// the foot: what to do now; once it is read, what it gave (the header and the padding have no squares). A turn that
+		// brings the mask: once its 3 bits are read (this turn and those before), what its cells would show and the mask, instead
+		const maskRead = () => {
+			if (!withMask) return null;
+			const values = Array.from({ length: L * k }, (_, j) => { const x = Math.floor(j / k); return (x === i ? whole : wholeAt(x)) ? bitsOf(plainOf(x), k)[j - x * k] : null; });
+			return maskLineOf(J.headerBitsUpTo(["mask"], i, k, S.dataModulesRowMajor(size).length, values).mask.bits);
+		};
+		const note = header ? maskRead() || t.turnHeaderNoQr : null;
 		const caption = () => !whole ? (i === 0 && !st.seen.readTap ? t.forms[form].read : keyThings ? t.readTapBoth(pos) : t.readTap(pos))
 			: note || (pad ? t.readTurnPad(C, K, n, P) : t.readTurnBasic(P));
 		const checking = rd !== st.read;
@@ -2535,7 +2551,7 @@
 			hurry: () => { const playing = !!glides && glides.playing; if (glides) glides.finish(); const held = !!hold && hold.finish(); return (!!cycle && cycle.finish()) || held || playing; },
 			help: helpOf(stepName(checking ? "make" : "read", checking ? "check" : "recover"), checking ? (pad ? t.checkHelpPad : t.checkReadHelp) : null,
 				[t.forms[form].read, keyThings ? t.keysHintTab : t.keysHint, keyThings ? t.tapPadHelp : null, pad ? null : t.whyBasic(n, k), t.readLockedWhy,
-					header && header.includes("mask") ? t.hdrMaskWhy : null].filter(Boolean)),
+					withMask ? t.hdrMaskWhy : null, withMask ? maskRead() : null, withMask ? t.hdrMaskCatalog : null].filter(Boolean)),
 			shortcuts: readShortcuts(rd, L, opts.done),
 			prev: i > 0 ? { go: () => readGo(rd, i - 1) } : undefined,
 			next: { go: () => { if (i < L - 1) readGo(rd, i + 1); else opts.done(); }, ready: whole },

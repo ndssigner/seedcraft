@@ -109,6 +109,20 @@ const SeedcraftSequences = (() => {
 		return out;
 	}
 
+	// The 15 format bits are mixed with this pattern before they are drawn (qrcodegen's drawFormatBits).
+	const FORMAT_XOR = 0b101010000010010;
+	// The three format cells [r, c] holding the mask (format bits 12, 11, 10, most significant first), in its two
+	// copies: by the top-left finder (row 8, columns 2-4) and by the bottom-left one (column 8, rows size-3 … size-5).
+	function maskCells(size) {
+		return [[12, 11, 10].map((i) => [8, 14 - i]), [12, 11, 10].map((i) => [size - 15 + i, 8])];
+	}
+	// What the QR's mask cells show (copy 1), the pattern mixed in (bits 12-10 of FORMAT_XOR: 101) and the mask they give.
+	function maskSeen(qr) {
+		const seen = maskCells(qr.size)[0].map(([r, c]) => qr.getModule(c, r) ? 1 : 0);
+		const xor = [12, 11, 10].map((i) => (FORMAT_XOR >>> i) & 1), mask = seen.map((b, j) => b ^ xor[j]);
+		return { seen, xor, mask, value: parseInt(mask.join(""), 2) };
+	}
+
 	// The colour of a function module that does not depend on the mask: finders,
 	// separators, timing, the alignment pattern (25 x 25) and the dark module.
 	// null: a format module, which does (it can only be drawn once the mask is known).
@@ -816,7 +830,7 @@ const SeedcraftSequences = (() => {
 		FORMAT_VERSION, HEADER_BITS, LAYOUTS, DecodeError,
 		sha512, hmac512, hmacKey, pbkdf2Sha512, ripemd160, mnemonicToSeed, fingerprint,
 		sha256, mnemonicToEntropy, entropyToMnemonic,
-		functionModules, formatModules, templateModule, dataModulesRowMajor, compactSeedQR, encode, decode,
+		functionModules, formatModules, FORMAT_XOR, maskCells, maskSeen, templateModule, dataModulesRowMajor, compactSeedQR, encode, decode,
 		symbolsToBits, readSequence, decodeObjects, physicalSequence, piecesToBuy, rsCorrect,
 		PAD_DIGITS, PAD_ROW, PAD_GROUP, PadFileError, newPad, DICE, diceBits, throwsToNumber, keyMove, keyAddPiece, keyAddThrow, keyUndoThrow, keyFix, changedPieces, addPads, encrypt, decrypt, encodePad, decodePad, decodePadObjects,
 		checkCharacter, writePadFile, readPadFile,
