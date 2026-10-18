@@ -1110,7 +1110,13 @@ for (const pad of [false, true]) {
 		check(ic(ck) === "seed,key,qr", "clock: each band's source icon (reading: seed, key → QR)");
 		check(ic(ck2) === "qr,key,seed", "clock: making: QR, key → seed");
 		check(ic(V.clock({ box: lay.boxes.clock, n: 16, from: null, by: 3, inputColour: "seed" })) === "seed,key,qr", "clock waiting: the icons too");
-		for (const L of [Lay.makeTurn({ pad: true, n: 16 }), Lay.readTurn({ pad: true, n: 16 })]) { const f = Lay.clockModule(L.boxes.clock).formula; check(Object.values(L.boxes).every((b) => b === L.boxes.clock || !(f.y - 8 < b.y + b.h && f.y + 2 > b.y && f.x - 50 < b.x + b.w && f.x + 50 > b.x)), "clock formula: room under the clock"); }
+		for (const L of [Lay.makeTurn({ pad: true, n: 16 }), Lay.makeTurn({ pad: true, n: 16, file: true }), Lay.makeTurn({ pad: true, n: 16, header: true }), Lay.readTurn({ pad: true, n: 16 }), Lay.readTurn({ pad: true, n: 16, header: true }), Lay.readTurn({ pad: true, n: 16, file: true })]) {
+			if (!L.boxes.clock) continue;
+			// the worst line, "(31 + 31) mod 32 = 31", is about 113 units at font 9: ±58 round the centre
+			const f = Lay.clockModule(L.boxes.clock).formula, fb = { x: f.x - 58, y: f.y - 8, w: 116, h: 10 };
+			check(Object.entries(L.boxes).every(([id, b]) => id === "clock" || !(fb.y < b.y + b.h && fb.y + fb.h > b.y && fb.x < b.x + b.w && fb.x + fb.w > b.x)), "clock formula: room under the clock");
+			check(L.arrows.every((a) => a.points.every((p, k) => k === 0 || !Lay.segmentHitsBox(a.points[k - 1], p, fb))), "clock formula: no arrow crosses it");
+		}
 	}
 	for (const n of [2, 16, 32]) for (const [from, by] of [[null, null], [5, null], [null, 3]]) {
 		const cw = V.clock({ box: rlay.boxes.clock, n, from, by, sign: -1, inputColour: "seed" }), ins = walk(cw, cls("v-clock-in")).map(textOf);
