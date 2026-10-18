@@ -938,6 +938,31 @@ for (const pad of [false, true]) {
 		check(kp.every((t) => num(t.attrs.x) > kc.rows[0].pos.x) && kv.every((t) => num(t.attrs.x) < kc.rows[0].piece.x), "string read: the key's positions on its right, its numbers on the left of its pieces");
 	}
 	check(walk(rd, (n) => n.attrs["data-icon"] === "key").length === 1 && walk(s, (n) => n.tag === "text" && textOf(n) === "🌱").length === 1, "string: the seed's or the key's icon beside it");
+	// an advance's glide, measured (Lay.placeShift): each shared place's old y less its new one
+	{
+		const ys = rlay.columns.seed.rows.map((r) => r.y), pitch = ys[1] - ys[0], up = ys.map((y) => y - 5);
+		check(Lay.placeShift({ ys, turn: 2 }, { ys, turn: 3 }) === pitch && Lay.placeShift({ ys, turn: 3 }, { ys, turn: 2 }) === -pitch,
+			"placeShift: Next starts the run a row down (+pitch), Back a row up (−pitch), the early turns as the later ones");
+		check(Lay.placeShift({ ys, turn: 0 }, { ys, turn: 1 }) === pitch && Lay.placeShift({ ys, turn: 40 }, { ys, turn: 41 }) === pitch, "placeShift: from the first turn and far on alike");
+		check(Lay.placeShift({ ys, turn: 4 }, { ys, turn: 4 }) === 0, "placeShift: the same turn drawn again: 0, nothing moves");
+		check(Math.abs(Lay.placeShift({ ys, turn: 3 }, { ys: up, turn: 4 }) - (pitch + 5)) < 1e-9, "placeShift: rows that moved between the drawings count too (measured, not one pitch)");
+		check(Lay.placeShift({ ys, turn: 3 }, { ys: ys.map((y, j) => j === 5 ? y + 1 : y), turn: 4 }) === null, "placeShift: places that disagree: null (no glide)");
+		check(Lay.placeShift({ ys, turn: 0 }, { ys, turn: 9 }) === null, "placeShift: no place in both: null");
+		const fy = Lay.fileColumn(rlay.boxes.keyColumn).rows.map((r) => r.y);
+		check(Math.abs(Lay.placeShift({ ys: fy, turn: 5 }, { ys: fy, turn: 6 }) - (fy[1] - fy[0])) < 1e-9, "placeShift: a key file's column a row too");
+	}
+	// spill: the places just outside a read column's window, a row beyond each end, unseen and untouchable; the thread past the top
+	{
+		const col = rlay.columns.seed, box = rlay.boxes.seedColumn, pitch = col.rows[1].y - col.rows[0].y;
+		const sp = V.string({ box, orientation: "v", role: "read", kind: "seed", things, items: [2, 9, 4, null, undefined, undefined, undefined], firstPosition: 5, current: 3, column: col, spill: [7, undefined], onSlot: () => {}, onPiece: () => {} });
+		const out = walk(sp, cls("v-spill")), bead = out[0] && walk(out[0], (n) => n.tag === "circle")[0], th = walk(sp, cls("v-thread"))[0];
+		check(out.length === 1 && out[0].attrs["aria-hidden"] === "true" && !out[0].attrs.tabindex && !out[0].attrs.role && !walk(out[0], (n) => n.tag === "title").length,
+			"spill: the place before the window drawn, aria-hidden, no tab stop, no title");
+		check(bead && Math.abs(num(bead.attrs.cy) - (col.rows[0].y - pitch)) < 0.1, "spill: a row above the first");
+		check(th && Math.abs(num(th.attrs.y1) - (col.rows[0].y - 1.5 * pitch)) < 0.1 && Math.abs(num(th.attrs.y2) - col.rows[3].y) < 0.1, "spill: the thread from a row over the top down to the last place");
+		const nos = V.string({ box, orientation: "v", role: "read", kind: "seed", things, items: [2, 9, 4, 6, 1, 3, 5], firstPosition: 1, current: 3, column: col });
+		check(!walk(nos, cls("v-spill")).length, "spill: none unless asked");
+	}
 	// the key's icon is drawn (⚿ is missing from common fonts), with no text, the same in SVG and in HTML
 	{
 		const ki = V.icon("key", 50, 50, 24), tag = V.iconTag("key");

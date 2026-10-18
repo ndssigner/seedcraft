@@ -1840,15 +1840,30 @@
 	const maskHelp = (line, explain) => Slides.popup(h("div", { class: "slide-help" }, h("h2", { text: T().hdrMask }), h("p", { text: T().hdrMaskWhy }),
 		line ? h("p", { text: line }) : null, h("p", { text: T().turnHeaderNoQr }), h("p", { text: T().hdrMaskCatalog }),
 		h("button", { type: "button", class: "btn", text: T().hdrMaskExplain, on: { click: () => { Slides.closePopup(true); explain(); } } })), { label: T().hdrMask });
+	// a file column's rows with one more beyond each end (j −1 and 7, a pitch on, under the fade): [row, j];
+	// the place a run glided a row over brings in, or takes out, is drawn there (see V.string's spill)
+	const spillRows = (col) => {
+		const at = (j) => {
+			const e = Math.max(0, Math.min(col.rows.length - 1, j)), d = (j - e) * col.pitch, r = col.rows[e];
+			if (!d) return r;
+			const o = {};
+			for (const [k, v] of Object.entries(r)) o[k] = typeof v === "number" ? (k === "y" ? v + d : v) : Array.isArray(v) ? [v[0], v[1] + d] : v && typeof v === "object" ? { ...v, y: v.y + d } : v;
+			return o;
+		};
+		return Array.from({ length: col.rows.length + 2 }, (_, j) => [at(j - 1), j - 1]);
+	};
+	// a key file reference's row j (place x): its place and its character
+	const fileRefRow = (r, j, x, pad) => [svg("text", { x: r.pos[0], y: r.pos[1], "font-size": j === 3 ? 10 : 8, "text-anchor": "middle", class: "v-t v-pos" + (j === 3 ? " v-pos-current v-c-qr v-bold" : "") }, x + 1),
+		svg("text", { x: r.digit[0], y: r.digit[1], "font-size": 14, "text-anchor": "middle", class: "v-t v-mono v-bold v-c-key" + (j === 3 ? "" : " tn-dim") }, S.PAD_DIGITS[pad[x]])];
 	// the key file's characters around turn i (pad: the key's values), a column like the key string's: the turn's framed
 	function keyFileReference(box, pad, i, L) {
 		const col = Lay.fileColumn(box, { role: "reference" }), parts = [];
-		col.rows.forEach((r, j) => {
+		spillRows(col).forEach(([r, j]) => {
 			const x = i - 3 + j;
 			if (x < 0 || x >= L) return;
+			if (j < 0 || j > 6) { parts.push(svg("g", { class: "v-spill", "aria-hidden": "true" }, fileRefRow(r, j, x, pad))); return; }
 			if (j === 3) parts.push(svg("rect", { x: r.frame.x, y: r.frame.y, width: r.frame.w, height: r.frame.h, rx: 3, class: "v-turn-frame" }));
-			parts.push(svg("text", { x: r.pos[0], y: r.pos[1], "font-size": j === 3 ? 10 : 8, "text-anchor": "middle", class: "v-t v-pos" + (j === 3 ? " v-pos-current v-c-qr v-bold" : "") }, x + 1),
-				svg("text", { x: r.digit[0], y: r.digit[1], "font-size": 14, "text-anchor": "middle", class: "v-t v-mono v-bold v-c-key" + (j === 3 ? "" : " tn-dim") }, S.PAD_DIGITS[pad[x]]));
+			parts.push(...fileRefRow(r, j, x, pad));
 		});
 		// its icon apart: the run glides, the icon stays
 		return svg("g", { class: "v v-file", role: "img", "aria-label": T().padFileTitle },
@@ -1901,7 +1916,8 @@
 			groups.number.replaceChildren(V.number({ box: b.number, value: reached("number") ? P : null, colour: "qr" }));
 			if (pad) {
 				if (!keyDrawn) groups.key.replaceChildren(file ? keyFileReference(b.keyString, m.pad, i, L) : V.string({ box: b.keyString, orientation: "v", role: "reference", kind: "key", things: keyThings,
-					items: Array.from({ length: 7 }, (_, j) => { const x = i - 3 + j; return x < 0 || x >= L ? undefined : m.pad[x]; }), current: 3, firstPosition: i - 2 }));
+					items: Array.from({ length: 7 }, (_, j) => { const x = i - 3 + j; return x < 0 || x >= L ? undefined : m.pad[x]; }), current: 3, firstPosition: i - 2,
+					spill: [i - 4, i + 4].map((x) => x < 0 || x >= L ? undefined : m.pad[x]) }));
 				keyDrawn = true;
 				const keyAt = at(file ? "key" : "keyNumber");
 				if (b.keyDict) groups.keyDict.replaceChildren(wait(V.dictionary({ label: T().dictLabel, box: b.keyDict, things: keyThings, mode: "reel", icon: "key",
@@ -2300,12 +2316,11 @@
 	// slot(): the hole tapped; piece(x): the piece of place x tapped;
 	// title(x): what hovering the piece of place x says (a locked one: where its number comes from);
 	// column: layouts.js's readColumn for the box (where each row's position, piece and number go).
+	// spill: the places just outside the window too (V.string's), for a column that glides
 	function readColumn(box, kind, things, vals, i, L, on = {}) {
-		const items = Array.from({ length: 7 }, (_, j) => {
-			const x = i - 3 + j;
-			return x < 0 || x >= L ? undefined : vals[x] !== undefined ? vals[x] : x === i ? null : undefined;
-		});
-		return V.string({ box, orientation: "v", role: "read", kind, things, items, current: 3, firstPosition: i - 2, column: on.column,
+		const item = (x) => x < 0 || x >= L ? undefined : vals[x] !== undefined ? vals[x] : x === i ? null : undefined;
+		const items = Array.from({ length: 7 }, (_, j) => item(i - 3 + j));
+		return V.string({ box, orientation: "v", role: "read", kind, things, items, current: 3, firstPosition: i - 2, column: on.column, spill: on.spill ? [item(i - 4), item(i + 4)] : undefined,
 			onSlot: on.slot ? () => on.slot() : undefined, onPiece: on.piece ? (j) => on.piece(i - 3 + j) : undefined, titleOf: on.title ? (j) => on.title(i - 3 + j) : undefined });
 	}
 	// A key file's characters around turn i, a column like a string read: each
@@ -2314,16 +2329,16 @@
 	// from. onTap(x): place x tapped (the same, in a popup).
 	function fileColumn(box, values, i, L, onTap) {
 		const col = Lay.fileColumn(box), parts = [];
-		col.rows.forEach((r, j) => {
-			const x = i - 3 + j, v = values && values[x];
+		spillRows(col).forEach(([r, j]) => {
+			const x = i - 3 + j, v = values && values[x], out = j < 0 || j > 6;
 			if (x < 0 || x >= L || v === undefined) return;
-			const g = svg("g", { class: "v-piece rt-file" + (j === 3 ? " v-current" : "") },
+			const g = svg("g", { class: "v-piece rt-file" + (j === 3 ? " v-current" : "") + (out ? " v-spill" : ""), "aria-hidden": out ? "true" : undefined },
 				svg("rect", { x: r.ring.x, y: r.ring.y, width: r.ring.w, height: r.ring.h, rx: 4, class: "rt-file-ring" }),
 				svg("text", { x: r.digit[0], y: r.digit[1], "font-size": 17, "text-anchor": "middle", class: "v-t v-mono v-bold v-c-key" }, S.PAD_DIGITS[v]),
 				svg("text", { x: r.value[0], y: r.value[1], "font-size": 13, "text-anchor": "middle", class: "v-t v-value v-bold v-c-key" }, String(v)),
 				svg("text", { x: r.pos[0], y: r.pos[1], "font-size": 9, "text-anchor": "middle", class: "v-t v-pos" + (j === 3 ? " v-pos-current v-c-qr v-bold" : "") }, String(x + 1)),
-				svg("title", {}, T().readLockedFile(x + 1, S.PAD_DIGITS[v], v)));
-			if (onTap) tapOn(g, () => onTap(x));
+				out ? null : svg("title", {}, T().readLockedFile(x + 1, S.PAD_DIGITS[v], v)));
+			if (onTap && !out) tapOn(g, () => onTap(x));
 			parts.push(g);
 		});
 		// its icon apart: the run glides on an advance, the icon stays
@@ -2350,6 +2365,7 @@
 	// once (at once with reduced motion, or coming back to it). opts.done: on
 	// from the last turn.
 	let readFresh = null;   // a turn whose pieces were just chosen: its cycle plays once
+	let readShown = null;   // the read turn on the page: its columns' rows, for the next one's glide
 	function readTurnSlide(rd, opts) {
 		const t = T(), things = dictFor(rd).things, n = things.length, k = Math.log2(n), pad = rd.mode === "pad";
 		const file = pad && rd.padAs === "file", keyThings = pad && !file ? keyThingsOf(rd) : null, ownKey = !!(keyThings && rd.padForm && rd.padDict);
@@ -2481,11 +2497,11 @@
 				b.keyDict ? V.dictionary({ label: t.dictLabel, box: b.keyDict, things: keyThings, mode: "reel", icon: "key", value: keyAt("keyPiece") ? K : null, from: turning && p === at("keyPiece") ? 0 : undefined }) : svg("g"));
 			g.numbers.replaceChildren(V.number({ box: b.number, value: seedAt("number") ? C : null, colour: pad ? "seed" : "qr" }),
 				pad ? V.number({ box: b.keyNumber, value: keyAt("keyNumber") ? K : null, colour: "key" }) : svg("g"));
-			if (!colsDrawn) g.seed.replaceChildren(readColumn(b.seedColumn, "seed", things, rd.taps, i, L, { column: lay.columns.seed, slot: () => choose("seed"), piece: (x) => x === i ? choose("seed") : locked("seed", x),
+			if (!colsDrawn) g.seed.replaceChildren(readColumn(b.seedColumn, "seed", things, rd.taps, i, L, { column: lay.columns.seed, spill: true, slot: () => choose("seed"), piece: (x) => x === i ? choose("seed") : locked("seed", x),
 				title: (x) => x === i ? null : lockLine("seed", x) }));
 			if (pad && !colsDrawn) {
 				g.key.replaceChildren(file ? fileColumn(b.keyColumn, key, i, L, (x) => locked("key", x))
-					: readColumn(b.keyColumn, "key", keyThings, rd.keyTaps, i, L, { column: lay.columns.key, slot: () => choose("key"), piece: (x) => x === i ? choose("key") : locked("key", x),
+					: readColumn(b.keyColumn, "key", keyThings, rd.keyTaps, i, L, { column: lay.columns.key, spill: true, slot: () => choose("key"), piece: (x) => x === i ? choose("key") : locked("key", x),
 						title: (x) => x === i ? null : lockLine("key", x) }));
 			}
 			colsDrawn = true;
@@ -2514,10 +2530,16 @@
 			}
 			lay.arrows.forEach((a, j) => arrowGroups[j].replaceChildren(V.arrow({ points: a.points, colour: a.colour, state: arrowsOn ? arrowState(a.id, p) : "hidden" })));
 		}
-		// the advance from turn f: the columns a row over, the QR's marker from f's squares, the bits fading in
+		// each column's rows (their y) in this drawing: what the next one measures its glide against
+		const shown = { rd, turn: i, seed: lay.columns.seed.rows.map((r) => r.y), key: !pad ? null : (file ? Lay.fileColumn(b.keyColumn) : lay.columns.key).rows.map((r) => r.y) };
+		let prior = null;   // the drawing before (readShown, when body() puts this one on the page)
+		// the advance from turn f (FLIP, measured): each column's run starts where turn f's drawing had its places
+		// (each place's old y less its new one, the same for all), the QR's marker from f's squares, the bits fading in
 		function advance(f) {
-			const rows = lay.columns.seed.rows, dy = (i - f) * (rows[1].y - rows[0].y), out = [V.glide(runOf(g.seed), { dy })];
-			if (pad) out.push(V.glide(runOf(g.key), { dy }));
+			const before = prior && prior.rd === rd && prior.turn === f ? prior : { ...shown, turn: f };
+			const shift = (c) => Lay.placeShift({ ys: before[c], turn: f }, { ys: shown[c], turn: i });
+			const out = [V.glide(runOf(g.seed), { dy: shift("seed") || 0 })];
+			if (pad) out.push(V.glide(runOf(g.key), { dy: shift("key") || 0 }));
 			const q = g.qr.lastChild, marker = q && q.querySelector && q.querySelector(".v-qr-cursor");
 			const was = Lay.qrCellsBox(b.qr, size, S.turnCursor(size, S.turnBits(size, f, k)).cells, { legend: b.qr.h >= 150 }), now = Lay.qrCellsBox(b.qr, size, S.turnCursor(size, turn).cells, { legend: b.qr.h >= 150 });
 			if (was && now && marker) out.push(V.glide(marker, { dx: was.x - now.x, dy: was.y - now.y }));
@@ -2534,6 +2556,7 @@
 			// an arrival that glides: its arrows once the columns have stopped
 			if (!fresh && from !== null) hold = afterGlide((on) => { arrowsOn = on; draw(whole ? last : 0, false); arrowsOn = true; });
 			else if (!fresh) draw(whole ? last : 0, false);
+			prior = readShown; readShown = shown;
 			if (from !== null) glides = glideIn(from, advance);
 			from = null;
 			markCol();

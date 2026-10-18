@@ -199,6 +199,23 @@ const SeedcraftLayouts = (() => {
 		});
 		return { outer, top, pitch, r: Math.max(3, Math.min(pitch / 2 - 3, 16, pieceW / 2 - 1)), icon: [pieceX + pieceW / 2, b.y + top / 2], rows };
 	}
+	// The glide between two drawings of a column (an adjacent Next or Back), measured, not assumed:
+	// was, now: { ys: each row's y in that drawing, turn: the turn it showed, current: the turn's row (3) };
+	// place x is in row x − turn + current. For every place both drawings show, its old y less its new y:
+	// the one shift the run starts at, so each piece is first drawn where it was (0: it does not move);
+	// null if the places do not all agree (the run cannot glide as one: it does not glide).
+	function placeShift(was, now) {
+		const cw = was.current === undefined ? 3 : was.current, cn = now.current === undefined ? 3 : now.current;
+		let shift = null;
+		for (let j = 0; j < was.ys.length; j++) {
+			const x = j - cw + was.turn, k = x - now.turn + cn;
+			if (k < 0 || k >= now.ys.length) continue;
+			const d = was.ys[j] - now.ys[k];
+			if (shift === null) shift = d;
+			else if (Math.abs(d - shift) > 1e-6) return null;
+		}
+		return shift;
+	}
 
 	// The turn read back (recovering, checking): what is built is the QR, on
 	// the right. The strings read are vertical on the left, 7 pieces each, the
@@ -640,5 +657,5 @@ const SeedcraftLayouts = (() => {
 	const CROP_STEP = 0.9;
 	const cropKeyScale = (key) => key === "+" || key === "=" ? 1 / CROP_STEP : key === "-" ? CROP_STEP : 0;
 	const cropPinch = (side, last, span) => side * span / last;
-	return { cropClamp, CROP_STEP, cropKeyScale, cropPinch, BUILT, SLOT, POSBOX, RAIL, pitch, qrSquare, qrCellsBox, digitFont, seedQr, seqIntro, underQr, checkIntro, VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readColumn, readTurn, pickerPopup, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, REJECT, BADGE, fileRow, fileColumn, store, dictName, dictCheck, dictAsIs };
+	return { cropClamp, CROP_STEP, cropKeyScale, cropPinch, BUILT, SLOT, POSBOX, RAIL, pitch, qrSquare, qrCellsBox, digitFont, seedQr, seqIntro, underQr, checkIntro, VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readColumn, placeShift, readTurn, pickerPopup, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, REJECT, BADGE, fileRow, fileColumn, store, dictName, dictCheck, dictAsIs };
 })();
