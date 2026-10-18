@@ -279,7 +279,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	// middle; from: the value it turns from (animated unless reduced motion).
 	// "picker": every piece as a button; onPick(v). columns ("static"): side by
 	// side, so that every row shows (the first column 0 …, the next on from there).
-	function dictionary({ box, things = [], mode = "static", value = null, icon: kind = "seed", onPick, from, columns = 1, label = null }) {
+	function dictionary({ box, things = [], mode = "static", value = null, icon: kind = "seed", onPick, from, initials, columns = 1, label = null }) {
 		const N = things.length, tabH = L.pickerGrid(box, N).tabH;
 		const card = { x: box.x, y: box.y + tabH, w: box.w, h: box.h - tabH }, inner = { x: card.x + 2, y: card.y + 2, w: card.w - 4, h: card.h - 4 };
 		const wide = !!label && box.w >= 110, lfs = Math.max(8, Math.min(10, tabH * 0.7));
@@ -311,7 +311,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 					svg("rect", { x: r1(x + gap / 2), y: r1(y + gap / 2), width: r1(cw - gap), height: r1(ch - gap), rx: 4, class: "v-pick-bg" }),
 					text(x + 4, y + fs + 1, fs, v, { class: "v-mono v-dict-num" }),
 					// its initials in the opposite top corner, in the number's type, in the room the number leaves
-					thing.emoji ? text(x + cw - 4, y + fs + 1, fs, fit(thing.emoji, cw - 10 - String(v).length * fs * 0.6, fs), { "text-anchor": "end", class: "v-mono v-dict-num v-pick-ini" }) : null,
+					(initials ? initials[v] : thing.emoji) ? text(x + cw - 4, y + fs + 1, fs, fit(initials ? initials[v] : thing.emoji, cw - 10 - String(v).length * fs * 0.6, fs), { "text-anchor": "end", class: "v-mono v-dict-num v-pick-ini" }) : null,
 					bead(thing, x + cw / 2, y + fs + 3 + br, br),
 					text(x + cw / 2, y + ch - 3, fs, fit(thing.name, cw - 6, fs), { "text-anchor": "middle", class: "v-name" }),
 					svg("title", {}, `${v}: ${thing.name || ""}`)), () => onPick && onPick(v)));

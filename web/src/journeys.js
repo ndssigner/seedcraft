@@ -263,12 +263,12 @@ const SeedcraftJourneys = (() => {
 	// The pieces a typed text points at in an open picker, as indices. Digits: the piece with that
 	// number first, then the numbers they begin (a prefix is pending). Letters: the pieces whose
 	// initials (emoji) begin with them, then those whose name does; each once, in dictionary order.
-	function pickMatch(things, typed) {
+	function pickMatch(things, typed, initials) {
 		const q = String(typed || "").trim().toLowerCase();
 		if (!q) return [];
 		const idx = things.map((_, i) => i);
 		if (/^[0-9]+$/.test(q)) return [...idx.filter((i) => String(i) === q), ...idx.filter((i) => String(i) !== q && String(i).startsWith(q))];
-		const ini = idx.filter((i) => String(things[i].emoji || "").toLowerCase().startsWith(q));
+		const ini = idx.filter((i) => String(initials ? initials[i] : things[i].emoji || "").toLowerCase().startsWith(q));
 		const nam = idx.filter((i) => !ini.includes(i) && String(things[i].name || "").toLowerCase().startsWith(q));
 		return [...ini, ...nam];
 	}

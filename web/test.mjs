@@ -833,6 +833,17 @@ for (const pad of [false, true]) {
 			}
 		}
 	}
+	for (let N = 2; N <= 32; N++) {
+		const pp = Lay.pickerPopup({ n: N }), g = Lay.pickerGrid(pp.boxes.picker, N), lastBottom = g.inner.y + g.rows * g.ch;
+		check(lastBottom <= pp.boxes.picker.y + pp.boxes.picker.h + 0.01 && pp.view.h + 44 <= 250, `pickerPopup n=${N}: every row inside the canvas, which with heading and hint stays within 250 units`);
+	}
+	{
+		const names = ["Red bead", "Orange bead", "Yellow bead", "Green bead"], things = names.map((name) => ({ name, colour: "#c60" }));
+		const ini = things.map((x) => x.emoji || J.uniqueInitials(names, (nm) => nm.split(" ").map((w) => w[0]).join("").toUpperCase())[names.indexOf(x.name)]);
+		const d = V.dictionary({ box: Lay.pickerPopup({ n: 4 }).boxes.picker, things, initials: ini, mode: "picker", value: null, icon: "seed" });
+		check(walk(d, cls("v-pick")).every((bt) => textOf(walk(bt, cls("v-pick-ini"))[0]).length > 0), "picker: pieces without emoji still show derived initials");
+		check(JSON.stringify(J.pickMatch(things, "ob", ini)) === "[1]", "pickMatch: derived initials (ob) find Orange bead");
+	}
 	for (const [bx, Ns] of [[Lay.pickerPopup({ n: 8 }).boxes.picker, null], [{ x: 100, y: 60, w: 480, h: 240 }, null]]) {
 		for (let N = 2; N <= 32; N++) {
 			const pp = Lay.pickerPopup({ n: N }), b2 = Ns === null && bx.w === 480 ? bx : pp.boxes.picker;
