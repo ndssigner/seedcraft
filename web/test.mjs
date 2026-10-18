@@ -1665,6 +1665,9 @@ for (const pad of [false, true]) {
 	const fs = units(prop(frame, "font-size")), footH = units(prop(foot, "height")), footTop = units(prop(foot, "top"));
 	const em = (v) => parseFloat(v);
 	const need = fs * (2 * em(prop(p, "font-size")) * em(prop(p, "line-height")) + em(prop(small, "font-size")) * em(prop(small, "line-height")));
+	check(/@media \(max-width: 900px\), \(max-height: 500px\) \{\s*\.tabs \.long, \.badge \.long \{ display: none; \}\s*\.tabs \.short \{ display: inline; \}\s*#gh \{ display: none; \}/.test(css), "the top bar: short tabs and no GitHub pill below 900 wide or 500 high");
+	check(/\.brand b \{ flex: none;/.test(css) && /@media \(max-width: 760px\) and \(orientation: portrait\)/.test(css), "the top bar: the wordmark never shrinks; the two-row wrap only in portrait");
+	check(!/(^|\n)(\.tool|\.panel|\.panel-title|ul\.list|\.lead)[ ,{]/.test(css), "no CSS left from the old start page");
 	check(/line-clamp:\s*2/.test(p) && /max-height/.test(p), "the caption: two lines at most");
 	check(need <= footH && footTop + footH <= 382.5 + 0.01 && Math.abs(680 / 382.5 - 16 / 9) < 0.001, `the foot: two caption lines and the step line (${need.toFixed(1)}) inside it (${footH}), inside the 16:9 frame`);
 }
