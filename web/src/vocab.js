@@ -228,18 +228,19 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 		}
 		// the others: the icon apart too, so a glided run (the key's reference string) leaves it in place;
 		// a vertical one fades its top and bottom pitch (the mask in a wrapper, so the glided run does not drag it)
-		if (vertical && (role === "read" || role === "reference")) return svg("g", { class: `v v-string v-${role} v-${kind}` }, [svg("g", { class: "v-string-icon" }, iconEl), ...fadeRun(box, pitch, parts)]);
+		if (vertical && (role === "read" || role === "reference")) return svg("g", { class: `v v-string v-${role} v-${kind}` }, [svg("g", { class: "v-string-icon" }, iconEl), ...fadeRun(box, pitch, parts, pad)]);
 		return svg("g", { class: `v v-string v-${role} v-${kind}` }, [svg("g", { class: "v-string-icon" }, iconEl), svg("g", { class: "v-string-run" }, parts)]);
 	}
 	// a vertical run (class v-string-run) in a wrapper whose mask fades the box's first and last pitch;
 	// returns [defs, masked wrapper]
-	function fadeRun(box, pitch, parts) {
-		const id = "sm" + (++maskN), y0 = box.y, h = box.h, fade = Math.min(pitch / h, 0.5);
+	// the fade spans the rows' own extent: from the first row's top (box.y + top) to the last row's bottom
+	function fadeRun(box, pitch, parts, top = 0) {
+		const id = "sm" + (++maskN), y0 = box.y + top, h = box.h - 2 * top, fade = Math.min(pitch / h, 0.5);
 		const stop = (o, c) => svg("stop", { offset: r1(o * 100) + "%", "stop-color": c });
 		return [svg("defs", {}, [
 			svg("linearGradient", { id: id + "g", gradientUnits: "userSpaceOnUse", x1: 0, y1: y0, x2: 0, y2: y0 + h }, [stop(0, "#000"), stop(fade, "#fff"), stop(1 - fade, "#fff"), stop(1, "#000")]),
-			svg("mask", { id, maskUnits: "userSpaceOnUse", x: box.x - 6, y: y0, width: box.w + 12, height: h },
-				svg("rect", { x: box.x - 6, y: y0, width: box.w + 12, height: h, fill: `url(#${id}g)` }))]),
+			svg("mask", { id, maskUnits: "userSpaceOnUse", x: box.x - 6, y: box.y, width: box.w + 12, height: box.h },
+				svg("rect", { x: box.x - 6, y: box.y, width: box.w + 12, height: box.h, fill: `url(#${id}g)` }))]),
 			svg("g", { mask: `url(#${id})` }, svg("g", { class: "v-string-run" }, parts))];
 	}
 
