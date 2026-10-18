@@ -371,5 +371,10 @@ const SeedcraftJourneys = (() => {
 	const keyByForFile = (by, n, dice) => by === "bag" ? "d" + bestDie(n, dice) : by;
 	// the first turn's read: with a key read alongside (keyAs: "string" or "file"), one line for every form; else the form's own
 	const readHint = (t, form, keyAs) => keyAs === "file" ? t.readKeyFileHint : keyAs ? t.readKeyHint : t.forms[form].read;
-	return { bestDie, keyByForFile, readHint, cardGrid, plusKey, headerBitsUpTo, maskBitsKnown, ESTIMATE, ESTIMATE_BOTH, maxPerKind, uniqueInitials, onlyPadding, paddingOnlyRead, checkVerdict, typedPiece, pickMatch, pickKey, EXPLAINED, turnStages, readStages, checkRead, flipRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, gatherTips, gatherCards, splitMaterials, nameProblem, checkOrder, throwParts, showOrder, throwIntro };
+	// the base photo's squares used by the other pieces (crops: { [piece]: { x, y, side, base } }), on this
+	// photo (base: its id) only, by piece: the current piece's own is its starting square, not a mark
+	const usedCrops = (crops, current, base) => Object.entries(crops || {}).map(([i, c]) => ({ i: +i, c }))
+		.filter(({ i, c }) => c && c.base === base && i !== current).sort((a, b) => a.i - b.i)
+		.map(({ i, c }) => ({ i, x: c.x, y: c.y, side: c.side }));
+	return { usedCrops, bestDie, keyByForFile, readHint, cardGrid, plusKey, headerBitsUpTo, maskBitsKnown, ESTIMATE, ESTIMATE_BOTH, maxPerKind, uniqueInitials, onlyPadding, paddingOnlyRead, checkVerdict, typedPiece, pickMatch, pickKey, EXPLAINED, turnStages, readStages, checkRead, flipRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, gatherTips, gatherCards, splitMaterials, nameProblem, checkOrder, throwParts, showOrder, throwIntro };
 })();

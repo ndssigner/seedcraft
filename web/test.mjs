@@ -1653,6 +1653,50 @@ for (const pad of [false, true]) {
   const c2 = Lay.cropClamp({ iw: 400, ih: 300, x: 10, y: 10, side: 5 }); check(c2.side === 32, "cropClamp: a minimum size"); }
 check(Lay.cropKeyScale("+") > 1 && Lay.cropKeyScale("=") > 1 && Lay.cropKeyScale("-") < 1 && Lay.cropKeyScale("a") === 0, "crop keyboard: + and = grow the square, - shrinks it");
 check(Lay.cropPinch(100, 50, 100) === 200 && Lay.cropPinch(100, 100, 50) === 50, "crop pinch: fingers spreading grow the square, closing shrink it");
+// the base photo's cropper: the view (zoom and pan over the photo) and the selection's corner
+{ const TX_CROP = ctx.TEXT, near = (a, b) => Math.abs(a - b) < 1e-6;
+  for (const [iw, ih] of [[3000, 2000], [1500, 2400]]) for (const [vw, vh] of [[600, 300], [300, 500]]) {
+	const d = { iw, ih, vw, vh }, f = Lay.cropViewFit(d), W = iw * f.zoom, H = ih * f.zoom;
+	check(W <= vw + 1e-6 && H <= vh + 1e-6 && (near(W, vw) || near(H, vh)) && near(f.ox, (vw - W) / 2) && near(f.oy, (vh - H) / 2), `cropViewFit ${iw}x${ih} in ${vw}x${vh}: the whole photo, centred`);
+	const r = Lay.cropZoomRange(d);
+	check(near(r.min, f.zoom) && near(r.max, Math.max(r.min, Math.min(vw, vh) / 3 / 32)), `cropZoomRange ${iw}x${ih} in ${vw}x${vh}: from the fit to 32 px filling a third`);
+	// zooming in about a point inside the photo keeps that photo point under it
+	const p = { px: f.ox + 0.45 * iw * f.zoom, py: f.oy + 0.55 * ih * f.zoom }, a = Lay.cropToImage(f, p), z = Lay.cropZoomAt(f, p, 8, d), b = Lay.cropToImage(z, p);
+	check(near(z.zoom, f.zoom * 8) && Math.abs(a.ix - b.ix) < 1e-6 && Math.abs(a.iy - b.iy) < 1e-6, `cropZoomAt ${iw}x${ih} in ${vw}x${vh}: zoom in keeps the point under the pointer`);
+	const o = Lay.cropZoomAt(z, p, 1 / 2, d), c = Lay.cropToImage(o, p);
+	check(near(o.zoom, f.zoom * 4) && Math.abs(a.ix - c.ix) < 1e-6 && Math.abs(a.iy - c.iy) < 1e-6, `cropZoomAt ${iw}x${ih} in ${vw}x${vh}: zoom out keeps it too`);
+	check(near(Lay.cropZoomAt(f, p, 1e6, d).zoom, r.max) && near(Lay.cropZoomAt(z, p, 1e-6, d).zoom, r.min), `cropZoomAt ${iw}x${ih} in ${vw}x${vh}: within the range`);
+	check(JSON.stringify(Lay.cropZoomAt(z, p, 1e-6, d)) === JSON.stringify(f), `cropZoomAt ${iw}x${ih} in ${vw}x${vh}: all the way out is the fit`);
+	// panned too far: never an empty margin on a side when the photo is larger than the viewport; centred where it is smaller
+	for (const [ox, oy] of [[500, 400], [-1e5, -1e5], [500, -1e5]]) {
+		const v = Lay.cropViewClamp({ ...d, zoom: r.max, ox, oy }), W2 = iw * v.zoom, H2 = ih * v.zoom;
+		check(v.ox <= 1e-9 && v.ox + W2 >= vw - 1e-9 && v.oy <= 1e-9 && v.oy + H2 >= vh - 1e-9, `cropViewClamp ${iw}x${ih} in ${vw}x${vh} at ${ox},${oy}: no empty margin`);
+	}
+	const lo = Lay.cropViewClamp({ ...d, zoom: f.zoom / 4, ox: 0, oy: 0 });
+	check(JSON.stringify(lo) === JSON.stringify(f), `cropViewClamp ${iw}x${ih} in ${vw}x${vh}: never smaller than the fit`);
+	const on = Lay.cropViewOn(d, r.max, { ix: iw / 2, iy: ih / 2 }), m = Lay.cropToImage(on, { px: vw / 2, py: vh / 2 });
+	check(near(m.ix, iw / 2) && near(m.iy, ih / 2), `cropViewOn ${iw}x${ih} in ${vw}x${vh}: a photo point in the middle`);
+  }
+  const dims = { iw: 400, ih: 300 }, c = { x: 100, y: 100, side: 80 };
+  const se = Lay.cropCorner(c, "se", { ix: 230, iy: 200 }, dims);
+  check(se.x === 100 && se.y === 100 && se.side === 130, "cropCorner se: square, the opposite corner fixed");
+  const nw = Lay.cropCorner(c, "nw", { ix: 150, iy: 170 }, dims);
+  check(nw.x + nw.side === 180 && nw.y + nw.side === 180 && nw.side === 32, "cropCorner nw: the opposite corner fixed, no smaller than 32");
+  const big = Lay.cropCorner(c, "se", { ix: 1000, iy: 260 }, dims);
+  check(big.x === 100 && big.y === 100 && big.side === 200, "cropCorner se: within the photo");
+  const ne = Lay.cropCorner(c, "ne", { ix: 900, iy: -900 }, dims);
+  check(ne.x === 100 && ne.y + ne.side === 180 && ne.side === 180, "cropCorner ne: within the photo, the opposite corner fixed");
+  const sw = Lay.cropCorner(c, "sw", { ix: 170, iy: 120 }, dims);
+  check(sw.x + sw.side === 180 && sw.y === 100 && sw.side === 32, "cropCorner sw: a minimum size");
+  const edge = Lay.cropCorner({ x: 380, y: 280, side: 20 }, "se", { ix: 390, iy: 290 }, dims);
+  check(edge.side === 32 && edge.x + edge.side <= 400 && edge.y + edge.side <= 300, "cropCorner: at the photo's edge, still inside and 32");
+  const crops = { 0: { x: 1, y: 2, side: 40, base: 7 }, 2: { x: 5, y: 6, side: 50, base: 7 }, 3: { x: 9, y: 9, side: 60, base: 6 }, 5: { x: 0, y: 0, side: 32, base: 7 } };
+  check(JSON.stringify(J.usedCrops(crops, 2, 7)) === JSON.stringify([{ i: 0, x: 1, y: 2, side: 40 }, { i: 5, x: 0, y: 0, side: 32 }]), "usedCrops: the other pieces' squares on this photo, not the current piece's nor another photo's");
+  check(J.usedCrops({}, 0, 1).length === 0 && J.usedCrops(null, 0, 1).length === 0, "usedCrops: none");
+  for (const lang of ["en", "es"]) check(!!TX_CROP[lang].cropOther && !!TX_CROP[lang].cropHint && !!TX_CROP[lang].cropZoomIn && !!TX_CROP[lang].cropZoomOut, `${lang}: the cropper's copy`);
+  check(TX_CROP.es.cropOther === "Otra foto" && TX_CROP.en.cropOther === "Another photo"
+	&& TX_CROP.es.cropHint === "Arrastra el cuadro hasta la pieza; amplía con la rueda o pellizcando." && TX_CROP.en.cropHint === "Drag the square onto the piece; zoom with the wheel or a pinch.", "the cropper's copy, as approved");
+}
 console.log(`${failures ? "FAIL" : "ok"}: ${vectors.length} vectors, ${padVectors.length} pad vectors, ${failures} failures`);
 process.exit(failures ? 1 : 0);
 

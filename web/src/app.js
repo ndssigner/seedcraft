@@ -273,8 +273,7 @@
 	const drawSeq = (things, sequence, opts = {}) =>
 		opts.form && formOf(opts.form).family === "written" ? entriesList(things, sequence, opts) : stringSvg(things, sequence, opts);
 
-	// A photo of a piece: the centre square, 192 px, as a JPEG data URL (the
-	// only kind of image this page may show).
+	// A photo's file, read: the image loaded, and its data URL (the only kind of image this page may show).
 	const readImage = (file) => new Promise((resolve, reject) => {
 		const fr = new FileReader();
 		fr.onerror = reject;
@@ -286,74 +285,160 @@
 		};
 		fr.readAsDataURL(file);
 	});
-	// crop: {x, y, side} in the image's own pixels (none: the centred largest square)
-	function photoOf(file, crop = null) {
-		return readImage(file).then(({ img }) => {
-			const iw = img.naturalWidth, ih = img.naturalHeight, side = Math.min(iw, ih);
-			const r = crop ? Lay.cropClamp({ iw, ih, ...crop }) : { x: (iw - side) / 2, y: (ih - side) / 2, side }, c = document.createElement("canvas");
-			c.width = c.height = 192;
-			c.getContext("2d").drawImage(img, r.x, r.y, r.side, r.side, 0, 0, 192, 192);
-			return c.toDataURL("image/jpeg", 0.85);
-		});
+	// The base photo of a dictionary being named (one photo with all its pieces), read once and kept on
+	// the editor's state (st.edit.photoBase, never stored): every piece's photo is cropped from it.
+	let baseIds = 0;
+	const loadBase = (file) => readImage(file).then(({ img, src }) => ({ img, src, iw: img.naturalWidth, ih: img.naturalHeight, id: ++baseIds }));
+	// a piece's photo: a square of a loaded image (crop: {x, y, side} in its own pixels; none: the centred
+	// largest), 192 px, as a JPEG data URL
+	function photoOf(img, crop = null) {
+		const iw = img.naturalWidth, ih = img.naturalHeight, side = Math.min(iw, ih);
+		const r = crop ? Lay.cropClamp({ iw, ih, ...crop }) : { x: (iw - side) / 2, y: (ih - side) / 2, side }, c = document.createElement("canvas");
+		c.width = c.height = 192;
+		c.getContext("2d").drawImage(img, r.x, r.y, r.side, r.side, 0, 0, 192, 192);
+		return c.toDataURL("image/jpeg", 0.85);
 	}
-	// The popup that frames a photo: the image fitted, a square frame to drag, resize (wheel,
-	// pinch, slider, +/−) and nudge (arrows). Resolves the crop, or null when cancelled.
-	function cropPopup(file) {
-		return readImage(file).then(({ img, src }) => new Promise((resolve) => {
-			const t = T(), iw = img.naturalWidth, ih = img.naturalHeight, fit = Math.min(220 / iw, 150 / ih), short = Math.min(iw, ih);
-			let c = Lay.cropClamp({ iw, ih, x: (iw - short) / 2, y: (ih - short) / 2, side: short }), done = false;
-			const stage = h("div", { class: "crop-stage", tabindex: "0", role: "group", "aria-label": t.cropQ }), pic = h("img", { class: "crop-img", src, alt: "", draggable: "false" }), frame = h("div", { class: "crop-frame" });
-			stage.style.width = `calc(var(--u) * ${iw * fit})`; stage.style.height = `calc(var(--u) * ${ih * fit})`;
-			stage.append(pic, frame);
-			const slider = h("input", { type: "range", class: "crop-size", min: "32", max: String(short), step: "1", "aria-label": t.cropSize });
+	// The popup that frames a piece on the base photo (ed.photoBase), almost the whole lectern. The view
+	// zooms (wheel, pinch, +/−) and pans (a drag outside the square); the square, its inscribed circle
+	// lit, moves (a drag inside it, arrows), resizes (its corner, the slider) and starts as the piece's
+	// own, else the last one cropped, with the view as it was. The other pieces' squares on this photo
+	// are marked. «Another photo» changes the base. Resolves the crop, or null when cancelled.
+	function cropPopup(ed) {
+		return new Promise((resolve) => {
+			const t = T();
+			let done = false, B = null, c = null, view = null, dims = null, ro = null;
+			const stage = h("div", { class: "crop-stage", tabindex: "0", role: "group", "aria-label": t.cropQ });
+			const inner = h("div", { class: "crop-inner" }), sel = h("div", { class: "crop-sel" }, h("div", { class: "crop-ring" }));
+			const marks = h("div", { class: "crop-marks" }), handle = h("div", { class: "crop-handle", "aria-hidden": "true" });
+			stage.append(inner, sel, marks, handle);
+			const slider = h("input", { type: "range", class: "crop-size", min: "32", step: "1", "aria-label": t.cropSize });
+			const err = h("p", { class: "dict-err", role: "alert" });
+			const dimsOf = () => ({ iw: B.iw, ih: B.ih, vw: Math.max(1, stage.clientWidth), vh: Math.max(1, stage.clientHeight) });
+			const box = (el, r) => {
+				el.style.left = `${view.ox + r.x * view.zoom}px`; el.style.top = `${view.oy + r.y * view.zoom}px`;
+				el.style.width = el.style.height = `${r.side * view.zoom}px`;
+			};
+			// only the inner layer's transform changes for the photo (never redrawn); the squares are a few boxes
 			const paint = () => {
-				frame.style.left = `calc(var(--u) * ${c.x * fit})`; frame.style.top = `calc(var(--u) * ${c.y * fit})`;
-				frame.style.width = frame.style.height = `calc(var(--u) * ${c.side * fit})`;
+				inner.style.transform = `translate(${view.ox}px, ${view.oy}px) scale(${view.zoom})`;
+				box(sel, c);
+				for (const m of marks.children) box(m, m.crop);
+				handle.style.left = `${view.ox + (c.x + c.side) * view.zoom}px`; handle.style.top = `${view.oy + (c.y + c.side) * view.zoom}px`;
 				slider.value = String(Math.round(c.side));
 			};
-			// resize about the frame's centre
-			const resize = (side) => { const m = Lay.cropClamp({ iw, ih, x: 0, y: 0, side }).side, cx = c.x + c.side / 2, cy = c.y + c.side / 2; c = Lay.cropClamp({ iw, ih, x: cx - m / 2, y: cy - m / 2, side: m }); paint(); };
-			const move = (dx, dy) => { c = Lay.cropClamp({ iw, ih, x: c.x + dx, y: c.y + dy, side: c.side }); paint(); };
+			// the square on screen, wholly in the viewport?
+			const seen = () => { const z = view.zoom, x = view.ox + c.x * z, y = view.oy + c.y * z; return x >= 0 && y >= 0 && x + c.side * z <= dims.vw && y + c.side * z <= dims.vh; };
+			// a base photo in the cropper: fresh (just picked inside it) starts at the centre, the whole photo in view
+			function useBase(fresh) {
+				B = ed.photoBase;
+				const { iw, ih } = B, short = Math.min(iw, ih), own = ed.crops && ed.crops[ed.i], last = ed.lastCrop;
+				B.img.className = "crop-img"; B.img.alt = ""; B.img.draggable = false;
+				B.img.style.width = `${iw}px`; B.img.style.height = `${ih}px`;
+				inner.replaceChildren(B.img);
+				slider.max = String(short);
+				const from = !fresh && own && own.base === B.id ? own : !fresh && last && last.base === B.id ? last
+					: { x: (iw - short / 3) / 2, y: (ih - short / 3) / 2, side: short / 3 };
+				c = Lay.cropClamp({ iw, ih, x: from.x, y: from.y, side: from.side });
+				dims = dimsOf();
+				const lv = ed.lastView;
+				view = !fresh && lv && lv.base === B.id ? Lay.cropViewOn(dims, lv.zoom, lv) : Lay.cropViewFit(dims);
+				if (!seen()) view = Lay.cropViewOn(dims, view.zoom, { ix: c.x + c.side / 2, iy: c.y + c.side / 2 });
+				marks.replaceChildren(...J.usedCrops(ed.crops, ed.i, B.id).map((m) => {
+					const el = h("div", { class: "crop-mark" }, h("span", { text: String(m.i) }));
+					el.crop = m;
+					return el;
+				}));
+				paint();
+			}
+			// the square: resized about its centre, moved, by a corner
+			const resize = (side) => { const m = Lay.cropClamp({ iw: B.iw, ih: B.ih, x: 0, y: 0, side }).side, cx = c.x + c.side / 2, cy = c.y + c.side / 2; c = Lay.cropClamp({ iw: B.iw, ih: B.ih, x: cx - m / 2, y: cy - m / 2, side: m }); paint(); };
+			const move = (dx, dy) => { c = Lay.cropClamp({ iw: B.iw, ih: B.ih, x: c.x + dx, y: c.y + dy, side: c.side }); paint(); };
+			// the view: zoomed about a viewport point, panned
+			const zoomAt = (p, k) => { view = Lay.cropZoomAt(view, p, k, dims); paint(); };
+			const pan = (dx, dy) => { view = Lay.cropViewClamp({ ...dims, zoom: view.zoom, ox: view.ox + dx, oy: view.oy + dy }); paint(); };
+			const mid = () => ({ px: dims.vw / 2, py: dims.vh / 2 });
+			const VIEW_STEP = Lay.CROP_STEP ** 2;
+			const at = (e) => { const r = stage.getBoundingClientRect(); return { px: e.clientX - r.left - stage.clientLeft, py: e.clientY - r.top - stage.clientTop }; };
+			const inside = (p) => { const q = Lay.cropToImage(view, p); return q.ix >= c.x && q.ix <= c.x + c.side && q.iy >= c.y && q.iy <= c.y + c.side; };
+			// one finger: the corner, the square or the view, chosen where it presses; two: a pinch of the view
 			const pts = new Map();
-			let last = 0;
-			const pxPerImg = () => stage.getBoundingClientRect().width / iw;
-			const span = () => { const [p, q] = [...pts.values()]; return Math.hypot(p.x - q.x, p.y - q.y); };
+			let mode = null, grip = null, last = 0, centre = null;
+			const two = () => { const [p, q] = [...pts.values()]; return { span: Math.hypot(p.px - q.px, p.py - q.py), px: (p.px + q.px) / 2, py: (p.py + q.py) / 2 }; };
 			stage.addEventListener("pointerdown", (e) => {
-				pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+				if (e.button > 0) return;
+				const p = at(e);
+				pts.set(e.pointerId, p);
 				try { stage.setPointerCapture(e.pointerId); } catch (z) { /* not captured */ }
-				if (pts.size === 2) last = span();
+				if (pts.size === 2) { const g = two(); mode = "pinch"; last = g.span; centre = g; }
 				else if (pts.size === 1) {
-					// a press outside the frame puts its centre there
-					const r = stage.getBoundingClientRect(), k = pxPerImg(), ix = (e.clientX - r.left) / k, iy = (e.clientY - r.top) / k;
-					if (ix < c.x || ix > c.x + c.side || iy < c.y || iy > c.y + c.side) move(ix - c.side / 2 - c.x, iy - c.side / 2 - c.y);
+					const q = Lay.cropToImage(view, p);
+					mode = e.target === handle ? "corner" : inside(p) ? "move" : "pan";
+					if (mode === "corner") grip = { dx: c.x + c.side - q.ix, dy: c.y + c.side - q.iy };
 				}
 			});
 			stage.addEventListener("pointermove", (e) => {
-				const p = pts.get(e.pointerId); if (!p) return;
-				const dx = e.clientX - p.x, dy = e.clientY - p.y;
-				pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-				if (pts.size >= 2) { const s = span(); if (last > 0 && s > 0) resize(Lay.cropPinch(c.side, last, s)); last = s; }
-				else { const k = pxPerImg(); move(dx / k, dy / k); }
+				const p0 = pts.get(e.pointerId);
+				if (!p0) { if (dims) stage.style.cursor = e.target === handle ? "nwse-resize" : inside(at(e)) ? "move" : ""; return; }
+				const p = at(e), dx = p.px - p0.px, dy = p.py - p0.py;
+				pts.set(e.pointerId, p);
+				if (mode === "pinch" && pts.size >= 2) {
+					const g = two();
+					if (last > 0 && g.span > 0) view = Lay.cropZoomAt(view, g, g.span / last, dims);
+					view = Lay.cropViewClamp({ ...dims, zoom: view.zoom, ox: view.ox + g.px - centre.px, oy: view.oy + g.py - centre.py });
+					last = g.span; centre = g; paint();
+				} else if (mode === "move") move(dx / view.zoom, dy / view.zoom);
+				else if (mode === "pan") pan(dx, dy);
+				else if (mode === "corner") {
+					const q = Lay.cropToImage(view, p);
+					c = Lay.cropCorner(c, "se", { ix: q.ix + grip.dx, iy: q.iy + grip.dy }, B); paint();
+				}
 			});
-			const up = (e) => { pts.delete(e.pointerId); if (pts.size === 1) last = 0; };
+			// a finger lifted from a pinch: the other does nothing until pressed again
+			const up = (e) => { pts.delete(e.pointerId); if (mode === "pinch" || !pts.size) mode = null; };
 			stage.addEventListener("pointerup", up); stage.addEventListener("pointercancel", up);
-			stage.addEventListener("wheel", (e) => { e.preventDefault(); resize(c.side * Math.exp(e.deltaY * 0.002)); }, { passive: false });
+			stage.addEventListener("wheel", (e) => { e.preventDefault(); zoomAt(at(e), Math.exp(-e.deltaY * (e.deltaMode === 1 ? 16 : 1) * 0.002)); }, { passive: false });
+			const finish = (r) => { if (done) return; done = true; if (ro) ro.disconnect(); resolve(r); };
+			const crop = () => {
+				ed.lastView = { ...Lay.cropToImage(view, mid()), zoom: view.zoom, base: B.id };
+				finish({ x: c.x, y: c.y, side: c.side }); close();
+			};
 			stage.addEventListener("keydown", (e) => {
-				const zoom = Lay.cropKeyScale(e.key);
-				if (zoom && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); resize(c.side * zoom); return; }
+				if (e.ctrlKey || e.metaKey || e.altKey) return;
+				if (e.key === "Enter") { e.preventDefault(); crop(); return; }
+				const k = Lay.cropKeyScale(e.key);
+				if (k) { e.preventDefault(); zoomAt(mid(), k > 1 ? 1 / VIEW_STEP : VIEW_STEP); return; }
 				const d = Math.max(1, Math.round(c.side / 20)), v = { ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, -d], ArrowDown: [0, d] }[e.key];
 				if (v) { e.preventDefault(); move(...v); }
 			});
 			slider.addEventListener("input", () => resize(+slider.value));
-			const finish = (r) => { if (done) return; done = true; resolve(r); };
-			const close = Slides.popup(h("div", { class: "slide-help crop-pop" }, h("h2", { text: t.cropQ }), stage,
-				h("div", { class: "crop-row" }, h("button", { type: "button", class: "btn ghost", "aria-label": "−", text: "−", on: { click: () => resize(c.side * Lay.CROP_STEP) } }), slider,
-					h("button", { type: "button", class: "btn ghost", "aria-label": "+", text: "+", on: { click: () => resize(c.side / Lay.CROP_STEP) } })),
-				h("div", { class: "crop-row" }, h("button", { type: "button", class: "btn ghost", text: t.cropCancel, on: { click: () => close() } }),
-					h("button", { type: "button", class: "btn", text: t.cropDo, on: { click: () => { finish({ x: c.x, y: c.y, side: c.side }); close(); } } }))),
+			// another base photo: the marks go with the old one
+			const other = () => pickFile("image/*", async (f) => {
+				try { ed.photoBase = await loadBase(f); err.textContent = ""; if (!done) useBase(true); } catch (z) { err.textContent = t.errPhoto; }
+			}, "environment");
+			const btn = (text, fn, cls = "btn ghost", label) => h("button", { type: "button", class: cls, title: label || null, "aria-label": label || null, text, on: { click: fn } });
+			const close = Slides.popup(h("div", { class: "slide-help crop-pop" },
+				h("div", { class: "crop-head" }, h("h2", { text: t.cropQ }), h("p", { class: "crop-hint", text: t.cropHint })),
+				stage,
+				h("div", { class: "crop-row" },
+					btn(t.cropOther, other),
+					h("span", { class: "crop-zoom" }, btn("−", () => zoomAt(mid(), VIEW_STEP), "btn ghost", t.cropZoomOut), btn("+", () => zoomAt(mid(), 1 / VIEW_STEP), "btn ghost", t.cropZoomIn)),
+					h("label", { class: "crop-size-label" }, h("span", { text: t.cropSize }), slider),
+					h("span", { class: "crop-gap" }),
+					btn(t.cropCancel, () => close()), btn(t.cropDo, crop, "btn")),
+				err),
 				{ label: t.cropQ, onClose: () => finish(null) });
-			paint();
-		}));
+			// the viewport follows the lectern's size, keeping the photo point in its middle (or the whole photo, if it was)
+			ro = typeof ResizeObserver === "function" ? new ResizeObserver(() => {
+				if (done || !B) return;
+				const atFit = view.zoom <= Lay.cropZoomRange(dims).min * 1.0001, m = Lay.cropToImage(view, mid());
+				dims = dimsOf();
+				view = atFit ? Lay.cropViewFit(dims) : Lay.cropViewOn(dims, view.zoom, m);
+				paint();
+			}) : null;
+			useBase(false);
+			if (ro) ro.observe(stage);
+			stage.focus();
+		});
 	}
 
 	// ---- the start page's top bar and foot ------------------------------
@@ -1153,9 +1238,20 @@
 				draw(); Slides.setReady(!tell());
 			}, keydown: (e) => { if (e.key === "Enter") { e.preventDefault(); forward(); } } } });
 		nameIn.value = x.name;
-		const takePhoto = () => pickFile("image/*", async (f) => {
-			try { const crop = await cropPopup(f); if (crop) { x.photo = await photoOf(f, crop); render(); } } catch (z) { err.textContent = t.errPhoto; }
-		}, "environment");
+		// the first time, the dictionary's base photo is picked; then every piece is cropped from it
+		const cropPiece = async () => {
+			const crop = await cropPopup(ed);
+			if (!crop) return;
+			const at = { ...crop, base: ed.photoBase.id };
+			(ed.crops = ed.crops || {})[ed.i] = at; ed.lastCrop = at;
+			x.photo = photoOf(ed.photoBase.img, crop); render();
+		};
+		const takePhoto = () => {
+			if (ed.photoBase) { cropPiece().catch(() => { err.textContent = t.errPhoto; }); return; }
+			pickFile("image/*", async (f) => {
+				try { ed.photoBase = await loadBase(f); await cropPiece(); } catch (z) { err.textContent = t.errPhoto; }
+			}, "environment");
+		};
 		const dot = h("span", { class: "dict-dot" + (x.colour ? "" : " none"), "aria-hidden": "true" });
 		if (x.colour) dot.style.setProperty("--c", x.colour);
 		setTimeout(() => { if (document.activeElement !== nameIn && !document.querySelector(".slide-popup")) nameIn.focus(); }, 0);
@@ -1171,7 +1267,7 @@
 					h("div", { class: "dict-buttons" },
 						h("button", { type: "button", class: "btn ghost", on: { click: () => colourPopup(x) } }, dot, t.pieceColour),
 						h("button", { type: "button", class: "btn ghost", title: t.photoTake, on: { click: takePhoto } }, x.photo ? t.photoAgain : t.piecePhoto),
-						x.photo ? h("button", { type: "button", class: "btn ghost", title: t.photoRemove, "aria-label": t.photoRemove, on: { click: () => { x.photo = ""; render(); } } }, "✕") : null,
+						x.photo ? h("button", { type: "button", class: "btn ghost", title: t.photoRemove, "aria-label": t.photoRemove, on: { click: () => { x.photo = ""; if (ed.crops) delete ed.crops[ed.i]; render(); } } }, "✕") : null,
 						// editing a dictionary already there: saved from any piece, no need to page to the end
 						ed.base && ed.i < n - 1 ? h("button", { type: "button", class: "btn", on: { click: () => { if (!problem()) finish(); } } }, "✓ " + t.dictSaveNames) : null),
 					err, note), b.form),

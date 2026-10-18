@@ -678,5 +678,33 @@ const SeedcraftLayouts = (() => {
 	const CROP_STEP = 0.9;
 	const cropKeyScale = (key) => key === "+" || key === "=" ? 1 / CROP_STEP : key === "-" ? CROP_STEP : 0;
 	const cropPinch = (side, last, span) => side * span / last;
-	return { cropClamp, CROP_STEP, cropKeyScale, cropPinch, BUILT, SLOT, POSBOX, RAIL, pitch, qrSquare, qrCellsBox, digitFont, seedQr, seqIntro, underQr, checkIntro, VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readColumn, placeShift, readTurn, pickerPopup, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, REJECT, BADGE, fileRow, fileColumn, store, dictName, dictCheck, dictAsIs };
+	// The cropper's view of the base photo: a zoom (screen px per photo px) and where the photo's
+	// top-left corner sits in the viewport (ox, oy). dims: the photo (iw, ih) and the viewport (vw, vh).
+	// The zoom goes from the whole photo fitting to the smallest square (32 px) filling a third of it.
+	const cropZoomRange = ({ iw, ih, vw, vh }) => { const min = Math.min(vw / iw, vh / ih); return { min, max: Math.max(min, Math.min(vw, vh) / 3 / 32) }; };
+	// on each axis: centred where the photo is smaller than the viewport, else no empty margin
+	function cropViewClamp({ iw, ih, vw, vh, zoom, ox, oy }) {
+		const r = cropZoomRange({ iw, ih, vw, vh }), z = Math.min(r.max, Math.max(r.min, zoom));
+		const axis = (o, size, room) => size <= room ? (room - size) / 2 : Math.min(0, Math.max(room - size, o));
+		return { zoom: z, ox: axis(ox, iw * z, vw), oy: axis(oy, ih * z, vh) };
+	}
+	const cropViewFit = (dims) => cropViewClamp({ ...dims, zoom: 0, ox: 0, oy: 0 });
+	// the photo point under a viewport point, and the view with a photo point in the viewport's middle
+	const cropToImage = (view, { px, py }) => ({ ix: (px - view.ox) / view.zoom, iy: (py - view.oy) / view.zoom });
+	const cropViewOn = (dims, zoom, { ix, iy }) => cropViewClamp({ ...dims, zoom, ox: dims.vw / 2 - ix * zoom, oy: dims.vh / 2 - iy * zoom });
+	// zoomed by factor about a viewport point: the photo point under it stays there (as far as the clamp lets it)
+	function cropZoomAt(view, { px, py }, factor, dims) {
+		const { ix, iy } = cropToImage(view, { px, py }), r = cropZoomRange(dims), z = Math.min(r.max, Math.max(r.min, view.zoom * factor));
+		return cropViewClamp({ ...dims, zoom: z, ox: px - ix * z, oy: py - iy * z });
+	}
+	// the crop square resized by one corner (nw, ne, sw, se) dragged to a photo point: square, the opposite corner
+	// fixed, inside the photo, no smaller than 32 (at the photo's edge, cropClamp moves it in)
+	function cropCorner(crop, corner, { ix, iy }, { iw, ih }) {
+		const west = corner[1] === "w", north = corner[0] === "n";
+		const fx = west ? crop.x + crop.side : crop.x, fy = north ? crop.y + crop.side : crop.y;
+		const room = Math.min(west ? fx : iw - fx, north ? fy : ih - fy);
+		const side = Math.max(32, Math.min(room, Math.max(Math.abs(ix - fx), Math.abs(iy - fy))));
+		return cropClamp({ iw, ih, x: west ? fx - side : fx, y: north ? fy - side : fy, side });
+	}
+	return { cropClamp, cropZoomRange, cropViewClamp, cropViewFit, cropToImage, cropViewOn, cropZoomAt, cropCorner, CROP_STEP, cropKeyScale, cropPinch, BUILT, SLOT, POSBOX, RAIL, pitch, qrSquare, qrCellsBox, digitFont, seedQr, seqIntro, underQr, checkIntro, VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readColumn, placeShift, readTurn, pickerPopup, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, REJECT, BADGE, fileRow, fileColumn, store, dictName, dictCheck, dictAsIs };
 })();
