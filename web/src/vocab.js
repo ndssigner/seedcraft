@@ -126,7 +126,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	// titleOf(i): what hovering piece i says, if not its position and name.
 	// column (role "read", vertical): layouts.js's readColumn for this box (readTurn's and
 	// checkFinal's columns); else one is made with outer: the side its positions go on.
-	// spill (vertical "read" and "reference", whose ends fade): [before, after], the places just
+	// spill (vertical "read" and "reference", and the horizontal "build": whose ends fade): [before, after], the places just
 	// outside the window (as items), drawn a row beyond each end, under the fade (unseen,
 	// never tapped); the thread runs on past the window's top and, where the string goes on,
 	// past its bottom. A run glided a row over then shows at its first frame what the drawing
@@ -195,10 +195,16 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			start = box.y + pad;
 		}
 		// the thread, from the first position there is to the last
-		const spilt = !!spill && vertical && (role === "read" || role === "reference");
+		const spilt = !!spill && (vertical ? role === "read" || role === "reference" : role === "build");
 		const all = spilt ? [spill[0], ...items, spill[1]] : items, first = spilt ? -1 : 0;   // all[j]: the item at index j + first
 		const there = all.map((x, j) => x === undefined ? null : j + first).filter((i) => i !== null);
-		if (there.length && spilt) {
+		if (there.length && spilt && !vertical) {
+			// spilled, along: from beyond the box's left edge (the string's start, or its places before, go
+			// out at the left, under the fade and the icon) to its last place, and on past it when that place
+			// is beyond the window, or to the window's end when the string ends there
+			const b = place(there[there.length - 1]), last = there[there.length - 1], on = last === n ? pitch / 2 : last === n - 1 ? pitch / 2 : 0;
+			parts.push(svg("line", { x1: r1(box.x - pitch), y1: r1(b[1]), x2: r1(b[0] + on), y2: r1(b[1]), class: "v-thread v-thread-build" }));
+		} else if (there.length && spilt) {
 			// spilled: from a row over the top (always: the string's start, or its places before, go up out of
 			// the window) down to its last place, and on past it when that place is beyond the window
 			const a = place(-1), b = place(there[there.length - 1]), on = there[there.length - 1] === n ? step / 2 : 0;
