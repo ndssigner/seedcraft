@@ -568,7 +568,8 @@ for (const sides of [2, 4, 6, 8, 10, 12, 16, 20]) {
 		`throw d${sides} N=${n}: the faces thrown again big enough to read (faces ≥ 24, badges ≥ ${Lay.BADGE}), apart`);
 	}
 }
-check(S.fileDictThings(16).map((x) => x.name).join("") === "0123456789ABCDEF" && S.fileDictThings(32)[31].name === "V" && S.fileDictThings(32)[31].emoji === "V", "fileDictThings");
+check(S.fileDictThings(16).map((x) => x.name).join("") === "0123456789ABCDEF" && S.fileDictThings(32)[31].name === "V" && S.fileDictThings(32)[31].emoji === "V"
+	&& S.fileDictThings(2).map((x) => x.name).join("") === "01" && S.fileDictThings(4).map((x) => x.name).join("") === "0123" && S.fileDictThings(8).map((x) => x.name).join("") === "01234567", "fileDictThings");
 {
 	const kf = Lay.keyThrow({ sides: 6, bits: 4, tool: "dice", file: true, n: 16 }), dv = Lay.keyThrow({ bits: 4, tool: "device", file: true, n: 16 });
 	check(kf.boxes.keyDict && kf.arrows.map((a) => a.id).join() === "number,dict,slot" && dv.boxes.keyDict && dv.arrows.map((a) => a.id).join() === "number,dict,slot", "keyThrow file: number → its dictionary → the file (dice and device)");
@@ -1479,7 +1480,26 @@ for (const pad of [false, true]) {
 	check(TX.es.keyRowCheckLine === "El último carácter comprueba la fila: si copias mal otro carácter, deja de cuadrar." && !!TX.en.keyRowCheckLine, "row check line");
 	check(TX.es.keyPrevRow === "Fila anterior" && TX.en.keyPrevRow === "Previous row", "previous row label");
 	check(TX.es.keyFileHead === "Cabecera: piezas y clases" && TX.en.keyFileHead === "Header: pieces and kinds" && TX.es.keyFileDictLabel === "Diccionario del archivo" && TX.en.keyFileDictLabel === "File dictionary", "the key file's header and dictionary");
-	check(TX.es.keyRowCheckHow === "Cómo se calcula: de derecha a izquierda, se dobla un carácter sí y otro no (si el doble pasa de N−1, se le resta N−1); se suman todos, y el control es lo que falta para el siguiente múltiplo de N." && !!TX.en.keyRowCheckHow, "the check's steps");
+	check(TX.es.keyRowCheckHow === "Cómo se calcula: de derecha a izquierda, empezando por el último carácter de la fila sin contar el control, se dobla uno sí y otro no (si el doble pasa de N−1, se le resta N−1); se suman todos, y el control es lo que falta para el siguiente múltiplo de N." && !!TX.en.keyRowCheckHow, "the check's steps");
+	// the throw's bubbles: their text fits (base .tip font, 11 × .78 units, lines of 1.25; padding 4 × 8, a 1-unit border;
+	// a character ≈ .55 em, wrapped word by word) and the file dictionary's label fits its tab (vocab.js's tab width)
+	{
+		const fs = 11 * 0.78, cw = 0.55 * fs, lines = (text, w) => {
+			let n = 1, line = 0;
+			for (const word of text.split(" ")) { const add = (line ? 1 : 0) + word.length; if (line && (line + add) * cw > w) { n++; line = word.length; } else line += add; }
+			return n;
+		};
+		for (const file of [false, true]) for (const lang of ["en", "es"]) {
+			const x = TX[lang], tips = Lay.keyThrow({ sides: 6, bits: 4, file, n: 16 }).tips;
+			const say = { faces: x.throwTipFaces, tower: x.throwTipTower, piece: file ? x.throwTipFile : x.throwTipPiece, reroll: x.throwTipReroll };
+			for (const [id, t] of Object.entries(tips))
+				check(lines(say[id], t.box.w - 18) * fs * 1.25 + 10 <= t.box.h, `throw bubble ${id} ${lang} file=${file}: its text fits`);
+			if (file) {
+				const kd = Lay.keyThrow({ sides: 6, bits: 4, file, n: 16 }).boxes.keyDict, tabH = Lay.pickerGrid(kd, 16).tabH, lfs = Math.max(8, Math.min(10, tabH * 0.7));
+				check(28 + 0.55 * lfs * (x.keyFileDictLabel.length + 3) + 6 <= kd.w, `file dictionary label ${lang}: whole on its tab`);
+			}
+		}
+	}
 	check(TX.es.throwTipFaces === "Tira y toca la cara que ha salido." && TX.es.throwTipTower === "Cada tiro da unos bits; se apilan aquí." && TX.es.throwTipPiece === "Con los bits suficientes sale el número de tu pieza de llave."
 		&& TX.es.throwTipFile === "Con los bits suficientes sale el número que va al archivo." && TX.es.throwTipReroll === "Si sale una cara de más, se tira otra vez: así todas las piezas salen igual de a menudo.", "the throw's intro bubbles");
 	check(TX.es.keyWhyChance.startsWith("La llave solo protege") && TX.en.keyWhyChance.startsWith("The key only protects"), "keyWhyChance in both languages");

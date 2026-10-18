@@ -426,6 +426,8 @@
 		Slides.setLang(st.lang);
 		// the mask's bubble is over once a slide that is no turn is shown
 		if (!(st.screen === "make" && ["seq", "check"].includes(st.at.make)) && !(st.screen === "read" && st.at.read === "recover")) st.seen.maskWhy = st.seen.maskWhy || maskTipTurn !== null;
+		// the throw's bubbles are over once they were shown and the throw slide is left (any way)
+		if (throwIntroShown && !(st.screen === "make" && st.at.make === "keyThrow")) st.seen.throwIntro = true;
 		const reading = st.screen === "read" && st.at.read === "recover" ? st.read : st.screen === "make" && st.at.make === "check" ? st.make.check : null;
 		const view = [st.screen, st.at[st.screen], st.at[st.screen] === "seq" ? st.make.turn : "", reading ? `${reading.turn}${reading.typing ? "t" : ""}` : "", st.make.explain ? st.make.explain.run : "", st.make.key && st.make.key.by, st.make.key && st.make.key.pos, st.make.key && !!st.make.key.fix, st.edit && st.edit.kind, st.edit && st.edit.target, st.edit && st.edit.i].join();
 		Slides.show(slideNow(view));
@@ -1321,6 +1323,7 @@
 	// as buttons. The device: one die that rolls and stops on the number. Only
 	// the current arrow shows whole. Moving never throws again: a piece drawn
 	// is shown as it was drawn, and a piece half thrown keeps its throws.
+	let throwIntroShown = false;  // the throw's intro bubbles drawn: once the slide is left, they are seen
 	let keyRolling = false;  // the device's die rolling: nothing else moves until it stops
 	let keyFresh = null;     // the position of a piece just completed: it is shown arriving, once
 	let keyFocus = null;     // the face tapped from the keyboard, focused again once redrawn
@@ -1491,6 +1494,7 @@
 			}
 			// the first time here, before the first throw: what each part is (spec §6)
 			if (intro) {
+				throwIntroShown = true;
 				const say = { faces: t.throwTipFaces, tower: t.throwTipTower, piece: asString ? t.throwTipPiece : t.throwTipFile, reroll: t.throwTipReroll };
 				Object.entries(lay.tips).forEach(([id, x]) => {
 					const el = tip(x.side + " kt-tip", say[id], x.box);
