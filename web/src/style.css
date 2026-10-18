@@ -300,6 +300,8 @@ ol.entries.paper li { color: #111; border-bottom-color: #ccc; }
 .v-bead-ring.v-ring-current { stroke: var(--accent); stroke-width: 3; }
 .v-hole { fill: none; stroke: var(--line-strong); stroke-width: 1.2; stroke-dasharray: 3 2; }
 .v-slot { cursor: pointer; }
+/* the places spilled beyond a column's window (under its fade): never under the pointer */
+.v-spill { pointer-events: none; }
 .v-slot .v-hole { stroke: var(--accent); stroke-width: 1.6; }
 .v-plus { fill: var(--accent); font-weight: 700; }
 .v-slot:focus-visible { outline: none; }

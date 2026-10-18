@@ -962,6 +962,9 @@ for (const pad of [false, true]) {
 		check(th && Math.abs(num(th.attrs.y1) - (col.rows[0].y - 1.5 * pitch)) < 0.1 && Math.abs(num(th.attrs.y2) - col.rows[3].y) < 0.1, "spill: the thread from a row over the top down to the last place");
 		const nos = V.string({ box, orientation: "v", role: "read", kind: "seed", things, items: [2, 9, 4, 6, 1, 3, 5], firstPosition: 1, current: 3, column: col });
 		check(!walk(nos, cls("v-spill")).length, "spill: none unless asked");
+		const fr = V.string({ box, orientation: "v", role: "read", kind: "seed", things, items: [2, 9, 4, 6, null, undefined, undefined], firstPosition: 1, current: 3, column: col, onSlot: () => {}, slotOnly: true });
+		const fh = walk(fr, cls("v-empty"));
+		check(fh.length === 1 && !cls("v-slot")(fh[0]) && !fh[0].attrs.tabindex && !walk(fh[0], cls("v-plus")).length, "a hole that is not the current place's (the frontier, seen from a turn before): a plain empty place, no «+»");
 	}
 	// the key's icon is drawn (⚿ is missing from common fonts), with no text, the same in SVG and in HTML
 	{
