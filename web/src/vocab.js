@@ -126,6 +126,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	// column (role "read", vertical): layouts.js's readColumn for this box (readTurn's and
 	// checkFinal's columns); else one is made with outer: the side its positions go on.
 	let maskN = 0;
+	// where the pitch is under SLOT_HIT, the clamp to the pitch cell wins over the size: no overlap matters more
 	const SLOT_HIT = 36;
 	function string({ box, orientation = "h", role = "build", kind = "seed", things = [], items = [], firstPosition = 1, current = -1, showValues = role === "read", onSlot, onPiece, room, titleOf, column, outer = "left", posBox }) {
 		const n = Math.max(1, items.length), vertical = orientation === "v";
