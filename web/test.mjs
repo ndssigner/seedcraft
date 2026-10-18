@@ -682,6 +682,8 @@ for (const pad of [false, true]) {
 		const fm = S.formatModules(size), fn = S.functionModules(size);
 		check(fm.length === 30 && fm.every(([r, c]) => fn.has(r * size + c)) && fm.some(([r, c]) => r === 8 && c === 0) && fm.some(([r, c]) => r === size - 1 && c === 8), `formatModules(${size}): 30 cells inside the function modules`);
 		const qb = { x: 0, y: 40, w: 216, h: 216 }, fx = V.qr({ box: qb, size, modules: () => false, fixed: fn, legend: "fixed" });
+		const fu = V.qr({ box: qb, size, modules: () => null, fixed: fn });
+		check(walk(fu, cls("v-qr-fixed")).length > 100 && walk(fu, (n) => /v-qr-fixed off/.test(n.attrs.class || "")).length === 0 && walk(fu, (n) => /v-qr-fixed unk/.test(n.attrs.class || "")).length > 100, `qr(${size}): fixed cells of unknown value are drawn unknown, not off`);
 		check(walk(fx, cls("v-qr-fixed")).length > 100, `qr(${size}) with fixed: fixed cells drawn`);
 		const bg = walk(fx, cls("v-qr-bg"))[0];
 		check(num(bg.attrs.width) === 216 - 14 && walk(fx, (n) => n.tag === "text" && textOf(n) === "fixed").length === 1, `qr(${size}) with legend: side is min(w,h) - 14, legend drawn`);
@@ -1004,6 +1006,14 @@ for (const pad of [false, true]) {
 		check(Sl.keyRoute({ keys: () => { hit++; return true; } }, { key: "5" }) === true && hit === 1, "keyRoute: a slide's keys returning true consumes the key");
 		check(Sl.keyRoute({ keys: () => false }, { key: " " }) === false && Sl.keyRoute({}, { key: " " }) === false && Sl.keyRoute(null, {}) === false, "keyRoute: otherwise the default handling goes on");
 	}
+	{
+		const el = (tagName, attrs = {}, parentNode = null) => ({ tagName, parentNode, getAttribute: (k) => (k in attrs ? attrs[k] : null) });
+		const body = el("BODY"), slot = el("g", { class: "v-piece v-slot", tabindex: "0", role: "button" }, el("svg", {}, body));
+		check(Sl.tabIsSlide({ target: body }) === true && Sl.tabIsSlide({ target: null }) === true && Sl.tabIsSlide({ target: el("svg", {}, body) }) === true, "tabIsSlide: Tab from the body or the canvas is the slide's");
+		check(Sl.tabIsSlide({ target: slot }) === true && Sl.tabIsSlide({ target: el("rect", {}, slot) }) === true, "tabIsSlide: Tab from a «+» slot is the slide's");
+		check(Sl.tabIsSlide({ target: el("BUTTON", {}, body) }) === false && Sl.tabIsSlide({ target: el("g", { role: "button", tabindex: "0" }, body) }) === false && Sl.tabIsSlide({ target: el("A", { href: "#" }, body) }) === false, "tabIsSlide: Tab from a control moves the focus on");
+		check(Sl.tabIsSlide({ target: body, shiftKey: true }) === false && Sl.tabIsSlide({ target: slot, shiftKey: true }) === false, "tabIsSlide: Shift+Tab is never taken");
+	}
 	check(Sl.nextOf({ step: 0 }, { steps: 1, prev: null, next: null }) === null && Sl.nextOf({ step: 0, dir: "prev" }, { steps: 1, prev: null, next }) === null, "nextOf: nothing to go to, nothing done");
 	check(Sl.nextOf({ step: 7 }, { steps: 3, next }).go === next.go, "nextOf: a step past the end counts as the last");
 	check(Sl.nextOf({ step: 0 }, { next }).go === next.go, "nextOf: steps default to 1");
@@ -1178,7 +1188,9 @@ for (const pad of [false, true]) {
 	// the gather cards: every pieces tick and every assembly tick; the About page's test-only stance
 	const J = vm.runInContext("SeedcraftJourneys", ctx);
 	check(J.gatherDone({ seq: true, "assembly:seq": true }, [{ what: "seq", assembly: true }]) && !J.gatherDone({ seq: true }, [{ what: "seq", assembly: true }]) && J.gatherDone({ seq: true }, [{ what: "seq", assembly: false }]), "gatherDone: every pieces tick and every assembly tick");
+	check(J.gatherDone({}, [{ what: "seq", written: true, assembly: false }]) && !J.gatherDone({}, [{ what: "seq", written: false, assembly: false }]) && J.gatherDone({ key: true }, [{ what: "seq", written: true }, { what: "key" }]), "gatherDone: a written group's pieces count as done");
 	const TX = ctx.TEXT;
+	for (const lang of ["en", "es"]) check(!/real funds|dinero de verdad/i.test(TX[lang].storeBasic.join(" ")) && TX[lang].keysHintTab.length > TX[lang].keysHint.length && /Tab/.test(TX[lang].keysHintTab), `${lang}: store help keeps the test-only stance; the key string's typing hint mentions Tab`);
 	check(!/ordenador (desconectado|sin conexión)|offline computer|disconnected computer/i.test([TX.en.safe, TX.es.safe].flat().join(" ")), "About: no real seed on an offline computer (test-only stance)");
 	// a form with materials (not written) has an assembly card; the others do not
 	check(J.pieces({ words: 12, n: 16, mode: "basic", form: "book", padForm: null }, () => 1).groups[0].assembly === false, "pieces: no assemblyOf, no assembly card");

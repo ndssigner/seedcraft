@@ -482,7 +482,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			svg("path", { d: "M0 0.5H3", class: "v-qr-hatch-line" })));
 		for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) {
 			const k = r * size + c, v = painted.has(k) ? painted.get(k) === 1 : get(r, c), isFixed = !!fixed && fixed.has(k);
-			const cls = bad.has(k) ? "v-qr-err" : turn.has(k) ? "v-qr-turn" + (v ? " on" : "") : isFixed ? "v-qr-fixed " + (v === true ? "on" : "off") : v === true ? "v-qr-dark" : v === false ? null : "v-qr-unknown";
+			const cls = bad.has(k) ? "v-qr-err" : turn.has(k) ? "v-qr-turn" + (v ? " on" : "") : isFixed ? "v-qr-fixed " + (v === true ? "on" : v === false ? "off" : "unk") : v === true ? "v-qr-dark" : v === false ? null : "v-qr-unknown";
 			if (!cls) continue;
 			const revealed = order && cls === "v-qr-dark" && order.has(k);
 			const el = svg("rect", { x: r1(x0 + c * cs), y: r1(y0 + r * cs), width: r1(cs), height: r1(cs), class: revealed ? cls + " v-qr-reveal" : cls });

@@ -77,8 +77,9 @@ const SeedcraftJourneys = (() => {
 	}
 
 	// The pieces slide is done once every group's pieces are ticked, and the
-	// assembly of each group that has one ("assembly:" + what).
-	const gatherDone = (gathered, groups) => groups.every((g) => !!gathered[g.what] && (!g.assembly || !!gathered["assembly:" + g.what]));
+	// assembly of each group that has one ("assembly:" + what); a written form
+	// (g.written) has no pieces to gather, so its pieces count as done.
+	const gatherDone = (gathered, groups) => groups.every((g) => (g.written || !!gathered[g.what]) && (!g.assembly || !!gathered["assembly:" + g.what]));
 	// The materials text of a form, with the length or quantity apart to draw
 	// big: the first number (with its «cm»), or null when the text has none.
 	function splitMaterials(text) {

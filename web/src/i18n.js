@@ -178,7 +178,7 @@ const SEEDCRAFT_TEXT = {
 		storeBasic: [
 			"Keep it where it belongs, among things like it.",
 			"Keep the dictionary apart.",
-			"For real funds, add a BIP-39 passphrase, kept somewhere else.",
+			"If you use a BIP-39 passphrase with this test seed, keep it somewhere else.",
 			"Leave your heirs a note: what it is, and where to find SPEC-sequences.md.",
 		],
 		storePad: [
@@ -360,6 +360,7 @@ const SEEDCRAFT_TEXT = {
 		// reading back, a turn per slide: the "+" opens the string's dictionary; the rows before are locked
 		readWhich: (i) => `Which one do you see at ${i}?`,
 		keysHint: "Type the piece's number (Enter to confirm), ←/→ to change turn",
+		keysHintTab: "Type the piece's number (Enter to confirm), Tab for the other string, ←/→ to change turn",
 		readTap: (i) => `Tap + and choose the piece you see at ${i} of your string.`,
 		readTapBoth: (i) => `Tap each + and choose the piece you see at ${i} of each string.`,
 		readTurnPad: (c, k, n, p) => `${c} − ${k} on the clock of ${n} is ${p}: its bits paint these squares.`,
@@ -560,7 +561,7 @@ const SEEDCRAFT_TEXT = {
 		storeBasic: [
 			"Guárdala donde pega, entre cosas parecidas.",
 			"Guarda el diccionario aparte.",
-			"Para dinero de verdad, añade una passphrase BIP-39, guardada en otro sitio.",
+			"Si usas una passphrase BIP-39 con esta semilla de prueba, guárdala en otro sitio.",
 			"Deja una nota a tus herederos: qué es, y dónde encontrar SPEC-sequences.md.",
 		],
 		storePad: [
@@ -742,6 +743,7 @@ const SEEDCRAFT_TEXT = {
 		// reading back, a turn per slide: the "+" opens the string's dictionary; the rows before are locked
 		readWhich: (i) => `¿Cuál ves en la ${i}?`,
 		keysHint: "Teclea el número de la pieza (Intro para confirmar), ←/→ para cambiar de turno",
+		keysHintTab: "Teclea el número de la pieza (Intro para confirmar), Tab para la otra cadena, ←/→ para cambiar de turno",
 		readTap: (i) => `Toca + y elige la pieza que ves en la ${i} de tu ristra.`,
 		readTapBoth: (i) => `Toca cada + y elige la pieza que ves en la ${i} de cada ristra.`,
 		readTurnPad: (c, k, n, p) => `${c} − ${k} en el reloj de ${n} es ${p}: sus bits pintan estos cuadritos.`,
