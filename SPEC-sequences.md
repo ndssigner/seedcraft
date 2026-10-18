@@ -347,7 +347,9 @@ just as likely.
   number by number, with any of these:
   - **a bag** with one piece of each kind: take one without looking, note
     it, **put it back** and shake the bag. If the pieces are not put back,
-    it is not chance. (The web tool offers the bag only for a pad kept as a
+    it is not chance. Only fair if every piece has the same shape, size and
+    weight: otherwise some come out more often than others, and dice should
+    be used instead. (The web tool offers the bag only for a pad kept as a
     string of pieces.)
   - **coins**: one toss per bit, heads 1 and tails 0; k tosses per number
     (4 for N = 16), read as in the table of §8;

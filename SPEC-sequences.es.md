@@ -371,8 +371,10 @@ con todos los valores igual de probables.
   número, con cualquiera de estos:
   - **una bolsa** con una pieza de cada tipo: saca una sin mirar, apúntala,
     **devuélvela** y agita la bolsa. Si las piezas no se devuelven, no es
-    azar. (La herramienta web solo ofrece la bolsa para una llave guardada
-    como ristra de piezas.)
+    azar. Solo es justa si todas las piezas tienen la misma forma, tamaño y
+    peso: si no, unas salen más que otras, y conviene usar dados. (La
+    herramienta web solo ofrece la bolsa para una llave guardada como ristra
+    de piezas.)
   - **monedas**: un lanzamiento por bit, cara 1 y cruz 0; k lanzamientos por
     número (4 para N = 16), que se leen como en la tabla del §8;
   - **un dado**, de cualquier tipo común (d4, d6, d8, d10, d12, d16, d20).
@@ -598,7 +600,7 @@ llena de entradas, para pasar años en una estantería y para no interesarle a
 nadie.
 
 - **Los tipos** son los tipos de vía (con N = 8: avenida, bulevar, calle,
-  callejón, camino, carretera, paseo, plaza). Cada entrada tiene exactamente
+  camino, carretera, paseo, plaza, ronda; los de la herramienta web). Cada entrada tiene exactamente
   uno, escrito entero.
 - **El diccionario** puede ser simplemente un **orden fijo y convencional**,
   como el orden alfabético de los tipos de vía de arriba. No es un secreto en
