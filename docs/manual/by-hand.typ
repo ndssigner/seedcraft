@@ -5,8 +5,8 @@
 
 #import "common.typ": *
 #show: doc.with(
-  title: tr[Seedcraft Sequences by hand][Seedcraft Sequences a mano],
-  footer: [Seedcraft Sequences v0 #tr[(draft)][(borrador)] — #tr[by hand][a mano]])
+  title: tr[SeedCraft Sequences by hand][SeedCraft Sequences a mano],
+  footer: [SeedCraft Sequences v0 — #tr[by hand][a mano]])
 
 // the example QR, with the template's data cells marked
 #let example-rows = {
@@ -65,11 +65,11 @@
 // ---- cover and guide --------------------------------------------------------
 #align(center)[
   #v(4mm)
-  #text(24pt, weight: "bold")[Seedcraft Sequences]
+  #text(24pt, weight: "bold")[SeedCraft Sequences]
   #v(-2mm)
   #text(15pt)[#tr[by hand][a mano]]
   #v(1mm)
-  #text(10pt, fill: luma(90))[#tr[Draft v0 · test seeds only · github.com/ndssigner/seedcraft][Borrador v0 · solo semillas de prueba · github.com/ndssigner/seedcraft]]
+  #text(10pt, fill: luma(90))[#tr[Format version 0 · github.com/ndssigner/seedcraft][Formato versión 0 · github.com/ndssigner/seedcraft]]
 ]
 #v(3mm)
 
@@ -81,9 +81,17 @@
 
 #note[
   #tr[
-    *Before you start.* Whoever has the sequence, or the QR code you draw, has the seed — even without your dictionary, if they know this method. Work alone, and burn or shred the worksheets afterwards. The format is a *draft*: practise with test seeds, not with real funds.
+    *Before you start.* Whoever has the sequence, or the QR code you draw, has the seed — even without your dictionary, if they know this method. Work alone, and burn or shred the worksheets afterwards.
   ][
-    *Antes de empezar.* Quien tenga la secuencia, o el QR que dibujes, tiene la semilla, incluso sin tu diccionario si conoce este método. Trabaja a solas y quema o tritura las hojas de trabajo al terminar. El formato es un *borrador*: practica con semillas de prueba, no con fondos reales.
+    *Antes de empezar.* Quien tenga la secuencia, o el QR que dibujes, tiene la semilla, incluso sin tu diccionario si conoce este método. Trabaja a solas y quema o tritura las hojas de trabajo al terminar.
+  ]
+]
+
+#note[
+  #tr[
+    *Notice.* SeedCraft is a mathematics exercise with a creative and artistic spirit, and it is offered as is, without any warranty. No one independent has audited it yet. If you use it with a real seed, do so on an offline computer and at your own risk. We are not liable for any loss of funds or any other harm, nor for the use anyone makes of this tool or of this method. While you use it, let no one see your screen: it shows seeds and QR codes that a camera can capture from afar.
+  ][
+    *Aviso.* SeedCraft es un ejercicio de matemáticas con espíritu creativo y artístico, y se ofrece tal cual, sin ninguna garantía. Nadie independiente lo ha auditado todavía. Si lo usas con una semilla real, hazlo en un ordenador desconectado y bajo tu propia responsabilidad. No respondemos de pérdidas de fondos ni de ningún otro daño, ni del uso que cada cual haga de esta herramienta o de este método. Mientras lo usas, que nadie vea tu pantalla: muestra semillas y códigos QR que una cámara puede captar desde lejos.
   ]
 ]
 
@@ -528,7 +536,7 @@
 = #tr[Worksheet with a key][Hoja de trabajo con llave]
 #text(9.5pt)[#tr[Destroy it when you finish, and never keep it with the key or the sequence. One line per object. Making: QR number + key = result, then the object for the result. Reading back: object, its number (result) − key = QR number. Use a second sheet for more than 96.][Destrúyela al terminar y nunca la guardes con la llave ni con la secuencia. Una línea por objeto. Al hacer: número del QR + llave = resultado, y el objeto del resultado. Al recuperar: objeto, su número (resultado) − llave = número del QR. Usa otra hoja para más de 96.]]
 #v(1mm)
-#let ws-block(lo) = table(columns: (6mm, 1fr, 1fr, 1fr, 1.6fr), rows: (auto,) + (6.75mm,) * 32, align: center + horizon, inset: 2pt,
+#let ws-block(lo) = table(columns: (6mm, 1fr, 1fr, 1fr, 1.6fr), rows: (auto,) + (6.3mm,) * 32, align: center + horizon, inset: 2pt,
   stroke: 0.4pt + luma(160), fill: (_, y) => if y == 0 { luma(230) } else if calc.even(y) { luma(248) },
   ..([\#], [#tr[QR][QR]], [#tr[key][llave]], [#tr[result][resultado]], [#tr[object][objeto]]).map(h => text(7.5pt, weight: "bold", h)),
   ..range(lo, lo + 32).map(i => (text(7pt, fill: luma(110), str(i + 1)), [], [], [], [])).flatten())

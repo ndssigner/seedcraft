@@ -69,7 +69,7 @@ piezas, una caja de huevos con un tipo en cada hueco.</td></tr>
   separado. Cada una sola no dice nada de la semilla; hacen falta las dos
   para reconstruirla. Para sitios que no controlas: viajes, hoteles,
   inspecciones. El precio: **perder cualquiera de las dos mitades es perder
-  la semilla.** La especificación lo llama modo *pad*
+  la semilla.** La especificación lo llama «modo con llave» (la versión inglesa, *pad mode*)
   ([SPEC §10](SPEC-sequences.es.md#10-modo-con-llave)).
 
 La [SPEC §11](SPEC-sequences.es.md#11-elegir-modo-y-forma) ayuda a elegir
@@ -159,22 +159,22 @@ los revise.
 
 - [`SPEC-sequences.es.md`](SPEC-sequences.es.md)
   ([English](SPEC-sequences.md)): la especificación, versión 0 del formato:
-  el modo sin llave y el modo *pad* (con llave).
+  el modo sin llave y el modo con llave.
 - [`RISK-AUDIT.es.md`](RISK-AUDIT.es.md) ([English](RISK-AUDIT.md)): el
   modelo de amenazas: de qué protege cada modo, y las pruebas.
 - `reference/python/seedcraft_sequences.py`: implementación de referencia
   (solo la biblioteca estándar, más el generador de códigos QR de Project
-  Nayuki, MIT, sin modificar); `seedcraft_pad.py`: el modo *pad*, encima de
+  Nayuki, MIT, sin modificar); `seedcraft_pad.py`: el modo con llave, encima de
   ella.
 - `vectors/sequences-v0.json`: vectores de prueba de semillas de prueba
   públicas (`tools/gen_vectors.py`, necesita `embit`);
-  `vectors/sequences-pad.json`: las mismas semillas en modo *pad*, con
+  `vectors/sequences-pad.json`: las mismas semillas en modo con llave, con
   llaves públicas fijas (`tools/gen_pad_vectors.py`).
 - `tests/test_sequences.py`: todos los vectores, una cosa mal leída
   reparada, cualquiera de los dos extremos, relleno aleatorio y el ataque al
   diccionario; dale un binario `qrdecode` de quirc para comprobar además que
   el código QR dibujado de vuelta es el CompactSeedQR de la semilla.
-- `tests/test_pad.py`: el modo *pad* frente a sus vectores, y las pruebas de
+- `tests/test_pad.py`: el modo con llave frente a sus vectores, y las pruebas de
   `RISK-AUDIT.es.md` §6 (el ataque no encuentra nada, errores reparados,
   uniformidad, caracteres de control, todas las máscaras).
 - `tools/dictionary_attack.py`: lee una semilla de su secuencia sin el
