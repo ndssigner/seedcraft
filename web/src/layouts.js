@@ -142,7 +142,7 @@ const SeedcraftLayouts = (() => {
 				clockSeed, clockKey(44));
 		}
 		arrows.push(
-			arrow("output", "clock", "seedDict", "qr", [[636, 168], [636, 196]]),
+			arrow("output", "clock", "seedDict", "qr", [[645, 168], [645, 196]]),
 			arrow("slot", "seedDict", "seedSlot", "qr", [[584, 256], [584, RAIL], [360, RAIL], [360, SLOT.y]]));
 		return { boxes: b, arrows };
 	}
