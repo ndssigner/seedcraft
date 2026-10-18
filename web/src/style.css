@@ -550,8 +550,7 @@ body { overflow: hidden; }
 .gather-nums p, .gather-total, .gather-big, .gather-note { margin: 0; }
 .gather-nums p { display: flex; flex-direction: row; align-items: baseline; gap: .5em; font-size: .85em; color: var(--muted); line-height: 1.15; }
 .gather-nums b, .gather-big b { font-size: 2em; font-weight: 600; color: var(--fg); line-height: 1.1; font-variant-numeric: tabular-nums; }
-.gather-total { font-size: .95em; color: var(--muted); display: flex; gap: .5em; align-items: baseline; border-top: 1px solid var(--line); padding-top: calc(var(--u) * 2); }
-.gather-total b { color: var(--fg); font-size: 2em; line-height: 1.1; font-weight: 700; font-variant-numeric: tabular-nums; }
+.gather-total { font-size: .95em; font-weight: 600; color: var(--fg); border-top: 1px solid var(--line); padding-top: calc(var(--u) * 2); }
 .gather-note { font-size: .8em; color: var(--muted); line-height: 1.25; }
 .gather-estimate { display: block; font-size: .75em; color: var(--muted); }
 .gather-later { margin: 0; font-size: .75em; color: var(--muted); line-height: 1.25; }

@@ -508,10 +508,11 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	// turnCells: [[r, c]], the turn's squares (also ringed by a marker, the last child); wrong: [[r, c]], squares in red;
 	// reveal: { order: [[r, c]], ms }, the dark data cells in order appear one after the other over ms.
 	// fixed: Set of r * size + c (the function modules), drawn apart in amber/brown with a hatch (they cost no pieces);
+	// legendSpace: keep the legend's room (the square as if drawn with a legend) and draw nothing in it;
 	// legend: a short string under the QR (the QR is then 14 smaller); markerLabel: a blue tab on the marker,
 	// both in one g.v-qr-cursor (the last child) so that they glide together
-	function qr({ box, size, modules, turnCells = [], painted = new Map(), wrong = [], reveal = null, fixed = null, legend = null, markerLabel = null, fixedReveal = null }) {
-		const LEG = 14, side = Math.min(box.w, box.h) - (legend ? LEG : 0), cs = side / size, x0 = box.x + (box.w - side) / 2, y0 = box.y + (box.h - side - (legend ? LEG : 0)) / 2;
+	function qr({ box, size, modules, turnCells = [], painted = new Map(), wrong = [], reveal = null, fixed = null, legend = null, markerLabel = null, fixedReveal = null, legendSpace = false }) {
+		const room = !!legend || legendSpace, LEG = 14, side = Math.min(box.w, box.h) - (room ? LEG : 0), cs = side / size, x0 = box.x + (box.w - side) / 2, y0 = box.y + (box.h - side - (room ? LEG : 0)) / 2;
 		const get = typeof modules === "function" ? modules : (r, c) => modules ? modules[r][c] : null;
 		const turn = new Set(turnCells.map(([r, c]) => r * size + c)), bad = new Set(wrong.map(([r, c]) => r * size + c));
 		const order = reveal && reveal.order && !reducedMotion() ? new Map(reveal.order.map(([r, c], j) => [r * size + c, j])) : null;
@@ -541,7 +542,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 				svg("rect", { x: r1(lx), y: r1(box.y + box.h - LEG / 2 - 4), width: sw, height: 8, rx: 1.5, fill: `url(#${hatchId || "none"})`, class: "v-qr-hatched" }),
 				text(lx + sw + 4, ly, 9, legend, { class: "v-qr-legend-text" })), 0, fx && fx.ms));
 		}
-		const m = L.qrCellsBox(box, size, turnCells, { legend: !!legend });
+		const m = L.qrCellsBox(box, size, turnCells, { legend: room });
 		if (m) {
 			const kids = [svg("rect", { x: m.x, y: m.y, width: m.w, height: m.h, rx: 2, class: "v-qr-marker" })];
 			if (markerLabel) {

@@ -830,9 +830,12 @@ for (const pad of [false, true]) {
 		const rev = V.qr({ box: qb, size: 25, modules: dark, reveal: { order, ms: 1000 } });
 		check(walk(rev, cls("v-qr-reveal")).length === 4, "qr: the cells in the reveal order carry v-qr-reveal");
 		{ const fn2 = S.functionModules(25), plainQ = V.qr({ box: qb, size: 25, modules: dark, fixed: fn2, legend: "fixed" }), fr = V.qr({ box: qb, size: 25, modules: dark, fixed: fn2, legend: "fixed", fixedReveal: { ms: 800 } });
-			const fixedCells = walk(fr, (n) => /v-qr-fixed/.test(n.attrs.class || "") && n.tag === "rect" && !/v-qr-legend/.test(n.attrs.class || ""));
-			check(walk(plainQ, cls("v-qr-fixed-reveal")).length === 0, "qr: without fixedReveal no cell is marked to fade in");
-			check(walk(fr, (n) => cls("v-qr-fixed-reveal")(n) && n.tag === "rect").length > 100 && walk(fr, (n) => cls("v-qr-fixed-reveal")(n) && n.style.animationDelay).length > 100 && walk(plainQ, (n) => n.style.animationDelay).length === 0, "qr: with fixedReveal the fixed cells carry v-qr-fixed-reveal and an animationDelay"); void fixedCells; }
+			const fixedRects = (q) => walk(q, (n) => n.tag === "rect" && /v-qr-fixed( |$)/.test(n.attrs.class || "") && n.attrs.width !== 10).length;
+			const marked = walk(fr, (n) => n.tag === "rect" && cls("v-qr-fixed-reveal")(n)), withDelay = marked.filter((n) => n.style.animationDelay);
+			check(walk(plainQ, cls("v-qr-fixed-reveal")).length === 0, "qr: without fixedReveal nothing is marked to fade in");
+			check(marked.length === fixedRects(fr) && marked.length > 100 && withDelay.length === marked.length && walk(plainQ, (n) => n.style.animationDelay).length === 0, "qr: with fixedReveal every fixed cell carries v-qr-fixed-reveal and an animationDelay");
+			const bgOf = (q) => JSON.stringify(walk(q, cls("v-qr-bg"))[0].attrs), spaced = V.qr({ box: qb, size: 25, modules: dark, legendSpace: true });
+			check(bgOf(spaced) === bgOf(plainQ) && walk(spaced, (n) => n.tag === "text").length === 0, "qr: legendSpace keeps the square of a legend and draws no legend"); }
 		check(typeof V.glide === "function" && V.ADVANCE_MS === 450 && typeof V.fadeIn === "function", "vocab: glide, fadeIn and ADVANCE_MS");
 		check(typeof V.glide({}, { dx: 0, dy: 0 }).finish === "function" && V.glide({ setAttribute() {}, style: {}, getBoundingClientRect() {} }, {}).finish() === undefined, "glide: no move, a no-op finish");
 		const el = { setAttribute() {}, style: {}, getBoundingClientRect() {} }, g = V.glide(el, { dx: 10, dy: -4 });

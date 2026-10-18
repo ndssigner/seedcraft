@@ -1629,7 +1629,7 @@
 			over.push(fade ? V.fadeIn(num) : num);
 		}
 		if (showQr) {
-			kids.push(V.qr({ box: b.qr, size: qr.size, modules: (r, c) => qr.getModule(c, r), reveal, ...(plain || fixedStep === null ? {} : { ...qrFixed(qr.size, b.qr), ...(fixedStep === "reveal" ? { fixedReveal: { ms: 800 } } : {}) }) }));
+			kids.push(V.qr({ box: b.qr, size: qr.size, modules: (r, c) => qr.getModule(c, r), reveal, ...(plain ? {} : fixedStep === null ? { legendSpace: b.qr.h >= 150 } : { ...qrFixed(qr.size, b.qr), ...(fixedStep === "reveal" ? { fixedReveal: { ms: 800 } } : {}) }) }));
 			over.push(place(h("div", { class: "qr-label" }, V.iconTag("seed"), " " + t.qrLabel(qr.size)), { x: b.qr.x, y: b.qr.y + b.qr.h + 2, w: b.qr.w, h: 16 }));
 		}
 		// the arrow of each step is the current one, the one before it past
