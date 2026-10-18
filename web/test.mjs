@@ -853,6 +853,20 @@ for (const pad of [false, true]) {
 		check(hitOk(rd, "read"), "string read: an empty slot has a v-slot-hit rect of at least 36x36");
 		const bs = V.string({ box: lay.boxes.seedString, orientation: "h", role: "build", things, items: [0, null, undefined], current: 1, onSlot: () => {} });
 		check(hitOk(bs, "build"), "string build: an empty slot has a v-slot-hit rect of at least 36x36");
+		// clamped: centred on the slot, inside the box, inside its pitch cell; filled / undefined slots have none
+		{
+			const inBox = (r, b) => num(r.attrs.x) >= b.x - 0.1 && num(r.attrs.y) >= b.y - 0.1 && num(r.attrs.x) + num(r.attrs.width) <= b.x + b.w + 0.1 && num(r.attrs.y) + num(r.attrs.height) <= b.y + b.h + 0.1;
+			const centred = (r, g) => { const c = walk(g, (n) => n.tag === "circle")[0]; return Math.abs(num(r.attrs.x) + num(r.attrs.width) / 2 - num(c.attrs.cx)) < 0.2 && Math.abs(num(r.attrs.y) + num(r.attrs.height) / 2 - num(c.attrs.cy)) < 0.2; };
+			const rslot = walk(rd, cls("v-slot"))[0], rh = walk(rslot, cls("v-slot-hit"))[0];
+			check(rh && inBox(rh, rlay.boxes.keyColumn) && centred(rh, rslot), "slot hit: a read column's rect is centred on the slot and inside the box");
+			const bslot = walk(bs, cls("v-slot"))[0], bh = walk(bslot, cls("v-slot-hit"))[0];
+			check(bh && inBox(bh, lay.boxes.seedString) && centred(bh, bslot), "slot hit: a build string's rect is centred on the slot and inside the box");
+			const tb = { x: 20, y: 20, w: 120, h: 60 }, tt = V.string({ box: tb, orientation: "h", role: "build", things, items: [null, null, null, null, null, null], current: 1, onSlot: () => {} });
+			const tp = Lay.pitch(tb, 6, { vertical: false, room: Math.min(20, tb.w * 0.04) }), ths = walk(tt, cls("v-slot-hit"));
+			check(tp < 36 && ths.length === 6 && ths.every((r) => num(r.attrs.width) <= tp + 0.2) && ths.every((r, j) => j === 0 || num(r.attrs.x) >= num(ths[j - 1].attrs.x) + num(ths[j - 1].attrs.width) - 0.2), "slot hit: in a tight string each rect stays in its pitch cell");
+			const none = V.string({ box: lay.boxes.seedString, orientation: "h", role: "build", things, items: [0, undefined, 1], current: 0, onSlot: () => {} });
+			check(walk(none, cls("v-slot-hit")).length === 0, "slot hit: filled and undefined slots have no hit rect");
+		}
 	}
 	// drawn as readColumn says: each number and position on its own box, never over each other
 	{

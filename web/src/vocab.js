@@ -126,6 +126,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	// column (role "read", vertical): layouts.js's readColumn for this box (readTurn's and
 	// checkFinal's columns); else one is made with outer: the side its positions go on.
 	let maskN = 0;
+	const SLOT_HIT = 36;
 	function string({ box, orientation = "h", role = "build", kind = "seed", things = [], items = [], firstPosition = 1, current = -1, showValues = role === "read", onSlot, onPiece, room, titleOf, column, outer = "left", posBox }) {
 		const n = Math.max(1, items.length), vertical = orientation === "v";
 		// the icon's room at the start, the same at the end, so the middle position stays at the box's middle
@@ -195,8 +196,13 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			const [x, y] = place(i), pos = firstPosition + i, thing = idx === null ? null : things[idx] || null, isCur = i === current;
 			const rr = isCur && role === "build" ? (curR !== null ? curR : Math.min(r * 1.6, box.w / 2 - 1)) : r;
 			const kids = [];
-			// an empty slot's invisible, larger target (36 canvas units, about 44 px at the lectern), under the bead
-			if (idx === null && onSlot) kids.push(svg("rect", { x: r1(x - 18), y: r1(y - 18), width: 36, height: 36, class: "v-slot-hit", fill: "transparent", "pointer-events": "all" }));
+			// an empty slot's invisible, larger target (SLOT_HIT canvas units, about 44 px at the lectern), under the bead:
+			// the square centred on the slot, cut to its own pitch cell along the string and to the box
+			if (idx === null && onSlot) {
+				const cut = (c, lo, hi, cell) => { const a = Math.max(c - SLOT_HIT / 2, lo, cell ? c - pitch / 2 : -Infinity), b = Math.min(c + SLOT_HIT / 2, hi, cell ? c + pitch / 2 : Infinity); return [a, b - a]; };
+				const [hx, hw] = cut(x, box.x, box.x + box.w, !vertical), [hy, hh] = cut(y, box.y, box.y + box.h, vertical);
+				kids.push(svg("rect", { x: r1(hx), y: r1(hy), width: r1(hw), height: r1(hh), class: "v-slot-hit", fill: "transparent", "pointer-events": "all" }));
+			}
 			if (isCur && role === "reference") kids.push(svg("rect", { x: r1(x - rr - 2), y: r1(y - pitch / 2 + 0.5), width: r1(2 * rr + 4), height: r1(pitch - 1), rx: 3, class: "v-turn-frame" }));
 			kids.push(bead(thing, x, y, rr, isCur && role === "build"));
 			if (idx === null && onSlot) kids.push(text(x, y + rr * 0.4, rr * 1.1, "+", { "text-anchor": "middle", class: "v-plus" }));
