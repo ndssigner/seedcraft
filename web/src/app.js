@@ -957,8 +957,9 @@
 			const mat = assembly ? materialsOf(g.form, L, n) : null, { big, text } = mat ? J.splitMaterials(mat) : {};
 			return card("pieces-card" + (key ? " key" : ""),
 				kindDots(kindThings(g.form, n, own && own.things), key),
-				h("h2", {}, h("span", { class: "pieces-icon", "aria-hidden": "true" }, g.kinds.map((x) => V.iconTag(x))),
-					h("span", { text: other ? t.gatherKeyPieces : t.piecesFor[g.what] }), h("small", { text: t.forms[g.form].name })),
+				h("h2", {}, h("span", { class: "pieces-icon", "aria-hidden": "true" }, (g.what === "both" ? ["seed"] : g.kinds).map((x) => V.iconTag(x))),
+					// a shared collection: this card is the string's, the key has its own card beside it
+					h("span", { text: other ? t.gatherKeyPieces : t.piecesFor[g.what === "both" ? "seq" : g.what] }), h("small", { text: t.forms[g.form].name })),
 				written ? h("p", { class: "gather-note", text: t.gatherNoPieces }) : h("div", { class: "gather-body" },
 					h("div", { class: "gather-nums" },
 						h("p", {}, h("b", { text: String(n) }), h("span", { text: t.gatherKinds })), h("p", {}, h("b", { text: String(each) }), h("span", { text: t.gatherEach }), h("small", { class: "gather-estimate", text: t.gatherEstimate }))),
