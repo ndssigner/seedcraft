@@ -1,9 +1,23 @@
-# Seedcraft Sequences (draft)
+English · [Español](SPEC-sequences.es.md)
 
-**Status: draft for discussion.** Nothing here is final until v1, and the
-encoding may still change. Do not store real funds' seeds with a draft.
-The pad mode (§10) is in the reference implementation, its test vectors
-and the web tool, not yet in the PDFs.
+# SeedCraft Sequences
+
+**Status: format version 0** (§3.4), as the reference implementation, its
+test vectors and the web tool implement it. A future change of the format
+would take a new version number in the header (§3.4). Nobody independent has
+audited it yet: `RISK-AUDIT.md` sets out the claims and their evidence so
+that anyone can check them.
+
+**Notice.** SeedCraft is a mathematics exercise with a creative and artistic
+spirit, and it is offered as is, without any warranty. No one independent
+has audited it yet. If you use it with a real seed, do so on an offline
+computer and at your own risk. We are not liable for any loss of funds or
+any other harm, nor for the use anyone makes of this tool or of this
+method. While you use it, let no one see your screen: it shows seeds and QR
+codes that a camera can capture from afar.
+
+On a computer that is online, use test seeds only: the web tool cannot
+connect anywhere, but the rest of the computer can see what is typed in it.
 
 A way to back up a BIP-39 seed as a **sequence of physical things** that can
 be made with craft supplies, read back by software, and **reconstructed by
@@ -44,7 +58,8 @@ There are **two modes**, for two kinds of risk:
   whatever the computing power and knowledge of whoever has it; only both
   together give it. For places you do not control: travel, hotels,
   inspections. The price: two things to keep apart, and losing either
-  loses the seed.
+  loses the seed. The web tool and the manual call it **key mode**, and the
+  pad **the key**: the same thing under a plainer name.
 
 Which mode and which form suit which situation: §11. `RISK-AUDIT.md` sets
 out what each mode protects against and what it does not, with the
@@ -53,7 +68,8 @@ evidence, so that anyone can check it.
 The reference implementation is `reference/python/seedcraft_sequences.py`,
 and `seedcraft_pad.py` for pad mode; `vectors/sequences-v0.json` and
 `vectors/sequences-pad.json` have test vectors (public test seeds and pads
-only).
+only). The web tool (`web/`) is checked against the same vectors
+(`web/test.mjs`).
 
 ## 1. Idea in one paragraph
 
@@ -137,9 +153,11 @@ enough to make and check easily.
    on a pegboard (fusible bead boards are usually 29×29 pegs) or a Lego
    baseplate with dark and light pieces. Scan the result.
    The header comes after the data, so the mask is only known from the
-   last things of the sequence (the last 2 for N = 16 and 32, and for
-   N = 8 with 12 words; the last 3 for N = 8 with 24 words and for N = 4;
-   the last 5 for N = 2): to pick the template before drawing, read those
+   last things of the sequence: the header (version and mask) is in the
+   last 2 for N = 16 and 32, and for N = 8 with 12 words; the last 3 for
+   N = 8 with 24 words and for N = 4; the last 5 for N = 2 (the mask alone
+   is in fewer: the last one for N = 32, for N = 8 with 12 words and for
+   N = 16 with 24 words). To pick the template before drawing, read those
    first. The
    data modules are in the same places in all eight templates of a size;
    the mask changes only the format information.
@@ -175,17 +193,34 @@ of each kind**, before the seed is chosen; a list with the exact count of
 each kind would tell something about the seed, and its order should not
 follow the dictionary's.
 
-Enough for 99.9 % of seeds, with one spare (simulated with the reference
-implementation, `tools/pieces_tables.py`), in packs of 5:
+The count that matters is the **most used kind**: a sequence uses some
+kinds more than others, and every kind has to be on hand in that number.
+The web tool gives an **estimate** before the seed is known: enough of each
+kind for 9 seeds out of 10 (the 90th percentile of the most used kind, by
+simulation):
+
+| N | 2 | 4 | 8 | 16 | 32 |
+| :--- | ---: | ---: | ---: | ---: | ---: |
+| 12 words: about, of each kind | 119 | 36 | 16 | **8** | 5 |
+| 24 words: about, of each kind | 198 | 57 | 24 | **12** | 7 |
+
+Once the seed is known, it gives the **exact count**: the most that any
+kind is used in that sequence (only that maximum, not kind by kind). Up to
+one seed in ten needs more than the estimate.
+
+To be sure before the seed is chosen, buy enough for 99.9 % of seeds, with
+one spare (simulated with the reference implementation,
+`tools/pieces_tables.py`), in packs of 5:
 
 | N | 2 | 4 | 8 | 16 | 32 |
 | :--- | ---: | ---: | ---: | ---: | ---: |
 | 12 words: of each kind | 130 | 45 | 25 | **15** | 10 |
 | 24 words: of each kind | 215 | 70 | 35 | **20** | 15 |
 
-Plus one of each for the dictionary. With the seed known, the most that any
-kind is used, plus one, rounded up to a pack, is enough
-(`pieces_to_buy()`). For pad mode, see §10.6.
+Plus one of each for each copy of the dictionary (the web tool adds them to
+its counts). With the seed known, the most that any kind is used, plus one,
+rounded up to a pack, is enough (`pieces_to_buy()`; the web tool's printed
+sheet uses it). For pad mode, see §10.6.
 
 ## 7. Making one
 
@@ -202,7 +237,14 @@ kind is used, plus one, rounded up to a pack, is enough
    possible), and check it against the real thing piece by piece. It can be
    saved as a file (names, or names and photos) and kept apart.
 4. **Make the sequence**, piece by piece, then **read it back** to check it
-   gives the seed.
+   gives the seed. The web tool accepts a copy only if it reads back as the
+   seed **without** any help from the QR code's error correction (§5), and
+   every piece read matches the one made, except pieces that hold nothing
+   but the random padding bits of §3.5 (a copy made again of the same seed
+   may differ there, and that does not change the seed). If the sequence was
+   read from its other end, it says so and offers to turn the reading
+   round. It also shows the seed's fingerprint, to compare with the one the
+   wallet shows.
 
 Someone else can make the sequence from a printed sheet that shows the
 pieces in order but not the dictionary's order. **That is only safe with
@@ -224,9 +266,11 @@ reference implementation by `tools/gen_manual_data.py`:
   of data modules in each row (to check each row while filling it in);
 - a worksheet and a worked example.
 
-For pad mode (§10) they will also need, not yet in the PDFs: the
-subtraction table, a table to work out the pad file's check characters,
-and a sheet to write a pad on.
+Pad mode (§10) is in the reference implementation, its test vectors and
+the web tool. By hand it needs: the dice rule of §10.2, a table of addition
+mod N (read the other way round to subtract, §10.3), how to work out the
+pad file's check character (§10.9), and a worksheet with a column for the
+pad. These are not in the PDFs yet (§12).
 
 ## 9. Security considerations
 
@@ -256,8 +300,13 @@ This section is about the basic mode; for pad mode see §10.
   For N ≤ 16 the same holds for 12 and 24 words. N! is what someone faces
   who knows nothing of the QR code inside; the right column is what someone
   who knows this specification faces.
-- **Encode on an air-gapped device only** (e.g. NDS-Signer). The web tool is
-  for learning and testing with test seeds.
+- **Encode a real seed only on a device that is offline**: an air-gapped
+  device (e.g. NDS-Signer), or the web tool on a computer with its network
+  off (Wi-Fi off, flight mode, cable out), at your own risk (see the
+  notice at the top). The web tool cannot connect anywhere, but the rest of
+  an online computer can see what is typed in it. On a computer that is
+  online, use test seeds only. **Mind the screen**: it shows the seed and
+  the QR code, and a camera can capture them from afar.
 - **Durability**: colours fade and look alike in poor light; strings break;
   glue gives way. Choose things that differ in shape, size or material as
   well as colour, and a carrier that lasts.
@@ -293,11 +342,13 @@ words with N = 16, 91 for 24 words), each from 0 to N − 1. Its safety
 rests on one thing: **every number must be pure chance**, with every value
 just as likely.
 
-- Either the **encoding device** (e.g. NDS-Signer) draws it, or you make it
-  **by hand**, number by number, with any of these:
+- Either the **encoding device** (NDS-Signer, or the web tool from the
+  browser's cryptographic generator) draws it, or you make it **by hand**,
+  number by number, with any of these:
   - **a bag** with one piece of each kind: take one without looking, note
     it, **put it back** and shake the bag. If the pieces are not put back,
-    it is not chance.
+    it is not chance. (The web tool offers the bag only for a pad kept as a
+    string of pieces.)
   - **coins**: one toss per bit, heads 1 and tails 0; k tosses per number
     (4 for N = 16), read as in the table of §8;
   - **a die**, of any common kind (d4, d6, d8, d10, d12, d16, d20). Number
@@ -307,7 +358,18 @@ just as likely.
     Join the bits, first throw first, until there are k; if the last throw
     gives more than needed, keep its first ones. With N = 16 and a d6:
     faces 0–3 give 2 bits, 4 and 5 are thrown again, two throws per
-    number. A die with N faces gives a number in one throw.
+    number. A die with N faces gives a number in one throw. With N = 16:
+
+    | Die | b | Thrown again (faces 0…s − 1) | Throws per number |
+    | :--- | :---: | :--- | :--- |
+    | coin | 1 | — | 4 |
+    | d4 | 2 | — | 2 |
+    | d6 | 2 | 4, 5 | 2 |
+    | d8 | 3 | — | 2 (1 bit from the second) |
+    | d10 | 3 | 8, 9 | 2 (1 bit from the second) |
+    | d12 | 3 | 8–11 | 2 (1 bit from the second) |
+    | d16 | 4 | — | 1 |
+    | d20 | 4 | 16–19 | 1 |
 - Both can be joined: a pad made by hand added to the device's, number by
   number, as in §10.3, is safe as long as either of the two is.
 - **Never** numbers chosen by a person, nor taken from the seed, a
@@ -323,15 +385,20 @@ just as likely.
   pad. If the result is below 0, add N.
 
 With N = 16: 9 + 12 = 21, which gives 21 − 16 = **5**. Back: 5 − 12 = −7,
-which gives −7 + 16 = **9**. The PDF will have a table, so that no
-arithmetic is needed (§8).
+which gives −7 + 16 = **9**. A table of addition mod N does it without
+arithmetic (§8). The web tool shows the same sum under its clock:
+(9 + 12) mod 16 = 5 when making, (5 − 12) mod 16 = 9 when reading back.
 
 ### 10.4 Making one
 
 1. Get the pieces (§10.6) and make the dictionary (§7).
 2. Make the pad (§10.2), as a string or as a file.
 3. Make the sequence piece by piece, as the software says.
-4. Read both back with the software and check that they give the seed.
+4. Read both back with the software and check that they give the seed
+   (§7, step 4: the same rules, for both strings). Read each from its first
+   piece, so that each thing falls with its number of the pad; the web
+   tool still notices a string read from its other end, or the two
+   strings swapped.
 5. Store them apart (§10.8), each with a copy of the dictionary.
 
 Someone else can make the sequence for you from the printed sheet (§7): in
@@ -365,8 +432,17 @@ can go at the start of the pad's string (one of each kind, then the pad),
 which saves a third object; but N different pieces in a row is an unusual
 pattern, which marks the string as something (not the seed).
 
-**How many to buy.** For both strings from the same kinds of pieces,
-enough for 99.9 % of pads with one spare, in packs of 5:
+**How many to buy.** For both strings from the same kinds of pieces, the
+web tool's estimate (§6) counts both strings together: enough for 9 pads
+out of 10, before the seed and the pad are known, then the exact count:
+
+| N | 2 | 4 | 8 | 16 | 32 |
+| :--- | ---: | ---: | ---: | ---: | ---: |
+| 12 words: about, of each kind, both strings | 230 | 66 | 27 | **14** | 8 |
+| 24 words: about, of each kind, both strings | 386 | 107 | 43 | **20** | 11 |
+
+To be sure beforehand, enough for 99.9 % of pads with one spare, in packs
+of 5:
 
 | N | 2 | 4 | 8 | 16 | 32 |
 | :--- | ---: | ---: | ---: | ---: | ---: |
@@ -374,7 +450,8 @@ enough for 99.9 % of pads with one spare, in packs of 5:
 | 24 words: of each kind, both strings | 410 | 125 | 55 | **30** | 20 |
 
 Plus one of each kind for each copy of the dictionary. For one string
-alone, the table of §6 holds (except N = 2 and 12 words: 135).
+alone (a pad kept as a file, or a pad in a collection of its own, §11.4),
+the tables of §6 hold (except N = 2 and 12 words: 135 to be sure).
 
 ### 10.7 The pad as a file
 
@@ -396,8 +473,11 @@ A text file that a person can read and the web tool can open:
   wrong, the check of its row no longer matches, and the software says
   which row. It comes from the pad alone and says nothing about the seed.
 - **The file does not say what it is.** A file called "seed" on a phone
-  that gets searched gives itself away. Lines that start with `#` are
-  notes, if you want any.
+  that gets searched gives itself away (the web tool saves it as
+  `numbers.txt`). Lines that start with `#` are notes, if you want any.
+- **Its own dictionary.** In the file, each number is one character: that
+  is the file's dictionary (number → character), fixed and the same for
+  everyone, so a pad file needs no dictionary of pieces.
 
 **How to keep, send or encrypt it is up to you.** Alone it is harmless;
 but a copy that ends up near the sequence, or within reach of whoever has
@@ -415,8 +495,8 @@ it, is the seed. `RISK-AUDIT.md` goes through the cases.
    pad with its own if it has one (§11.4). If both use the same one, a copy
    with each.
 5. **Check both together before storing them apart.**
-6. The web tool makes pads **for learning and testing only**; for real
-   funds, an air-gapped device (§9).
+6. A pad for a real seed is made like the sequence: on a device that is
+   offline, or by hand, and with nobody seeing the screen (§9).
 
 ### 10.9 For implementers
 
@@ -455,7 +535,7 @@ Two questions decide it:
 | At home or in a place you control, among things that belong there: a book on a shelf, a box of stickers, a jewellery box | **Basic**. Like a paper backup, but far better hidden. A BIP-39 passphrase if the funds matter |
 | Carried on you, or where others go through your things: travel, hotels, a shared flat, an inspection | **Pad**, with the other half somewhere else, never on the same journey |
 | Losing it worries you more than theft: a single backup, a long time, heirs | **Basic** with copies, and a passphrase. Pad mode doubles what can be lost |
-| Large amounts | **Pad**, or a passphrase, or both. Seedcraft can also keep one of the keys of a multisig wallet |
+| Large amounts | **Pad**, or a passphrase, or both. SeedCraft can also keep one of the keys of a multisig wallet |
 
 The basic mode is enough **as long as nobody who knows this method has a
 reason to look at that thing**. Its strength is that nobody looks: the
@@ -557,8 +637,10 @@ When in doubt, three questions: **will it keep its order for ever? Could
 someone else tell every kind apart, in poor light, in twenty years? Would
 anyone find it odd where it is?**
 
-## 12. Open questions for v1
+## 12. Open questions
 
+- An independent audit of the method, the reference implementation and the
+  web tool.
 - More test vectors (other masks).
 - Pad mode in the PDFs.
 - Free decorative pieces outside the dictionary, to break the signature of

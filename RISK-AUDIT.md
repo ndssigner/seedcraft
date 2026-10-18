@@ -1,27 +1,45 @@
-# Seedcraft Sequences: risk audit (draft)
+English · [Español](RISK-AUDIT.es.md)
+
+# SeedCraft Sequences: risk audit
 
 What each mode of [SPEC-sequences.md](SPEC-sequences.md) protects against,
 what it does not, and the evidence for each claim, so that anyone can check
-it rather than take it on trust. It follows the specification: a draft, not
-yet for real funds.
+it rather than take it on trust. It covers format version 0 of the
+specification. **Nobody independent has audited it yet**: this document is
+written so that someone can.
+
+**Notice.** SeedCraft is a mathematics exercise with a creative and artistic
+spirit, and it is offered as is, without any warranty. No one independent
+has audited it yet. If you use it with a real seed, do so on an offline
+computer and at your own risk. We are not liable for any loss of funds or
+any other harm, nor for the use anyone makes of this tool or of this
+method. While you use it, let no one see your screen: it shows seeds and QR
+codes that a camera can capture from afar.
+
+On a computer that is online, use test seeds only: the web tool cannot
+connect anywhere, but the rest of the computer can see what is typed in it.
 
 **Status of the evidence.** Each claim below points to its evidence (§6),
 in the repository: tests and tools that anyone can run, and that run in CI.
-Pad mode is in the reference implementation (`seedcraft_pad.py`), its test
-vectors and the web tool (`web/test.mjs` checks it against the same vectors);
-the PDFs do not have it yet.
+Pad mode (the web tool's **key mode**; the pad is its **key**) is in the
+reference implementation (`seedcraft_pad.py`), its test vectors and the web
+tool (`web/test.mjs` checks it against the same vectors); the PDFs do not
+have it yet.
 
 ## 1. Scope and assumptions
 
 - **The method is public.** This specification, its code and this document
   are published. Nothing here relies on an attacker not knowing how
-  Seedcraft works.
+  SeedCraft works.
 - **What is protected**: a BIP-39 seed of 12 or 24 words, kept as a
   sequence of things (SPEC §1–§9, the *basic mode*) or as a sequence of
   things plus a random pad (SPEC §10, the *pad mode*).
-- **The seed is encoded on a trusted device**, preferably air-gapped. A
+- **The seed is encoded on a trusted device that is offline**: an
+  air-gapped device, or the web tool on a computer with its network off. A
   device that sees the seed while encoding it can leak it: no mode can help
-  against that (§3, A5).
+  against that (§3, A5). The web tool cannot connect anywhere, but the rest
+  of an online computer (malware, browser extensions, sync, backups) can
+  see what is typed in it: on a computer that is online, test seeds only.
 - **"Says nothing"** in this document means it in the information-theoretic
   sense: whoever has that object, whatever their computing power and
   knowledge, sees every seed as equally likely as before (§4.1).
@@ -32,7 +50,7 @@ the PDFs do not have it yet.
 | :--- | :--- | :--- |
 | The sequence | **is the seed**, for anyone who knows the method | says nothing on its own |
 | The pad (a string or a text file) | — | says nothing on its own |
-| The dictionary | not a secret; hides what the sequence is | not a secret; needed to read either half |
+| The dictionary | not a secret; hides what the sequence is | not a secret; needed to read either string (a pad file has its own fixed dictionary, number → character) |
 | A BIP-39 passphrase, if used | the only real protection of the funds | a third factor, for whoever gets both halves |
 | The encoding device | sees the seed | sees the seed and the pad |
 
@@ -44,10 +62,11 @@ the PDFs do not have it yet.
 | A2 | **Knows the method and has the sequence** (an inspection, hotel staff, a burglar) | **Reads the seed** in under a second, without the dictionary (§4.2) | **Learns nothing**, and cannot even tell that it is a seed (§4.1, §5) |
 | A3 | **Coerces whoever carries it** | Does not need the carrier: see A2. With a passphrase, the carrier can give a decoy one | The carrier **cannot** unlock it without the pad, which is elsewhere. Coercion moves to where the pad is; it does not stop the carrier being held |
 | A4 | **Reaches digital copies** (cloud, email, a searched phone) | A photo of the sequence is the seed | The pad file alone says nothing. **The pad file and the sequence in reach of the same adversary are the seed**, e.g. the file on the phone of whoever wears the bracelet at a border (§4.4) |
-| A5 | **Controls the encoding device** | Has the seed | Has the seed. Out of scope: use an air-gapped device |
+| A5 | **Controls the encoding device** | Has the seed | Has the seed. Out of scope: use a device that is offline |
 | A6 | **Time and accident** (loss, fire, decay, a broken string) | One thing to keep (and the dictionary) | Two things to keep apart, and the dictionary; **losing either half loses the seed** (§4.5) |
 | A7 | **Gets both halves** (one place where both end up, or two thefts) | — | Has the seed. Only a passphrase still protects the funds |
 | A8 | **Makes the sequence for you** from a printed sheet (SPEC §7) | Has the seed | Sees only C: learns nothing, as long as they never see the pad |
+| A9 | **Sees the screen while the copy is made or read** (someone nearby, a camera from afar) | Has the seed: the screen shows the words and the QR code | Has the seed: making or reading a copy, the screen shows the words and the QR code in this mode too. Let no one see the screen |
 
 ## 4. Claims
 
@@ -180,10 +199,14 @@ putting the pieces back) breaks §4.1. And it breaks it badly: **the basic
 sequence underneath is its own perfect check** (a wrong guess of the pad
 gives a QR code that does not decode, in microseconds, with no PBKDF2), so
 an adversary who can guess the pad with probability $q$ gets the seed with
-probability $q$, at almost no cost per guess. Hence the rule that a pad
-comes from a cryptographic generator, optionally added to a physical source
-(SPEC §10.2). The sum is uniform if either part is, provided the two are
-made independently: if $K_d$ is uniform and $K_h$ independent of it, with any
+probability $q$, at almost no cost per guess. Hence the rules of SPEC
+§10.2: a pad comes from a cryptographic generator, or from a fair physical
+source read by its rule (a bag with every piece put back, coins, a die with
+the faces above the largest power of two thrown again), or from the two
+added. A die's rule keeps $2^b$ faces of equal chance and throws the rest
+again, so every number from 0 to $N - 1$ is equally likely from a fair die
+of any common kind. The sum of two pads is uniform if either part is,
+provided the two are made independently: if $K_d$ is uniform and $K_h$ independent of it, with any
 distribution, then for every $x \in \mathbb{Z}_N^L$
 
 $$\Pr[K_d + K_h = x] = \sum_{y} \Pr[K_h = y] \, \Pr[K_d = x - y] = N^{-L} \sum_{y} \Pr[K_h = y] = N^{-L}$$
@@ -193,6 +216,12 @@ $$\Pr[K_d + K_h = x] = \sum_{y} \Pr[K_h = y] \, \Pr[K_d = x - y] = N^{-L} \sum_{
 - **Basic and pad mode**: one misread thing, or one wrong pad symbol,
   changes one symbol of P, and the QR code's Reed-Solomon code always
   repairs it (SPEC §5). Evidence: tests in CI (basic), E3 (pad).
+- **Checking a new copy does not lean on that repair.** The web tool
+  accepts a copy just made only if it reads back as the same seed with
+  **no** codeword corrected, and every piece read matches the one made,
+  except pieces that hold nothing but random padding bits (SPEC §3.5, §7).
+  A data piece misread in both strings, the two errors cancelling out,
+  still blocks. Evidence: `web/test.mjs` (`checkVerdict`, `paddingOnlyRead`).
 - **Pad file**: each row's check character is
   $\left(N - \left(\sum_i w_i(d_i) \bmod N\right)\right) \bmod N$, where,
   from the row's last symbol leftwards, $w_i$ alternately doubles a symbol
@@ -204,11 +233,13 @@ $$\Pr[K_d + K_h = x] = \sum_{y} \Pr[K_h = y] \, \Pr[K_d = x - y] = N^{-L} \sum_{
   one-to-one and it would not. It is a function of the pad only.
   Evidence: E6.
 - **Direction and roles**: software tries both directions and both roles
-  (SPEC §10.5); only the right one decodes.
+  (SPEC §10.5, §10.9); only the right one decodes. When checking a new
+  copy, the web tool also says if a string was read from its other end, or
+  the two strings swapped, and offers to turn the reading round.
 
 ## 5. What can give a sequence away
 
-Seedcraft's first defence in both modes is that a sequence does not look
+SeedCraft's first defence in both modes is that a sequence does not look
 like a backup. What can still give it away:
 
 | Feature | Basic mode | Pad mode |
@@ -222,7 +253,7 @@ like a backup. What can still give it away:
 | The object | A carefully made necklace with no pattern at all is less usual than a child's bracelet of mixed beads: choose things where disorder is normal, at a normal size (54 beads of 6 mm make a 32 cm choker); SPEC §11 compares forms | Same |
 | Behaviour | What the carrier says and does gives more away than any analysis | Same |
 
-If Seedcraft becomes well known, "a string of exactly 54 things of 16
+If SeedCraft becomes well known, "a string of exactly 54 things of 16
 kinds" becomes a signature in either mode. In pad mode that only marks the
 string as worth looking at; it does not reveal the seed. Breaking the
 signature (free decorative pieces outside the dictionary at the ends) is an
@@ -239,7 +270,7 @@ open question (§8).
 | E5 | A reused pad gives away the other seed once one is known | `tools/pad_reuse.py`; `tests/test_pad.py` for every $N$, 12 and 24 words | In the repository, runs in CI |
 | E6 | Check characters: every single error, every adjacent swap but $0 \leftrightarrow N - 1$ | `tests/test_pad.py`: exhaustively over the symbol values for every even $N$ from 2 to 32, over random rows, and every wrong symbol in a pad file; `web/test.mjs`: every neighbour swap for $N$ from 4 to 32, and a wrong character in each vector's pad file, in the web tool | In the repository, runs in CI |
 | E7 | Every one of the 8 masks gives a valid CompactSeedQR | `tests/test_pad.py`: every test seed, every $N$, both modes | In the repository, runs in CI |
-| E8 | How many pieces to buy (SPEC §6, §10.6) | `tools/pieces_tables.py`, 100 000 random seeds and pads per row; CI runs it in short | In the repository; with 100 000 samples it gives the tables of SPEC §6 and §10.6 exactly. CI runs it in short, without checking the figures |
+| E8 | How many pieces to buy (SPEC §6, §10.6) | `tools/pieces_tables.py`, 100 000 random seeds and pads per row; CI runs it in short | In the repository; with 100 000 samples it gives the 99.9 % tables of SPEC §6 and §10.6 exactly. CI runs it in short, without checking the figures. The web tool's 90th-percentile estimates (the "about" tables) come from the same kind of simulation; the script does not print them yet |
 
 ## 7. Designs considered and rejected
 
@@ -276,12 +307,15 @@ So that reviewers do not have to rediscover them.
 
 ## 8. Out of scope and open questions
 
-**Out of scope**: a compromised encoding device; coercion of someone who
-knows where both halves are; whatever the user does with a pad file once
-it leaves the device (§4.4 has the advice).
+**Out of scope**: a compromised encoding device, or one that is online
+while it holds a real seed; coercion of someone who knows where both halves
+are; whatever the user does with a pad file once it leaves the device
+(§4.4 has the advice).
 
 **Open questions, for reviewers too:**
 
+- An independent audit of the method, the reference implementation and the
+  web tool: none has been done yet.
 - Is the model of §4.1 faithful to how pads are actually made, by devices
   and by hand?
 - Is 2-of-2 the right default, or should a 2-of-3 scheme with additions
