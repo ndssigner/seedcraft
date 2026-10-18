@@ -15,7 +15,7 @@ import random
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "reference", "python"))
-import seedcraft_sequences as sc  # noqa: E402
+import seedcraft as sc  # noqa: E402
 
 PACK, SPARE, PERMILLE = 5, 1, 999  # packs of 5, one spare, 99.9 %
 KS = range(1, 6)

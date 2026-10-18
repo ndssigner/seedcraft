@@ -1,5 +1,5 @@
-// SeedCraft Sequences (format v0), JavaScript implementation: a port of
-// reference/python/seedcraft_sequences.py and seedcraft_pad.py, checked
+// SeedCraft (format v0), JavaScript implementation: a port of
+// reference/python/seedcraft.py and seedcraft_pad.py, checked
 // against the same test vectors (web/test.mjs). Needs qrcodegen (Project Nayuki) and BIP39_ENGLISH.
 "use strict";
 

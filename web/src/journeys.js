@@ -1,4 +1,4 @@
-// Seedcraft Sequences, the web tool's slides: the two journeys as lists of
+// SeedCraft, the web tool's slides: the two journeys as lists of
 // slides (which ones there are, in which order, under which step of the
 // guide), how many pieces of each kind to get, and the rules of naming and
 // checking your own dictionary. Pure: no DOM, no texts,

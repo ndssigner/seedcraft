@@ -1,7 +1,7 @@
-"""Seedcraft Sequences, pad mode (SPEC-sequences.md §10), reference
+"""SeedCraft, pad mode (SPEC.md §10), reference
 implementation.
 
-The basic sequence P (seedcraft_sequences.encode: data, header, padding
+The basic sequence P (seedcraft.encode: data, header, padding
 bits) plus a random pad K, symbol by symbol, mod N: C = P + K. C is what is
 made as a sequence of things; K is kept apart, as a second string or as a
 text file (§10.7). Alone, either says nothing about the seed (RISK-AUDIT.md
@@ -9,7 +9,7 @@ text file (§10.7). Alone, either says nothing about the seed (RISK-AUDIT.md
 """
 import os
 
-import seedcraft_sequences as sc
+import seedcraft as sc
 
 DIGITS = "0123456789ABCDEFGHIJKLMNOPQRSTUV"  # symbol -> character, N <= 32
 ROW = 16  # pad symbols per row of a pad file
@@ -55,7 +55,7 @@ def decrypt(cipher, pad, n):
 def encode(entropy, k, pad=None, padding=None):
     """(C, K): the pad-mode sequence and its pad, for a 16- or 32-byte
     entropy. A new pad is drawn unless one is given (the test vectors fix
-    it, and padding, as seedcraft_sequences.encode does)."""
+    it, and padding, as seedcraft.encode does)."""
     n = 1 << k
     plain = sc.encode(entropy, k, padding=padding)
     if pad is None:

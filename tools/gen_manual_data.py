@@ -11,7 +11,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "reference", "python"))
 from qrcodegen import QrCode, QrSegment  # noqa: E402
-import seedcraft_sequences as sc  # noqa: E402
+import seedcraft as sc  # noqa: E402
 import seedcraft_pad as pad  # noqa: E402
 
 EXAMPLE = "height demise useless trap grow lion found off key clown transfer enroll"  # NDS-Signer test seed
@@ -74,7 +74,7 @@ def main():
             "symbols": [-(-(ndatamod + sc.HEADER_BITS) // k) for k in range(1, 6)],
         }
 
-    with open(os.path.join(os.path.dirname(__file__), "..", "vectors", "sequences-v0.json")) as f:
+    with open(os.path.join(os.path.dirname(__file__), "..", "vectors", "seedcraft-v0.json")) as f:
         vector = next(v for v in json.load(f)["vectors"]
                       if v["mnemonic"] == EXAMPLE and v["k"] == EXAMPLE_K)
     entropy = bytes.fromhex(vector["entropy"])
@@ -100,7 +100,7 @@ def key_data(qr):
     """The chapter with a key (SPEC §10; the manual says key, the SPEC pad):
     the worked example, the key file and one row's check character, the dice
     table and the addition tables mod N."""
-    with open(os.path.join(os.path.dirname(__file__), "..", "vectors", "sequences-pad.json")) as f:
+    with open(os.path.join(os.path.dirname(__file__), "..", "vectors", "seedcraft-pad.json")) as f:
         vector = next(v for v in json.load(f)["vectors"]
                       if v["mnemonic"] == EXAMPLE and v["k"] == KEY_K)
     k, n = KEY_K, 1 << KEY_K

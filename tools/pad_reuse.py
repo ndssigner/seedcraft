@@ -14,7 +14,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "reference" / "python"))
 import seedcraft_pad as pad  # noqa: E402
-import seedcraft_sequences as sc  # noqa: E402
+import seedcraft as sc  # noqa: E402
 
 
 def recover_other(c1, entropy1, c2, k):
@@ -35,7 +35,7 @@ def recover_other(c1, entropy1, c2, k):
 
 
 def main():
-    vectors = json.loads((ROOT / "vectors" / "sequences-v0.json").read_text())["vectors"]
+    vectors = json.loads((ROOT / "vectors" / "seedcraft-v0.json").read_text())["vectors"]
     k = 4
     seeds = [v for v in vectors if v["k"] == k and len(v["entropy"]) == 64]
     a, b = seeds[0], seeds[1]

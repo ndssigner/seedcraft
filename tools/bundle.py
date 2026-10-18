@@ -15,20 +15,20 @@ import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 FILES = [  # (path in the repository, name in the bundle)
-    ("dist/seedcraft-sequences.html", "seedcraft-sequences.html"),
+    ("dist/seedcraft.html", "seedcraft.html"),
     ("docs/seedcraft-by-hand-en.pdf", "seedcraft-by-hand-en.pdf"),
     ("docs/seedcraft-by-hand-es.pdf", "seedcraft-by-hand-es.pdf"),
     ("docs/seedqr-templates-en.pdf", "seedqr-templates-en.pdf"),
     ("docs/seedqr-templates-es.pdf", "seedqr-templates-es.pdf"),
-    ("SPEC-sequences.md", "SPEC-sequences.md"),
+    ("SPEC.md", "SPEC.md"),
     ("RISK-AUDIT.md", "RISK-AUDIT.md"),
     ("README.es.md", "README.es.md"),
-    ("SPEC-sequences.es.md", "SPEC-sequences.es.md"),
+    ("SPEC.es.md", "SPEC.es.md"),
     ("RISK-AUDIT.es.md", "RISK-AUDIT.es.md"),
     ("LICENSE", "LICENSE"),
 ]
 
-README = """Seedcraft {version}
+README = """SeedCraft {version}
 https://github.com/ndssigner/seedcraft
 
 Notice: SeedCraft is a mathematics exercise with a creative and artistic
@@ -37,7 +37,7 @@ it yet. With a real seed, use it only on an offline computer and at your own
 risk; online, test seeds only. Let no one see your screen: it shows seeds
 and QR codes that a camera can capture from afar.
 
-seedcraft-sequences.html      Web tool. Open it in a browser, offline: make a
+seedcraft.html      Web tool. Open it in a browser, offline: make a
                               sequence of things from a test seed, print a
                               sheet for whoever makes it, read one back. It
                               cannot connect anywhere.
@@ -46,7 +46,7 @@ seedcraft-by-hand-*.pdf       From a sequence to its QR code and back, with a
 seedqr-templates-*.pdf        Templates to copy a SeedQR (Standard or Compact)
                               from SeedSigner or a compatible signer, like
                               NDS-Signer, with the fixed parts already drawn.
-SPEC-sequences.md             The specification (…es.md: in Spanish).
+SPEC.md             The specification (…es.md: in Spanish).
 RISK-AUDIT.md                 What each mode protects against, and the
                               evidence.
 SHA256SUMS                    Check the files: sha256sum -c SHA256SUMS
@@ -58,7 +58,7 @@ desconectado y bajo tu propia responsabilidad; en línea, solo semillas de
 prueba. Que nadie vea tu pantalla: muestra semillas y códigos QR que una
 cámara puede captar desde lejos.
 
-seedcraft-sequences.html      Herramienta web. Ábrela en un navegador, sin
+seedcraft.html      Herramienta web. Ábrela en un navegador, sin
                               conexión: haz una secuencia de cosas con una
                               semilla de prueba, imprime una hoja para quien
                               la monte, léela. No puede conectarse a nada.
@@ -68,7 +68,7 @@ seedqr-templates-*.pdf        Plantillas para copiar un SeedQR (estándar o
                               compacto) de SeedSigner o un firmador
                               compatible, como NDS-Signer, con las partes
                               fijas ya dibujadas.
-SPEC-sequences.md             La especificación.
+SPEC.md             La especificación.
 RISK-AUDIT.md                 De qué protege cada modo y de qué no, con las
                               pruebas.
 SHA256SUMS                    Comprueba los ficheros: sha256sum -c SHA256SUMS

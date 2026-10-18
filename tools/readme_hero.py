@@ -9,7 +9,7 @@ Needs Google Chrome (CHROME=/path/to/chrome to use another).
 import os, pathlib, re, subprocess, sys, tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-PAGE, HEIGHT, EXTRA = "dist/seedcraft-sequences.html", 344, ""
+PAGE, HEIGHT, EXTRA = "dist/seedcraft.html", 344, ""
 CHROME = os.environ.get("CHROME", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
 
 

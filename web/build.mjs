@@ -1,4 +1,4 @@
-// Builds the single-file web tool: dist/seedcraft-sequences.html.
+// Builds the single-file web tool: dist/seedcraft.html.
 //     node web/build.mjs
 // Deterministic (no dates, no random): the same sources give the same file,
 // so anyone can rebuild it and compare its SHA-256 with the published one.
@@ -20,9 +20,9 @@ const png = (f) => "data:image/png;base64," + readFileSync(new URL("../docs/imag
 const donate = `// ---- donation images ----\nconst DONATE_IMAGES = { bitcoin: "${png("donate-bitcoin.png")}", lightning: "${png("donate-lightning.png")}" };\n`;
 
 const PAGES = [
-	{ out: "seedcraft-sequences.html", template: "src/seedcraft.html", styles: ["src/style.css"],
-		scripts: ["third_party/qrcodegen.js", "src/bip39-english.js", "src/seedcraft-sequences.js", "src/layouts.js", "src/journeys.js", "src/vocab.js", "src/slides.js", "src/i18n.js", "src/app.js"],
-		version: "src/seedcraft-sequences.js" },
+	{ out: "seedcraft.html", template: "src/seedcraft.html", styles: ["src/style.css"],
+		scripts: ["third_party/qrcodegen.js", "src/bip39-english.js", "src/seedcraft.js", "src/layouts.js", "src/journeys.js", "src/vocab.js", "src/slides.js", "src/i18n.js", "src/app.js"],
+		version: "src/seedcraft.js" },
 ];
 
 mkdirSync(new URL("../dist/", here), { recursive: true });

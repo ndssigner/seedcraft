@@ -1,5 +1,5 @@
 // Tests of the web tools' JavaScript against the reference test vectors
-// (vectors/sequences-v0.json, vectors/sequences-pad.json) and Node.js's own
+// (vectors/seedcraft-v0.json, vectors/seedcraft-pad.json) and Node.js's own
 // crypto.
 //     node web/test.mjs
 import { createECDH, createHash, createHmac, pbkdf2Sync } from "node:crypto";
@@ -9,7 +9,7 @@ import vm from "node:vm";
 const here = new URL(".", import.meta.url);
 const read = (p) => readFileSync(new URL(p, here), "utf8");
 const ctx = vm.createContext({ crypto: globalThis.crypto, TextEncoder }); // the browser's crypto.getRandomValues and TextEncoder
-for (const f of ["third_party/qrcodegen.js", "src/bip39-english.js", "src/seedcraft-sequences.js", "src/layouts.js", "src/journeys.js"])
+for (const f of ["third_party/qrcodegen.js", "src/bip39-english.js", "src/seedcraft.js", "src/layouts.js", "src/journeys.js"])
 	vm.runInContext(read(f), ctx, { filename: f });
 vm.runInContext("globalThis.S = SeedcraftSequences; globalThis.SeedcraftLayouts = SeedcraftLayouts;", ctx); // top-level consts are not properties of the context
 const S = ctx.S;
@@ -47,7 +47,7 @@ const nodeFingerprint = (mnemonic, passphrase = "") => {
 check(S.fingerprint("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", "TREZOR")
 	=== nodeFingerprint("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", "TREZOR"), "fingerprint with passphrase");
 // vectors
-const vectors =JSON.parse(read("../vectors/sequences-v0.json")).vectors;
+const vectors =JSON.parse(read("../vectors/seedcraft-v0.json")).vectors;
 let seed = 1;
 const rand = (n) => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed % n; };
 for (const v of vectors) {
@@ -94,7 +94,7 @@ check(masks.size === 16, "both sizes, all 8 masks: " + masks.size);
 
 // pad mode (SPEC §10), against the pad vectors
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-const padVectors = JSON.parse(read("../vectors/sequences-pad.json")).vectors;
+const padVectors = JSON.parse(read("../vectors/seedcraft-pad.json")).vectors;
 const padFileError = (text) => { try { S.readPadFile(text); return null; } catch (e) { return e instanceof S.PadFileError ? e : String(e); } };
 for (const v of padVectors) {
 	const name = `${v.name} k=${v.k}`, n = v.n, seq = v.sequence, key = v.pad;
@@ -1396,9 +1396,9 @@ for (const pad of [false, true]) {
 	{ const src = read("src/app.js"), sn = src.slice(src.indexOf("function slideNow"), src.indexOf("// ---- the journeys, slide by slide"));
 		check(/return journeySlide\("intro", view, null, null\)/.test(sn) && !/footBar\(\)/.test(src) && !/function intro\(\)/.test(src), "intro: drawn through journeySlide, no foot bar, no old start page");
 		check(/intro: \{/.test(src) && ["start", "what", "blend", "modes", "hand", "calm", "audit", "notice"].every((id) => new RegExp("\\b" + id + ": \\(\\) =>").test(src.slice(src.indexOf("intro: {", src.indexOf("const SLIDES"))))), "intro: SLIDES.intro draws every slide");
-		check(/REPO_URL \+ "\/blob\/main\/RISK-AUDIT\.md"/.test(src) && /REPO_URL \+ "\/blob\/main\/SPEC-sequences\.md"/.test(src) && /REPO_URL \+ "\/tree\/main\/docs"/.test(src) && /seedcraft-by-hand-" \+ st\.lang \+ "\.pdf"/.test(src), "intro: the links to the audit, the spec, the docs and the manual");
+		check(/REPO_URL \+ "\/blob\/main\/RISK-AUDIT\.md"/.test(src) && /REPO_URL \+ "\/blob\/main\/SPEC\.md"/.test(src) && /REPO_URL \+ "\/tree\/main\/docs"/.test(src) && /seedcraft-by-hand-" \+ st\.lang \+ "\.pdf"/.test(src), "intro: the links to the audit, the spec, the docs and the manual");
 		const fs = await import("node:fs"), root = new URL("../", import.meta.url).pathname;
-		for (const f of ["RISK-AUDIT.md", "SPEC-sequences.md", "docs/seedcraft-by-hand-en.pdf", "docs/seedcraft-by-hand-es.pdf"]) check(fs.existsSync(root + f), `linked file ${f}`);
+		for (const f of ["RISK-AUDIT.md", "SPEC.md", "docs/seedcraft-by-hand-en.pdf", "docs/seedcraft-by-hand-es.pdf"]) check(fs.existsSync(root + f), `linked file ${f}`);
 		check(/\.with-top \.lectern\s*\{[^}]*top:\s*var\(--top-h/.test(read("src/style.css")), "intro: the top bar above the lectern, which takes the height left"); 	check(/\.with-top \.lectern\s*\{[^}]*align-items:\s*flex-start/.test(read("src/style.css")), "intro: the lectern right under the top bar, not centred in the height left");
 		{ const b = src.slice(src.indexOf("function introBlend"), src.indexOf("function introModes"));
 			check(/V\.introArt\("blend", b\.art, \{ seen: t\.introBlendSeen, hidden: t\.introBlendHidden \}\)/.test(b) && !/intro-label/.test(src), "intro blend: the labels drawn in the art, no HTML labels"); } }

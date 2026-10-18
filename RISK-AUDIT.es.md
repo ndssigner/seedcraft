@@ -4,7 +4,7 @@
 
 # Secuencias SeedCraft: auditoría de riesgos
 
-De qué protege cada modo de [SPEC-sequences.es.md](SPEC-sequences.es.md), de
+De qué protege cada modo de [SPEC.es.md](SPEC.es.md), de
 qué no, y las pruebas de cada afirmación, para que cualquiera pueda
 comprobarlo en vez de fiarse. Cubre la versión 0 del formato de la
 especificación. **Nadie independiente lo ha auditado todavía**: este
@@ -283,7 +283,7 @@ diccionario en los extremos) es una cuestión abierta (§8).
 
 | | Afirmación | Prueba | Estado |
 | :--- | :--- | :--- | :--- |
-| E1 | Una secuencia sin llave entrega su diccionario en $\le 8$ intentos para $N \le 16$ | `tools/dictionary_attack.py`; `tests/test_sequences.py` | En el repositorio, se ejecuta en la CI |
+| E1 | Una secuencia sin llave entrega su diccionario en $\le 8$ intentos para $N \le 16$ | `tools/dictionary_attack.py`; `tests/test_seedcraft.py` | En el repositorio, se ejecuta en la CI |
 | E2 | El mismo ataque no encuentra nada en una secuencia con llave: sus ecuaciones son incompatibles para las 8 máscaras | `tests/test_pad.py`, todos los vectores con llave con $N \le 16$ | En el repositorio, se ejecuta en la CI |
 | E3 | Un símbolo de la llave equivocado se repara | `tests/test_pad.py`: cada posición de cada vector, en la llave y en la secuencia; `web/test.mjs`: una posición al azar de cada uno, en la herramienta web | En el repositorio, se ejecuta en la CI |
 | E4 | $C$ es uniforme sea cual sea la semilla | Demostración en el §4.1; `tests/test_pad.py`: $\chi^2$ sobre muchas codificaciones de una semilla, cada posición, todas juntas y parejas vecinas, para todo $N$ (y una comprobación de que se detecta una llave un poco sesgada) | En el repositorio, se ejecuta en la CI |

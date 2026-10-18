@@ -1,6 +1,6 @@
-English · [Español](SPEC-sequences.es.md)
+English · [Español](SPEC.es.md)
 
-# SeedCraft Sequences
+# SeedCraft
 
 **Status: format version 0** (§3.4), as the reference implementation, its
 test vectors and the web tool implement it. A future change of the format
@@ -65,9 +65,9 @@ Which mode and which form suit which situation: §11. `RISK-AUDIT.md` sets
 out what each mode protects against and what it does not, with the
 evidence, so that anyone can check it.
 
-The reference implementation is `reference/python/seedcraft_sequences.py`,
-and `seedcraft_pad.py` for pad mode; `vectors/sequences-v0.json` and
-`vectors/sequences-pad.json` have test vectors (public test seeds and pads
+The reference implementation is `reference/python/seedcraft.py`,
+and `seedcraft_pad.py` for pad mode; `vectors/seedcraft-v0.json` and
+`vectors/seedcraft-pad.json` have test vectors (public test seeds and pads
 only). The web tool (`web/`) is checked against the same vectors
 (`web/test.mjs`).
 

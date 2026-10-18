@@ -31,7 +31,7 @@ const SEEDCRAFT_TEXT = {
 		introCalm: "Making the string properly takes time and concentration. This tool is made for that: an offline computer, time, calm and the pieces at hand.",
 		introAuditQ: "Open to audit",
 		introAudit: "The repository holds the documentation that matters: the threat model, the mathematical development of the system and the code, open for anyone to review.",
-		introAuditRepo: "Repository ↗", introAuditDocs: "Documentation ↗", introAuditRisk: "Threat model (RISK-AUDIT.md) ↗", introAuditSpec: "Specification (SPEC-sequences.md) ↗",
+		introAuditRepo: "Repository ↗", introAuditDocs: "Documentation ↗", introAuditRisk: "Threat model (RISK-AUDIT.md) ↗", introAuditSpec: "Specification (SPEC.md) ↗",
 		introNoticeQ: "Notice",
 		introNotice: [
 			"SeedCraft is a mathematics exercise with a creative and artistic spirit, and it is offered as is, without any warranty. No one independent has audited it yet. If you use it with a real seed, do so on an offline computer and at your own risk. We are not liable for any loss of funds or any other harm, nor for the use anyone makes of this tool or of this method.",
@@ -211,14 +211,14 @@ const SEEDCRAFT_TEXT = {
 			"Keep it where it belongs, among things like it.",
 			"Keep the dictionary apart.",
 			"If you use a BIP-39 passphrase with this seed, keep it somewhere else.",
-			"Leave your heirs a note: what it is, and where to find SPEC-sequences.md.",
+			"Leave your heirs a note: what it is, and where to find SPEC.md.",
 		],
 		storePad: [
 			"Keep the sequence and the key in different places: never on the same trip, not even as photos on one phone.",
 			"Keep a copy of the dictionary with each.",
 			"Copies are fine, each as far from the other half.",
 			"One key, one seed.",
-			"Leave your heirs a note: what they are, where the other half is, and where to find SPEC-sequences.md.",
+			"Leave your heirs a note: what they are, where the other half is, and where to find SPEC.md.",
 		],
 		storeForgetWhy: "Closing the page forgets everything too.",
 		storeForget: "Forget everything on this device", storeForgetAsk: (open) => (open.length ? `“Saved” is not ticked for ${open.map((x) => `“${x}”`).join(" and ")}. ` : "")
@@ -426,7 +426,7 @@ const SEEDCRAFT_TEXT = {
 		aboutCheck: "A page can't vouch for itself. Check this file with your computer instead and compare with the hash published at github.com/ndssigner/seedcraft:",
 		aboutRisk: "Offered as is, with no warranty, and not yet audited by anyone independent. A real seed: only on an offline computer and at your own risk. For the safest option, NDS-Signer remains an air-gapped alternative. On a computer that is online (as when you open the published page), test seeds only.",
 		aboutStore: "Nothing you type is saved: close the page and it's gone. Your dictionary is kept only if you save it to a file.",
-		aboutSpec: (v) => `SeedCraft Sequences, format v${v}. MIT license. QR codes by Project Nayuki's QR Code generator (MIT).`,
+		aboutSpec: (v) => `SeedCraft, format v${v}. MIT license. QR codes by Project Nayuki's QR Code generator (MIT).`,
 	},
 	es: {
 		langName: "English", langSwitch: "en",
@@ -454,7 +454,7 @@ const SEEDCRAFT_TEXT = {
 		introCalm: "Hacer la ristra como toca lleva tiempo y concentración. Esta herramienta está pensada para eso: un ordenador desconectado, tiempo, calma y las piezas a mano.",
 		introAuditQ: "Abierto a auditoría",
 		introAudit: "En el repositorio está la documentación importante: el modelo de amenazas, el desarrollo matemático del sistema y el código, abiertos a que cualquiera los revise.",
-		introAuditRepo: "Repositorio ↗", introAuditDocs: "Documentación ↗", introAuditRisk: "Modelo de amenazas (RISK-AUDIT.md) ↗", introAuditSpec: "Especificación (SPEC-sequences.md) ↗",
+		introAuditRepo: "Repositorio ↗", introAuditDocs: "Documentación ↗", introAuditRisk: "Modelo de amenazas (RISK-AUDIT.md) ↗", introAuditSpec: "Especificación (SPEC.md) ↗",
 		introNoticeQ: "Aviso",
 		introNotice: [
 			"SeedCraft es un ejercicio de matemáticas con espíritu creativo y artístico, y se ofrece tal cual, sin ninguna garantía. Nadie independiente lo ha auditado todavía. Si lo usas con una semilla real, hazlo en un ordenador desconectado y bajo tu propia responsabilidad. No respondemos de pérdidas de fondos ni de ningún otro daño, ni del uso que cada cual haga de esta herramienta o de este método.",
@@ -633,14 +633,14 @@ const SEEDCRAFT_TEXT = {
 			"Guárdala donde pega, entre cosas parecidas.",
 			"Guarda el diccionario aparte.",
 			"Si usas una passphrase BIP-39 con esta semilla, guárdala en otro sitio.",
-			"Deja una nota a tus herederos: qué es, y dónde encontrar SPEC-sequences.md.",
+			"Deja una nota a tus herederos: qué es, y dónde encontrar SPEC.md.",
 		],
 		storePad: [
 			"Guarda la secuencia y la llave en sitios distintos: nunca en el mismo viaje, ni en fotos del mismo móvil.",
 			"Guarda una copia del diccionario con cada una.",
 			"Puedes hacer copias, cada una tan lejos de la otra mitad.",
 			"Una llave, una semilla.",
-			"Deja una nota a tus herederos: qué son, dónde está la otra mitad y dónde encontrar SPEC-sequences.md.",
+			"Deja una nota a tus herederos: qué son, dónde está la otra mitad y dónde encontrar SPEC.md.",
 		],
 		storeForgetWhy: "Cerrar la página también lo olvida todo.",
 		storeForget: "Olvidar todo en este aparato", storeForgetAsk: (open) => (open.length ? `«Guardado» no está marcado en ${open.map((x) => `«${x}»`).join(" ni en ")}. ` : "")
@@ -848,7 +848,7 @@ const SEEDCRAFT_TEXT = {
 		aboutCheck: "Una página no puede garantizarse a sí misma. Comprueba este archivo con tu ordenador y compáralo con la huella publicada en github.com/ndssigner/seedcraft:",
 		aboutRisk: "Se ofrece tal cual, sin garantía, y nadie independiente la ha auditado aún. Una semilla real: solo en un ordenador desconectado y bajo tu responsabilidad. Para la opción más segura, NDS-Signer sigue siendo una alternativa aislada. En un ordenador conectado (como al abrir la página publicada), solo semillas de prueba.",
 		aboutStore: "No se guarda nada de lo que escribes: al cerrar la página desaparece. Tu diccionario solo se conserva si lo guardas en un archivo.",
-		aboutSpec: (v) => `SeedCraft Sequences, formato v${v}. Licencia MIT. Códigos QR con el QR Code generator de Project Nayuki (MIT).`,
+		aboutSpec: (v) => `SeedCraft, formato v${v}. Licencia MIT. Códigos QR con el QR Code generator de Project Nayuki (MIT).`,
 	},
 };
 

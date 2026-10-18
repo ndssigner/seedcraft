@@ -62,7 +62,7 @@ piezas, una caja de huevos con un tipo en cada hueco.</td></tr>
   semilla: es la semilla. Lo que la esconde es el propio objeto, siempre que
   el diccionario no esté al lado; **no es una cerradura**: quien conozca este
   método lee la semilla de la ristra sola en una fracción de segundo
-  ([SPEC §9](SPEC-sequences.es.md#9-consideraciones-de-seguridad),
+  ([SPEC §9](SPEC.es.md#9-consideraciones-de-seguridad),
   `tools/dictionary_attack.py`). Para una copia en un sitio que controlas;
   añade una frase de contraseña BIP-39 para una protección de verdad.
 - **Con llave.** Dos ristras (o una ristra y un archivo) que se guardan por
@@ -70,9 +70,9 @@ piezas, una caja de huevos con un tipo en cada hueco.</td></tr>
   para reconstruirla. Para sitios que no controlas: viajes, hoteles,
   inspecciones. El precio: **perder cualquiera de las dos mitades es perder
   la semilla.** La especificación lo llama «modo con llave» (la versión inglesa, *pad mode*)
-  ([SPEC §10](SPEC-sequences.es.md#10-modo-con-llave)).
+  ([SPEC §10](SPEC.es.md#10-modo-con-llave)).
 
-La [SPEC §11](SPEC-sequences.es.md#11-elegir-modo-y-forma) ayuda a elegir
+La [SPEC §11](SPEC.es.md#11-elegir-modo-y-forma) ayuda a elegir
 modo y forma, y dice qué no hacer.
 [RISK-AUDIT.es.md](RISK-AUDIT.es.md), el modelo de amenazas, expone de qué protege cada modo y de qué no, con las pruebas.
 
@@ -89,7 +89,7 @@ hacerla.
 
 Las cosas pueden ser cualquier cosa en cualquier soporte, siempre que el
 orden quede fijo para siempre y ninguna pieza se pueda soltar. Ver
-[SPEC-sequences.es.md](SPEC-sequences.es.md).
+[SPEC.es.md](SPEC.es.md).
 
 ## A mano, o con la herramienta
 
@@ -128,7 +128,7 @@ Es un único fichero que no puede conectarse a nada: su
 Content-Security-Policy prohíbe toda petición de red, todo script externo y
 `eval`; solo se ejecutan su propio script y su estilo internos, fijados por
 su SHA-256. No guarda nada. Compruébalo con tu sistema operativo
-(`shasum -a 256 seedcraft-sequences.html`) frente al hash publicado con la
+(`shasum -a 256 seedcraft.html`) frente al hash publicado con la
 versión; `node web/build.mjs` lo reconstruye byte a byte. La página no puede
 conectarse, pero el resto de un ordenador conectado sí puede ver lo que se
 escribe en ella: en un ordenador conectado, usa solo semillas de prueba.
@@ -157,20 +157,20 @@ En el repositorio está la documentación importante: el modelo de amenazas,
 el desarrollo matemático del sistema y el código, abiertos a que cualquiera
 los revise.
 
-- [`SPEC-sequences.es.md`](SPEC-sequences.es.md)
-  ([English](SPEC-sequences.md)): la especificación, versión 0 del formato:
+- [`SPEC.es.md`](SPEC.es.md)
+  ([English](SPEC.md)): la especificación, versión 0 del formato:
   el modo sin llave y el modo con llave.
 - [`RISK-AUDIT.es.md`](RISK-AUDIT.es.md) ([English](RISK-AUDIT.md)): el
   modelo de amenazas: de qué protege cada modo, y las pruebas.
-- `reference/python/seedcraft_sequences.py`: implementación de referencia
+- `reference/python/seedcraft.py`: implementación de referencia
   (solo la biblioteca estándar, más el generador de códigos QR de Project
   Nayuki, MIT, sin modificar); `seedcraft_pad.py`: el modo con llave, encima de
   ella.
-- `vectors/sequences-v0.json`: vectores de prueba de semillas de prueba
+- `vectors/seedcraft-v0.json`: vectores de prueba de semillas de prueba
   públicas (`tools/gen_vectors.py`, necesita `embit`);
-  `vectors/sequences-pad.json`: las mismas semillas en modo con llave, con
+  `vectors/seedcraft-pad.json`: las mismas semillas en modo con llave, con
   llaves públicas fijas (`tools/gen_pad_vectors.py`).
-- `tests/test_sequences.py`: todos los vectores, una cosa mal leída
+- `tests/test_seedcraft.py`: todos los vectores, una cosa mal leída
   reparada, cualquiera de los dos extremos, relleno aleatorio y el ataque al
   diccionario; dale un binario `qrdecode` de quirc para comprobar además que
   el código QR dibujado de vuelta es el CompactSeedQR de la semilla.
@@ -187,10 +187,10 @@ los revise.
 - `docs/images/samples/`: las fotos de muestra de arriba, sin metadatos.
 
 ```bash
-python3 tests/test_sequences.py          # la referencia en Python
+python3 tests/test_seedcraft.py          # la referencia en Python
 python3 tests/test_pad.py                # el modo pad y las pruebas de la auditoría
 node web/test.mjs                        # el JavaScript (Node.js ≥ 18)
-node web/build.mjs                       # dist/seedcraft-sequences.html + su SHA-256
+node web/build.mjs                       # dist/seedcraft.html + su SHA-256
 docs/manual/build.sh                     # los PDF (Typst 0.15.1)
 python3 tools/bundle.py vX.Y.Z           # el zip de la versión
 python3 tools/readme_hero.py             # la imagen de este README (necesita Chrome)

@@ -28,12 +28,12 @@ jobs:
         with:
           node-version: "22"
       - name: Python reference against the vectors
-        run: python3 tests/test_sequences.py
+        run: python3 tests/test_seedcraft.py
       - name: Pad mode against its vectors, and the risk audit's evidence
         run: python3 tests/test_pad.py
       - name: Pad mode vectors are up to date
         run: |
-          python3 tools/gen_pad_vectors.py > vectors/sequences-pad.json
+          python3 tools/gen_pad_vectors.py > vectors/seedcraft-pad.json
           git diff --exit-code -- vectors/
       - name: Tools of the risk audit run (pad reuse, pieces tables in short)
         run: |
@@ -63,7 +63,7 @@ jobs:
             dist/seedcraft-*.zip
             dist/SHA256SUMS
       - name: The site for GitHub Pages
-        run: mkdir site && cp dist/seedcraft-sequences.html site/index.html && cp docs/*.pdf site/
+        run: mkdir site && cp dist/seedcraft.html site/index.html && cp docs/*.pdf site/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
@@ -98,5 +98,5 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" seedcraft-*.zip SHA256SUMS \
             --repo "$GITHUB_REPOSITORY" --draft --prerelease \
-            --title "Seedcraft $GITHUB_REF_NAME" \
+            --title "SeedCraft $GITHUB_REF_NAME" \
             --notes "Web tool, by-hand guide and SeedQR templates (EN/ES), specification. Drafts: test seeds only. Verify: sha256sum -c SHA256SUMS"
