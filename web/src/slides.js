@@ -85,6 +85,20 @@ const SeedcraftSlides = (() => {
 		else if (e.shiftKey && i === 0) { e.preventDefault(); f[f.length - 1].focus(); }
 	}
 
+	// Tab goes to a slide's keys only from the body, the canvas or a «+» slot, never from a control
+	// (a button, a link, a field...), and never with Shift: the way round the page stays open
+	function tabIsSlide(e) {
+		if (e.shiftKey) return false;
+		const t = e.target;
+		if (!t || !t.tagName || /^(BODY|HTML)$/i.test(t.tagName)) return true;
+		for (let n = t; n && n.tagName; n = n.parentNode) {
+			const cl = (n.getAttribute && n.getAttribute("class")) || "";
+			if (/(^|\s)v-slot(\s|$)/.test(cl)) return true;
+		}
+		const tab = t.getAttribute && t.getAttribute("tabindex");
+		return !(/^(BUTTON|INPUT|SELECT|TEXTAREA|SUMMARY|A)$/i.test(t.tagName) || pressable(t) || (tab !== null && tab !== undefined && tab !== "-1"));
+	}
+
 	function onKey(e) {
 		if (!slide || e.ctrlKey || e.metaKey || e.altKey) return;
 		if (e.key === "Escape" || e.key === "Esc") {
@@ -92,7 +106,7 @@ const SeedcraftSlides = (() => {
 			else if (panelOpen) { panel(false); e.preventDefault(); }
 			return;
 		}
-		if (e.key === "Tab" && !popup && !panelOpen && !e.defaultPrevented && !typing(e.target) && keyRoute(slide, e)) { e.preventDefault(); return; }
+		if (e.key === "Tab" && !popup && !panelOpen && !e.defaultPrevented && !typing(e.target) && tabIsSlide(e) && keyRoute(slide, e)) { e.preventDefault(); return; }
 		if (e.key === "Tab") {
 			if (popup) trap(e, popup.box);
 			else if (panelOpen && el.aside) trap(e, el.aside);
@@ -310,6 +324,6 @@ const SeedcraftSlides = (() => {
 		if (!quiet && p.onClose) p.onClose();
 	}
 
-	return { nextOf, keyRoute, mount, show, setLang, setReady, wakeLock, popup: openPopup, closePopup,
+	return { nextOf, keyRoute, tabIsSlide, mount, show, setLang, setReady, wakeLock, popup: openPopup, closePopup,
 		get step() { return step; }, get panelOpen() { return panelOpen; } };
 })();

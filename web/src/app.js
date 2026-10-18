@@ -833,7 +833,8 @@
 		const dictPieces = (id) => id === "book" && n === 8 ? 0 : 1;
 		// an assembly card: the form has materials to tell, and is not written
 		const assemblyOf = (id) => formOf(id).family !== "written" && !!materialsOf(id, L, n);
-		return { n, L, ...J.pieces({ words: p.words, n, mode: st.mode, padAs: p.padAs, form: p.form, padForm: p.padForm }, dictPieces, assemblyOf) };
+		const made = J.pieces({ words: p.words, n, mode: st.mode, padAs: p.padAs, form: p.form, padForm: p.padForm }, dictPieces, assemblyOf);
+		return { n, L, ...made, groups: made.groups.map((g) => ({ ...g, written: formOf(g.form).family === "written" })) };
 	}
 	const gatherOk = () => { const { groups } = gatherPlan(); return J.gatherDone(st.gathered, groups); };
 	// the small drawings of the gather cards
@@ -873,7 +874,7 @@
 					h("div", { class: "gather-nums" },
 						h("p", {}, h("b", { text: String(n) }), h("span", { text: t.gatherKinds })), h("p", {}, h("b", { text: String(each) }), h("span", { text: t.gatherEach }))),
 					h("p", { class: "gather-total" }, h("span", { text: t.gatherTotal }), h("b", { text: String(n * each) }))),
-				tick(g.what));
+				written ? null : tick(g.what));
 		};
 		const assemblyCard = (g) => {
 			const materials = materialsOf(g.form, L, n), { big, text } = J.splitMaterials(materials);
@@ -1056,7 +1057,7 @@
 		setTimeout(() => { if (document.activeElement !== nameIn && !document.querySelector(".slide-popup")) nameIn.focus(); }, 0);
 		return {
 			question: t.nameQ(ed.i),
-			help: helpOf(t.dictName, t.nameHelp, ed.i === 0 ? [t.nameTipPiece, t.nameTipOrder, ...t.dictChecks] : t.dictChecks),
+			help: helpOf(t.dictName, t.nameHelp, [t.nameTipPiece, t.nameTipOrder, ...t.dictChecks]),
 			shortcuts: [{ icon: "Aa", label: t.thingSymbol, go: () => symbolPopup(x) }],
 			prev: { go: () => { if (ed.i > 0) { ed.i--; render(); } else editDict(null); } },
 			next: { label: ed.i < n - 1 ? undefined : "✓ " + t.dictDone, go: forward, ready: !problem() },
@@ -2153,6 +2154,11 @@
 		let from = typeof rd.from === "number" && Math.abs(i - rd.from) === 1 && !calm() ? rd.from : null;
 		rd.from = null;
 		const form = rd.form || st.plan.form;
+		// the typing column starts at the seed on each turn
+		if (rd.typedTurn !== i) { rd.typedTurn = i; rd.typedBuf = ""; rd.typedCol = "seed"; }
+		const typedKey = () => !!keyThings && rd.typedCol === "key";
+		// a keyboard is there (a fine pointer, or a key already pressed): the typing hint and the active column show
+		const keyboard = () => !!rd.keyed || (typeof matchMedia === "function" && matchMedia("(hover: hover) and (pointer: fine)").matches);
 		// the squares painted: every other turn read; this one once its cycle reaches them
 		const paintTurn = (map, j) => bitsOf(plainOf(j), k).forEach((bit, x) => { const c = cells[j * k + x]; if (c) map.set(c[0] * size + c[1], bit); });
 		const before = new Map();
@@ -2166,6 +2172,9 @@
 			Slides.closePopup(true);
 			if (wholeAt(i)) readFresh = i;
 			rd.typedBuf = "";
+			// typing goes on to the string still empty
+			rd.typedTurn = i;
+			if (keyThings) rd.typedCol = which === "seed" && (rd.keyTaps[i] === undefined) ? "key" : which === "key" && rd.taps[i] === undefined ? "seed" : which;
 			render();
 			// on to what is left: the other string's «+», or Next
 			const hole = $("app").querySelector(".v-slot"), nb = $("slide-next");
@@ -2207,6 +2216,11 @@
 		// the arrows' drawing never replaces what glides; arrowsOn false: every arrow hidden (until the glide has stopped)
 		let posText = null;
 		const shownPos = () => rd.typedBuf && rd.typedTurn === i ? rd.typedBuf : String(pos);
+		// the typed number is no position: underlined, and in its column's colour
+		const posClass = () => "v-t v-pos v-pos-current v-c-qr v-bold" + (rd.typedBuf && rd.typedTurn === i ? " v-pos-typed" + (typedKey() ? " v-pos-key" : "") : "");
+		const showPos = () => { if (posText) { posText.textContent = shownPos(); posText.setAttribute("class", posClass()); } };
+		// the column that takes the typed digits is ringed (a key as string only)
+		const markCol = () => { if (keyThings) { g.seed.classList.toggle("v-col-typing", keyboard() && !typedKey()); g.key.classList.toggle("v-col-typing", keyboard() && typedKey()); } };
 		let colsDrawn = false, paintDrawn = null, arrowsOn = true;
 		const g = { frame: svg("g"), seed: svg("g"), key: svg("g"), dicts: svg("g"), numbers: svg("g"), clock: svg("g"), bits: svg("g"), cards: svg("g"), qr: svg("g") }, arrowGroups = lay.arrows.map(() => svg("g"));
 		function draw(p, turning, onRun, alive) {
@@ -2216,7 +2230,7 @@
 			// the row's frame and, beside it, the turn's position in its own box
 			g.frame.replaceChildren(V.frame({ box: b.row, colour: "qr" }),
 				svg("rect", { x: b.posBox.x, y: b.posBox.y, width: b.posBox.w, height: b.posBox.h, rx: 4, class: "v-pos-box" }),
-				posText = svg("text", { x: b.posBox.x + b.posBox.w / 2, y: b.posBox.y + b.posBox.h / 2 + 4, "font-size": 11, "text-anchor": "middle", class: "v-t v-pos v-pos-current v-c-qr v-bold" }, shownPos()));
+				posText = svg("text", { x: b.posBox.x + b.posBox.w / 2, y: b.posBox.y + b.posBox.h / 2 + 4, "font-size": 11, "text-anchor": "middle", class: posClass() }, shownPos()));
 			// the dictionaries, each turned to its piece (the key file's numbers need none), and the numbers
 			g.dicts.replaceChildren(
 				V.dictionary({ label: t.dictLabel, box: b.seedDict, things, mode: "reel", icon: "seed", value: seedAt("piece") ? C : null, from: turning && p === at("piece") ? 0 : undefined }),
@@ -2275,6 +2289,7 @@
 			else if (!fresh) draw(whole ? last : 0, false);
 			if (from !== null) glides = glideIn(from, advance);
 			from = null;
+			markCol();
 			return h("div", { class: "dict-slide rt-slide" }, canvas(g.frame, g.seed, g.key, g.dicts, g.numbers, g.clock, g.bits, g.cards, g.qr, ...arrowGroups));
 		}
 
@@ -2286,29 +2301,30 @@
 		// typing a piece's number: digits, Enter, Backspace for the active column; Tab switches column (a key as string only)
 		const keys = (e) => {
 			if (e.ctrlKey || e.metaKey || e.altKey) return false;
-			if (rd.typedTurn !== i) { rd.typedTurn = i; rd.typedBuf = ""; }
 			const buf = rd.typedBuf || "";
 			if (e.key === "Tab") {
-				if (!keyThings) return false;
+				if (!keyThings || e.shiftKey) return false;
+				rd.keyed = true;
 				rd.typedCol = rd.typedCol === "key" ? "seed" : "key"; rd.typedBuf = "";
-				if (posText) posText.textContent = shownPos();
+				showPos(); markCol();
 				return true;
 			}
 			const digit = /^[0-9]$/.test(e.key);
 			if (!digit && !((e.key === "Enter" || e.key === "Backspace") && buf)) return false;
-			const which = keyThings && rd.typedCol === "key" ? "key" : "seed", r = J.typedPiece(buf, e.key, (which === "key" ? keyThings : things).length);
+			rd.keyed = true;
+			const which = typedKey() ? "key" : "seed", r = J.typedPiece(buf, e.key, (which === "key" ? keyThings : things).length);
 			rd.typedBuf = r.buffer;
 			if (r.value !== null) put(which, r.value);
-			else if (posText) posText.textContent = shownPos();
+			else { showPos(); markCol(); }
 			return true;
 		};
 		return {
 			count: `${pos}/${L}`, caption, body, keys,
-			hint: () => i < 3 ? t.keysHint : null,
+			hint: () => i < 3 && keyboard() ? (keyThings ? t.keysHintTab : t.keysHint) : null,
 			// Next while the advance or the cycle plays: first its end, then on
 			hurry: () => { const playing = !!glides && glides.playing; if (glides) glides.finish(); const held = !!hold && hold.finish(); return (!!cycle && cycle.finish()) || held || playing; },
 			help: helpOf(stepName(checking ? "make" : "read", checking ? "check" : "recover"), checking ? (pad ? t.checkHelpPad : t.checkReadHelp) : null,
-				[t.forms[form].read, t.keysHint, keyThings ? t.tapPadHelp : null, pad ? null : t.whyBasic(n, k), t.readLockedWhy].filter(Boolean)),
+				[t.forms[form].read, keyThings ? t.keysHintTab : t.keysHint, keyThings ? t.tapPadHelp : null, pad ? null : t.whyBasic(n, k), t.readLockedWhy].filter(Boolean)),
 			shortcuts: readShortcuts(rd, L, opts.done),
 			prev: i > 0 ? { go: () => readGo(rd, i - 1) } : undefined,
 			next: { go: () => { if (i < L - 1) readGo(rd, i + 1); else opts.done(); }, ready: whole },
