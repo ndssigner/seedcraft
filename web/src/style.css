@@ -548,10 +548,14 @@ body { overflow: hidden; }
 .pieces-file { margin: 0; font-size: .85em; align-self: center; color: var(--muted); }
 .seed-intro { margin: 0; font-size: .95em; }
 /* the naming slide's bubbles, beside the form and the box (the arrow points at its subject) */
-.tip { position: absolute; z-index: 1; box-sizing: border-box; margin: 0; padding: calc(var(--u) * 4) calc(var(--u) * 6); overflow: hidden; font-size: .78em; line-height: 1.25;
-	background: var(--accent-soft); color: var(--accent-ink); border-radius: var(--r-m); display: flex; align-items: center; }
-.tip.left { border-left: 3px solid var(--accent); }
-.tip.right { border-right: 3px solid var(--accent); text-align: right; justify-content: flex-end; }
+.tip { position: absolute; z-index: 1; box-sizing: border-box; margin: 0; padding: calc(var(--u) * 4) calc(var(--u) * 8); font-size: .78em; line-height: 1.25;
+	background: var(--accent-soft); color: var(--accent-ink); border: 1px solid var(--accent); border-radius: var(--r-m); display: flex; align-items: center; }
+/* the tail, in the gap between the bubble and its subject: «left» points at the box on the left, «right» at the form on the right */
+.tip::after { content: ""; position: absolute; top: 50%; width: 0; height: 0; margin-top: calc(var(--u) * -6);
+	border-top: calc(var(--u) * 6) solid transparent; border-bottom: calc(var(--u) * 6) solid transparent; }
+.tip.left::after { right: 100%; border-right: calc(var(--u) * 10) solid var(--accent); }
+.tip.right::after { left: 100%; border-left: calc(var(--u) * 10) solid var(--accent); }
+.tip.right { text-align: right; justify-content: flex-end; }
 /* a slide with a field (the key file) */
 .slide-form { position: absolute; left: calc(var(--u) * 150); right: calc(var(--u) * 150); top: calc(var(--u) * 70); bottom: calc(var(--u) * 10);
 	display: flex; flex-direction: column; gap: calc(var(--u) * 6); }

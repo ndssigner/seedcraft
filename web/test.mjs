@@ -527,6 +527,12 @@ check(Lay.binary(5, 16).join("") === "0101" && Lay.binary(0, 2).join("") === "0"
 for (const n of [2, 4, 8, 16, 32]) {
 	const nm = Lay.dictName({ n }), ck = Lay.dictCheck({ n }), as = Lay.dictAsIs({ n });
 	checkLayout(`dictName n=${n}`, nm); checkLayout(`dictCheck n=${n}`, ck); checkLayout(`dictAsIs n=${n}`, as);
+	{
+		// the bubbles sit by their subjects, with a gap for their tail (style.css: 10 units): the order's by the dictionary, the piece's by the form
+		const bb = nm.boxes, gapL = bb.tipOrder.x - (bb.dict.x + bb.dict.w), gapR = bb.form.x - (bb.tipPiece.x + bb.tipPiece.w);
+		const inside = (t, o) => t.y >= o.y && t.y + t.h <= o.y + o.h;
+		check(gapL >= 12 && gapL <= 24 && inside(bb.tipOrder, bb.dict) && gapR >= 12 && gapR <= 24 && inside(bb.tipPiece, bb.form), `dictName n=${n}: each tip beside its target, room for the tail`);
+	}
 	check(nm.boxes.bits.w >= Lay.bitsOf(n) * Lay.BIT + 8, `dictName n=${n}: room for its ${Lay.bitsOf(n)} bits and ₂`);
 	check(ck.answers.cols * ck.answers.rows >= n && ck.boxes.answers.w / ck.answers.cols >= 22 && ck.boxes.answers.h / ck.answers.rows >= 30, `dictCheck n=${n}: a button per number, each big enough to tap`);
 	check(as.boxes.dict.h / Math.ceil(n / as.columns) >= 15, `dictAsIs n=${n}: every row shows (${as.columns} column${as.columns > 1 ? "s" : ""})`);
