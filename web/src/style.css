@@ -518,11 +518,19 @@ body { overflow: hidden; }
 }
 .decision.many .v-cards { --cw: calc(var(--u) * 118); }
 .decision.many .v-card { padding: calc(var(--u) * 8) calc(var(--u) * 6); }
-.decision.lots { top: calc(var(--u) * 62); bottom: calc(var(--u) * 4); }
-.decision.lots .v-cards { --cw: calc(var(--u) * 120); column-gap: calc(var(--u) * 6); row-gap: calc(var(--u) * 5); }
-.decision.lots .v-card { padding: calc(var(--u) * 5); row-gap: calc(var(--u) * 3); font-size: .8em; }
-.decision.lots .v-card-art { height: calc(var(--u) * 32); }
-.decision.lots .v-card-art svg { height: calc(var(--u) * 26); }
+.decision.lots { top: calc(var(--u) * 58); bottom: calc(var(--u) * 6); }
+.decision.lots .v-cards { --cw: calc(var(--u) * 154); --cg: calc(var(--u) * 8); column-gap: var(--cg); row-gap: calc(var(--u) * 5); }
+.decision.lots .v-cards.cols-4 { grid-template-columns: repeat(8, minmax(0, calc((var(--cw) - var(--cg)) / 2))); }
+.v-cards.cols-4 .v-card { grid-column: span 2; }
+.v-cards.cols-4 .v-card-start-2 { grid-column: 2 / span 2; }
+.v-cards.cols-4 .v-card-start-3 { grid-column: 3 / span 2; }
+.v-cards.cols-4 .v-card-start-4 { grid-column: 4 / span 2; }
+.decision.lots .v-card { padding: calc(var(--u) * 5) calc(var(--u) * 6); row-gap: calc(var(--u) * 3); font-size: .78em; }
+.decision.lots .v-card-art { height: calc(var(--u) * 28); }
+.decision.lots .v-card-art svg { height: calc(var(--u) * 24); }
+.decision.lots .v-card-title { font-size: 1.15em; line-height: 1.15; min-height: 0; }
+.decision.lots .v-card-list { line-height: 1.25; }
+.decision.lots .v-card-list li { margin-top: .1em; }
 .card-file { fill: var(--surface); stroke: var(--key); stroke-width: 1.2; }
 .card-device { fill: var(--sunk); stroke: var(--line-strong); stroke-width: 1.2; }
 .card-bag { fill: var(--sunk); stroke: var(--line-strong); stroke-width: 1.5; }
