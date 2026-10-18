@@ -414,13 +414,14 @@ const SeedcraftLayouts = (() => {
 			b.info = box(200, Math.max(y + h, b.rejected.y + b.rejected.h) + 6, 156, 14);
 		}
 		arrows.push(arrow("number", "brace", "number", "key", [[378, mid], [394, mid]]));
-		b.keyDict = box(466, mid - 36, 116, 72);
+		// (a file's is wider, for its longer label: «Diccionario del archivo» whole on its tab)
+		b.keyDict = box(466, mid - 36, file ? 168 : 116, 72);
 		arrows.push(arrow("dict", "number", "keyDict", "key", [[450, mid], [466, mid]]));
 		if (file) {
 			// the file's dictionary (number → character), then down to its place in the
 			// file; the file's box a little taller, for the line under its row
 			b.keyString = box(BUILT.x, BUILT.y, BUILT.w, 70);
-			arrows.push(arrow("slot", "keyDict", "keySlot", "key", [[524, mid + 36], [524, RAIL], [360, RAIL], [360, SLOT.y]]));
+			arrows.push(arrow("slot", "keyDict", "keySlot", "key", [[550, mid + 36], [550, RAIL], [360, RAIL], [360, SLOT.y]]));
 		} else {
 			b.piece = box(598, mid - 25, 56, 50);
 			arrows.push(
@@ -435,9 +436,9 @@ const SeedcraftLayouts = (() => {
 		if (faces) {
 			const to = b.piece || b.keyDict, tw = b.tower;
 			tips = { faces: { box: box(208, 64, 116, 54), side: "left" },
-				tower: { box: box(tw.x, 192, 140, 44), side: "up", at: tw.w / 2 },
+				tower: { box: box(tw.x, 192, 150, 44), side: "up", at: tw.w / 2 },
 				piece: { box: box(486, 172, 178, 56), side: "up", at: to.x + to.w / 2 - 486 } };
-			if (2 ** Math.floor(Math.log2(sides)) < sides) tips.reroll = { box: box(208, 124, 116, 84), side: "left" };
+			if (2 ** Math.floor(Math.log2(sides)) < sides) tips.reroll = { box: box(208, 124, 116, 92), side: "left" };
 		}
 		return { boxes: b, faces, arrows, tips };
 	}

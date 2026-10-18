@@ -600,7 +600,7 @@ body { overflow: hidden; }
 /* «up»: under its subject, the tail on top at --at (from the bubble's left); the throw's intro bubbles let taps through */
 .tip.up::after { top: auto; bottom: 100%; left: var(--at, 50%); margin-top: 0; margin-left: calc(var(--u) * -6); border-bottom: calc(var(--u) * 10) solid var(--accent);
 	border-left: calc(var(--u) * 6) solid transparent; border-right: calc(var(--u) * 6) solid transparent; border-top: 0; }
-.tip.kt-tip { pointer-events: none; font-size: .74em; }
+.tip.kt-tip { pointer-events: none; }
 .tip-close { flex: none; align-self: flex-start; border: 0; background: none; color: inherit; font: inherit; font-size: 1.3em; line-height: 1; padding: 0 calc(var(--u) * 2); cursor: pointer; }
 /* the bits a last turn brings: ringed; the others dimmed */
 .v-bit-ring { fill: none; stroke: var(--accent); stroke-width: 1.6; }
