@@ -420,6 +420,8 @@ ol.entries.paper li { color: #111; border-bottom-color: #ccc; }
 /* dice and their faces as buttons in relief: pressed, they sink */
 .v-die-body { fill: var(--surface); stroke: var(--line-strong); stroke-width: 3; }
 .v-die-edge { fill: var(--line-strong); }
+.v-die-shape .v-die-body { fill: var(--sunk); stroke: var(--fg); stroke-width: 4; stroke-linejoin: round; }
+.v-die-shape .v-die-rim { stroke: var(--fg); stroke-width: 3; }
 .v-die-rim { fill: none; stroke: var(--line); stroke-width: 2; }
 .v-die-face { fill: var(--fg); }
 .v-die-pip { fill: var(--fg); }

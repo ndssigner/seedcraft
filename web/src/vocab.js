@@ -708,13 +708,13 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 		4: { poly: "50,8 94,86 6,86", ty: 62 }, 8: { poly: "50,3 92,48 50,94 8,48" }, 10: { poly: "50,3 90,36 50,94 10,36", ty: 42 },
 		12: { poly: "50,6 94,38 77,90 23,90 6,38" }, 16: { poly: "50,2 88,25 88,70 50,94 12,70 12,25" }, 20: { poly: "50,6 95,86 5,86", facet: "50,32 76,76 24,76", ty: 66 },
 	};
-	function diceShape({ sides, size = 56 }) {
-		const sh = DIE_SHAPES[sides], s = String(sides), fs = s.length > 1 ? 30 : 44;
+	function diceShape({ sides, size = 56, x, y }) {
+		const sh = DIE_SHAPES[sides], s = String(sides), fs = s.length > 1 ? 38 : 52;
 		const body = sh
 			? [svg("polygon", { points: sh.poly, transform: "translate(0 6)", class: "v-die-edge" }), svg("polygon", { points: sh.poly, class: "v-die-body" }), sh.facet ? svg("polygon", { points: sh.facet, class: "v-die-rim" }) : null]
 			: [svg("rect", { x: 8, y: 13, width: 84, height: 84, rx: 18, class: "v-die-edge" }), svg("rect", { x: 8, y: 6, width: 84, height: 84, rx: 18, class: "v-die-body" })];
-		const cy = sh && sh.ty ? sh.ty : 48, f = sh && sh.facet ? 26 : fs;
-		return svg("svg", { class: "v-die v-die-shape", width: size, height: size, viewBox: "0 0 100 100", "aria-hidden": "true" },
+		const cy = sh && sh.ty ? sh.ty : 48, f = sh && sh.facet ? 30 : sh && sh.ty && s.length === 1 ? 46 : fs;
+		return svg("svg", { class: "v-die v-die-shape", width: size, height: size, viewBox: "0 0 100 100", "aria-hidden": "true", ...(x !== undefined ? { x: r1(x), y: r1(y) } : {}) },
 			body, svg("text", { x: 50, y: cy + f * 0.36, "font-size": f, "text-anchor": "middle", class: "v-t v-bold v-die-face" }, s));
 	}
 	const faceButton = ({ sides, face, onPress, disabled = false, label, size = 48 }) =>
