@@ -439,6 +439,11 @@ for (const size of [21, 25]) for (const n of [2, 4, 8, 16, 32]) for (const pad o
 			check(ids.includes("position") === cells.length > 0 && ids.includes("paint") === (what === "read" && cells.length > 0), `${what} ${name}: the position (and the painting) only with data squares`);
 		}
 		const cardsArrow = (lay) => lay.arrows.find((a) => a.id === "cards");
+		{
+			// the arrows into and out of the cards have a run to be seen (at least 24 along their longest segment), the mask's too
+			const run = (a) => Math.max(...a.points.slice(1).map((p, j) => Math.abs(p[0] - a.points[j][0]) + Math.abs(p[1] - a.points[j][1])));
+			for (const [what, lay] of [["make", make], ["read", read]]) for (const a of lay.arrows.filter((x) => x.id === "mask" || x.id === "cards")) check(run(a) >= 24, `header ${name}: ${what} ${a.id} arrow runs ${run(a)} (at least 24)`);
+		}
 		check(cardsArrow(make).from === "cards" && cardsArrow(make).to === "bits" && cardsArrow(read).from === "bits" && cardsArrow(read).to === "cards", `header ${name}: making, the cards give the bits; reading, the bits go to the cards`);
 		check(J.turnStages({ pad, file, header: true, data: cells.length > 0 }).flatMap((x) => x.arrows).filter((id) => make.arrows.some((a) => a.id === id)).join() === make.arrows.map((a) => a.id).join()
 			&& J.readStages({ pad, file, header: true, data: !!cursor }).flatMap((x) => x.arrows).filter((id) => read.arrows.some((a) => a.id === id)).join() === read.arrows.map((a) => a.id).join(),
