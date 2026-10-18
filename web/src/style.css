@@ -14,7 +14,7 @@
 	/* the pad's thread: weld, the other old dye, never drawn with the indigo except to check both */
 	--pad: #8a7a14; --pad-soft: #f1ecc9;
 	/* the slides' vocabulary: blue comes from the QR code, amber from the key, red is an error or a ✕ */
-	--qr: #1f66c9; --qr-soft: #dce9fb; --key: #b36b00; --key-soft: #fbecd2; --err: #c0261d; --err-soft: #fbe3e1;
+	--pos: var(--fg); --qr: #1f66c9; --qr-soft: #dce9fb; --key: #b36b00; --key-soft: #fbecd2; --err: #c0261d; --err-soft: #fbe3e1;
 	--bg: var(--paper);
 	--book: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", "URW Palladio L", Georgia, serif;
 	--sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -286,12 +286,12 @@ ol.entries.paper li { color: #111; border-bottom-color: #ccc; }
 
 /* ---- the slides' visual vocabulary (vocab.js): one look for every slide ---- */
 .v { color: var(--fg); }
-.v-c-qr { color: var(--qr); } .v-c-key { color: var(--key); } .v-c-err { color: var(--err); } .v-c-seed { color: var(--fg); }
+.v-c-pos { color: var(--pos); } .v-c-qr { color: var(--qr); } .v-c-key { color: var(--key); } .v-c-err { color: var(--err); } .v-c-seed { color: var(--fg); }
 .v-t { fill: currentColor; font-family: var(--sans); }
 .v-mono { font-family: var(--mono); }
 .v-bold { font-weight: 700; }
 .v-pos, .v-sub { fill: var(--muted); }
-.v-pos-current { fill: var(--qr); font-weight: 700; }
+.v-pos-current { fill: var(--pos); font-weight: 700; }
 .v-name { fill: var(--fg); }
 .v-ink { fill: var(--fg); } .v-ink-dark { fill: #111111; } .v-ink-light { fill: #ffffff; }
 /* pieces: a bead on its thread; a missing one a dashed hole; the turn's ringed in the accent */
@@ -312,8 +312,8 @@ ol.entries.paper li { color: #111; border-bottom-color: #ccc; }
 .v-thread-ref { stroke-width: 1.5; stroke-dasharray: 1 3; }
 .v-reference .v-piece:not(.v-current) { opacity: .55; }
 .v-build .v-empty:not(.v-current) { opacity: .6; }
-.v-turn-frame { fill: none; stroke: var(--qr); stroke-width: 1.5; }
-.v-pos-box { fill: none; stroke: var(--qr); stroke-width: 1.5; }
+.v-turn-frame { fill: none; stroke: var(--pos); stroke-width: 1.5; }
+.v-pos-box { fill: none; stroke: var(--pos); stroke-width: 1.5; }
 .v-pos-current.v-pos-typed { text-decoration: underline; text-underline-offset: 2px; }
 .v-pos-current.v-pos-key { fill: var(--key); }
 .v-col-typing .v-slot .v-hole { stroke-width: 3; }
@@ -372,7 +372,7 @@ ol.entries.paper li { color: #111; border-bottom-color: #ccc; }
 .v-clock-by { fill: var(--key); }
 .v-clock-out { fill: var(--fg); }
 /* the QR code: the turn's squares blue. It stays light in the dark theme (to scan), so its tokens are the light ones */
-.v-qr { --qr: #1f66c9; --qr-soft: #dce9fb; --err: #c0261d; }
+.v-qr { --pos: #2b2f33; --qr: #1f66c9; --qr-soft: #dce9fb; --err: #c0261d; }
 .v-qr-bg { fill: #ffffff; stroke: var(--line); }
 .v-qr-dark { fill: #1c2826; }
 .v-qr-unknown { fill: #e3e7e5; stroke: #ffffff; stroke-width: .3; }
@@ -383,9 +383,9 @@ ol.entries.paper li { color: #111; border-bottom-color: #ccc; }
 .v-qr-hatch-line { stroke: #b36b00; stroke-width: .6; opacity: .7; }
 .v-qr-hatched { pointer-events: none; }
 .v-qr-legend-text { fill: var(--muted); font-family: var(--sans); }
-.v-qr-tab { fill: var(--qr); } .v-qr-tab-text { fill: #ffffff; font-family: var(--sans); font-weight: 600; }
+.v-qr-tab { fill: var(--pos); } .v-qr-tab-text { fill: #ffffff; font-family: var(--sans); font-weight: 600; }
 .v-dict-label { fill: var(--fg); font-family: var(--sans); }
-.v-qr-marker { fill: none; stroke: var(--qr); stroke-width: 2.5; pointer-events: none; }
+.v-qr-marker { fill: none; stroke: var(--pos); stroke-width: 2.5; pointer-events: none; }
 .v-qr-mask-line { fill: none; stroke: var(--key); stroke-width: 1; opacity: .7; pointer-events: none; }
 .v-qr-reveal { animation: v-reveal 1ms both; }
 .v-qr-fixed-reveal { animation: v-reveal 400ms both; }

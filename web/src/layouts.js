@@ -107,7 +107,7 @@ const SeedcraftLayouts = (() => {
 			guide: { ...GUIDE },
 		};
 		const arrows = [
-			arrow("position", "posBox", "qr", "qr", underQr(b.qr, 266)),
+			arrow("position", "posBox", "qr", "pos", underQr(b.qr, 266)),
 			arrow("bits", "qr", "bits", "qr", [[196, 67], [212, 67]]),
 			arrow("number", "bits", "number", "qr", [[232, 78], [232, 94]]),
 		];
@@ -163,7 +163,7 @@ const SeedcraftLayouts = (() => {
 			seedString: { ...BUILT }, seedSlot: { ...SLOT }, posBox: { ...POSBOX }, guide: { ...GUIDE } };
 		const parts = headerCards(b, cx, cw, header), qx = qr.x + qr.w / 2, mid = bx + bw / 2;
 		const arrows = [];
-		if (data) arrows.push(arrow("position", "posBox", "qr", "qr", [[326, 266], [qx, 266], [qx, qr.y + qr.h]]));
+		if (data) arrows.push(arrow("position", "posBox", "qr", "pos", [[326, 266], [qx, 266], [qx, qr.y + qr.h]]));
 		if (parts.includes("mask")) arrows.push(maskArrow(b, size));
 		arrows.push(arrow("cards", "cards", "bits", "qr", [[cx + cw, CARDS_MID], [bx, CARDS_MID]]));
 		if (data) arrows.push(arrow("bits", "qr", "bits", "qr", [[qx, qr.y], [qx, 30], [mid, 30], [mid, b.bits.y]]));
@@ -258,7 +258,7 @@ const SeedcraftLayouts = (() => {
 		// over the top into the QR above the cursor; under it and up its outer side into it beside the cursor
 		const position = () => {
 			const x = b.posBox.x + b.posBox.w / 2, cx = Math.round(cursor.x + cursor.w / 2);
-			return arrow("position", "posBox", "qr", "qr", [[x, b.posBox.y], [x, TOP], [cx, TOP], [cx, b.qr.y]]);
+			return arrow("position", "posBox", "qr", "pos", [[x, b.posBox.y], [x, TOP], [cx, TOP], [cx, b.qr.y]]);
 		};
 		// (into the QR as drawn: with its legend, the rule V.qr follows from 150 high, it is narrower than its box)
 		const paint = (from) => {
@@ -654,7 +654,7 @@ const SeedcraftLayouts = (() => {
 		if (pad) Object.assign(b, { qrTip: box(212, 70, 150, 64), keyString: box(380, 66, 34, 180), count: box(430, 66, 234, 96), keyTip: box(430, 170, 234, 40) });
 		else Object.assign(b, { qrTip: box(212, 80, 180, 56), count: box(424, 66, 240, 120) });
 		const y = b.posBox.y + b.posBox.h / 2;
-		return { boxes: b, arrows: [arrow("position", "posBox", "qr", "qr", [[b.posBox.x, y], ...underQr(b.qr, y).slice(1)])] };
+		return { boxes: b, arrows: [arrow("position", "posBox", "qr", "pos", [[b.posBox.x, y], ...underQr(b.qr, y).slice(1)])] };
 	}
 	// Before checking (spec §7): the string to read, a column as readTurn's
 	// (and the key's beside it, a gap for the seed's bubble between them), each
