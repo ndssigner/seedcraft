@@ -361,11 +361,12 @@ ol.entries.paper li { color: #111; border-bottom-color: #ccc; }
 .v-clock-tick { fill: var(--line-strong); }
 .v-clock-tick.from { fill: var(--fg); }
 .v-clock-tick.to { fill: var(--accent); }
-.v-clock-n { fill: var(--muted); }
-.v-clock-n.from, .v-clock-n.to { fill: var(--fg); font-weight: 700; }
+.v-clock-n { fill: var(--muted); opacity: .55; }
+.v-clock-formula { fill: var(--muted); opacity: .7; }
+.v-clock-n.from, .v-clock-n.to { fill: var(--fg); font-weight: 700; opacity: 1; }
 /* going round past N − 1 to 0: those two in amber, like the trail */
 .v-clock-tick.wrap, .v-clock-n.wrap { fill: var(--key); }
-.v-clock-n.wrap { font-weight: 700; }
+.v-clock-n.wrap { font-weight: 700; opacity: 1; }
 .v-clock-arc { fill: none; stroke: var(--key); stroke-width: 2.5; }
 .v-clock-token { fill: var(--accent); stroke: var(--surface); stroke-width: 1.5; }
 .v-clock-by { fill: var(--key); }
