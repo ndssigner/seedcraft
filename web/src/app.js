@@ -1905,9 +1905,9 @@
 	// ---- make, 7: store it ------------------------------------------------------
 	// layouts.js's store. With a key, two places, A and B, a red dashed border
 	// between them, «never together»: in A your string and its dictionary, in
-	// B the key and its own (the same one: a copy in each, SPEC §10.8), each
-	// with «Saved». With no key, the string in one place and the dictionary
-	// apart. At the foot, in red, forgetting everything here; a key file not
+	// B the key and its own (the same one: a copy in each, SPEC §10.8; none
+	// beside a key file), each with «Saved». With no key, the string in one
+	// place with no dictionary (it has its own place) and the dictionary apart. At the foot, in red, forgetting everything here; a key file not
 	// saved yet is saved first, and until then nothing is forgotten.
 	function storeSlide() {
 		const t = T(), m = st.make, pad = st.mode === "pad", file = pad && st.plan.padAs === "file", n = st.dict.things.length;
@@ -1926,6 +1926,8 @@
 		};
 		const kids = [
 			svg("rect", { x: b.a.x, y: b.a.y, width: b.a.w, height: b.a.h, rx: 8, class: "st-place" }), seedString,
+			// in a key's mode each place keeps the dictionary of what it holds; with no key the dictionary has its own place
+			pad ? V.dictionary({ label: T().dictLabel, box: b.aDict, things: st.dict.things, mode: "static", icon: "seed" }) : null,
 		];
 		const over = [];
 		const note = (box, ...lines) => over.push(place(h("div", { class: "st-note" }, lines.filter(Boolean).map((x) => h("p", { text: x }))), box));
@@ -1937,8 +1939,7 @@
 			const keyThings = file ? null : keyThingsMade();
 			kids.push(svg("rect", { x: b.b.x, y: b.b.y, width: b.b.w, height: b.b.h, rx: 8, class: "st-place st-key" }),
 				file ? keyFile() : V.string({ box: b.bString, orientation: "h", role: "read", kind: "key", things: keyThings, items: first(m.pad), showValues: false }),
-				// the key's card draws no dictionary unless it is the key's own collection, which has no other place
-				own ? V.dictionary({ label: T().dictLabel, box: b.bDict, things: st.padDict.things, mode: "static", icon: "key" }) : null,
+				file ? null : V.dictionary({ label: T().dictLabel, box: b.bDict, things: own ? st.padDict.things : st.dict.things, mode: "static", icon: "key" }),
 				svg("line", { x1: b.border.x + b.border.w / 2, y1: b.border.y, x2: b.border.x + b.border.w / 2, y2: b.border.y + b.border.h, class: "st-border" }),
 				svg("text", { x: b.apart.x + b.apart.w / 2, y: b.apart.y + 12, "font-size": 12, "text-anchor": "middle", class: "v-t v-bold v-c-err" }, t.storeApart));
 			titled(b.aTitle, "seed", t.storeA); titled(b.bTitle, "key", t.storeB);
