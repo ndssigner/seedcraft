@@ -6,14 +6,44 @@
 "use strict";
 
 const SeedcraftJourneys = (() => {
-	// pieces of each kind that cover 99.9 % of seeds, plus one spare, in
-	// packs of 5 (SPEC §6; simulated with the reference implementation)
-	const BUY = { 12: { 2: 130, 4: 45, 8: 25, 16: 15, 32: 10 }, 24: { 2: 215, 4: 70, 8: 35, 16: 20, 32: 15 } };
-	// the same for both strings of pad mode (SPEC §10.6); for a pad-mode
-	// sequence alone, the table above, except N = 2 with 12 words: 135
-	const PAD_BUY = { 12: { 2: 250, 4: 80, 8: 35, 16: 20, 32: 15 }, 24: { 2: 410, 4: 125, 8: 55, 16: 30, 32: 20 } };
-	const buyFor = (words, n, mode, padAs) => mode === "pad" && padAs === "string" ? PAD_BUY[words][n]
-		: mode === "pad" && words === 12 && n === 2 ? 135 : BUY[words][n];
+	// 90th percentile of the largest count of one kind, by simulation; the
+	// exact count comes once the seed is known. ESTIMATE: per string (a seed
+	// alone, or a key in its own collection or file); ESTIMATE_BOTH: seed and
+	// key strings sharing one collection.
+	const ESTIMATE = { 12: { 2: 119, 4: 36, 8: 16, 16: 8, 32: 5 }, 24: { 2: 198, 4: 57, 8: 24, 16: 12, 32: 7 } };
+	const ESTIMATE_BOTH = { 12: { 2: 230, 4: 66, 8: 27, 16: 14, 32: 8 }, 24: { 2: 386, 4: 107, 8: 43, 16: 20, 32: 11 } };
+	// padAs "string" with mode "pad" means the shared collection (both strings)
+	const buyFor = (words, n, mode, padAs) => (mode === "pad" && padAs === "string" ? ESTIMATE_BOTH : ESTIMATE)[words][n];
+	// the largest count of any one value across all the strings together
+	const maxPerKind = (...strings) => {
+		const count = new Map();
+		let max = 1;
+		for (const str of strings) for (const v of str) { const c = (count.get(v) || 0) + 1; count.set(v, c); if (c > max) max = c; }
+		return max;
+	};
+	// initials, but three letters for the entries that collide (BLE, BLE2 if still equal)
+	function uniqueInitials(names, initialsOf) {
+		const ini = names.map(initialsOf), three = (name) => {
+			const w = name.trim().split(/\s+/);
+			return (w.length > 1 ? w[0][0] + w[1].slice(0, 2) : w[0].slice(0, 3)).toUpperCase();
+		};
+		const out = ini.map((x, i) => ini.filter((y) => y === x).length > 1 ? three(names[i]) : x), seen = new Map();
+		return out.map((x, i) => {
+			if (ini.filter((y) => y === ini[i]).length < 2 && out.filter((y) => y === x).length < 2) return x;
+			const c = (seen.get(x) || 0) + 1; seen.set(x, c);
+			return c > 1 && out.filter((y) => y === x).length > 1 ? x + c : x;
+		});
+	}
+	// the two sequences differ, but only in bits past nbits (the padding)
+	function onlyPadding(readPlain, madePlain, k, nbits) {
+		if (readPlain.length !== madePlain.length) return false;
+		let differ = false;
+		for (let i = 0; i < readPlain.length; i++) {
+			const x = readPlain[i] ^ madePlain[i];
+			for (let b = 0; b < k; b++) if ((x >> (k - 1 - b)) & 1) { if (i * k + b < nbits) return false; differ = true; }
+		}
+		return differ;
+	}
 	// how many pieces a seed takes (SPEC §2)
 	const symbolsFor = (words, n) => Math.ceil((words === 12 ? 213 : 364) / Math.log2(n));
 
@@ -211,5 +241,5 @@ const SeedcraftJourneys = (() => {
 		return v < n ? { buffer: "", value: v, clear: false } : { buffer: "", value: null, clear: true };
 	}
 
-	return { BUY, PAD_BUY, typedPiece, EXPLAINED, turnStages, readStages, checkRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, splitMaterials, nameProblem, checkOrder, throwParts };
+	return { ESTIMATE, ESTIMATE_BOTH, maxPerKind, uniqueInitials, onlyPadding, typedPiece, EXPLAINED, turnStages, readStages, checkRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, splitMaterials, nameProblem, checkOrder, throwParts };
 })();
