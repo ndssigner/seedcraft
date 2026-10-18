@@ -3,7 +3,7 @@
 // code, arrows, decision cards, dice), drawn on the boxes layouts.js gives.
 // It draws with the svg() and h() it is given, so web/test.mjs can check its
 // structure without a DOM. Colours are classes (style.css: --qr blue for what
-// comes from the QR code, --key amber for what comes from the key, --err red);
+// comes from the QR code, --pos neutral for a position, --key amber for what comes from the key, --err red);
 // nothing here writes a style attribute or an inline handler.
 "use strict";
 
@@ -435,7 +435,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			text(box.x + box.w / 2, box.y + box.h - 2, fs, thing ? fit(thing.name, box.w, fs) : "", { "text-anchor": "middle", class: "v-name" }));
 	};
 	// ---- a frame around a row (the turn's, when reading) ---------------------
-	const frame = ({ box, colour = "qr" }) => svg("rect", { x: box.x, y: box.y, width: box.w, height: box.h, rx: 6, class: `v v-frame ${colourClass(colour)}` });
+	const frame = ({ box, colour = "pos" }) => svg("rect", { x: box.x, y: box.y, width: box.w, height: box.h, rx: 6, class: `v v-frame ${colourClass(colour)}` });
 
 	// ---- the clock module: inputs on top, the dial, the output at the bottom ----
 	// The bands and the dial are layouts.js's clockModule (the arrows enter its
@@ -552,7 +552,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	// reveal: { order: [[r, c]], ms }, the dark data cells in order appear one after the other over ms.
 	// fixed: Set of r * size + c (the function modules), drawn apart in amber/brown with a hatch (they cost no pieces);
 	// legendSpace: keep the legend's room (the square as if drawn with a legend) and draw nothing in it;
-	// legend: a short string under the QR (the QR is then 14 smaller); markerLabel: a blue tab on the marker,
+	// legend: a short string under the QR (the QR is then 14 smaller); markerLabel: a tab on the marker (the position's neutral colour),
 	// both in one g.v-qr-cursor (the last child) so that they glide together
 	function qr({ box, size, modules, turnCells = [], painted = new Map(), wrong = [], reveal = null, fixed = null, legend = null, markerLabel = null, fixedReveal = null, legendSpace = false, cursorCells = turnCells, maskOutline = [] }) {
 		const room = !!legend || legendSpace, LEG = 14, side = Math.min(box.w, box.h) - (room ? LEG : 0), cs = side / size, x0 = box.x + (box.w - side) / 2, y0 = box.y + (box.h - side - (room ? LEG : 0)) / 2;
