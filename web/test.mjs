@@ -1040,6 +1040,11 @@ for (const pad of [false, true]) {
 	const slots3 = walk(cd3, cls("v-card")).map(slotsOf);
 	check(slots3.length === 3 && slots3.every((x) => x === "v-card-art v-card-title v-card-pros v-card-cons"), "cards: the same slots in every card: " + slots3.join(" | "));
 
+	// seven options in rows of four: the short last row is centred (it starts at the second half column)
+	const mk = (n) => V.cards({ cols: 4, options: Array.from({ length: n }, (_, i) => ({ id: i, title: "T" })) });
+	const starts = (n) => walk(mk(n), cls("v-card")).map((c) => (c.attrs.class.match(/v-card-start-(\d)/) || [])[1] || "-").join("");
+	check(starts(7) === "----2--" && starts(8) === "--------" && starts(6) === "----3-" && cls("cols-4")(mk(7)), "cards: a short last row is centred: " + starts(7) + " " + starts(6));
+
 	// a die, and its faces as buttons
 	check(textOf(V.die({ sides: 8, face: 3, size: 56 })) === "4" && textOf(V.die({ sides: 10, face: 3 })) === "3" && textOf(V.die({ sides: 6, face: null })) === "?", "die: its face, in digits from a d8 on");
 	// a d4's and a d6's faces are pips, as on the dice; the device's (a label) and a coin's stay words

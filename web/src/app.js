@@ -561,7 +561,7 @@
 		return { question, help, shortcuts, next, caption, ready: ready !== undefined ? ready : chosen !== null && chosen !== undefined,
 			body: () => h("div", { class: "decision" + (intro ? " intro" : "") + (options.length > 5 ? " lots" : options.length > 4 ? " many" : "") },
 				intro ? h("p", { class: "decision-intro", text: intro }) : null,
-				V.cards({ options, chosen, onChoose: (id) => {
+				V.cards({ options, chosen, cols: options.length > 5 ? 4 : 0, onChoose: (id) => {
 					// a card chosen from the keyboard keeps the focus on the chosen one, drawn anew
 					const keyed = document.activeElement && document.activeElement.classList && document.activeElement.classList.contains("v-card");
 					choose(id); render();

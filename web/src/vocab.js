@@ -605,12 +605,15 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	// ---- a decision: a card per option ----------------------------------
 	// options: [{ id, art (a drawing), title, pros, cons }], at most two ✓ and
 	// two ✕ each. A tap chooses (onChoose(id)); the chosen one has the accent.
-	function cards({ options = [], chosen = null, onChoose }) {
+	// cols: cards per row, for many options (4): a short last row is centred (half columns, the first card of the
+	// last row starts at v-card-start-N)
+	function cards({ options = [], chosen = null, onChoose, cols = 0 }) {
 		// every card keeps all four slots (an empty list stays as a placeholder) so the rows line up
 		const list = (kind, cls, mark, xs) => h("ul", { class: "v-card-" + kind + " v-card-list" + (xs.length ? "" : " empty"), "aria-hidden": xs.length ? null : "true" },
 			xs.slice(0, 2).map((x) => h("li", { class: cls }, h("span", { class: "v-mark", "aria-hidden": "true" }, mark), " ", x)));
-		return h("div", { class: "v-cards" }, options.map((o) => h("button", {
-			type: "button", class: "v-card" + (o.id === chosen ? " on" : ""), "aria-pressed": String(o.id === chosen),
+		const rest = cols ? options.length % cols : 0, lastFrom = options.length - rest;
+		return h("div", { class: "v-cards" + (cols ? " cols-" + cols : "") }, options.map((o, i) => h("button", {
+			type: "button", class: "v-card" + (o.id === chosen ? " on" : "") + (rest && i === lastFrom ? " v-card-start-" + (cols - rest + 1) : ""), "aria-pressed": String(o.id === chosen),
 			on: { click: () => onChoose && onChoose(o.id) },
 		}, h("div", { class: "v-card-art", "aria-hidden": "true" }, o.art || null),
 		h("b", { class: "v-card-title" }, o.title),
