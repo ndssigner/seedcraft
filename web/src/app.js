@@ -884,7 +884,7 @@
 		// a die gives b bits a throw (SPEC §10.2): the throws a piece takes, and whether some faces are thrown again
 		const die = (sides) => {
 			const { b, keep } = S.diceBits(sides), per = Math.ceil(k / b);
-			return { id: "d" + sides, art: V.diceShape({ sides, size: 56 }), title: c.dieTitle(sides),
+			return { id: "d" + sides, art: artOf(V.diceShape({ sides, size: ART_H, x: (ART_W - ART_H) / 2, y: 0 })), title: c.dieTitle(sides),
 				pros: per === 1 ? [c.dieOne] : [], cons: [per > 1 ? c.dieMany(per) : null, keep < sides ? c.dieAgain : null].filter(Boolean) };
 		};
 		// a bag only of pieces you can hold
