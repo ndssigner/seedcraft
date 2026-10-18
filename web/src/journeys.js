@@ -273,6 +273,18 @@ const SeedcraftJourneys = (() => {
 		return [...ini, ...nam];
 	}
 
+	// One key in the open picker: what it does to the typed buffer and the lit match (at, into matches).
+	// -> { buffer, at, pick: the piece to choose or null, consumed }. Tab, Space, Esc, modifiers: left alone.
+	function pickKey({ key, mods, buffer, matches, at }) {
+		const same = { buffer, at, pick: null, consumed: false }, take = (o) => ({ ...same, consumed: true, ...o });
+		if (mods) return same;
+		if (key === "Backspace") return buffer ? take({ buffer: buffer.slice(0, -1), at: 0 }) : same;
+		if (key === "Enter") return buffer ? take({ pick: matches.length ? matches[at] : null }) : same;
+		if ((key === "ArrowDown" || key === "ArrowUp") && matches.length) return take({ at: (at + (key === "ArrowDown" ? 1 : matches.length - 1)) % matches.length });
+		if (typeof key === "string" && key.length === 1 && key !== " ") return take({ buffer: buffer + key, at: 0 });
+		return same;
+	}
+
 	// The bits a last turn's cards show, from the turns up to and including turnIndex only (those of
 	// later turns are null: not here yet). parts: the cards ("version", "mask", "padding"); k: bits a
 	// turn; nmod: the QR's data bits (the header follows: version 2, mask 3, then the padding to the
@@ -305,5 +317,5 @@ const SeedcraftJourneys = (() => {
 		if ((key !== "+" && key !== "=") || mods || buffer) return null;
 		return keyThings && typedCol === "key" ? "key" : "seed";
 	}
-	return { cardGrid, plusKey, headerBitsUpTo, ESTIMATE, ESTIMATE_BOTH, maxPerKind, uniqueInitials, onlyPadding, paddingOnlyRead, checkVerdict, typedPiece, pickMatch, EXPLAINED, turnStages, readStages, checkRead, flipRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, splitMaterials, nameProblem, checkOrder, throwParts };
+	return { cardGrid, plusKey, headerBitsUpTo, ESTIMATE, ESTIMATE_BOTH, maxPerKind, uniqueInitials, onlyPadding, paddingOnlyRead, checkVerdict, typedPiece, pickMatch, pickKey, EXPLAINED, turnStages, readStages, checkRead, flipRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, splitMaterials, nameProblem, checkOrder, throwParts };
 })();

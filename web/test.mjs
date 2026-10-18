@@ -833,9 +833,17 @@ for (const pad of [false, true]) {
 			}
 		}
 	}
-	{
-		const pk = V.dictionary({ box: Lay.pickerPopup({ n: 8 }).boxes.picker, things: Array.from({ length: 8 }, (_, i) => ({ name: "N" + i })), mode: "picker", value: null, icon: "seed", hl: 3 });
-		check(walk(pk, cls("v-pick-hl")).length === 1, "picker: the highlighted piece (hl) has v-pick-hl");
+	for (const [bx, Ns] of [[Lay.pickerPopup({ n: 8 }).boxes.picker, null], [{ x: 100, y: 60, w: 480, h: 240 }, null]]) {
+		for (let N = 2; N <= 32; N++) {
+			const pp = Lay.pickerPopup({ n: N }), b2 = Ns === null && bx.w === 480 ? bx : pp.boxes.picker;
+			const d = V.dictionary({ box: b2, things: Array.from({ length: N }, (_, i) => ({ name: "Name " + i, emoji: i % 3 ? "AB" : "ABC" })), mode: "picker", value: null, icon: "seed" });
+			for (const bt of walk(d, cls("v-pick"))) {
+				const ini = walk(bt, cls("v-pick-ini"))[0], num = walk(bt, cls("v-dict-num"))[0], v = Number(textOf(num)), c = Lay.pickerCell(b2, N, v);
+				const fs = Number(ini.attrs["font-size"]), w = textOf(ini).length * fs * 0.56, right = Number(ini.attrs.x), left = right - w;
+				const numRight = Number(num.attrs.x) + String(v).length * Number(num.attrs["font-size"]) * 0.6;
+				check(left >= c.x && right <= c.x + c.w && Number(ini.attrs.y) <= c.y + c.h && left > numRight, `picker initials inside their cell, clear of the number (N=${N}, ${b2.w}x${b2.h}, piece ${v})`);
+			}
+		}
 	}
 	const ref = V.string({ box: lay.boxes.keyString, orientation: "v", role: "reference", kind: "key", things, items: [1, 2, 3, 4, 5, 6, 7], firstPosition: 11, current: 3 });
 	check(walk(ref, cls("v-piece")).length === 7 && walk(ref, cls("v-turn-frame")).length === 1 && walk(ref, cls("v-thread-ref")).length === 1, "string: a reference, dotted, its turn's piece framed");
@@ -1139,6 +1147,16 @@ for (const pad of [false, true]) {
 		check(same(J.pickMatch(beads, "zz"), []) && same(J.pickMatch(beads, ""), []), "pickMatch: no match is empty");
 		const user = [{ name: "Black Pipe", emoji: "BP" }, { name: "Brown Lentil", emoji: "BL" }, { name: "Black Lentil", emoji: "BLE" }];
 		check(same(J.pickMatch(user, "bl"), [1, 2, 0]), "pickMatch: bl is BL, BLE, then the names");
+	}
+	{
+		const k = (o) => J.pickKey({ key: "", mods: false, buffer: "", matches: [4, 7, 9], at: 0, ...o });
+		check(k({ key: "b" }).buffer === "b" && k({ key: "b" }).consumed && k({ key: "1", buffer: "1" }).buffer === "11", "pickKey: letters and digits build the buffer");
+		check(k({ key: "ArrowDown", buffer: "b" }).at === 1 && k({ key: "ArrowUp", buffer: "b" }).at === 2 && k({ key: "ArrowDown", buffer: "b", at: 2 }).at === 0, "pickKey: arrows cycle among the matches");
+		check(!k({ key: "ArrowDown", matches: [] }).consumed, "pickKey: arrows without matches are left alone");
+		check(k({ key: "Enter", buffer: "b", at: 1 }).pick === 7 && k({ key: "Enter", buffer: "b", matches: [] }).pick === null && k({ key: "Enter", buffer: "b", matches: [] }).consumed, "pickKey: Enter picks the lit match; with none it does nothing");
+		check(!k({ key: "Enter" }).consumed && !k({ key: "Backspace" }).consumed, "pickKey: Enter and Backspace on nothing are left alone");
+		check(k({ key: "Backspace", buffer: "bl" }).buffer === "b", "pickKey: Backspace edits the buffer");
+		check(["Tab", " ", "Escape"].every((x) => !k({ key: x, buffer: "b" }).consumed) && !k({ key: "b", mods: true }).consumed, "pickKey: Tab, Space, Escape and modifiers are not consumed");
 	}
 	{
 		const pk = (o) => J.plusKey({ key: "+", mods: false, buffer: "", keyThings: [1], typedCol: "seed", ...o });
