@@ -703,7 +703,8 @@ const SeedcraftLayouts = (() => {
 		const west = corner[1] === "w", north = corner[0] === "n";
 		const fx = west ? crop.x + crop.side : crop.x, fy = north ? crop.y + crop.side : crop.y;
 		const room = Math.min(west ? fx : iw - fx, north ? fy : ih - fy);
-		const side = Math.max(32, Math.min(room, Math.max(Math.abs(ix - fx), Math.abs(iy - fy))));
+		// (signed: dragged past the fixed corner, it stops at 32 rather than growing the other way)
+		const side = Math.max(32, Math.min(room, Math.max(west ? fx - ix : ix - fx, north ? fy - iy : iy - fy)));
 		return cropClamp({ iw, ih, x: west ? fx - side : fx, y: north ? fy - side : fy, side });
 	}
 	return { cropClamp, cropZoomRange, cropViewClamp, cropViewFit, cropToImage, cropViewOn, cropZoomAt, cropCorner, CROP_STEP, cropKeyScale, cropPinch, BUILT, SLOT, POSBOX, RAIL, pitch, qrSquare, qrCellsBox, digitFont, seedQr, seqIntro, underQr, checkIntro, VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readColumn, placeShift, readTurn, pickerPopup, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, REJECT, BADGE, fileRow, fileColumn, store, dictName, dictCheck, dictAsIs };

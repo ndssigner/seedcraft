@@ -1688,12 +1688,15 @@ check(Lay.cropPinch(100, 50, 100) === 200 && Lay.cropPinch(100, 100, 50) === 50,
   check(ne.x === 100 && ne.y + ne.side === 180 && ne.side === 180, "cropCorner ne: within the photo, the opposite corner fixed");
   const sw = Lay.cropCorner(c, "sw", { ix: 170, iy: 120 }, dims);
   check(sw.x + sw.side === 180 && sw.y === 100 && sw.side === 32, "cropCorner sw: a minimum size");
+  const past = Lay.cropCorner(c, "se", { ix: 20, iy: 10 }, dims), pastNw = Lay.cropCorner(c, "nw", { ix: 390, iy: 290 }, dims);
+  check(past.x === 100 && past.y === 100 && past.side === 32 && pastNw.x + pastNw.side === 180 && pastNw.y + pastNw.side === 180 && pastNw.side === 32, "cropCorner: dragged past the fixed corner, it stops at 32");
   const edge = Lay.cropCorner({ x: 380, y: 280, side: 20 }, "se", { ix: 390, iy: 290 }, dims);
   check(edge.side === 32 && edge.x + edge.side <= 400 && edge.y + edge.side <= 300, "cropCorner: at the photo's edge, still inside and 32");
   const crops = { 0: { x: 1, y: 2, side: 40, base: 7 }, 2: { x: 5, y: 6, side: 50, base: 7 }, 3: { x: 9, y: 9, side: 60, base: 6 }, 5: { x: 0, y: 0, side: 32, base: 7 } };
   check(JSON.stringify(J.usedCrops(crops, 2, 7)) === JSON.stringify([{ i: 0, x: 1, y: 2, side: 40 }, { i: 5, x: 0, y: 0, side: 32 }]), "usedCrops: the other pieces' squares on this photo, not the current piece's nor another photo's");
   check(J.usedCrops({}, 0, 1).length === 0 && J.usedCrops(null, 0, 1).length === 0, "usedCrops: none");
   for (const lang of ["en", "es"]) check(!!TX_CROP[lang].cropOther && !!TX_CROP[lang].cropHint && !!TX_CROP[lang].cropZoomIn && !!TX_CROP[lang].cropZoomOut, `${lang}: the cropper's copy`);
+  check(TX_CROP.es.photoFromBase === "Elegir de la foto" && TX_CROP.en.photoFromBase === "Pick from the photo", "the naming slide's photo button, with a base photo");
   check(TX_CROP.es.cropOther === "Otra foto" && TX_CROP.en.cropOther === "Another photo"
 	&& TX_CROP.es.cropHint === "Arrastra el cuadro hasta la pieza; amplía con la rueda o pellizcando." && TX_CROP.en.cropHint === "Drag the square onto the piece; zoom with the wheel or a pinch.", "the cropper's copy, as approved");
 }
