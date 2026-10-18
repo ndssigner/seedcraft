@@ -489,9 +489,10 @@
 	// RISK-AUDIT.md). A tap chooses, and the chosen card has the accent; Next
 	// waits until one is chosen. A choice that would undo work asks first.
 	const V = SeedcraftVocab(svg, h);
-	function decide({ question, options, chosen, choose, ready, help, shortcuts, next, caption }) {
+	function decide({ question, options, chosen, choose, ready, help, shortcuts, next, caption, intro }) {
 		return { question, help, shortcuts, next, caption, ready: ready !== undefined ? ready : chosen !== null && chosen !== undefined,
-			body: () => h("div", { class: "decision" + (options.length > 5 ? " lots" : options.length > 4 ? " many" : "") },
+			body: () => h("div", { class: "decision" + (intro ? " intro" : "") + (options.length > 5 ? " lots" : options.length > 4 ? " many" : "") },
+				intro ? h("p", { class: "decision-intro", text: intro }) : null,
 				V.cards({ options, chosen, onChoose: (id) => {
 					// a card chosen from the keyboard keeps the focus on the chosen one, drawn anew
 					const keyed = document.activeElement && document.activeElement.classList && document.activeElement.classList.contains("v-card");
@@ -763,7 +764,7 @@
 		const naming = chosen === "name" && !(dict && dict.way === "name");
 		return decide({ question: t.dictQ, options: dictOptions(n, formId, "seed"), chosen,
 			choose: (id) => { ways.error = ""; if (id === "ready") pick(set); else if (id === "name") ways.dict = "name"; else open(); },
-			ready: naming || !!dict, caption: () => ways.error || t.dictIntro,
+			ready: naming || !!dict, caption: () => ways.error || "", intro: t.dictIntro,
 			next: naming ? { go: () => editDict(nameDraft(ways, "nameDraft", undefined, n)), ready: true } : undefined,
 			help: helpOf(t.dictBeforeTitle, null, t.dictChecks),
 			shortcuts: SETS.filter((x) => x.things.length >= n && x !== set).map((x) => ({ icon: x.icon, label: x[st.lang], go: () => { pick(x); render(); } })) });
@@ -1551,10 +1552,11 @@
 		qrBack = false;
 		if (back) qrSeen = 2;
 		return {
-			id: "qr", question: t.qrQ, wide: true, steps: 3, startStep: back ? 2 : 0, caption: (s) => [t.qrStepWords, t.qrStepNumber, t.qrStepQr][s],
+			id: "qr", question: t.qrQ, wide: true, steps: 4, startStep: back ? 3 : 0, caption: (s) => [t.qrStepWords, t.qrStepNumber, t.qrStepQr, t.qrStepFixed][s],
 			help: helpOf(t.qrQ, null, [t.qrHelp]),
 			next: { go: () => { const m = st.make; m.turn = 0; m.explain = null; turnFresh = null; turnBack = false; turnFrom = null; goSlide("make", "seq"); } },
-			body: (step) => {
+			body: (at) => {
+				const step = Math.min(at, 2);   // the last caption (the amber part) is said over the drawing of the step before
 				const grew = step > qrSeen && !calm();
 				qrSeen = step;
 				const reveal = step === 2 && grew ? { order: S.dataModulesRowMajor(qr.size), ms: 1000 } : null;

@@ -1115,7 +1115,7 @@ for (const pad of [false, true]) {
 	const args = { turnPosition: [364], turnNumber: ["11111", 31], turnKeyAt: [364], turnKeyFile: [364, "V", 31], turnKeyNumber: [31], turnClockOf: [32],
 		turnOut: [31], turnDict: [31], turnSlot: [364], readTap: [364], readTapBoth: [364], readTurnPad: [31, 31, 32, 31], readTurnBasic: [31] };
 	const keys = ["turnPosition", "turnBitsAre", "turnNumber", "turnKeyAt", "turnKeyFile", "turnKeyNumber", "turnClockOf", "turnOut", "turnDict", "turnSlot",
-		"turnHeaderNoQr", "seqKeyChanged", "endPad", "endBasic", "whyPad", "makeWarn", "seqIntro", "seqPadIntro",
+		"turnHeaderNoQr", "seqKeyChanged", "qrStepWords", "qrStepNumber", "qrStepQr", "qrStepFixed", "endPad", "endBasic", "whyPad", "makeWarn", "seqIntro", "seqPadIntro",
 		// reading back: the turn's foot, the ends'
 		"readTap", "readTapBoth", "readTurnPad", "readTurnBasic", "readNoFit", "typeHelp", "handDone", "checkMatch", "checkFixed", "checkPadding", "checkMismatch",
 		"readLockedWhy", "readLockedAhead",
@@ -1125,6 +1125,14 @@ for (const pad of [false, true]) {
 		const v = TX[lang][k], s = typeof v === "function" ? v(...(args[k] || [])) : v;
 		check(typeof s === "string" && s.length <= 110, `caption ${lang}.${k} at most 110 characters (${s && s.length}: ${s})`);
 	}
+	// the alerts next to a seed: the plain test-only stance, offline or online (spec §0)
+	for (const lang of ["en", "es"]) for (const k of ["seedOnline", "seedTest"]) {
+		check(/NDS-Signer/.test(TX[lang][k]) && /TEST|PRUEBA/.test(TX[lang][k]) && /online or not|conectado o no/.test(TX[lang][k]), `seed alert ${lang}.${k}: test seeds only, real money elsewhere, online or not`);
+		check(!/seed on a computer that is online|semilla en un ordenador conectado/i.test(TX[lang][k]), `seed alert ${lang}.${k}: does not imply offline is fine`);
+	}
+	// the dictionary choice's explanation lives under the question, whole: in the body, not clamped in the foot
+	const appSrc0 = read("src/app.js");
+	check(/intro: t\.dictIntro/.test(appSrc0) && !/caption: \(\) => ways\.error \|\| t\.dictIntro/.test(appSrc0), "dictIntro is under the question, not in the clamped caption");
 	// the explained turn's last step with a changed piece: the slot's sentence and the key's change together
 	for (const lang of ["en", "es"]) check((TX[lang].turnSlot(364) + " " + TX[lang].seqKeyChanged).length <= 110, `caption ${lang}: slot + key changed fits`);
 	// the first turn read: how to read each form
