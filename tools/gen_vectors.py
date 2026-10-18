@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Writes vectors/seedcraft-v0.json: public test seeds encoded as Seedcraft
-Sequences for every alphabet size, with and without a PIN. Needs embit
+for every alphabet size, with and without a PIN. Needs embit
 (mnemonic -> entropy); the reference implementation itself does not.
 
     tools/gen_vectors.py > vectors/seedcraft-v0.json
