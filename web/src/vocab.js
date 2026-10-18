@@ -658,7 +658,8 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			return h("button", {
 				type: "button", class: "v-card" + (o.id === chosen ? " on" : "") + (rest && i === lastFrom ? " v-card-start-" + (cols - rest + 1) : ""), "aria-pressed": String(o.id === chosen),
 				on: { click: () => onChoose && onChoose(o.id) },
-			}, o.art ? h("div", { class: "v-card-art", "aria-hidden": "true" }, o.art) : null,
+			}, o.star ? h("span", { class: "v-card-star", title: o.starLabel || "", "aria-label": o.starLabel || "" }, "★") : null,
+			o.art ? h("div", { class: "v-card-art", "aria-hidden": "true" }, o.art) : null,
 			h("b", { class: "v-card-title" }, o.title),
 			o.sub ? h("span", { class: "v-card-sub" }, o.sub) : null,
 			items.length ? h("ul", { class: "v-card-list" }, items) : null);
@@ -687,9 +688,23 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 		return svg("svg", { class: "v-die" + (coin ? " v-coin" : "") + (rolling ? " v-rolling" : ""), width: size, height: size, viewBox: "0 0 100 100", "aria-hidden": "true", ...(x !== undefined ? { x: r1(x), y: r1(y) } : {}) },
 			body, mark);
 	}
+	// a die by shape for a card (not a face to throw): its silhouette, its sides in the middle
+	const DIE_SHAPES = {
+		4: { poly: "50,8 94,86 6,86", ty: 70 }, 8: { poly: "50,4 92,50 50,96 8,50" }, 10: { poly: "50,4 90,38 50,96 10,38", ty: 44 },
+		12: { poly: "50,6 94,38 77,90 23,90 6,38" }, 16: { poly: "50,2 88,26 88,74 50,98 12,74 12,26" }, 20: { poly: "50,6 95,86 5,86", facet: "50,32 76,76 24,76", ty: 66 },
+	};
+	function diceShape({ sides, size = 56 }) {
+		const sh = DIE_SHAPES[sides], s = String(sides), fs = s.length > 1 ? 30 : 44;
+		const body = sh
+			? [svg("polygon", { points: sh.poly, transform: "translate(0 6)", class: "v-die-edge" }), svg("polygon", { points: sh.poly, class: "v-die-body" }), sh.facet ? svg("polygon", { points: sh.facet, class: "v-die-rim" }) : null]
+			: [svg("rect", { x: 8, y: 13, width: 84, height: 84, rx: 18, class: "v-die-edge" }), svg("rect", { x: 8, y: 6, width: 84, height: 84, rx: 18, class: "v-die-body" })];
+		const cy = sh && sh.ty ? sh.ty : 48, f = sh && sh.facet ? 26 : fs;
+		return svg("svg", { class: "v-die v-die-shape", width: size, height: size, viewBox: "0 0 100 100", "aria-hidden": "true" },
+			body, svg("text", { x: 50, y: cy + f * 0.36, "font-size": f, "text-anchor": "middle", class: "v-t v-bold v-die-face" }, s));
+	}
 	const faceButton = ({ sides, face, onPress, disabled = false, label, size = 48 }) =>
 		h("button", { type: "button", class: "v-face", disabled: disabled || undefined, "aria-label": faceLabel(sides, face, label), on: { click: () => onPress && onPress(face) } },
 			die({ sides, face, size, label }));
 
-	return { RUN_MS, clockStepMs, icon, iconTag, badge, badgeSize, string, fadeRun, dictionary, bits, headerCard, number, piece, frame, clock, qr, ADVANCE_MS, glide, fadeIn, arrow, cards, die, faceButton };
+	return { RUN_MS, clockStepMs, icon, iconTag, badge, badgeSize, string, fadeRun, dictionary, bits, headerCard, number, piece, frame, clock, qr, ADVANCE_MS, glide, fadeIn, arrow, cards, die, diceShape, faceButton };
 }

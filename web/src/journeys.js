@@ -334,5 +334,15 @@ const SeedcraftJourneys = (() => {
 		const bits = headerBitsUpTo(["mask"], turnIndex, k, nmod, values).mask.bits;
 		return bits.every((x) => x !== null) ? bits : null;
 	}
-	return { cardGrid, plusKey, headerBitsUpTo, maskBitsKnown, ESTIMATE, ESTIMATE_BOTH, maxPerKind, uniqueInitials, onlyPadding, paddingOnlyRead, checkVerdict, typedPiece, pickMatch, pickKey, EXPLAINED, turnStages, readStages, checkRead, flipRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, splitMaterials, nameProblem, checkOrder, throwParts };
+	// the die to recommend for n kinds: fewest throws a piece, then none of its faces thrown again, then fewest sides
+	function bestDie(n, dice) {
+		const k = Math.log2(n), rank = (sides) => { const { b, keep } = SeedcraftSequences.diceBits(sides); return [Math.ceil(k / b), keep === sides ? 0 : 1, sides]; };
+		const less = (a, c) => { for (let i = 0; i < a.length; i++) if (a[i] !== c[i]) return a[i] < c[i]; return false; };
+		let best = null;
+		for (const sides of dice) { const r = rank(sides); if (!best || less(r, best)) best = r; }
+		return best ? best[2] : null;
+	}
+	// a key file holds no bag: the tool a bag key had becomes the best die
+	const keyByForFile = (by, n, dice) => by === "bag" ? "d" + bestDie(n, dice) : by;
+	return { bestDie, keyByForFile, cardGrid, plusKey, headerBitsUpTo, maskBitsKnown, ESTIMATE, ESTIMATE_BOTH, maxPerKind, uniqueInitials, onlyPadding, paddingOnlyRead, checkVerdict, typedPiece, pickMatch, pickKey, EXPLAINED, turnStages, readStages, checkRead, flipRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, splitMaterials, nameProblem, checkOrder, throwParts };
 })();
