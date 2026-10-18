@@ -538,9 +538,21 @@ body { overflow: hidden; }
 /* the gather cards: pieces and assembly per collection, then what is only recommended */
 .pieces { position: absolute; left: calc(var(--u) * 20); right: calc(var(--u) * 20); top: calc(var(--u) * 62); bottom: calc(var(--u) * 6);
 	display: flex; flex-direction: column; justify-content: center; gap: calc(var(--u) * 4); }
-.gather-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(var(--u) * 140), 1fr)); grid-auto-rows: 1fr; gap: calc(var(--u) * 8); flex: 1 1 auto; min-height: 0; }
+.gather-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: calc(var(--u) * 8); flex: 1 1 auto; min-height: 0; }
 .gather-card { display: flex; flex-direction: column; gap: calc(var(--u) * 2); padding: calc(var(--u) * 6) calc(var(--u) * 8); min-height: 0; overflow: hidden;
 	border: 1px solid var(--line-strong); border-radius: var(--r-l); background: var(--surface); }
+.gather-grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.gather-grid.cols-1 { grid-template-columns: minmax(0, 24em); justify-content: center; }
+/* nothing in a card shrinks into its neighbour: the body takes what is left, every row keeps its own height */
+.gather-card > * { flex: none; min-height: auto; }
+.gather-card > .gather-body { flex: 1 0 auto; }
+.gather-grid.cols-3 .gather-art, .gather-grid.cols-3 .gather-dots { height: calc(var(--u) * 16); }
+.gather-grid.cols-3 .gather-nums b, .gather-grid.cols-3 .gather-big b { font-size: 1.6em; }
+.gather-assembly { border-top: 1px solid var(--line); padding-top: calc(var(--u) * 3); display: flex; flex-direction: column; gap: calc(var(--u) * 2); }
+.gather-assembly-head { display: flex; align-items: center; gap: .5em; }
+.gather-assembly-head .gather-art { width: calc(var(--u) * 28); height: calc(var(--u) * 16); }
+.gather-assembly h3 { margin: 0; font-size: .9em; }
+.gather-ticks { display: flex; flex-direction: column; gap: calc(var(--u) * 1); margin-top: auto; }
 .gather-card.key { border-color: var(--key); }
 .gather-card.recommended-card { border-style: dashed; background: transparent; }
 .gather-card h2 { margin: 0; font-size: .95em; display: flex; align-items: baseline; gap: .4em; flex-wrap: wrap; }
@@ -564,7 +576,7 @@ body { overflow: hidden; }
 .recommended-card li { display: flex; align-items: center; gap: .5em; line-height: 1.2; }
 .recommended-card li .gather-art { width: calc(var(--u) * 30); height: calc(var(--u) * 18); flex: none; }
 .recommended-card li small { color: var(--muted); font-size: .85em; margin-left: auto; }
-.gather-tick { display: flex; align-items: center; gap: .5em; font-weight: 600; font-size: .9em; cursor: pointer; margin-top: auto; }
+.gather-tick { display: flex; align-items: center; gap: .5em; font-weight: 600; font-size: .9em; cursor: pointer; }
 .gather-tick input { width: 1.2em; height: 1.2em; margin: 0; }
 .pieces-file { margin: 0; font-size: .85em; align-self: center; color: var(--muted); }
 .seed-intro { margin: 0; font-size: .95em; }

@@ -133,6 +133,24 @@ const SeedcraftJourneys = (() => {
 	// assembly of each group that has one ("assembly:" + what); a written form
 	// (g.written) has no pieces to gather, so its pieces count as done.
 	const gatherDone = (gathered, groups) => groups.every((g) => (g.written || !!gathered[g.what]) && (!g.assembly || !!gathered["assembly:" + g.what]));
+	// What is recommended to gather besides the pieces, by form (spec 2): text is a
+	// key of i18n gatherTip, art a gatherArt kind. Union over forms, the first form's order, no repeats.
+	const TIPS = {
+		necklace: [["box", "box"], ["tweezers", "tweezers", 1], ["needle", "needle", 1]],
+		gems: [["box", "box"], ["tweezers", "tweezers", 1]],
+		stickers: [["envelope", "envelopes"], ["tweezers", "tweezersSmall", 1]],
+		photos: [["photo", "prints"], ["corner", "corners", 1]],
+		book: [["pen", "pen"]],
+		bricks: [["box", "box"], ["glue", "glue"]],
+		other: [["box", "box"]],
+	};
+	const gatherTips = (forms) => {
+		const out = [];
+		for (const f of forms) for (const [art, text, opt] of TIPS[f] || []) if (!out.some((x) => x.text === text)) out.push({ art, text, optional: !!opt });
+		return out;
+	};
+	// One card per group: its pieces, and its assembly inside when it has one
+	const gatherCards = (groups) => groups.map((g) => ({ group: g, assembly: !!g.assembly }));
 	// The materials text of a form, with the length or quantity apart to draw
 	// big: the first number (with its «cm»), or null when the text has none.
 	function splitMaterials(text) {
@@ -344,5 +362,5 @@ const SeedcraftJourneys = (() => {
 	}
 	// a key file holds no bag: the tool a bag key had becomes the best die
 	const keyByForFile = (by, n, dice) => by === "bag" ? "d" + bestDie(n, dice) : by;
-	return { bestDie, keyByForFile, cardGrid, plusKey, headerBitsUpTo, maskBitsKnown, ESTIMATE, ESTIMATE_BOTH, maxPerKind, uniqueInitials, onlyPadding, paddingOnlyRead, checkVerdict, typedPiece, pickMatch, pickKey, EXPLAINED, turnStages, readStages, checkRead, flipRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, splitMaterials, nameProblem, checkOrder, throwParts };
+	return { bestDie, keyByForFile, cardGrid, plusKey, headerBitsUpTo, maskBitsKnown, ESTIMATE, ESTIMATE_BOTH, maxPerKind, uniqueInitials, onlyPadding, paddingOnlyRead, checkVerdict, typedPiece, pickMatch, pickKey, EXPLAINED, turnStages, readStages, checkRead, flipRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, gatherTips, gatherCards, splitMaterials, nameProblem, checkOrder, throwParts };
 })();
