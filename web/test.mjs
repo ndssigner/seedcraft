@@ -1183,6 +1183,18 @@ for (const pad of [false, true]) {
 		const f = J.checkRead({ taps: rev(sym), keys: key, symbols: sym, pad: key, keyRead: false });
 		check(f.reversed && !f.swapped && !f.keyReversed && f.wrong.length === 0, "checkRead: a key file is read as it is");
 	}
+	// a read from the other end (or the two strings swapped), turned the way the copy was made
+	{ const symbols = [1, 2, 3, 4], read = [4, 3, 2, 1], d = J.checkRead({ taps: read, symbols });
+	  const f = J.flipRead({ taps: read, keyTaps: [], reversed: d.reversed, keyReversed: false, swapped: false });
+	  check(d.reversed && f.taps.join() === "1,2,3,4" && J.checkRead({ taps: f.taps, symbols }).wrong.length === 0 && !J.checkRead({ taps: f.taps, symbols }).reversed, "flipRead: a reversed read turned round matches"); }
+	{ const symbols = [1, 2, 3, 4], read = [4, 3, 9, 1], d = J.checkRead({ taps: read, symbols }), f = J.flipRead({ taps: read, keyTaps: [], reversed: d.reversed, keyReversed: false, swapped: false });
+	  check(J.checkRead({ taps: f.taps, symbols }).wrong.length === 1, "flipRead: a wrong piece stays wrong after turning round"); }
+	// checkRead swaps the columns first, then reads each reversed: the key's column (the seed taps, swapped) is the one turned round
+	{ const d = J.checkRead({ taps: [1, 2], keys: [3, 4], symbols: [3, 4], pad: [2, 1], keyRead: true });
+	  const f = J.flipRead({ taps: [1, 2], keyTaps: [3, 4], reversed: d.reversed, keyReversed: d.keyReversed, swapped: d.swapped });
+	  const again = J.checkRead({ taps: f.taps, keys: f.keyTaps, symbols: [3, 4], pad: [2, 1], keyRead: true });
+	  check(d.swapped && d.keyReversed && !d.reversed && f.taps.join() === "3,4" && f.keyTaps.join() === "2,1" && !again.wrong.length && !again.swapped && !again.keyReversed,
+		"flipRead: key reversed and swapped"); }
 	const list = J.slides("make", { mode: "pad", padAs: "string", dict: false, keyWho: "me" });
 	check(J.resolve("make", list, "keyTool") === "keyTool" && J.resolve("make", list, "dictHave") === "dict" && J.resolve("make", list, "keyThrow") === "keyTool"
 		&& J.resolve("make", J.slides("make", { mode: "pad", padAs: "string" }), "keyThrow") === "keyWho" && J.resolve("make", list, "nowhere") === "mode", "resolve: a slide that went gives the one before it");

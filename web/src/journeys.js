@@ -223,6 +223,13 @@ const SeedcraftJourneys = (() => {
 		return best;
 	}
 
+	// A reading turned the way the copy was made (checkRead's reversed, keyReversed, swapped):
+	// the two strings exchanged first, then each read from its other end where it was.
+	function flipRead({ taps, keyTaps = [], reversed, keyReversed, swapped }) {
+		const seedCol = swapped ? keyTaps : taps, keyCol = swapped ? taps : keyTaps, turn = (a, on) => on ? [...a].reverse() : [...a];
+		return { taps: turn(seedCol, reversed), keyTaps: turn(keyCol, keyReversed) };
+	}
+
 	// A piece typed by number: digits fill a buffer; with String(n - 1).length
 	// digits it is chosen (if below n), or on Enter with a non-empty buffer.
 	// Out of range (or Enter on nothing): the buffer clears. Backspace drops one.
@@ -266,5 +273,5 @@ const SeedcraftJourneys = (() => {
 		if ((key !== "+" && key !== "=") || mods || buffer) return null;
 		return keyThings && typedCol === "key" ? "key" : "seed";
 	}
-	return { plusKey, headerBitsUpTo, ESTIMATE, ESTIMATE_BOTH, maxPerKind, uniqueInitials, onlyPadding, typedPiece, EXPLAINED, turnStages, readStages, checkRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, splitMaterials, nameProblem, checkOrder, throwParts };
+	return { plusKey, headerBitsUpTo, ESTIMATE, ESTIMATE_BOTH, maxPerKind, uniqueInitials, onlyPadding, typedPiece, EXPLAINED, turnStages, readStages, checkRead, flipRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, splitMaterials, nameProblem, checkOrder, throwParts };
 })();
