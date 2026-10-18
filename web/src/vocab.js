@@ -146,7 +146,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			label = (i, x, y, thing, pos) => i === current
 				? [thing ? svg("text", { x: r1(x), y: r1(box.y + box.h - 3), "font-size": r1(NAME), "text-anchor": "middle", class: "v-t v-name" }, fit(thing.name, 3 * pitch - NAME * 2, NAME)) : null]
 				: [text(x, cy - r - 1.5, 9, pos, { "text-anchor": "middle", class: "v-pos" })];
-			iconEl = icon(kind, box.x + pad / 2, cy, Math.min(pad * 0.7, 14));
+			iconEl = icon(kind, box.x + pad / 2, cy, Math.min(pad * 0.95, 19));
 			start = box.x + pad;
 		} else if (!vertical) {
 			const cy = box.y + box.h * 0.38;
@@ -155,7 +155,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			label = (i, x, y, thing, pos, value) => [
 				text(x, box.y + box.h - 2, 9, pos, { "text-anchor": "middle", class: posClass(i) }),
 				value !== null && showValues ? text(x + pitch / 2 - 2, box.y + 10, 9, value, { "text-anchor": "end", class: "v-value " + colourClass(kind) }) : null];
-			iconEl = icon(kind, box.x + pad / 2, cy, Math.min(pad * 0.7, 14));
+			iconEl = icon(kind, box.x + pad / 2, cy, Math.min(pad * 0.95, 19));
 			start = box.x + pad;
 		} else if (role === "read") {
 			// layouts.js's readColumn: each row's position on the column's outer side (outer),
@@ -167,7 +167,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			label = (i, x, y, thing, pos, value) => [
 				value !== null && showValues ? text(mid(col.rows[i].value), y + fs * 0.36, fs, value, { "text-anchor": "middle", class: "v-value v-bold " + colourClass(kind) }) : null,
 				text(mid(col.rows[i].pos), y + small * 0.36, small, pos, { "text-anchor": "middle", class: posClass(i) })];
-			iconEl = icon(kind, col.icon[0], col.icon[1], pad * 0.75);
+			iconEl = icon(kind, col.icon[0], col.icon[1], pad * 1.0);
 			start = col.icon[1] + pad * 0.4;
 		} else {
 			// the position on the left, the piece on the right
@@ -179,7 +179,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			label = (i, x, y, thing, pos, value) => [
 				text(box.x + numW / 2, y + fs * 0.35, i === current ? 10 : fs, pos, { "text-anchor": "middle", class: posClass(i) }),
 				value !== null && showValues ? text(box.x + numW / 2, y + fs * 1.4, fs, value, { "text-anchor": "middle", class: "v-value " + colourClass(kind) }) : null];
-			iconEl = icon(kind, cx, box.y + pad / 2, pad * 0.75);
+			iconEl = icon(kind, cx, box.y + pad / 2, pad * 1.0);
 			start = box.y + pad;
 		}
 		// the thread, from the first position there is to the last

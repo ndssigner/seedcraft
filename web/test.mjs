@@ -954,7 +954,7 @@ for (const pad of [false, true]) {
 	check(!walk(alone, cls("v-name")).length && walk(alone, (n) => n.tag === "circle").length === 1, "piece: named false draws the piece alone");
 	within(alone, { x: 0, y: 0, w: 24, h: 24 }, "piece alone");
 	const small = V.string({ box: { x: 0, y: 4, w: 160, h: 48 }, orientation: "h", role: "read", kind: "seed", things, items: [3, 0, 2, 1], showValues: false, room: 20 });
-	check(num(walk(small, cls("v-icon"))[0].attrs.x) === 10 && num(walk(small, cls("v-icon"))[0].attrs["font-size"]) === 14, "string: room sets the icon's room");
+	check(num(walk(small, cls("v-icon"))[0].attrs.x) === 10 && num(walk(small, cls("v-icon"))[0].attrs["font-size"]) === 19, "string: room sets the icon's room");
 	within(small, { x: 0, y: 4, w: 160, h: 48 }, "string on a card");
 	// cards: one per option, at most two ✓ and two ✕
 	let chose = null;
