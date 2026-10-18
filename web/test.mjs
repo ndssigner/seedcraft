@@ -750,13 +750,15 @@ for (const pad of [false, true]) {
 			check(walk(art("blend"), cls("v-qr")).length === 1 && walk(art("blend"), cls("v-intro-necklace")).length === 1 && walk(art("blend"), cls("v-intro-album")).length === 1, "introArt blend: a sheet with its QR; a necklace and an album"); }
 		{ const m = art("modes"), rows = Lay.introRows(Lay.introSlide("modes").boxes.art), threads = walk(m, cls("v-thread"));
 			check(threads.length === 3 && walk(m, cls("v-intro-key")).length === 1 && walk(m, cls("v-intro-lock")).length === 1 && cls("v-c-key")(walk(m, cls("v-intro-lock"))[0]), "introArt modes: one string; a seed string and an amber key string, a padlock between");
+			{ const k = walk(m, cls("v-intro-key"))[0];
+				check(cls("v-key")(k) && walk(k, cls("v-bead-ring")).every(cls("v-intro-key-bead")) && walk(m, cls("v-intro-key-bead")).length === 4 && walk(m, (n) => n.attrs["data-icon"] === "key").length === 1, "introArt modes: the key string in the key's vocabulary (amber thread, amber-outlined pieces, the key icon)"); }
 			const ys = threads.map((t) => num(t.attrs.y1));
 			check(ys[0] > rows[0].y && ys[0] < rows[0].y + rows[0].h && ys.slice(1).every((y) => y > rows[1].y && y < rows[1].y + rows[1].h), "introArt modes: each row level with its text"); }
 		check(walk(art("hand"), cls("v-intro-grid")).length === 1 && walk(art("hand"), cls("v-qr-dark")).length >= 10 && walk(art("hand"), cls("v-intro-pencil")).length === 1 && walk(art("hand"), cls("v-intro-clock")).length === 1, "introArt hand: a pencil on grid paper, part of a QR, a clock");
 		check(walk(art("calm"), cls("v-intro-laptop")).length === 1 && walk(art("calm"), cls("v-intro-cross")).length === 1 && walk(art("calm"), cls("v-intro-box")).length === 1 && walk(art("calm"), cls("v-intro-clock")).length === 1, "introArt calm: a laptop off the network, a box of pieces, a clock");
 		check(walk(art("audit"), cls("v-intro-doc")).length === 1 && /C = \(P \+ K\) mod N/.test(all("audit")) && walk(art("audit"), cls("v-intro-lens")).length === 1, "introArt audit: a document with the formula, a magnifying glass");
 		const css = read("src/style.css");
-		check(["v-intro-card", "v-intro-word", "v-intro-label", "v-intro-necklace-thread", "v-intro-cover", "v-intro-photo", "v-intro-lock-body", "v-intro-grid", "v-intro-pencil-body", "v-intro-dial", "v-intro-screen", "v-intro-cross", "v-intro-crate", "v-intro-sheet-edge", "v-intro-formula", "v-intro-glass"].every((c) => css.includes("." + c)), "introArt: its shapes styled in style.css"); }
+		check(["v-intro-card", "v-intro-word", "v-intro-label", "v-intro-necklace-thread", "v-intro-cover", "v-intro-photo", "v-intro-lock-body", "v-intro-key-bead", "v-intro-grid", "v-intro-pencil-body", "v-intro-dial", "v-intro-screen", "v-intro-cross", "v-intro-crate", "v-intro-sheet-edge", "v-intro-formula", "v-intro-glass"].every((c) => css.includes("." + c)), "introArt: its shapes styled in style.css"); }
 	const things = Array.from({ length: 32 }, (_, i) => ({ name: "Piece " + i, emoji: i % 3 ? "" : "🍎", colour: i % 2 ? "#d04040" : "", photo: "", symbol: "" }));
 	{ // the position is neutral, not the QR's blue
 		const mk = Lay.makeTurn({ pad: true, n: 16 }), bs = V.string({ box: mk.boxes.seedString, role: "build", kind: "seed", things, items: Array(13).fill(null), current: 6, firstPosition: 1, posBox: mk.boxes.posBox });

@@ -757,7 +757,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			const step = (x2 - x1 - 2 * r) / Math.max(1, n - 1);
 			return svg("g", { class: "v-intro-string" + (key ? " v-key v-intro-key" : "") },
 				svg("line", { x1: X(x1), y1: Y(y), x2: X(x2), y2: Y(y), class: "v-thread" }),
-				Array.from({ length: n }, (_, i) => circle(x1 + r + i * step, y, r, "v-bead-ring v-intro-bead v-intro-bead-" + ((from + i) % 5))));
+				Array.from({ length: n }, (_, i) => circle(x1 + r + i * step, y, r, "v-bead-ring v-intro-bead " + (key ? "v-intro-key-bead" : "v-intro-bead-" + ((from + i) % 5)))));
 		};
 		// a small clock face: the sum's, eight marks and a hand
 		const dial = (cx, cy, r) => svg("g", { class: "v-intro-clock" }, circle(cx, cy, r, "v-intro-dial"),
@@ -784,10 +784,10 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 					...[[184, 132], [184, 162], [233, 132], [233, 162]].map(([x, y], i) => rect(x, y, 34, 24, "v-intro-photo v-intro-bead-" + i, 2))),
 				...label(225, 214, labels.hidden));
 		} else if (kind === "modes") {
-			// one string; a seed string and the key's (amber), a padlock between them: each row level with its text
+			// one string; a seed string and the key's (amber: its thread, its pieces' outline, the key icon over it), a padlock between them: each row level with its text
 			const rows = L.introRows({ x: 0, y: 0, w: W, h: H }), y0 = rows[0].y + rows[0].h / 2, y1 = rows[1].y + rows[1].h / 2;
 			parts.push(string(24, 276, y0, 7, 13),
-				string(6, 122, y1, 4, 11), string(178, 294, y1, 4, 11, { key: true, from: 2 }),
+				string(6, 122, y1, 4, 11), string(178, 294, y1, 4, 11, { key: true }), svg("g", { class: "v-c-key v-intro-key-mark" }, icon("key", X(236), Y(y1 - 30), S(26))),
 				svg("g", { class: "v-intro-lock v-c-key" }, path("v-intro-shackle", ["M", 141, y1 - 6], ["L", 141, y1 - 13], ["A", 9, 159, y1 - 13, 1], ["L", 159, y1 - 6]),
 					rect(135, y1 - 6, 30, 22, "v-intro-lock-body", 3), circle(150, y1 + 3, 2.5, "v-intro-keyhole")));
 		} else if (kind === "hand") {

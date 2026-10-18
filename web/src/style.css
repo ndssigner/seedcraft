@@ -802,7 +802,9 @@ body { overflow: hidden; }
 .v-intro-art { fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .v-intro-art .v-t { stroke: none; }
 .v-intro-bead { stroke-width: 1.2; }
-.v-intro-key .v-bead-ring { stroke: var(--key); stroke-width: 1.6; }
+.v-intro-key .v-thread { stroke-width: 3; }
+.v-intro-key .v-bead-ring { stroke: var(--key); stroke-width: 2.4; }
+.v-intro-key-bead { fill: var(--surface); }
 .v-intro-bead-0 { fill: #d9634c; } .v-intro-bead-1 { fill: #6aa36f; } .v-intro-bead-2 { fill: #9b7cc1; } .v-intro-bead-3 { fill: #e3c9a8; } .v-intro-bead-4 { fill: #7d8b8a; }
 .v-intro-card, .v-intro-paper, .v-intro-cover, .v-intro-screen, .v-intro-crate { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.2; }
 .v-intro-word, .v-intro-sheet-word, .v-intro-formula { fill: var(--fg); }
