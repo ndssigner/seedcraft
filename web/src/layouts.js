@@ -145,7 +145,8 @@ const SeedcraftLayouts = (() => {
 	function makeHeaderTurn({ pad, n, file, header, data, size }) {
 		const bw = bitsOf(n) * BIT;
 		// (with a key the bits must end before its string: all of it narrower)
-		const [qr, cx, cw, bx] = pad ? [box(16, 66, 68, 68), 100, 104, 220] : [box(16, 50, 120, 120), 152, 116, 284];
+		// (the arrows between the QR, the cards and the bits run at least 24 to be seen)
+		const [qr, cx, cw, bx] = pad ? [box(16, 70, 60, 60), 100, 100, 224] : [box(16, 50, 112, 112), 152, 108, 284];
 		const b = { qr, bits: box(bx, CARDS_MID - BIT / 2, bw, BIT), number: box(bx, 143, 72, 40),
 			seedString: { ...BUILT }, seedSlot: { ...SLOT }, posBox: { ...POSBOX }, guide: { ...GUIDE } };
 		const parts = headerCards(b, cx, cw, header), qx = qr.x + qr.w / 2, mid = bx + bw / 2;
