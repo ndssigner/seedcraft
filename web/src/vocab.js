@@ -120,7 +120,8 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	// (neutral) or "key" (amber). role "build": the big one, its names under the
 	// pieces, the turn's piece bigger and ringed; "reference": thin, dotted,
 	// dimmed, its turn's piece framed; "read": each piece's number beside it in
-	// its string's colour (showValues). onSlot(i): a hole is a «+» to tap.
+	// its string's colour (showValues). onSlot(i): a hole is a «+» to tap;
+	// slotOnly: only the current place's hole is (any other is a plain empty place: a read column's frontier, seen from before).
 	// room: the icon's room at each end, if not the usual (a small drawing on a card).
 	// titleOf(i): what hovering piece i says, if not its position and name.
 	// column (role "read", vertical): layouts.js's readColumn for this box (readTurn's and
@@ -133,13 +134,14 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	let maskN = 0;
 	// where the pitch is under SLOT_HIT, the clamp to the pitch cell wins over the size: no overlap matters more
 	const SLOT_HIT = 36;
-	function string({ box, orientation = "h", role = "build", kind = "seed", things = [], items = [], firstPosition = 1, current = -1, showValues = role === "read", onSlot, onPiece, room, titleOf, column, outer = "left", posBox, spill }) {
+	function string({ box, orientation = "h", role = "build", kind = "seed", things = [], items = [], firstPosition = 1, current = -1, showValues = role === "read", onSlot, onPiece, room, titleOf, column, outer = "left", posBox, spill, slotOnly = false }) {
 		const n = Math.max(1, items.length), vertical = orientation === "v";
 		// the icon's room at the start, the same at the end, so the middle position stays at the box's middle
 		const pad = room !== undefined ? room : vertical ? Math.min(14, box.h * 0.08) : Math.min(20, box.w * 0.04);
 		const pitch = L.pitch(box, n, { vertical, room: pad });
 		const parts = [];
-		let place, r, label, curR = null, start = null, iconEl = null;   // start: where the thread begins when the first positions are empty (right of its icon)
+		// start: where the thread begins when the first positions are empty (right of its icon); step: the pitch place() spaces them by
+		let place, r, label, curR = null, start = null, iconEl = null, step = pitch;
 		const posClass = (i) => "v-pos" + (i === current ? " v-pos-current v-c-qr v-bold" : "");
 		if (!vertical && role === "build") {
 			// the turn's piece by far the largest, its position (blue) and name under it, ~3 pitches wide;
@@ -169,6 +171,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			// the piece in the middle, its number (big, in its string's colour) beside it, never one over the other
 			const col = column && column.rows.length === n ? column : L.readColumn(box, { outer, top: pad, count: n }), mid = (b) => b.x + b.w / 2;
 			r = col.r;
+			step = col.pitch;
 			// a row beyond the window (a spilled place): the end row's, a pitch on
 			const row = (i) => col.rows[Math.max(0, Math.min(n - 1, i))];
 			place = (i) => [mid(row(i).piece), row(i).y + (i - Math.max(0, Math.min(n - 1, i))) * col.pitch];
@@ -198,8 +201,8 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 		if (there.length && spilt) {
 			// spilled: from a row over the top (always: the string's start, or its places before, go up out of
 			// the window) down to its last place, and on past it when that place is beyond the window
-			const a = place(-1), b = place(there[there.length - 1]), on = there[there.length - 1] === n ? pitch / 2 : 0;
-			parts.push(svg("line", { x1: r1(a[0]), y1: r1(a[1] - pitch / 2), x2: r1(b[0]), y2: r1(b[1] + on), class: "v-thread" + (role === "reference" ? " v-thread-ref" : "") }));
+			const a = place(-1), b = place(there[there.length - 1]), on = there[there.length - 1] === n ? step / 2 : 0;
+			parts.push(svg("line", { x1: r1(a[0]), y1: r1(a[1] - step / 2), x2: r1(b[0]), y2: r1(b[1] + on), class: "v-thread" + (role === "reference" ? " v-thread-ref" : "") }));
 		} else if (there.length) {
 			const a = place(there[0]), b = place(there[there.length - 1]), ext = (i) => i === 0 || i === items.length - 1 ? pitch / 2 : 0;
 			const [x1, y1] = vertical ? [a[0], there[0] > 0 ? start : a[1] - ext(there[0])] : [there[0] > 0 ? start : a[0] - ext(there[0]), a[1]];
@@ -209,8 +212,8 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 		all.forEach((idx, j) => {
 			const i = j + first, out = i < 0 || i >= n;   // out: a spilled place, under the fade: seen only while it glides out of (or into) the window
 			if (idx === undefined) return;
-			const slotOn = out ? undefined : onSlot, pieceOn = out ? undefined : onPiece;
 			const [x, y] = place(i), pos = firstPosition + i, thing = idx === null ? null : things[idx] || null, isCur = i === current;
+			const slotOn = out || (slotOnly && !isCur) ? undefined : onSlot, pieceOn = out ? undefined : onPiece;
 			const rr = isCur && role === "build" ? (curR !== null ? curR : Math.min(r * 1.6, box.w / 2 - 1)) : r;
 			const kids = [];
 			// an empty slot's invisible, larger target (SLOT_HIT canvas units, about 44 px at the lectern), under the bead:

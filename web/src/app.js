@@ -2316,20 +2316,23 @@
 	// slot(): the hole tapped; piece(x): the piece of place x tapped;
 	// title(x): what hovering the piece of place x says (a locked one: where its number comes from);
 	// column: layouts.js's readColumn for the box (where each row's position, piece and number go).
-	// spill: the places just outside the window too (V.string's), for a column that glides
+	// spill: the places just outside the window too (V.string's), for a column that glides;
+	// frontier: the first place not read, an empty place in every drawing (a «+» only on its own turn),
+	// so two turns side by side show the same places
 	function readColumn(box, kind, things, vals, i, L, on = {}) {
-		const item = (x) => x < 0 || x >= L ? undefined : vals[x] !== undefined ? vals[x] : x === i ? null : undefined;
+		const item = (x) => x < 0 || x >= L ? undefined : vals[x] !== undefined ? vals[x] : x === i || x === on.frontier ? null : undefined;
 		const items = Array.from({ length: 7 }, (_, j) => item(i - 3 + j));
-		return V.string({ box, orientation: "v", role: "read", kind, things, items, current: 3, firstPosition: i - 2, column: on.column, spill: on.spill ? [item(i - 4), item(i + 4)] : undefined,
+		return V.string({ box, orientation: "v", role: "read", kind, things, items, current: 3, firstPosition: i - 2, column: on.column, spill: on.spill ? [item(i - 4), item(i + 4)] : undefined, slotOnly: true,
 			onSlot: on.slot ? () => on.slot() : undefined, onPiece: on.piece ? (j) => on.piece(i - 3 + j) : undefined, titleOf: on.title ? (j) => on.title(i - 3 + j) : undefined });
 	}
 	// A key file's characters around turn i, a column like a string read: each
 	// with its number beside it (amber) and its place under that, on
 	// layouts.js's fileColumn; hovering one says where its number comes
 	// from. onTap(x): place x tapped (the same, in a popup).
-	function fileColumn(box, values, i, L, onTap) {
+	// spill: its places just outside the window too (a column that glides), as readColumn's
+	function fileColumn(box, values, i, L, onTap, spill = false) {
 		const col = Lay.fileColumn(box), parts = [];
-		spillRows(col).forEach(([r, j]) => {
+		(spill ? spillRows(col) : col.rows.map((r, j) => [r, j])).forEach(([r, j]) => {
 			const x = i - 3 + j, v = values && values[x], out = j < 0 || j > 6;
 			if (x < 0 || x >= L || v === undefined) return;
 			const g = svg("g", { class: "v-piece rt-file" + (j === 3 ? " v-current" : "") + (out ? " v-spill" : ""), "aria-hidden": out ? "true" : undefined },
@@ -2497,11 +2500,11 @@
 				b.keyDict ? V.dictionary({ label: t.dictLabel, box: b.keyDict, things: keyThings, mode: "reel", icon: "key", value: keyAt("keyPiece") ? K : null, from: turning && p === at("keyPiece") ? 0 : undefined }) : svg("g"));
 			g.numbers.replaceChildren(V.number({ box: b.number, value: seedAt("number") ? C : null, colour: pad ? "seed" : "qr" }),
 				pad ? V.number({ box: b.keyNumber, value: keyAt("keyNumber") ? K : null, colour: "key" }) : svg("g"));
-			if (!colsDrawn) g.seed.replaceChildren(readColumn(b.seedColumn, "seed", things, rd.taps, i, L, { column: lay.columns.seed, spill: true, slot: () => choose("seed"), piece: (x) => x === i ? choose("seed") : locked("seed", x),
+			if (!colsDrawn) g.seed.replaceChildren(readColumn(b.seedColumn, "seed", things, rd.taps, i, L, { column: lay.columns.seed, spill: true, frontier, slot: () => choose("seed"), piece: (x) => x === i ? choose("seed") : locked("seed", x),
 				title: (x) => x === i ? null : lockLine("seed", x) }));
 			if (pad && !colsDrawn) {
-				g.key.replaceChildren(file ? fileColumn(b.keyColumn, key, i, L, (x) => locked("key", x))
-					: readColumn(b.keyColumn, "key", keyThings, rd.keyTaps, i, L, { column: lay.columns.key, spill: true, slot: () => choose("key"), piece: (x) => x === i ? choose("key") : locked("key", x),
+				g.key.replaceChildren(file ? fileColumn(b.keyColumn, key, i, L, (x) => locked("key", x), true)
+					: readColumn(b.keyColumn, "key", keyThings, rd.keyTaps, i, L, { column: lay.columns.key, spill: true, frontier, slot: () => choose("key"), piece: (x) => x === i ? choose("key") : locked("key", x),
 						title: (x) => x === i ? null : lockLine("key", x) }));
 			}
 			colsDrawn = true;
