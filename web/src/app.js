@@ -2989,11 +2989,10 @@
 		return { question: t[QS[kind]], body: () => h("div", { class: "dict-slide intro-slide" }, canvas(V.introArt(kind, b.art)),
 			place(h("div", { class: "intro-text" }, h("p", { text: t[TXT[kind]] }), introLinks(links)), b.text)) };
 	}
-	// a copy in words or a QR, recognised; a string, passing for something ordinary
+	// a copy in words or a QR, recognised; a string, passing for something ordinary (the labels drawn in the art)
 	function introBlend() {
 		const t = T(), b = Lay.introSlide("blend").boxes;
-		return { question: t.introBlendQ, body: () => h("div", { class: "dict-slide intro-slide" }, canvas(V.introArt("blend", b.art)),
-			place(h("p", { class: "intro-label", text: t.introBlendSeen }), b.seen), place(h("p", { class: "intro-label", text: t.introBlendHidden }), b.hidden),
+		return { question: t.introBlendQ, body: () => h("div", { class: "dict-slide intro-slide" }, canvas(V.introArt("blend", b.art, { seen: t.introBlendSeen, hidden: t.introBlendHidden })),
 			place(h("div", { class: "intro-text" }, h("p", { text: t.introBlend }), h("p", { class: "intro-tip", text: t.introBlendTip })), b.text)) };
 	}
 	// one string; two strings and the key between them

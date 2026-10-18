@@ -434,8 +434,10 @@ body { overflow: hidden; }
 @supports (height: 100dvh) { .lectern { --fw: min(100vw, 100dvh * 680 / 382.5); } }
 /* the start page's slides: the top bar over the lectern, which takes the height left (--top-h: the bar's, set by app.js) */
 .top-slot { position: relative; z-index: 5; }
-.with-top .lectern { top: var(--top-h, 52px); --fw: min(100vw, (100vh - var(--top-h, 52px)) * 680 / 382.5); }
-@supports (height: 100dvh) { .with-top .lectern { --fw: min(100vw, (100dvh - var(--top-h, 52px)) * 680 / 382.5); } }
+/* (right under the bar, a small gap: not centred in the height left, which left a gap over it on tall windows) */
+.with-top .lectern { top: var(--top-h, 52px); align-items: flex-start; padding-top: 6px;
+	--fw: min(100vw, (100vh - var(--top-h, 52px) - 6px) * 680 / 382.5); }
+@supports (height: 100dvh) { .with-top .lectern { --fw: min(100vw, (100dvh - var(--top-h, 52px) - 6px) * 680 / 382.5); } }
 .slide-frame { --u: calc(var(--fw) / 680); position: relative; flex: none; width: calc(var(--u) * 680); height: calc(var(--u) * 382.5);
 	font-size: calc(var(--u) * 11); line-height: 1.3; background: var(--surface); box-shadow: var(--tray); overflow: hidden; }
 .slide-top { position: absolute; z-index: 3; left: 0; right: 0; top: 0; height: calc(var(--u) * 26); display: flex; align-items: center;
@@ -787,7 +789,6 @@ body { overflow: hidden; }
 .intro-text h2 { margin: 0; font-size: 1.1em; }
 .intro-notice { font-size: 1em; }
 .intro-tip { color: var(--muted); font-size: .9em; }
-.intro-label { text-align: center; font-size: .85em; color: var(--muted); }
 .intro-links { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .25em; font-size: .85em; }
 .intro-more { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: .3em 1.6em; font-size: .85em; color: var(--muted); }
 .intro-more a { color: var(--muted); }
@@ -797,3 +798,40 @@ body { overflow: hidden; }
 .intro-pop .sib-cards, .intro-pop .donate { grid-template-columns: 1fr 1fr; gap: .6em; margin: .5em 0; }
 .intro-pop .donate-box { padding: .6em; gap: .3em; }
 .intro-pop .donate-box img { width: calc(var(--u) * 90); height: calc(var(--u) * 90); }
+/* the start slides' drawings (vocab.js's introArt): simple strokes, colours by meaning */
+.v-intro-art { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.v-intro-art .v-t { stroke: none; }
+.v-intro-bead { stroke-width: 1.2; }
+.v-intro-key .v-bead-ring { stroke: var(--key); stroke-width: 1.6; }
+.v-intro-bead-0 { fill: #d9634c; } .v-intro-bead-1 { fill: #6aa36f; } .v-intro-bead-2 { fill: #9b7cc1; } .v-intro-bead-3 { fill: #e3c9a8; } .v-intro-bead-4 { fill: #7d8b8a; }
+.v-intro-card, .v-intro-paper, .v-intro-cover, .v-intro-screen, .v-intro-crate { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.2; }
+.v-intro-word, .v-intro-sheet-word, .v-intro-formula { fill: var(--fg); }
+.v-intro-label { fill: var(--muted); }
+.v-intro-divider { stroke: var(--line); stroke-width: 1.2; stroke-dasharray: 4 4; }
+.v-intro-necklace-thread { fill: none; stroke: var(--muted); stroke-width: 2; }
+.v-intro-spine { stroke: var(--line-strong); stroke-width: 1.2; }
+.v-intro-photo { stroke: var(--line-strong); stroke-width: 1; opacity: .75; }
+.v-intro-lock { color: var(--key); }
+.v-intro-shackle { stroke: currentColor; stroke-width: 2.4; }
+.v-intro-lock-body { fill: var(--surface); stroke: currentColor; stroke-width: 2; }
+.v-intro-keyhole { fill: currentColor; }
+/* grid paper is white, as the QR's (its dark squares drawn as the QR's) */
+.v-intro-art .v-intro-graph { fill: #ffffff; stroke: var(--line-strong); }
+.v-intro-grid { stroke: #c9d3d1; stroke-width: .6; }
+.v-intro-pencil-body { fill: #e8c46a; stroke: #6b5a2a; stroke-width: 1.2; }
+.v-intro-pencil-line { stroke: #6b5a2a; stroke-width: 1.2; }
+.v-intro-dial { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.6; }
+.v-intro-ticks { stroke: var(--muted); stroke-width: 1.6; }
+.v-intro-hand { stroke: var(--fg); stroke-width: 2; }
+.v-intro-pin { fill: var(--fg); }
+.v-intro-clock { color: var(--fg); }
+.v-intro-base { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.2; }
+.v-intro-net { stroke: var(--muted); stroke-width: 3; }
+.v-intro-net-dot { fill: var(--muted); }
+.v-intro-cross { stroke: var(--fg); stroke-width: 4; }
+.v-intro-crate-rim { stroke: var(--line-strong); stroke-width: 1.2; }
+.v-intro-sheet-edge { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.2; }
+.v-intro-fold { stroke: var(--line-strong); stroke-width: 1.2; }
+.v-intro-lines { stroke: var(--line); stroke-width: 3; }
+.v-intro-glass { fill: var(--surface); fill-opacity: .25; stroke: var(--fg); stroke-width: 3; }
+.v-intro-handle { stroke: var(--fg); stroke-width: 7; }

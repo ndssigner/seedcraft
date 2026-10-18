@@ -723,8 +723,104 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 		h("button", { type: "button", class: "v-face", disabled: disabled || undefined, "aria-label": faceLabel(sides, face, label), on: { click: () => onPress && onPress(face) } },
 			die({ sides, face, size, label }));
 
-	// the start page's drawings (kinds "what" | "blend" | "modes" | "hand" | "calm" | "audit"), in their box: drawn by Task 2
-	const introArt = (kind, box) => svg("g", { class: "v-intro-art v-intro-" + kind });
+	// ---- the start page's drawings (spec «La portada» §3) ----------------
+	// kinds "what" | "blend" | "modes" | "hand" | "calm" | "audit", drawn in a
+	// 300 × 268 frame scaled into box (centred), simple strokes, colours by meaning
+	// (blue: from the QR, amber: the key). labels ("blend"): { seen, hidden }, under each side.
+	// "modes": its two rows are layouts.js's introRows, level with their texts.
+	const INTRO_WORDS = ["abandon", "ability", "able", "about"];
+	// a QR's look: its three finder squares, the rest a fixed scatter (no seed in it)
+	const introModule = (size) => (r, c) => {
+		const f = (a, b) => { const y = r - a, x = c - b; return y >= 0 && y < 7 && x >= 0 && x < 7 ? (y === 0 || y === 6 || x === 0 || x === 6 || (y >= 2 && y <= 4 && x >= 2 && x <= 4)) : null; };
+		const fin = [f(0, 0), f(0, size - 7), f(size - 7, 0)].find((v) => v !== null);
+		if (fin !== undefined) return fin;
+		if ((r < 8 && (c < 8 || c >= size - 8)) || (r >= size - 8 && c < 8)) return false;
+		return (r * 7 + c * 13 + r * c) % 5 < 2;
+	};
+	// a label's words in lines of at most max characters
+	const wrap = (s, max) => String(s || "").split(/\s+/).filter(Boolean).reduce((lines, w) => {
+		const last = lines[lines.length - 1];
+		if (last && (last + " " + w).length <= max) lines[lines.length - 1] = last + " " + w; else lines.push(w);
+		return lines;
+	}, []);
+	function introArt(kind, box, labels = {}) {
+		const W = 300, H = 268, s = Math.min(box.w / W, box.h / H), ox = box.x + (box.w - W * s) / 2, oy = box.y + (box.h - H * s) / 2;
+		const X = (x) => r1(ox + x * s), Y = (y) => r1(oy + y * s), S = (v) => r1(v * s);
+		const rect = (x, y, w, hh, cls, rx = 0) => svg("rect", { x: X(x), y: Y(y), width: S(w), height: S(hh), ...(rx ? { rx: S(rx) } : {}), class: cls });
+		const circle = (cx, cy, r, cls) => svg("circle", { cx: X(cx), cy: Y(cy), r: S(r), class: cls });
+		// a path from segments: ["M", x, y], ["L", x, y], ["A", r, x, y, sweep], ["Z"]
+		const path = (cls, ...segs) => svg("path", { class: cls, d: segs.map(([c, ...a]) => c === "A" ? `A${S(a[0])} ${S(a[0])} 0 0 ${a[3]} ${X(a[1])} ${Y(a[2])}` : c === "Z" ? "Z" : `${c}${X(a[0])} ${Y(a[1])}`).join(" ") });
+		const words = (x, y, size, str, attrs = {}) => text(X(x), Y(y), Math.max(9, size * s), str, attrs);
+		const sub = (x, y, w, hh) => ({ x: X(x), y: Y(y), w: S(w), h: S(hh) });
+		// a string: its thread and n pieces (the key's: amber)
+		const string = (x1, x2, y, n, r, { key = false, from = 0 } = {}) => {
+			const step = (x2 - x1 - 2 * r) / Math.max(1, n - 1);
+			return svg("g", { class: "v-intro-string" + (key ? " v-key v-intro-key" : "") },
+				svg("line", { x1: X(x1), y1: Y(y), x2: X(x2), y2: Y(y), class: "v-thread" }),
+				Array.from({ length: n }, (_, i) => circle(x1 + r + i * step, y, r, "v-bead-ring v-intro-bead v-intro-bead-" + ((from + i) % 5))));
+		};
+		// a small clock face: the sum's, eight marks and a hand
+		const dial = (cx, cy, r) => svg("g", { class: "v-intro-clock" }, circle(cx, cy, r, "v-intro-dial"),
+			path("v-intro-ticks", ...Array.from({ length: 8 }, (_, i) => { const a = i * Math.PI / 4; return [["M", cx + r * 0.78 * Math.cos(a), cy + r * 0.78 * Math.sin(a)], ["L", cx + r * 0.92 * Math.cos(a), cy + r * 0.92 * Math.sin(a)]]; }).flat()),
+			path("v-intro-hand", ["M", cx, cy], ["L", cx + r * 0.6 * Math.cos(-Math.PI / 4), cy + r * 0.6 * Math.sin(-Math.PI / 4)]), circle(cx, cy, 2.5, "v-intro-pin"));
+		const qrMini = (x, y, side) => qr({ box: sub(x, y, side, side), size: 21, modules: introModule(21) });
+		const label = (cx, y, str) => wrap(str, Math.floor(130 / (10 * 0.56))).map((line, i) => words(cx, y + i * 13, 10, line, { "text-anchor": "middle", class: "v-intro-label" }));
+		const parts = [];
+		if (kind === "what") {
+			// four words → a QR → a string
+			parts.push(rect(50, 4, 200, 58, "v-intro-card", 4),
+				...INTRO_WORDS.map((w, i) => words(64 + (i % 2) * 96, 27 + Math.floor(i / 2) * 22, 12, w, { class: "v-mono v-intro-word" })),
+				arrow({ points: [[X(150), Y(66)], [X(150), Y(92)]], colour: "qr" }), qrMini(114, 96, 72),
+				arrow({ points: [[X(150), Y(172)], [X(150), Y(198)]], colour: "qr" }), string(20, 280, 234, 7, 13));
+		} else if (kind === "blend") {
+			// a sheet of words and its QR, recognised; a necklace and an album, passing for something ordinary
+			parts.push(svg("g", { class: "v-intro-sheet" }, rect(14, 6, 116, 186, "v-intro-paper", 3),
+				...INTRO_WORDS.map((w, i) => words(26, 26 + i * 16, 10, (i + 1) + " " + w, { class: "v-mono v-intro-sheet-word" })), qrMini(34, 104, 76)),
+				...label(72, 214, labels.seen),
+				path("v-intro-divider", ["M", 150, 10], ["L", 150, 240]),
+				svg("g", { class: "v-intro-necklace" }, svg("ellipse", { cx: X(225), cy: Y(58), rx: S(54), ry: S(44), class: "v-intro-necklace-thread" }),
+					...Array.from({ length: 7 }, (_, i) => { const a = Math.PI * (0.18 + i * 0.64 / 6); return circle(225 + 54 * Math.cos(a), 58 + 44 * Math.sin(a), 8, "v-bead-ring v-intro-bead v-intro-bead-" + (i % 5)); })),
+				svg("g", { class: "v-intro-album" }, rect(176, 124, 98, 70, "v-intro-cover", 3), path("v-intro-spine", ["M", 225, 124], ["L", 225, 194]),
+					...[[184, 132], [184, 162], [233, 132], [233, 162]].map(([x, y], i) => rect(x, y, 34, 24, "v-intro-photo v-intro-bead-" + i, 2))),
+				...label(225, 214, labels.hidden));
+		} else if (kind === "modes") {
+			// one string; a seed string and the key's (amber), a padlock between them: each row level with its text
+			const rows = L.introRows({ x: 0, y: 0, w: W, h: H }), y0 = rows[0].y + rows[0].h / 2, y1 = rows[1].y + rows[1].h / 2;
+			parts.push(string(24, 276, y0, 7, 13),
+				string(6, 122, y1, 4, 11), string(178, 294, y1, 4, 11, { key: true, from: 2 }),
+				svg("g", { class: "v-intro-lock v-c-key" }, path("v-intro-shackle", ["M", 141, y1 - 6], ["L", 141, y1 - 13], ["A", 9, 159, y1 - 13, 1], ["L", 159, y1 - 6]),
+					rect(135, y1 - 6, 30, 22, "v-intro-lock-body", 3), circle(150, y1 + 3, 2.5, "v-intro-keyhole")));
+		} else if (kind === "hand") {
+			// a pencil over grid paper, the QR's corner painted in, and the clock of the sum
+			const cells = [];
+			for (let r = 0; r < 21; r++) for (let c = 0; c < 21; c++) if (r < 8 || (r === 8 && c < 6)) if (introModule(21)(r, c)) cells.push(rect(10 + c * 10, 20 + r * 10, 10, 10, "v-qr-dark"));
+			const T = [75, 105], u = [Math.SQRT1_2, -Math.SQRT1_2], n = [Math.SQRT1_2, Math.SQRT1_2], at = (d, e) => [T[0] + d * u[0] + e * n[0], T[1] + d * u[1] + e * n[1]];
+			parts.push(rect(10, 20, 210, 210, "v-intro-paper v-intro-graph"),
+				path("v-intro-grid", ...Array.from({ length: 20 }, (_, i) => [["M", 20 + i * 10, 20], ["L", 20 + i * 10, 230], ["M", 10, 30 + i * 10], ["L", 220, 30 + i * 10]]).flat()),
+				...cells,
+				svg("g", { class: "v-intro-pencil" }, path("v-intro-pencil-body", ["M", ...T], ["L", ...at(22, 7)], ["L", ...at(130, 7)], ["L", ...at(130, -7)], ["L", ...at(22, -7)], ["Z"]),
+					path("v-intro-pencil-line", ["M", ...at(22, 7)], ["L", ...at(22, -7)], ["M", ...at(112, 7)], ["L", ...at(112, -7)])),
+				dial(258, 214, 32));
+		} else if (kind === "calm") {
+			// a laptop off the network, a box of pieces, and time (a clock)
+			const arc = (r) => [["M", 150 - r * Math.SQRT1_2, 104 - r * Math.SQRT1_2], ["A", r, 150 + r * Math.SQRT1_2, 104 - r * Math.SQRT1_2, 1]];
+			parts.push(svg("g", { class: "v-intro-laptop" }, rect(50, 14, 200, 130, "v-intro-screen", 6), path("v-intro-base", ["M", 38, 148], ["L", 262, 148], ["L", 282, 162], ["L", 18, 162], ["Z"]),
+					path("v-intro-net", ...arc(14), ...arc(28), ...arc(42)), circle(150, 104, 3.5, "v-intro-net-dot"),
+					path("v-intro-cross", ["M", 112, 46], ["L", 188, 118])),
+				svg("g", { class: "v-intro-box" }, ...[[52, 196], [80, 190], [108, 198], [134, 192]].map(([x, y], i) => circle(x, y, 12, "v-bead-ring v-intro-bead v-intro-bead-" + i)),
+					rect(24, 200, 136, 56, "v-intro-crate", 3), path("v-intro-crate-rim", ["M", 24, 212], ["L", 160, 212])),
+				dial(236, 222, 34));
+		} else if (kind === "audit") {
+			// a document with the formula, under a magnifying glass
+			const line = (y, w) => [["M", 46, y], ["L", 46 + w, y]];
+			parts.push(svg("g", { class: "v-intro-doc" }, path("v-intro-sheet-edge", ["M", 30, 12], ["L", 170, 12], ["L", 200, 42], ["L", 200, 256], ["L", 30, 256], ["Z"]),
+					path("v-intro-fold", ["M", 170, 12], ["L", 170, 42], ["L", 200, 42]),
+					path("v-intro-lines", ...line(40, 100), ...line(56, 120), ...line(72, 84), ...line(150, 130), ...line(166, 110), ...line(182, 128), ...line(198, 90), ...line(214, 120), ...line(230, 70)),
+					words(46, 117, 12, "C = (P + K) mod N", { class: "v-mono v-intro-formula" })),
+				svg("g", { class: "v-intro-lens" }, circle(112, 113, 72, "v-intro-glass"), path("v-intro-handle", ["M", 112 + 72 * Math.SQRT1_2, 113 + 72 * Math.SQRT1_2], ["L", 250, 250])));
+		}
+		return svg("g", { class: "v-intro-art v-intro-" + kind, "aria-hidden": "true" }, parts);
+	}
 
 	return { introArt, RUN_MS, clockStepMs, icon, iconTag, badge, badgeSize, string, fadeRun, dictionary, bits, headerCard, number, piece, frame, clock, qr, ADVANCE_MS, glide, fadeIn, arrow, cards, die, diceShape, faceButton };
 }
