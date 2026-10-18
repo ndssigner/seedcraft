@@ -864,6 +864,9 @@ for (const pad of [false, true]) {
 			const tb = { x: 20, y: 20, w: 120, h: 60 }, tt = V.string({ box: tb, orientation: "h", role: "build", things, items: [null, null, null, null, null, null], current: 1, onSlot: () => {} });
 			const tp = Lay.pitch(tb, 6, { vertical: false, room: Math.min(20, tb.w * 0.04) }), ths = walk(tt, cls("v-slot-hit"));
 			check(tp < 36 && ths.length === 6 && ths.every((r) => num(r.attrs.width) <= tp + 0.2) && ths.every((r, j) => j === 0 || num(r.attrs.x) >= num(ths[j - 1].attrs.x) + num(ths[j - 1].attrs.width) - 0.2), "slot hit: in a tight string each rect stays in its pitch cell");
+			const vb = { x: 20, y: 20, w: 60, h: 120 }, vt = V.string({ box: vb, orientation: "v", role: "build", things, items: [null, null, null, null, null, null], current: 1, onSlot: () => {} });
+			const vp = Lay.pitch(vb, 6, { vertical: true, room: Math.min(14, vb.h * 0.08) }), vhs = walk(vt, cls("v-slot-hit"));
+			check(vp < 36 && vhs.length === 6 && vhs.every((r) => num(r.attrs.height) <= vp + 0.2 && inBox(r, vb)) && vhs.every((r, j) => j === 0 || num(r.attrs.y) >= num(vhs[j - 1].attrs.y) + num(vhs[j - 1].attrs.height) - 0.2), "slot hit: in a tight vertical string each rect stays in its pitch cell");
 			const none = V.string({ box: lay.boxes.seedString, orientation: "h", role: "build", things, items: [0, undefined, 1], current: 0, onSlot: () => {} });
 			check(walk(none, cls("v-slot-hit")).length === 0, "slot hit: filled and undefined slots have no hit rect");
 		}
@@ -1067,6 +1070,12 @@ for (const pad of [false, true]) {
 		}
 		const c = J.headerBitsUpTo(["mask"], 52, 4, nmod, vals.map((x, j) => j === 210 ? null : x));
 		check(same(c.mask.bits, [null, vals[211], null]), "headerBitsUpTo: a bit not read (null) stays null");
+	}
+	{
+		const pk = (o) => J.plusKey({ key: "+", mods: false, buffer: "", keyThings: [1], typedCol: "seed", ...o });
+		check(pk({}) === "seed" && pk({ key: "=" }) === "seed" && pk({ typedCol: "key" }) === "key" && pk({ key: "=", typedCol: "key" }) === "key", "plusKey: + and = open the active column");
+		check(pk({ buffer: "1" }) === null && pk({ mods: true }) === null && pk({ key: "5" }) === null, "plusKey: a typed buffer, a modifier or another key opens nothing");
+		check(pk({ keyThings: null, typedCol: "key" }) === "seed", "plusKey: with a key file it is always the seed column");
 	}
 	let r = J.typedPiece("", "1", 16); check(r.value === null && r.buffer === "1", "typed: one digit of two waits");
 	r = J.typedPiece("1", "2", 16); check(r.value === 12 && r.buffer === "", "typed: two digits choose 12");
