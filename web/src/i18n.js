@@ -373,8 +373,8 @@ const SEEDCRAFT_TEXT = {
 		typeRead: "Read them", errTyped: (got, L) => `That is ${got} pieces: this seed has ${L}.`,
 		// reading back, a turn per slide: the "+" opens the string's dictionary; the rows before are locked
 		readWhich: (i) => `Which one do you see at ${i}?`,
-		keysHint: "Type the piece's number (Enter to confirm), ←/→ to change turn",
-		keysHintTab: "Type the piece's number (Enter to confirm), Tab for the other string, ←/→ to change turn",
+		keysHint: "Type the piece's number (Enter to confirm), + to pick, ←/→ to change turn",
+		keysHintTab: "Type the piece's number (Enter to confirm), + to pick, Tab for the other string, ←/→ to change turn",
 		readTap: (i) => `Tap + and choose the piece you see at ${i} of your string.`,
 		readTapBoth: (i) => `Tap each + and choose the piece you see at ${i} of each string.`,
 		readTurnPad: (c, k, n, p) => `${c} − ${k} on the clock of ${n} is ${p}: its bits paint these squares.`,
@@ -769,8 +769,8 @@ const SEEDCRAFT_TEXT = {
 		typeRead: "Leerlas", errTyped: (got, L) => `Son ${got} piezas: esta semilla tiene ${L}.`,
 		// reading back, a turn per slide: the "+" opens the string's dictionary; the rows before are locked
 		readWhich: (i) => `¿Cuál ves en la ${i}?`,
-		keysHint: "Teclea el número de la pieza (Intro para confirmar), ←/→ para cambiar de turno",
-		keysHintTab: "Teclea el número de la pieza (Intro para confirmar), Tab para la otra cadena, ←/→ para cambiar de turno",
+		keysHint: "Teclea el número de la pieza (Intro para confirmar), + para elegir, ←/→ para cambiar de turno",
+		keysHintTab: "Teclea el número de la pieza (Intro para confirmar), + para elegir, Tab para la otra cadena, ←/→ para cambiar de turno",
 		readTap: (i) => `Toca + y elige la pieza que ves en la ${i} de tu ristra.`,
 		readTapBoth: (i) => `Toca cada + y elige la pieza que ves en la ${i} de cada ristra.`,
 		readTurnPad: (c, k, n, p) => `${c} − ${k} en el reloj de ${n} es ${p}: sus bits pintan estos cuadritos.`,

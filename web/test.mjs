@@ -848,6 +848,12 @@ for (const pad of [false, true]) {
 	const rk = rlay.boxes.keySlot, rcx = num(walk(slot, (n) => n.tag === "circle")[0].attrs.cx), rcy = num(walk(slot, (n) => n.tag === "circle")[0].attrs.cy);
 	check(rcx > rk.x && rcx < rk.x + rk.w && rcy > rk.y && rcy < rk.y + rk.h, "string read: the turn's hole is in the slot's box");
 	within(rd, rlay.boxes.keyColumn, "string read");
+	{
+		const hitOk = (tree, m) => { const h = walk(tree, cls("v-slot-hit")); return h.length >= 1 && h.every((r) => num(r.attrs.width) >= 36 && num(r.attrs.height) >= 36 && r.attrs.fill === "transparent" && r.attrs["pointer-events"] === "all") || (console.log("hit", m), false); };
+		check(hitOk(rd, "read"), "string read: an empty slot has a v-slot-hit rect of at least 36x36");
+		const bs = V.string({ box: lay.boxes.seedString, orientation: "h", role: "build", things, items: [0, null, undefined], current: 1, onSlot: () => {} });
+		check(hitOk(bs, "build"), "string build: an empty slot has a v-slot-hit rect of at least 36x36");
+	}
 	// drawn as readColumn says: each number and position on its own box, never over each other
 	{
 		const sd = V.string({ box: rlay.boxes.seedColumn, orientation: "v", role: "read", kind: "seed", things, items: [2, 9, 4, 6, 1, 3, 5], firstPosition: 1, current: 3, column: rlay.columns.seed });
@@ -1072,6 +1078,7 @@ for (const pad of [false, true]) {
 	{
 		let hit = 0;
 		check(Sl.keyRoute({ keys: () => { hit++; return true; } }, { key: "5" }) === true && hit === 1, "keyRoute: a slide's keys returning true consumes the key");
+		check(Sl.keyRoute({ keys: (e) => e.key === "+" }, { key: "+" }) === true && Sl.keyRoute({ keys: (e) => e.key === "+" }, { key: "x" }) === false, "keyRoute: a slide whose keys handles «+» consumes it");
 		check(Sl.keyRoute({ keys: () => false }, { key: " " }) === false && Sl.keyRoute({}, { key: " " }) === false && Sl.keyRoute(null, {}) === false, "keyRoute: otherwise the default handling goes on");
 	}
 	{
