@@ -125,10 +125,15 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	// titleOf(i): what hovering piece i says, if not its position and name.
 	// column (role "read", vertical): layouts.js's readColumn for this box (readTurn's and
 	// checkFinal's columns); else one is made with outer: the side its positions go on.
+	// spill (vertical "read" and "reference", whose ends fade): [before, after], the places just
+	// outside the window (as items), drawn a row beyond each end, under the fade (unseen,
+	// never tapped); the thread runs on past the window's top and, where the string goes on,
+	// past its bottom. A run glided a row over then shows at its first frame what the drawing
+	// before showed: the piece leaving is still there, and no end of the thread jumps.
 	let maskN = 0;
 	// where the pitch is under SLOT_HIT, the clamp to the pitch cell wins over the size: no overlap matters more
 	const SLOT_HIT = 36;
-	function string({ box, orientation = "h", role = "build", kind = "seed", things = [], items = [], firstPosition = 1, current = -1, showValues = role === "read", onSlot, onPiece, room, titleOf, column, outer = "left", posBox }) {
+	function string({ box, orientation = "h", role = "build", kind = "seed", things = [], items = [], firstPosition = 1, current = -1, showValues = role === "read", onSlot, onPiece, room, titleOf, column, outer = "left", posBox, spill }) {
 		const n = Math.max(1, items.length), vertical = orientation === "v";
 		// the icon's room at the start, the same at the end, so the middle position stays at the box's middle
 		const pad = room !== undefined ? room : vertical ? Math.min(14, box.h * 0.08) : Math.min(20, box.w * 0.04);
@@ -164,11 +169,13 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			// the piece in the middle, its number (big, in its string's colour) beside it, never one over the other
 			const col = column && column.rows.length === n ? column : L.readColumn(box, { outer, top: pad, count: n }), mid = (b) => b.x + b.w / 2;
 			r = col.r;
-			place = (i) => [mid(col.rows[i].piece), col.rows[i].y];
+			// a row beyond the window (a spilled place): the end row's, a pitch on
+			const row = (i) => col.rows[Math.max(0, Math.min(n - 1, i))];
+			place = (i) => [mid(row(i).piece), row(i).y + (i - Math.max(0, Math.min(n - 1, i))) * col.pitch];
 			const fs = Math.min(13, pitch * 0.38), small = 9;
 			label = (i, x, y, thing, pos, value) => [
-				value !== null && showValues ? text(mid(col.rows[i].value), y + fs * 0.36, fs, value, { "text-anchor": "middle", class: "v-value v-bold " + colourClass(kind) }) : null,
-				text(mid(col.rows[i].pos), y + small * 0.36, small, pos, { "text-anchor": "middle", class: posClass(i) })];
+				value !== null && showValues ? text(mid(row(i).value), y + fs * 0.36, fs, value, { "text-anchor": "middle", class: "v-value v-bold " + colourClass(kind) }) : null,
+				text(mid(row(i).pos), y + small * 0.36, small, pos, { "text-anchor": "middle", class: posClass(i) })];
 			iconEl = icon(kind, col.icon[0], col.icon[1], pad * 1.0);
 			start = col.icon[1] + pad * 0.4;
 		} else {
@@ -185,33 +192,42 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			start = box.y + pad;
 		}
 		// the thread, from the first position there is to the last
-		const there = items.map((x, i) => x === undefined ? -1 : i).filter((i) => i >= 0);
-		if (there.length) {
+		const spilt = !!spill && vertical && (role === "read" || role === "reference");
+		const all = spilt ? [spill[0], ...items, spill[1]] : items, first = spilt ? -1 : 0;   // all[j]: the item at index j + first
+		const there = all.map((x, j) => x === undefined ? null : j + first).filter((i) => i !== null);
+		if (there.length && spilt) {
+			// spilled: from a row over the top (always: the string's start, or its places before, go up out of
+			// the window) down to its last place, and on past it when that place is beyond the window
+			const a = place(-1), b = place(there[there.length - 1]), on = there[there.length - 1] === n ? pitch / 2 : 0;
+			parts.push(svg("line", { x1: r1(a[0]), y1: r1(a[1] - pitch / 2), x2: r1(b[0]), y2: r1(b[1] + on), class: "v-thread" + (role === "reference" ? " v-thread-ref" : "") }));
+		} else if (there.length) {
 			const a = place(there[0]), b = place(there[there.length - 1]), ext = (i) => i === 0 || i === items.length - 1 ? pitch / 2 : 0;
 			const [x1, y1] = vertical ? [a[0], there[0] > 0 ? start : a[1] - ext(there[0])] : [there[0] > 0 ? start : a[0] - ext(there[0]), a[1]];
 			const [x2, y2] = vertical ? [b[0], b[1] + ext(there[there.length - 1])] : [b[0] + ext(there[there.length - 1]), b[1]];
 			parts.push(svg("line", { x1: r1(x1), y1: r1(y1), x2: r1(x2), y2: r1(y2), class: "v-thread" + (role === "reference" ? " v-thread-ref" : role === "build" ? " v-thread-build" : "") }));
 		}
-		items.forEach((idx, i) => {
+		all.forEach((idx, j) => {
+			const i = j + first, out = i < 0 || i >= n;   // out: a spilled place, under the fade: seen only while it glides out of (or into) the window
 			if (idx === undefined) return;
+			const slotOn = out ? undefined : onSlot, pieceOn = out ? undefined : onPiece;
 			const [x, y] = place(i), pos = firstPosition + i, thing = idx === null ? null : things[idx] || null, isCur = i === current;
 			const rr = isCur && role === "build" ? (curR !== null ? curR : Math.min(r * 1.6, box.w / 2 - 1)) : r;
 			const kids = [];
 			// an empty slot's invisible, larger target (SLOT_HIT canvas units, about 44 px at the lectern), under the bead:
 			// the square centred on the slot, cut to its own pitch cell along the string and to the box
-			if (idx === null && onSlot) {
+			if (idx === null && slotOn) {
 				const cut = (c, lo, hi, cell) => { const a = Math.max(c - SLOT_HIT / 2, lo, cell ? c - pitch / 2 : -Infinity), b = Math.min(c + SLOT_HIT / 2, hi, cell ? c + pitch / 2 : Infinity); return [a, b - a]; };
 				const [hx, hw] = cut(x, box.x, box.x + box.w, !vertical), [hy, hh] = cut(y, box.y, box.y + box.h, vertical);
 				kids.push(svg("rect", { x: r1(hx), y: r1(hy), width: r1(hw), height: r1(hh), class: "v-slot-hit", fill: "transparent", "pointer-events": "all" }));
 			}
 			if (isCur && role === "reference") kids.push(svg("rect", { x: r1(x - rr - 2), y: r1(y - pitch / 2 + 0.5), width: r1(2 * rr + 4), height: r1(pitch - 1), rx: 3, class: "v-turn-frame" }));
 			kids.push(bead(thing, x, y, rr, isCur && role === "build"));
-			if (idx === null && onSlot) kids.push(text(x, y + rr * 0.4, rr * 1.1, "+", { "text-anchor": "middle", class: "v-plus" }));
-			if (thing) kids.push(svg("title", {}, (titleOf && titleOf(i)) || `${pos}: ${thing.name || ""}`));
+			if (idx === null && slotOn) kids.push(text(x, y + rr * 0.4, rr * 1.1, "+", { "text-anchor": "middle", class: "v-plus" }));
+			if (thing && !out) kids.push(svg("title", {}, (titleOf && titleOf(i)) || `${pos}: ${thing.name || ""}`));
 			kids.push(...label(i, x, y, thing, pos, idx === null ? null : idx).filter(Boolean));
-			const tap = idx === null ? onSlot : thing ? onPiece : null;
-			const g = svg("g", { class: "v-piece" + (isCur ? " v-current" : "") + (idx === null ? " v-empty" : "") + (idx === null && onSlot ? " v-slot" : ""),
-				role: tap ? "button" : undefined, tabindex: tap ? "0" : undefined }, kids);
+			const tap = idx === null ? slotOn : thing ? pieceOn : null;
+			const g = svg("g", { class: "v-piece" + (isCur ? " v-current" : "") + (idx === null ? " v-empty" : "") + (idx === null && slotOn ? " v-slot" : "") + (out ? " v-spill" : ""),
+				role: tap ? "button" : undefined, tabindex: tap ? "0" : undefined, "aria-hidden": out ? "true" : undefined }, kids);
 			if (tap) press(g, () => tap(i));
 			parts.push(g);
 		});
