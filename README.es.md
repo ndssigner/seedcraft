@@ -100,8 +100,9 @@ para pintar el QR. Ni siquiera hace falta calculadora.
   ([English](docs/seedcraft-by-hand-en.pdf)): de una secuencia a su código
   QR y vuelta, con un lápiz. Una guía, un ejemplo resuelto, las tablas de
   número → bits y de máscaras, una hoja de trabajo y una plantilla para cada
-  tamaño y máscara con las partes fijas ya dibujadas. Cubre el modo sin
-  llave; la llave aún no está.
+  tamaño y máscara con las partes fijas ya dibujadas; y, para la llave,
+  cómo sacarla con dados, las tablas de sumar, el archivo de la llave y un
+  ejemplo resuelto.
 - [`docs/seedqr-templates-es.pdf`](docs/seedqr-templates-es.pdf)
   ([English](docs/seedqr-templates-en.pdf)): plantillas para copiar un
   SeedQR, Standard (25 × 25, 29 × 29) o Compact (21 × 21, 25 × 25), de

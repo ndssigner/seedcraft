@@ -23,8 +23,8 @@ connect anywhere, but the rest of the computer can see what is typed in it.
 in the repository: tests and tools that anyone can run, and that run in CI.
 Pad mode (the web tool's **key mode**; the pad is its **key**) is in the
 reference implementation (`seedcraft_pad.py`), its test vectors and the web
-tool (`web/test.mjs` checks it against the same vectors); the PDFs do not
-have it yet.
+tool (`web/test.mjs` checks it against the same vectors), and by hand in
+`docs/seedcraft-by-hand-en.pdf` (and `-es`).
 
 ## 1. Scope and assumptions
 

@@ -7,6 +7,7 @@
 #let T25 = D.templates.at("25")
 #let T29 = D.templates.at("29")
 #let EX = D.example
+#let KY = D.key
 
 // 210 × 279 mm: A4 width, US Letter height, so it prints unscaled on both.
 #let doc(title: none, footer: none, body) = {

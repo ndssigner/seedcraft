@@ -12,9 +12,12 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "reference", "python"))
 from qrcodegen import QrCode, QrSegment  # noqa: E402
 import seedcraft_sequences as sc  # noqa: E402
+import seedcraft_pad as pad  # noqa: E402
 
 EXAMPLE = "height demise useless trap grow lion found off key clown transfer enroll"  # NDS-Signer test seed
 EXAMPLE_K = 4
+KEY_K = 3  # the example with a key: the same seed, N = 8
+DICE = (2, 4, 6, 8, 10, 12, 16, 20)  # 2 = a coin
 
 
 # Template sizes: QR version -> what uses it. Error correction level L in all
@@ -88,8 +91,67 @@ def main():
         "symbols": symbols, "bits": "".join(map(str, bits)),
         "data_modules": ndatamod,
     }
-    json.dump({"templates": templates, "example": example}, sys.stdout, indent=1)
+    json.dump({"templates": templates, "example": example, "key": key_data(qr)},
+              sys.stdout, indent=1)
     sys.stdout.write("\n")
+
+
+def key_data(qr):
+    """The chapter with a key (SPEC §10; the manual says key, the SPEC pad):
+    the worked example, the key file and one row's check character, the dice
+    table and the addition tables mod N."""
+    with open(os.path.join(os.path.dirname(__file__), "..", "vectors", "sequences-pad.json")) as f:
+        vector = next(v for v in json.load(f)["vectors"]
+                      if v["mnemonic"] == EXAMPLE and v["k"] == KEY_K)
+    k, n = KEY_K, 1 << KEY_K
+    entropy = bytes.fromhex(vector["entropy"])
+    plain = sc.encode(entropy, k, padding=0)
+    key = vector["pad"]  # a public test key, from the test vectors: example only
+    cipher, _ = pad.encode(entropy, k, pad=key, padding=0)
+    assert plain == vector["basic"] and cipher == vector["sequence"]
+    assert pad.decode(cipher, key, k)[0] == entropy and qr.get_mask() == vector["mask"]
+    bits = "".join(map(str, sc.symbols_to_bits(plain, k)))
+    cells = sc.data_modules_row_major(qr.get_size())
+    turns = []
+    for i in list(range(4)) + [len(plain) - 2, len(plain) - 1]:
+        b = bits[i * k:(i + 1) * k]
+        # the QR cell (row, column, from 1) of each bit; None for the header
+        where = [[cells[j][0] + 1, cells[j][1] + 1] if j < len(cells) else None
+                 for j in range(i * k, (i + 1) * k)]
+        turns.append({"pos": i + 1, "bits": b, "cells": where, "p": plain[i], "k": key[i],
+                      "sum": plain[i] + key[i], "c": cipher[i], "diff": cipher[i] - key[i],
+                      "back": pad.decrypt([cipher[i]], [key[i]], n)[0]})
+    # the first row of the key file, its check character worked out
+    row = key[:pad.ROW]
+    steps, total = [], 0
+    for i, d in enumerate(reversed(row)):
+        doubled = i % 2 == 0
+        v = 2 * d if doubled else d
+        if doubled and v > n - 1:
+            v -= n - 1
+        total += v
+        steps.append({"from_right": i + 1, "d": d, "doubled": doubled, "v": v})
+    check = (-total) % n
+    assert check == pad.check_character(row, n)
+    dice = []
+    for s in DICE:
+        b = s.bit_length() - 1  # the largest b with 2^b <= s
+        dice.append({"faces": s, "b": b, "rethrown": list(range(1 << b, s)),
+                     "throws": [-(-kk // b) for kk in range(1, 6)]})
+    # d6 with N = 8: faces 2, 5 (thrown again), 1 -> 10 01 -> keep 100 = 4
+    dice_example = {"die": 6, "n": n, "faces": [2, 5, 1], "bits": "1001", "value": 4}
+    assert int(dice_example["bits"][:k], 2) == dice_example["value"]
+    return {
+        "k": k, "n": n, "mask": vector["mask"], "length": len(plain),
+        "plain": plain, "key": key, "sequence": cipher, "turns": turns,
+        "file": pad.write_pad_file(key, n).splitlines(),
+        "digits": pad.DIGITS,
+        "check": {"row": row, "steps": steps, "sum": total, "check": check,
+                  "char": pad.DIGITS[check]},
+        "dice": dice, "dice_example": dice_example,
+        "add": {str(m): [pad.add_pads([a] * m, list(range(m)), m) for a in range(m)]
+                for m in (2, 4, 8, 16, 32)},
+    }
 
 
 if __name__ == "__main__":

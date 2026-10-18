@@ -264,6 +264,276 @@
 ]
 #grid(columns: (1fr,) * 10, column-gutter: 1mm, row-gutter: 1mm, ..range(130).map(sym-box))
 
+// ---- with a key -------------------------------------------------------------
+// SPEC §10 (pad mode); the reader text says "key", as the web tool does.
+#let num(v) = text(weight: "bold", str(v))
+// the table of addition mod n: row + column = cell
+#let add-table(n, w: 6mm, h: 5mm, size: 8pt, hl: none) = {
+  let A = KY.add.at(str(n))
+  let line(i) = if calc.rem(i, 4) == 0 { 0.7pt + luma(90) } else { 0.3pt + luma(185) }
+  set text(size)
+  table(columns: (w,) * (n + 1), rows: (h,) * (n + 1), align: center + horizon, inset: 0pt,
+    stroke: (x, y) => (
+      left: if x == 0 { none } else { line(x - 1) },
+      top: if y == 0 { none } else { line(y - 1) },
+      right: if x == n { 0.7pt + luma(90) } else { none },
+      bottom: if y == n { 0.7pt + luma(90) } else { none }),
+    fill: (x, y) => if x == 0 or y == 0 { luma(225) } else if hl != none and x - 1 == hl.at(1) and y - 1 == hl.at(0) { rgb("#ffe08a") } else if hl != none and (x - 1 == hl.at(1) or y - 1 == hl.at(0)) { rgb("#fff5d6") } else if calc.odd(y) { luma(247) },
+    [*+*], ..range(n).map(num),
+    ..range(n).map(r => (num(r), ..A.at(r).map(v => str(v)))).flatten())
+}
+#let die-name(s) = if s == 2 { tr[coin][moneda] } else { [d#s] }
+#let die-card(d) = block(breakable: false, width: 100%, stroke: 0.5pt + luma(150), radius: 3pt, inset: 6pt)[
+  #text(12pt, weight: "bold", die-name(d.faces)) #h(1fr) #text(8.5pt)[#d.b #tr[bit][bit]#if d.b > 1 [s] #tr[per throw][por tiro]]
+  #v(-1mm)
+  #set text(8.5pt)
+  #if d.faces == 2 [#tr[heads 1, tails 0][cara 1, cruz 0]] else [#tr[keep][vale] 0–#(calc.pow(2, d.b) - 1)]
+  #h(1fr)
+  #if d.faces == 2 [] else if d.rethrown.len() == 0 [#tr[none thrown again][ninguna se repite]] else [#tr[again][repite]: #if d.rethrown.len() <= 2 { d.rethrown.map(str).join(", ") } else [#d.rethrown.first()–#d.rethrown.last()]]
+  #v(-1mm)
+  #table(columns: (auto,) + (1fr,) * 5, align: center, inset: 2.5pt, stroke: 0.3pt + luma(185),
+    [N], ..(2, 4, 8, 16, 32).map(str),
+    [#tr[throws][tiros]], ..d.throws.map(t => text(weight: "bold", str(t))))
+]
+#let KT = KY.turns
+#let turn-cells(t) = t.cells.filter(c => c != none).map(c => [#c.at(0)·#c.at(1)]).join(", ")
+#let KC = KY.check
+
+#pagebreak()
+= #tr[With a key][Con llave]
+
+#tr[
+  Without a key, the sequence *is* the seed: whoever finds it and knows this method can read it. With a key it is not. The *key* is a second row of random numbers, one for each object (the specification calls it the _pad_, SPEC §10). What you make as a sequence is no longer the seed, but *the seed plus the key*, number by number, on the clock of N. The key is kept somewhere else: as a second string of objects, or written in a file.
+][
+  Sin llave, la secuencia *es* la semilla: quien la encuentre y conozca este método puede leerla. Con llave, no. La *llave* es una segunda fila de números al azar, uno por objeto (la especificación la llama _pad_, SPEC §10). Lo que montas como secuencia ya no es la semilla, sino *la semilla más la llave*, número a número, en el reloj de N. La llave se guarda en otro sitio: como una segunda ristra de objetos o escrita en un archivo.
+]
+
+#tr[
+  *The sequence alone says nothing* about the seed, not even to someone who knows this method; *the key alone says nothing either*. Together they give the seed. That holds while the key is pure chance, secret, and used for one seed only.
+][
+  *La secuencia sola no dice nada* de la semilla, ni siquiera a quien conozca este método; *la llave sola tampoco*. Juntas dan la semilla. Eso vale mientras la llave sea puro azar, secreta y de una sola semilla.
+]
+
+#align(center, box(stroke: 0.5pt + luma(150), inset: 6pt, radius: 3pt)[
+  #set text(9pt)
+  *#tr[Making][Al hacer]:* #tr[QR bits][bits del QR] → #tr[number][número] #h(1mm) *+ #tr[key][llave]* #h(1mm) → #tr[number][número] → #tr[object][objeto] \
+  *#tr[Reading back][Al recuperar]:* #tr[object][objeto] → #tr[number][número] #h(1mm) *− #tr[key][llave]* #h(1mm) → #tr[number][número] → #tr[QR bits][bits del QR]
+])
+
+#note[
+  #tr[
+    *The rules.* *One key, one seed*: a key used for two seeds gives both away as soon as one is known (copies of the same sequence can share its key). *Never together*: not in the same place, on the same device or the same journey. *Losing either loses the seed*: keep copies of each, each copy as far from the other half as the original. *Mark the start of each, and which is which* (a clasp, a pendant on the sequence and none on the key, a label). *Read both back together before you store them apart.*
+  ][
+    *Las reglas.* *Una llave, una semilla*: una llave usada en dos semillas delata las dos en cuanto se conoce una (las copias de una misma secuencia sí pueden compartir su llave). *Nunca juntas*: ni en el mismo sitio, ni en el mismo aparato, ni en el mismo viaje. *Perder cualquiera de las dos es perder la semilla*: guarda copias de cada una, cada copia tan lejos de la otra mitad como el original. *Marca el principio de cada una y cuál es cuál* (un cierre, un colgante en la secuencia y ninguno en la llave, una etiqueta). *Recupéralas juntas antes de guardarlas por separado.*
+  ]
+]
+
+== #tr[1. Making the key by chance][1. Sacar la llave al azar]
+
+#tr[
+  The key has one number for each object of the sequence — as many as the table at the start says — each from 0 to N − 1. Its safety rests on one thing: *every number must be pure chance*, every value just as likely. Your signer or the web tool can draw it, or you can make it by hand, number by number:
+][
+  La llave tiene un número por cada objeto de la secuencia —tantos como dice la tabla del principio—, cada uno del 0 al N − 1. Su seguridad depende de una sola cosa: *cada número tiene que ser puro azar*, con todos los valores igual de probables. Puede sacarla tu firmador o la herramienta web, o puedes hacerla a mano, número a número:
+]
+
+- #tr[*A bag* with one object of each kind: take one without looking, note its number, *put it back* and shake the bag. If it is not put back, it is not chance.][*Una bolsa* con un objeto de cada tipo: saca uno sin mirar, apunta su número, *devuélvelo* y agita la bolsa. Si no se devuelve, no es azar.]
+- #tr[*A coin*: one toss per bit, heads 1 and tails 0; k tosses per number, read with the number → bits table.][*Una moneda*: un lanzamiento por bit, cara 1 y cruz 0; k lanzamientos por número, que se leen con la tabla de número → bits.]
+- #tr[*A die*, of any common kind. Number its faces from 0: on a die marked 1 to s, subtract 1 (a d10 marked 0–9 already is). Each throw gives the bits of its card below: keep a face in the range, written as bits with the number → bits table, and *throw again* on any other. Join the bits, first throw first, until there are k. If the last throw gives more than needed, keep its first ones.][*Un dado*, de cualquier tipo común. Numera sus caras desde 0: en un dado marcado del 1 al s, resta 1 (un d10 marcado 0–9 ya lo está). Cada tiro da los bits de su tarjeta de abajo: quédate con una cara del rango, escrita en bits con la tabla de número → bits, y *vuelve a tirar* con cualquier otra. Junta los bits, el primer tiro primero, hasta tener k. Si el último tiro da más de los que hacen falta, quédate con los primeros.]
+
+#tr[
+  Why throw again? A d6 has 6 faces, and 6 does not split into bits evenly: if faces 4 and 5 counted, some numbers would come out more often than others. *Example*, d6 and N = 8 (3 bits): the die shows #KY.dice_example.faces.at(0) → #mono("10")\; then #KY.dice_example.faces.at(1), which is thrown again; then #KY.dice_example.faces.at(2) → #mono("01"). That is #mono(KY.dice_example.bits)\; the first three, #mono(KY.dice_example.bits.slice(0, 3)), are the number *#KY.dice_example.value*.
+][
+  ¿Por qué volver a tirar? Un d6 tiene 6 caras, y 6 no se reparte en bits por igual: si contaran las caras 4 y 5, unos números saldrían más que otros. *Ejemplo*, d6 y N = 8 (3 bits): el dado saca #KY.dice_example.faces.at(0) → #mono("10")\; luego #KY.dice_example.faces.at(1), que se repite; luego #KY.dice_example.faces.at(2) → #mono("01"). Eso es #mono(KY.dice_example.bits)\; los tres primeros, #mono(KY.dice_example.bits.slice(0, 3)), son el número *#KY.dice_example.value*.
+]
+
+#grid(columns: (1fr,) * 4, column-gutter: 3mm, row-gutter: 3mm, ..KY.dice.map(die-card))
+
+#tr[
+  *Never* numbers you choose yourself, nor taken from the seed, a password or a date. A key made by hand can also be added, on the clock, to one drawn by your signer: the result is safe as long as either of the two is.
+][
+  *Nunca* números elegidos por ti, ni sacados de la semilla, de una contraseña o de una fecha. Una llave hecha a mano también se puede sumar, en el reloj, a una sacada por tu firmador: el resultado es seguro mientras lo sea cualquiera de las dos.
+]
+
+#pagebreak()
+#grid(columns: (1fr, auto), column-gutter: 7mm, align: top,
+  [
+    == #tr[2. Adding on the clock (making)][2. Sumar en el reloj (al hacer)]
+
+    #tr[
+      The numbers add up on a *clock of N*: after N − 1 comes 0 again. For each object, the number from the QR code plus the number of the key; if the result is N or more, subtract N. The addition table does it for you: *the row of the QR's number, the column of the key's number*; where they cross is the number of the object you make.
+    ][
+      Los números se suman en un *reloj de N*: después del N − 1 vuelve el 0. Para cada objeto, el número del código QR más el número de la llave; si sale N o más, resta N. La tabla de sumar lo hace por ti: *la fila del número del QR, la columna del número de la llave*; donde se cruzan está el número del objeto que montas.
+    ]
+
+    #tr[
+      *Example*, N = 8: the QR gives #KT.at(3).p and the key says #KT.at(3).k. #KT.at(3).p + #KT.at(3).k = #KT.at(3).sum, which is 8 or more: #KT.at(3).sum − 8 = *#KT.at(3).c*. In the table for 8, row #KT.at(3).p, column #KT.at(3).k: *#KT.at(3).c* (shaded).
+    ][
+      *Ejemplo*, N = 8: el QR da #KT.at(3).p y la llave dice #KT.at(3).k. #KT.at(3).p + #KT.at(3).k = #KT.at(3).sum, que es 8 o más: #KT.at(3).sum − 8 = *#KT.at(3).c*. En la tabla del 8, fila #KT.at(3).p, columna #KT.at(3).k: *#KT.at(3).c* (sombreado).
+    ]
+
+    == #tr[3. Subtracting on the clock (reading back)][3. Restar en el reloj (al recuperar)]
+
+    #tr[
+      To read it back, the number of the object minus the number of the key; if the result is below 0, add N. With the same table, the other way round: *go to the key's column, look down it for the object's number*; its row is the number from the QR.
+    ][
+      Para recuperarla, el número del objeto menos el número de la llave; si sale menos de 0, suma N. Con la misma tabla, al revés: *ve a la columna de la llave y baja por ella hasta el número del objeto*; su fila es el número del QR.
+    ]
+
+    #tr[
+      *Example*, N = 8: the object is #KT.at(3).c and the key #KT.at(3).k. #KT.at(3).c − #KT.at(3).k = #KT.at(3).diff, below 0: #KT.at(3).diff + 8 = *#KT.at(3).back*. In the table for 8, column #KT.at(3).k, the #KT.at(3).c is in row *#KT.at(3).back*.
+    ][
+      *Ejemplo*, N = 8: el objeto es #KT.at(3).c y la llave #KT.at(3).k. #KT.at(3).c − #KT.at(3).k = #KT.at(3).diff, menos de 0: #KT.at(3).diff + 8 = *#KT.at(3).back*. En la tabla del 8, columna #KT.at(3).k, el #KT.at(3).c está en la fila *#KT.at(3).back*.
+    ]
+  ],
+  [
+    #set text(9pt)
+    #v(3mm)
+    *N = 8* #v(-1mm) #add-table(8, w: 6.6mm, h: 5.8mm, size: 9pt, hl: (KT.at(3).p, KT.at(3).k))
+    #v(1mm)
+    #grid(columns: 2, column-gutter: 5mm,
+      [*N = 2* #v(-1mm) #add-table(2, w: 6.6mm, h: 5.8mm, size: 9pt)],
+      [*N = 4* #v(-1mm) #add-table(4, w: 6.6mm, h: 5.8mm, size: 9pt)])
+  ])
+#v(1mm)
+#text(9.5pt)[#tr[*Addition tables.* Making: row = number from the QR, column = key, cell = object. Reading back: in the key's column, find the object; its row is the number from the QR. The table for 32 is on the next page.][*Tablas de sumar.* Al hacer: fila = número del QR, columna = llave, casilla = objeto. Al recuperar: en la columna de la llave, busca el objeto; su fila es el número del QR. La tabla del 32 está en la página siguiente.]]
+#v(1mm)
+*N = 16*
+#v(-1mm)
+#add-table(16, w: 9.6mm, h: 6.2mm, size: 9.5pt)
+
+#pagebreak()
+#tr[*Addition on the clock of 32.* Row = number from the QR, column = key, cell = object. Reading back: in the key's column, find the object; its row is the number from the QR.][*Sumas en el reloj de 32.* Fila = número del QR, columna = llave, casilla = objeto. Al recuperar: en la columna de la llave, busca el objeto; su fila es el número del QR.]
+#v(1mm)
+#align(center, add-table(32, w: 5.25mm, h: 6.7mm, size: 8.5pt))
+
+#pagebreak()
+== #tr[4. The key as a file][4. La llave como archivo]
+
+#tr[
+  Instead of a second string, the key can be a text file that a person can read and the web tool can open:
+][
+  En vez de una segunda ristra, la llave puede ser un archivo de texto que una persona puede leer y la herramienta web puede abrir:
+]
+
+#grid(columns: (auto, 1fr), column-gutter: 6mm,
+  block(stroke: 0.5pt + luma(150), inset: 7pt, radius: 3pt, text(font: "DejaVu Sans Mono", size: 9.5pt, KY.file.join("\n"))),
+  [
+    #set text(9.5pt)
+    #tr[
+      The key of the worked example (N = 8). *An example only: never use a key taken from a document.*
+
+      - *First line*: how many numbers there are, and N.
+      - *Then the key*: 16 numbers per row, in groups of 4, one character each.
+      - *The last character of each row is a check.* If a number is copied wrong, the check of its row no longer matches. It comes from the key alone and says nothing about the seed.
+      - Lines that start with `#` are notes. The file does not say what it is: do not call it “seed”.
+    ][
+      La llave del ejemplo resuelto (N = 8). *Es solo un ejemplo: nunca uses una llave sacada de un documento.*
+
+      - *Primera línea*: cuántos números hay, y N.
+      - *Después, la llave*: 16 números por fila, en grupos de 4, un carácter cada uno.
+      - *El último carácter de cada fila es un control.* Si un número se copia mal, el control de su fila deja de cuadrar. Sale solo de la llave y no dice nada de la semilla.
+      - Las líneas que empiezan por `#` son notas. El archivo no dice qué es: no lo llames «semilla».
+    ]
+  ])
+
+#tr[Each number is one character: `0` to `9`, then `A` for 10, `B` for 11, and so on up to `V` for 31:][Cada número es un carácter: del `0` al `9`, después `A` para 10, `B` para 11, y así hasta `V` para 31:]
+#align(center, table(columns: (auto,) + (1fr,) * 16, align: center, inset: (x: 2pt, y: 3pt), stroke: 0.3pt + luma(170),
+  fill: (_, y) => if calc.even(y) { luma(240) },
+  ..range(2).map(h => (
+    text(8pt)[#tr[number][número]], ..range(16).map(i => str(16 * h + i)),
+    text(8pt)[#tr[character][carácter]], ..range(16).map(i => text(weight: "bold", mono(KY.digits.at(16 * h + i)))),
+  )).flatten()))
+
+=== #tr[The check character, by hand][El carácter de control, a mano]
+
+#tr[
+  Start at the row's *last* number (not counting the check) and go leftwards. *Double every other one*, starting with that last one; if a double is more than N − 1, subtract N − 1. Add everything up. The check is what is missing to reach the next multiple of N (0 if the sum already is one). It catches any single number copied wrong, and almost any two neighbours swapped (not 0 and N − 1; with N = 2 no swaps at all).
+][
+  Empieza por el *último* número de la fila (sin contar el control) y ve hacia la izquierda. *Dobla uno sí y uno no*, empezando por ese último; si un doble pasa de N − 1, réstale N − 1. Súmalo todo. El control es lo que falta hasta el siguiente múltiplo de N (0 si la suma ya lo es). Detecta cualquier número mal copiado, y casi cualquier par de vecinos cambiados de sitio (no 0 y N − 1; con N = 2, ninguno).
+]
+
+#tr[*The first row of the example*, N = 8 (doubles above 7 lose 7):][*La primera fila del ejemplo*, N = 8 (a los dobles de más de 7 se les resta 7):]
+#let rsteps = KC.steps.rev()
+#align(center, table(columns: (auto,) + (1fr,) * 16, align: center + horizon, inset: (x: 2pt, y: 3.5pt), stroke: 0.3pt + luma(170),
+  fill: (x, y) => if x > 0 and rsteps.at(x - 1).doubled { rgb("#fff5d6") },
+  [#tr[number][número]], ..rsteps.map(s => mono(KY.digits.at(s.d))),
+  [#tr[double?][¿doble?]], ..rsteps.map(s => if s.doubled [×2] else [–]),
+  [#tr[counts][cuenta]], ..rsteps.map(s => if s.doubled and 2 * s.d > KY.n - 1 { text(8.5pt)[#(2 * s.d) − #(KY.n - 1) \ = *#s.v*] } else [*#s.v*]),
+))
+#tr[
+  Sum: #rsteps.map(s => str(s.v)).join(" + ") = *#KC.sum*. The next multiple of 8 is #(KC.sum + KC.check), so the check is #(KC.sum + KC.check) − #KC.sum = *#KC.check*, written #mono(KC.char) — the last character of the row.
+][
+  Suma: #rsteps.map(s => str(s.v)).join(" + ") = *#KC.sum*. El siguiente múltiplo de 8 es #(KC.sum + KC.check), así que el control es #(KC.sum + KC.check) − #KC.sum = *#KC.check*, que se escribe #mono(KC.char): el último carácter de la fila.
+]
+
+// ---- worked example with a key ----------------------------------------------
+#pagebreak()
+= #tr[Worked example with a key][Ejemplo resuelto con llave]
+
+#tr[
+  The same *test seed* (public, never use it for real funds), now with N = #KY.n kinds of objects (k = #KY.k: 3 bits each), so #KY.length objects. Its CompactSeedQR uses *mask #KY.mask*. The key is the one of the key file (section 4): *a public example key, never use it*.
+][
+  La misma *semilla de prueba* (pública, nunca la uses con fondos reales), ahora con N = #KY.n tipos de objeto (k = #KY.k: 3 bits cada uno), así que #KY.length objetos. Su CompactSeedQR usa la *máscara #KY.mask*. La llave es la del archivo de la llave (apartado 4): *una llave de ejemplo pública, nunca la uses*.
+]
+
+=== #tr[Making: the first four objects][Al hacer: los cuatro primeros objetos]
+#tr[The QR's data cells, row by row, 3 bits per object; cells as row·column.][Las casillas de datos del QR, fila a fila, 3 bits por objeto; casillas como fila·columna.]
+#let wrap(t) = if t.sum >= KY.n [#t.sum − #KY.n = *#t.c*] else [*#t.c*]
+#let unwrap(t) = if t.diff < 0 [#t.diff + #KY.n = *#t.back*] else [*#t.back*]
+#align(center, table(columns: 7, align: center + horizon, inset: 4.5pt, stroke: 0.4pt + luma(170),
+  fill: (_, y) => if y == 0 { luma(230) },
+  [#tr[object][objeto]], [#tr[QR cells][casillas del QR]], [bits], [#tr[number][número]], [\+ #tr[key][llave]], [#tr[sum][suma]], [#tr[object][objeto]],
+  ..KT.slice(0, 4).map(t => (str(t.pos), text(8.5pt, turn-cells(t)), mono(t.bits), str(t.p), str(t.k), [#t.p + #t.k = #t.sum], wrap(t))).flatten()))
+
+=== #tr[Reading back: the same four][Al recuperar: los mismos cuatro]
+#align(center, table(columns: 6, align: center + horizon, inset: 4.5pt, stroke: 0.4pt + luma(170),
+  fill: (_, y) => if y == 0 { luma(230) },
+  [#tr[object][objeto]], [#tr[its number][su número]], [− #tr[key][llave]], [\= #tr[number][número]], [bits], [#tr[QR cells][casillas del QR]],
+  ..KT.slice(0, 4).map(t => (str(t.pos), str(t.c), str(t.k), [#t.c − #t.k = #t.diff #h(1mm) → #unwrap(t)], mono(t.bits), text(8.5pt, turn-cells(t)))).flatten()))
+
+=== #tr[The mask first][Primero la máscara]
+#tr[
+  By hand you need the template page before you draw, and the mask is in the last objects: subtract those first. Here the last two:
+][
+  A mano hace falta la página de plantilla antes de dibujar, y la máscara está en los últimos objetos: resta esos primero. Aquí, los dos últimos:
+]
+#align(center, table(columns: 5, align: center + horizon, inset: 4.5pt, stroke: 0.4pt + luma(170),
+  fill: (_, y) => if y == 0 { luma(230) },
+  [#tr[object][objeto]], [#tr[its number][su número]], [− #tr[key][llave]], [\= #tr[number][número]], [bits],
+  ..KT.slice(4).map(t => (str(t.pos), str(t.c), str(t.k), [#t.c − #t.k = #t.diff #h(1mm) → #unwrap(t)], mono(t.bits))).flatten()))
+#tr[
+  Bits #(KY.length * KY.k - 5)–#(KY.length * KY.k - 3): the last data cell (#KT.at(4).cells.at(0).at(0)·#KT.at(4).cells.at(0).at(1)) and the version `00`; then the mask, #mono(KT.at(5).bits) = *#KY.mask*: the page “21 × 21 · mask #KY.mask”.
+][
+  Bits #(KY.length * KY.k - 5)–#(KY.length * KY.k - 3): la última casilla de datos (#KT.at(4).cells.at(0).at(0)·#KT.at(4).cells.at(0).at(1)) y la versión `00`; después la máscara, #mono(KT.at(5).bits) = *#KY.mask*: la página «21 × 21 · máscara #KY.mask».
+]
+
+=== #tr[All #KY.length, to check your work][Los #KY.length, para comprobar tu trabajo]
+#let all-rows(lo, hi) = table(columns: (auto,) + (1fr,) * (hi - lo), align: center, inset: (x: 1pt, y: 2.6pt), stroke: 0.3pt + luma(185),
+  fill: (x, y) => if y == 0 { luma(230) } else if y == 3 { rgb("#fff5d6") },
+  text(7.5pt)[#tr[object][objeto]], ..range(lo, hi).map(i => text(7.5pt, fill: luma(90), str(i + 1))),
+  text(7.5pt)[#tr[QR][QR]], ..range(lo, hi).map(i => text(8.5pt, str(KY.plain.at(i)))),
+  text(7.5pt)[\+ #tr[key][llave]], ..range(lo, hi).map(i => text(8.5pt, str(KY.key.at(i)))),
+  text(7.5pt)[\= #tr[sequence][secuencia]], ..range(lo, hi).map(i => text(8.5pt, weight: "bold", str(KY.sequence.at(i)))))
+#[
+#set text(9pt)
+#all-rows(0, 24)
+#v(-2mm)
+#all-rows(24, 48)
+#v(-2mm)
+#all-rows(48, KY.length)
+]
+
+// ---- key worksheet ----------------------------------------------------------
+#pagebreak()
+= #tr[Worksheet with a key][Hoja de trabajo con llave]
+#text(9.5pt)[#tr[Destroy it when you finish, and never keep it with the key or the sequence. One line per object. Making: QR number + key = result, then the object for the result. Reading back: object, its number (result) − key = QR number. Use a second sheet for more than 96.][Destrúyela al terminar y nunca la guardes con la llave ni con la secuencia. Una línea por objeto. Al hacer: número del QR + llave = resultado, y el objeto del resultado. Al recuperar: objeto, su número (resultado) − llave = número del QR. Usa otra hoja para más de 96.]]
+#v(1mm)
+#let ws-block(lo) = table(columns: (6mm, 1fr, 1fr, 1fr, 1.6fr), rows: (auto,) + (6.75mm,) * 32, align: center + horizon, inset: 2pt,
+  stroke: 0.4pt + luma(160), fill: (_, y) => if y == 0 { luma(230) } else if calc.even(y) { luma(248) },
+  ..([\#], [#tr[QR][QR]], [#tr[key][llave]], [#tr[result][resultado]], [#tr[object][objeto]]).map(h => text(7.5pt, weight: "bold", h)),
+  ..range(lo, lo + 32).map(i => (text(7pt, fill: luma(110), str(i + 1)), [], [], [], [])).flatten())
+#grid(columns: (1fr,) * 3, column-gutter: 3mm, ws-block(0), ws-block(32), ws-block(64))
+
 // ---- templates --------------------------------------------------------------
 #for m in range(8) { template(T21, m, [#tr[12 words · header][12 palabras · cabecera] #mono("00" + bits(m, 3))]) }
 #for m in range(8) { template(T25, m, [#tr[24 words · header][24 palabras · cabecera] #mono("00" + bits(m, 3))]) }
