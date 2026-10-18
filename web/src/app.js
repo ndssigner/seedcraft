@@ -1905,10 +1905,11 @@
 	// ---- make, 7: store it ------------------------------------------------------
 	// layouts.js's store. With a key, two places, A and B, a red dashed border
 	// between them, «never together»: in A your string and its dictionary, in
-	// B the key and its own (the same one: a copy in each, SPEC §10.8; none
-	// beside a key file), each with «Saved». With no key, the string in one
-	// place with no dictionary (it has its own place) and the dictionary apart. At the foot, in red, forgetting everything here; a key file not
-	// saved yet is saved first, and until then nothing is forgotten.
+	// B the key and its own (the same one: a copy in each, SPEC §10.8; a key
+	// file's place keeps a copy too), each with «Saved». With no key, the
+	// string in one place with no dictionary (it has its own place) and the
+	// dictionary apart. At the foot, in red, forgetting everything here; a key
+	// file not saved yet is saved first, and until then nothing is forgotten.
 	function storeSlide() {
 		const t = T(), m = st.make, pad = st.mode === "pad", file = pad && st.plan.padAs === "file", n = st.dict.things.length;
 		const lay = Lay.store({ pad }), b = lay.boxes, saved = m.storedAt || (m.storedAt = {});
@@ -1939,7 +1940,7 @@
 			const keyThings = file ? null : keyThingsMade();
 			kids.push(svg("rect", { x: b.b.x, y: b.b.y, width: b.b.w, height: b.b.h, rx: 8, class: "st-place st-key" }),
 				file ? keyFile() : V.string({ box: b.bString, orientation: "h", role: "read", kind: "key", things: keyThings, items: first(m.pad), showValues: false }),
-				file ? null : V.dictionary({ label: T().dictLabel, box: b.bDict, things: own ? st.padDict.things : st.dict.things, mode: "static", icon: "key" }),
+				V.dictionary({ label: T().dictLabel, box: b.bDict, things: own ? st.padDict.things : st.dict.things, mode: "static", icon: "key" }),
 				svg("line", { x1: b.border.x + b.border.w / 2, y1: b.border.y, x2: b.border.x + b.border.w / 2, y2: b.border.y + b.border.h, class: "st-border" }),
 				svg("text", { x: b.apart.x + b.apart.w / 2, y: b.apart.y + 12, "font-size": 12, "text-anchor": "middle", class: "v-t v-bold v-c-err" }, t.storeApart));
 			titled(b.aTitle, "seed", t.storeA); titled(b.bTitle, "key", t.storeB);
