@@ -136,13 +136,15 @@ const SeedcraftLayouts = (() => {
 	// (y 32, under the guide band) and down into the QR's top edge above the
 	// cursor. The row's piece goes straight into its dictionary, then its
 	// number, then the bits, which go under the QR and up its outer side
-	// (x 654) into its right edge, level with the cursor. cursor: the turn's
+	// (x 654) into its right edge as drawn, level with the cursor. cursor: the turn's
 	// qrCellsBox in the qr box (null for the header and the padding, which
 	// have no squares: no «position», no «paint»).
 	// With a key: its column beside the seed's (the posBox between the two,
 	// on the seed's row); its piece into its dictionary, stacked over the
 	// seed's, its number over the top into the clock's right cell, the seed's
-	// straight into the left one; the clock's output → the bits. The key's
+	// straight into the left one; the clock's output → the bits. The seed's
+	// piece leaves from its own side of the row (x 90), down the seed column's
+	// edge and under the key's (y 331), up into its dictionary. The key's
 	// dictionary goes over the seed's: the key's chain must run outside the
 	// seed's, or one would cross the other (or the bits' way to the QR).
 	// file: the key is a file, its number straight from the row (no key dictionary).
@@ -157,8 +159,9 @@ const SeedcraftLayouts = (() => {
 			const x = b.posBox.x + b.posBox.w / 2, cx = Math.round(cursor.x + cursor.w / 2);
 			return arrow("position", "posBox", "qr", "qr", [[x, b.posBox.y], [x, TOP], [cx, TOP], [cx, b.qr.y]]);
 		};
+		// (into the QR as drawn: with its legend, the rule V.qr follows from 150 high, it is narrower than its box)
 		const paint = (from) => {
-			const cy = Math.round(cursor.y + cursor.h / 2), right = b.qr.x + b.qr.w;
+			const q = qrSquare(b.qr, { legend: b.qr.h >= 150 }), cy = Math.round(cursor.y + cursor.h / 2), right = q.x + q.w;
 			return arrow("paint", "bits", "qr", "qr", [from, [OUTER, from[1]], [OUTER, cy], [right, cy]]);
 		};
 		const ends = (list) => cursor ? [position(), ...list, paint(list.end)] : list;
@@ -194,10 +197,11 @@ const SeedcraftLayouts = (() => {
 		});
 		if (!file) b.keyDict = box(224, 96, 110, 66);
 		const m = clockModule(b.clock), [seedIn, keyIn] = m.inputs;
-		const keyX = keyIn.x + keyIn.w / 2, outY = Math.round(m.output.y + m.output.h / 2);
+		const keyX = keyIn.x + keyIn.w / 2, outY = Math.round(m.output.y + m.output.h / 2), seedRight = seedColumn.x + seedColumn.w, BOTTOM = 331;
 		b.bits = box(514, outY - BIT / 2, bw, BIT);
 		const list = [
-			arrow("piece", "row", "seedDict", "qr", [[202, rowY + 29], [224, rowY + 29]]),
+			// the seed's piece from its own side of the row: down the seed column's edge, under the key's, up into its dictionary
+			arrow("piece", "row", "seedDict", "qr", [[seedRight, rowY + piece], [seedRight, BOTTOM], [279, BOTTOM], [279, b.seedDict.y + b.seedDict.h]]),
 			arrow("number", "seedDict", "number", "qr", [[334, 209], [350, 209]]),
 			...(file ? [arrow("keyNumber", "row", "keyNumber", "key", [[202, rowY + 9], [212, rowY + 9], [212, 129], [350, 129]])]
 				: [arrow("keyPiece", "row", "keyDict", "key", [[202, rowY + 9], [212, rowY + 9], [212, 129], [224, 129]]),
@@ -461,9 +465,14 @@ const SeedcraftLayouts = (() => {
 	}
 	// the bounding rectangle of QR cells [r, c] in a box, as vocab.js's qr places
 	// them (side = min(w, h), centred), 2 units out on each side; null if none
+	// the QR's square as V.qr draws it in its box b (14 smaller with a legend under it)
+	function qrSquare(b, { legend = false } = {}) {
+		const side = Math.min(b.w, b.h) - (legend ? 14 : 0);
+		return box(b.x + (b.w - side) / 2, b.y + (b.h - side - (legend ? 14 : 0)) / 2, side, side);
+	}
 	function qrCellsBox(b, size, cells, { legend = false } = {}) {
 		if (!cells.length) return null;
-		const side = Math.min(b.w, b.h) - (legend ? 14 : 0), cs = side / size, x0 = b.x + (b.w - side) / 2, y0 = b.y + (b.h - side - (legend ? 14 : 0)) / 2;
+		const q = qrSquare(b, { legend }), side = q.w, cs = side / size, x0 = q.x, y0 = q.y;
 		const rs = cells.map((c) => c[0]), cols = cells.map((c) => c[1]);
 		const r0 = Math.min(...rs), r1 = Math.max(...rs), c0 = Math.min(...cols), c1 = Math.max(...cols);
 		return box(x0 + c0 * cs - 2, y0 + r0 * cs - 2, (c1 - c0 + 1) * cs + 4, (r1 - r0 + 1) * cs + 4);
@@ -487,5 +496,5 @@ const SeedcraftLayouts = (() => {
 		return { boxes: b, arrows };
 	}
 
-	return { BUILT, SLOT, POSBOX, RAIL, pitch, qrCellsBox, digitFont, seedQr, VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readColumn, readTurn, pickerPopup, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, REJECT, BADGE, fileRow, fileColumn, store, dictName, dictCheck, dictAsIs };
+	return { BUILT, SLOT, POSBOX, RAIL, pitch, qrSquare, qrCellsBox, digitFont, seedQr, VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readColumn, readTurn, pickerPopup, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, REJECT, BADGE, fileRow, fileColumn, store, dictName, dictCheck, dictAsIs };
 })();
