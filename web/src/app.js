@@ -398,7 +398,7 @@
 		const p = st.plan, rd = st.read, m = st.make;
 		if (flow === "make") return ({ mode: !!st.mode, form: !!p.chosen.form, words: !!p.chosen.words, size: !!st.dict || !!p.chosen.size,
 			keyAs: !!p.chosen.padAs, keyColl: !!p.chosen.padColl, keyForm: !!p.chosen.padForm, dict: !!st.dict, keyDict: !!st.padDict, keyWho: !!m.keyWho,
-			keyTool: !!(m.key && m.key.by), keyThrow: keyDone(), pieces: gatherOk(), seed: !!m.symbols, qr: !!m.symbols, seq: !!m.symbols, check: !!m.checked })[id] !== false;
+			keyTool: !!(m.key && m.key.by), keyThrow: keyDone(), pieces: gatherOk(), seed: !!m.symbols, qr: !!m.symbols, seqIntro: !!m.symbols, seq: !!m.symbols, checkIntro: !!m.symbols, check: !!m.checked })[id] !== false;
 		return ({ mode: !!rd.mode, form: !!rd.chosen.form, size: !!rd.dict || !!rd.chosen.size, dict: !!rd.dict, keyAs: !!rd.chosen.padAs,
 			keyColl: !!rd.chosen.padColl, keyForm: !!rd.chosen.padForm, keyDict: !!rd.padDict, keyFile: !!rd.keyFile, words: !!rd.chosen.words, recover: !!rd.out })[id] !== false;
 	}
@@ -681,7 +681,9 @@
 			keyThrow: () => needs("make") || keyThrowSlide(),
 			seed: () => needs("make") || seedSlide(),
 			qr: () => needs("make") || qrSlide(),
+			seqIntro: () => needs("make") || seqIntroSlide(),
 			seq: () => needs("make") || turnSlide(),
+			checkIntro: () => needs("make") || checkIntroSlide(),
 			check: () => needs("make") || checkTurns(),
 			store: () => needs("make") || storeSlide(),
 		},
@@ -1556,15 +1558,57 @@
 		return {
 			id: "qr", question: t.qrQ, wide: true, steps: 4, startStep: back ? 3 : 0, caption: (s) => [t.qrStepWords, t.qrStepNumber, t.qrStepQr, t.qrStepFixed][s],
 			help: helpOf(t.qrQ, null, [t.qrHelp]),
-			next: { go: () => { const m = st.make; m.turn = 0; m.explain = null; turnFresh = null; turnBack = false; turnFrom = null; goSlide("make", "seq"); } },
+			next: { go: () => goSlide("make", "seqIntro") },
 			body: (at) => {
 				const step = Math.min(at, 2);   // the last caption (the amber part) is said over the drawing of the step before
 				const grew = step > qrSeen && !calm();
 				qrSeen = step;
 				const reveal = step === 2 && grew ? { order: S.dataModulesRowMajor(qr.size), ms: 1000 } : null;
 				const parts = seedQrParts(lay, { words, entropy: m.entropy, qr, step, reveal, fade: step === 1 && grew });
-				return h("div", { class: "dict-slide" }, canvas(...parts.kids), ...parts.over);
+				// with the QR, under its label: what kind of QR it is, who reads it (links that open apart)
+				const note = step === 2 ? [place(h("p", { class: "qr-compact" }, ...compactNote()), { x: lay.boxes.qr.x, y: lay.boxes.qr.y + lay.boxes.qr.h + 20, w: lay.boxes.qr.w, h: 30 })] : [];
+				return h("div", { class: "dict-slide" }, canvas(...parts.kids), ...parts.over, ...note);
 			},
+		};
+	}
+	// «It's a CompactSeedQR: SeedSigner or NDS-Signer can read it.», each reader a link, and the standard after it
+	function compactNote() {
+		const t = T(), urls = { SeedSigner: "https://github.com/SeedSigner/seedsigner", "NDS-Signer": "https://github.com/ndssigner/nds-signer" };
+		const parts = t.qrCompact.split(/(SeedSigner|NDS-Signer)/).map((x) => urls[x] ? link(urls[x], x) : x);
+		return [...parts, " (", link("https://github.com/SeedSigner/seedsigner/blob/dev/docs/seed_qr/README.md", t.qrStandard), ")"];
+	}
+
+	// ---- before the first turn: the QR, the string to build, the count ------------
+	// layouts.js's seqIntro: the QR (this turn's squares marked), the string empty
+	// (position 1 waiting), each with its bubble; the exact count of pieces of each
+	// kind (the string's, and the dictionary's: as «Gather this» counted them) beside
+	// the estimate; with a key, its string (or file) and its bubble. Next: turn 1.
+	function seqIntroSlide() {
+		const t = T(), m = st.make, things = st.dict.things, n = things.length, k = Math.log2(n), pad = st.mode === "pad";
+		const file = pad && st.plan.padAs === "file", keyThings = keyThingsMade(), L = m.symbols.length;
+		const qr = S.compactSeedQR(m.entropy), size = qr.size, lay = Lay.seqIntro({ pad }), b = lay.boxes;
+		const turnCells = S.turnBits(size, 0, k).filter((x) => x.cell).map((x) => x.cell);
+		// the seed's collection as «Gather this» showed it (with a key in it, both strings)
+		const g = gatherPlan().groups[0], shared = g.what === "both";
+		const most = J.maxPerKind(m.symbols, ...(shared ? [m.pad] : [])) + g.copies, est = g.each + g.copies;
+		const kids = [
+			V.qr({ box: b.qr, size, modules: (r, c) => qr.getModule(c, r), turnCells, markerLabel: t.qrPosition(1), ...qrFixed(size, b.qr) }),
+			V.string({ box: b.string, role: "build", kind: "seed", things, current: 6, firstPosition: -5, posBox: b.posBox,
+				items: Array.from({ length: 13 }, (_, j) => j < 6 || j - 6 >= L ? undefined : null) }),
+			...lay.arrows.map((a) => V.arrow({ points: a.points, colour: a.colour, state: "current" })),
+		];
+		if (pad) kids.push(file ? keyFileReference(b.keyString, m.pad, 0, L)
+			: V.string({ box: b.keyString, orientation: "v", role: "reference", kind: "key", things: keyThings,
+				items: Array.from({ length: 7 }, (_, j) => j < 3 || j - 3 >= L ? undefined : m.pad[j - 3]), current: 3, firstPosition: -2 }));
+		const tip = (cls, text, box) => place(h("p", { class: "tip " + cls, text }), box);
+		const count = g.written ? [] : [place(h("div", { class: "seq-count" }, h("b", { text: String(most) }), h("p", { text: t.seqCount(most, est) })), b.count)];
+		return {
+			question: t.seqIntroQ, wide: true, caption: () => t.seqIntroFoot,
+			// Back: «Your QR» at its last step, nothing replays
+			prev: { go: () => { qrBack = true; goSlide("make", "qr"); } },
+			next: { go: () => { m.turn = 0; m.explain = null; turnFresh = null; turnBack = false; turnFrom = null; goSlide("make", "seq"); } },
+			body: () => h("div", { class: "dict-slide" }, canvas(...kids), ...count,
+				tip("left", t.seqTipQr, b.qrTip), tip("down", t.seqTipString, b.stringTip), ...(pad ? [tip("left", t.seqTipKey, b.keyTip)] : [])),
 		};
 	}
 
@@ -1682,6 +1726,20 @@
 	}
 	// the parts of a turn that are not squares (S.turnBits's), or false: none
 	const headerOf = (turn) => { const parts = [...new Set(turn.map((x) => x.part).filter((p) => p !== "data"))]; return parts.length ? parts : false; };
+	// the key file's characters around turn i (pad: the key's values), a column like the key string's: the turn's framed
+	function keyFileReference(box, pad, i, L) {
+		const col = Lay.fileColumn(box, { role: "reference" }), parts = [];
+		col.rows.forEach((r, j) => {
+			const x = i - 3 + j;
+			if (x < 0 || x >= L) return;
+			if (j === 3) parts.push(svg("rect", { x: r.frame.x, y: r.frame.y, width: r.frame.w, height: r.frame.h, rx: 3, class: "v-turn-frame" }));
+			parts.push(svg("text", { x: r.pos[0], y: r.pos[1], "font-size": j === 3 ? 10 : 8, "text-anchor": "middle", class: "v-t v-pos" + (j === 3 ? " v-pos-current v-c-qr v-bold" : "") }, x + 1),
+				svg("text", { x: r.digit[0], y: r.digit[1], "font-size": 14, "text-anchor": "middle", class: "v-t v-mono v-bold v-c-key" + (j === 3 ? "" : " tn-dim") }, S.PAD_DIGITS[pad[x]]));
+		});
+		// its icon apart: the run glides, the icon stays
+		return svg("g", { class: "v v-file", role: "img", "aria-label": T().padFileTitle },
+			[svg("g", { class: "v-string-icon" }, V.icon("key", col.icon[0], col.icon[1] - 4, 11)), svg("g", { class: "v-string-run" }, parts)]);
+	}
 	function turnSlide() {
 		const t = T(), m = st.make, things = st.dict.things, n = things.length, k = Math.log2(n), pad = st.mode === "pad";
 		const file = pad && st.plan.padAs === "file", keyThings = keyThingsMade();
@@ -1726,7 +1784,7 @@
 			groups.bits.replaceChildren(V.bits({ box: b.bits, bits: turn.map((x) => reached("bits") ? bits[x.bit] : null), roles, colour: "qr" }));
 			groups.number.replaceChildren(V.number({ box: b.number, value: reached("number") ? P : null, colour: "qr" }));
 			if (pad) {
-				if (!keyDrawn) groups.key.replaceChildren(file ? keyFileColumn() : V.string({ box: b.keyString, orientation: "v", role: "reference", kind: "key", things: keyThings,
+				if (!keyDrawn) groups.key.replaceChildren(file ? keyFileReference(b.keyString, m.pad, i, L) : V.string({ box: b.keyString, orientation: "v", role: "reference", kind: "key", things: keyThings,
 					items: Array.from({ length: 7 }, (_, j) => { const x = i - 3 + j; return x < 0 || x >= L ? undefined : m.pad[x]; }), current: 3, firstPosition: i - 2 }));
 				keyDrawn = true;
 				const keyAt = at(file ? "key" : "keyNumber");
@@ -1749,20 +1807,6 @@
 				const s = stageOf(a.id);
 				arrowGroups[j].replaceChildren(V.arrow({ points: a.points, colour: a.colour, state: p < 0 || !arrowsOn ? "hidden" : s === p ? "current" : s < p ? "past" : "hidden" }));
 			});
-		}
-		// the key file's characters around the turn, a column like the key string's: the turn's framed
-		function keyFileColumn() {
-			const col = Lay.fileColumn(b.keyString, { role: "reference" }), parts = [];
-			col.rows.forEach((r, j) => {
-				const x = i - 3 + j;
-				if (x < 0 || x >= L) return;
-				if (j === 3) parts.push(svg("rect", { x: r.frame.x, y: r.frame.y, width: r.frame.w, height: r.frame.h, rx: 3, class: "v-turn-frame" }));
-				parts.push(svg("text", { x: r.pos[0], y: r.pos[1], "font-size": j === 3 ? 10 : 8, "text-anchor": "middle", class: "v-t v-pos" + (j === 3 ? " v-pos-current v-c-qr v-bold" : "") }, x + 1),
-					svg("text", { x: r.digit[0], y: r.digit[1], "font-size": 14, "text-anchor": "middle", class: "v-t v-mono v-bold v-c-key" + (j === 3 ? "" : " tn-dim") }, S.PAD_DIGITS[m.pad[x]]));
-			});
-			// its icon apart: the run glides, the icon stays
-			return svg("g", { class: "v v-file", role: "img", "aria-label": t.padFileTitle },
-				[svg("g", { class: "v-string-icon" }, V.icon("key", col.icon[0], col.icon[1] - 4, 11)), svg("g", { class: "v-string-run" }, parts)]);
 		}
 
 		// The advance from turn f (FLIP): each thing starts where it was in f's drawing and glides
@@ -1829,12 +1873,29 @@
 			count: `${pos}/${L}`, steps: explaining ? stages.length : 1, startStep: explaining && back ? last : 0, caption, shortcuts, help: explainTurn, body,
 			// Next while the advance or the cycle plays: first its end, then on
 			hurry,
-			prev: i > 0 ? { go: () => turnGo(i - 1) } : { go: () => { qrBack = true; goSlide("make", "qr"); } },
+			prev: i > 0 ? { go: () => turnGo(i - 1) } : { go: () => goSlide("make", "seqIntro") },
 			next: i < L - 1 ? { go: () => turnGo(i + 1) } : undefined,
 		};
 	}
 
 	// ---- make, 6: read it back --------------------------------------------------
+	// Before the first turn of checking (layouts.js's checkIntro): the string to
+	// read, a column as the turns', empty (and the key's, as it will be read),
+	// the QR blank, each with its bubble. Next: the first turn of checking.
+	function checkIntroSlide() {
+		const t = T(), m = st.make, things = st.dict.things, pad = st.mode === "pad", file = pad && st.plan.padAs === "file";
+		const L = m.symbols.length, size = S.compactSeedQR(m.entropy).size, lay = Lay.checkIntro({ pad }), b = lay.boxes;
+		const kids = [readColumn(b.column, "seed", things, [], 0, L, { column: lay.columns.seed }),
+			V.qr({ box: b.qr, size, modules: (r, c) => S.templateModule(size, r, c), ...qrFixed(size, b.qr) })];
+		if (pad) kids.push(file ? fileColumn(b.keyColumn, m.pad, 0, L) : readColumn(b.keyColumn, "key", keyThingsMade(), [], 0, L, { column: lay.columns.key }));
+		const tip = (cls, text, box) => place(h("p", { class: "tip " + cls, text }), box);
+		return {
+			question: t.checkIntroQ, wide: true,
+			next: { go: () => { if (m.check) m.check.turn = 0; goSlide("make", "check"); } },
+			body: () => h("div", { class: "dict-slide" }, canvas(...kids),
+				tip("left", t.checkTipColumn, b.columnTip), tip("right", t.checkTipQr, b.qrTip), ...(pad ? [tip("left", t.checkTipKey, b.keyTip)] : [])),
+		};
+	}
 	// The same turns as recovering (what will be done years from now), on a
 	// reading of its own (m.check), read as it was made; a key file made here
 	// is read as it is. Then the end: the QR code of your words beside the one

@@ -452,6 +452,19 @@ for (const size of [21, 25]) for (const n of [2, 4, 8, 16, 32]) for (const pad o
 }
 for (const sides of [2, 6, 20]) for (const tool of ["dice", "device", "bag"]) margin(`throw d${sides} ${tool}`, Lay.keyThrow({ sides, tool }));
 for (const toWords of [false, true]) for (const end of toWords ? [false, true] : [false]) checkLayout(`seedQr toWords=${toWords} end=${end}`, Lay.seedQr({ toWords, end }));
+// the intros before the sequence and before checking (spec §5, §7): with a key, its string and its bubble
+for (const pad of [false, true]) {
+	const si = Lay.seqIntro({ pad }), ci = Lay.checkIntro({ pad });
+	checkLayout(`seqIntro pad=${pad}`, si); margin(`seqIntro pad=${pad}`, si);
+	checkLayout(`checkIntro pad=${pad}`, ci); margin(`checkIntro pad=${pad}`, ci);
+	const sb = si.boxes, cb = ci.boxes, pos = si.arrows.find((a) => a.id === "position");
+	check(["qr", "qrTip", "count", "string", "stringTip", "posBox"].every((id) => id in sb) && sb.qr.h >= 150 && JSON.stringify(sb.string) === JSON.stringify(Lay.BUILT)
+		&& ("keyString" in sb) === pad && ("keyTip" in sb) === pad, `seqIntro pad=${pad}: the QR, the count, the string being built and their bubbles (the key's with a key)`);
+	check(!!pos && pos.from === "posBox" && pos.to === "qr" && onBorder(starts(pos), sb.posBox) && onBorder(ends(pos), sb.qr), `seqIntro pad=${pad}: the position's arrow from its box to the QR`);
+	check(sb.stringTip.y + sb.stringTip.h <= Lay.BUILT.y && sb.qrTip.x >= sb.qr.x + sb.qr.w, `seqIntro pad=${pad}: the string's bubble above it, the QR's beside it`);
+	check(["column", "columnTip", "qr", "qrTip"].every((id) => id in cb) && cb.column.w === Lay.readTurn({ pad, n: 16 }).boxes.seedColumn.w && ("keyColumn" in cb) === pad && ("keyTip" in cb) === pad
+		&& !!ci.columns.seed && !!ci.columns.key === pad, `checkIntro pad=${pad}: the column to read, the QR and their bubbles (the key's with a key)`);
+}
 { const q = Lay.seedQr({}), r = Lay.seedQr({ toWords: true });
   check(q.arrows.map((a) => `${a.from}>${a.to}`).join() === "words>number,number>qr" && r.arrows.map((a) => `${a.from}>${a.to}`).join() === "qr>number,number>words", "seedQr: words → number → QR, and back");
   check(q.boxes.qr.w === q.boxes.qr.h && q.boxes.qr.x > q.boxes.number.x && q.boxes.number.x > q.boxes.words.x, "seedQr: words, number, QR from left to right"); }
@@ -1036,10 +1049,19 @@ for (const pad of [false, true]) {
 	  check(J.onlyPadding(padOnly, made, k, 213) && !J.onlyPadding(header, made, k, 213) && !J.onlyPadding(made, made, k, 213), "onlyPadding: only bits past the header differ"); }
 	{ const src = read("src/app.js"), s0 = src.indexOf("function recoverEnd"), body = src.slice(s0, src.indexOf("\n\tfunction ", s0 + 10)), calls = src.match(/seedQrParts\(lay, \{[^\n]*\}\)/g) || [], plain = calls.filter((c) => /plain: true/.test(c));
 		check(plain.length === 1 && /toWords: true[^\n]*plain: true/.test(plain[0]) && body.includes(plain[0]) && !/qrFixed/.test(plain[0]), "recoverEnd alone passes plain: true to seedQrParts (no qrFixed)"); }
+	{ const src = read("src/app.js"), q0 = src.indexOf("function qrSlide"), body = src.slice(q0, src.indexOf("function seqIntroSlide", q0));
+		check(["https://github.com/SeedSigner/seedsigner\"", "https://github.com/ndssigner/nds-signer\"", "https://github.com/SeedSigner/seedsigner/blob/dev/docs/seed_qr/README.md\""].every((u) => body.includes(u))
+			&& /\blink\(/.test(body) && /step === 2 \? \[place\(h\("p", \{ class: "qr-compact" \}, ...compactNote\(\)\)/.test(body) && /const link = \(href[^\n]*target: "_blank", rel: "noopener noreferrer"/.test(src), "«Your QR»: the CompactSeedQR note links SeedSigner, NDS-Signer and the standard, opened apart"); }
 	check(J.symbolsFor(12, 16) === 54 && J.symbolsFor(24, 16) === 91 && J.symbolsFor(12, 32) === 43 && J.symbolsFor(24, 2) === 364, "symbolsFor: SPEC §2");
 	check(ids("make", { mode: "basic" }) === "mode form words size pieces dict seed check store", "make: the basic mode's slides");
-	check(ids("make", { mode: "basic", made: true }) === "mode form words size pieces dict seed qr seq check store", "make: the turns once the sequence is made");
-	check(ids("make", { mode: "basic", made: true }).includes("seed qr seq") && !ids("make", { mode: "basic" }).includes("qr"), "make: «Your QR» between the words and the turns, once the sequence is made");
+	check(ids("make", { mode: "basic", made: true }) === "mode form words size pieces dict seed qr seqIntro seq checkIntro check store", "make: the turns once the sequence is made");
+	check(ids("make", { mode: "basic", made: true }).includes("seed qr seqIntro seq") && !ids("make", { mode: "basic" }).includes("qr"), "make: «Your QR» between the words and the turns, once the sequence is made");
+	for (const s of [{ mode: "basic" }, { mode: "pad", padAs: "string" }, { mode: "pad", padAs: "file" }]) {
+		check(ids("make", { ...s, made: true }).includes("qr seqIntro seq") && ids("make", { ...s, made: true }).includes("checkIntro check")
+			&& !/seqIntro|checkIntro/.test(ids("make", s)), `make ${s.mode} ${s.padAs || ""}: an intro before the turns and before checking, once made`);
+		const list = J.slides("make", { ...s, made: true });
+		check(list.find((x) => x.id === "seqIntro").step === "seq" && list.find((x) => x.id === "checkIntro").step === "check", `make ${s.mode}: each intro under its step`);
+	}
 	check(J.slides("make", { mode: "pad", padAs: "string", made: true }).find((x) => x.id === "qr").step === "seq", "make: «Your QR» under the sequence's step");
 	check(ids("make", { mode: null }) === ids("make", { mode: "basic" }), "make: before a mode is chosen, the basic mode's slides");
 	check(ids("make", { mode: "pad", padAs: "file", dict: true, keyWho: "me", keyBy: "d6" }) === "mode form words size keyAs pieces dict dictHave keyWho keyTool keyThrow seed check store", "make: a key file thrown by hand");
@@ -1145,11 +1167,13 @@ for (const pad of [false, true]) {
 {
 	vm.runInContext(read("src/i18n.js") + ";globalThis.TEXT = SEEDCRAFT_TEXT;", ctx, { filename: "src/i18n.js" });
 	const TX = ctx.TEXT;
+	for (const lang of ["en", "es"]) { const c = TX[lang].seqCount(7, 8); check(c.includes("7") && c.includes("8"), `seqCount ${lang}: the exact count and the estimate`); }
+	check(TX.en.qrCompact.includes("SeedSigner") && TX.en.qrCompact.includes("NDS-Signer") && TX.es.qrCompact.includes("SeedSigner") && TX.es.qrCompact.includes("NDS-Signer"), "qrCompact names both readers");
 	for (const n of [2, 4, 8, 16, 32]) { const L = J.symbolsFor(12, n); check(TX.es.wordsLen(12, L).includes(String(L)) && TX.en.wordsLen(24, L).includes(String(L)), `wordsLen names the string's length (n=${n})`); }
 	const args = { turnPosition: [364], turnNumber: ["11111", 31], turnKeyAt: [364], turnKeyFile: [364, "V", 31], turnKeyNumber: [31], turnClockOf: [32],
 		turnOut: [31], turnDict: [31], turnSlot: [364], readTap: [364], readTapBoth: [364], readTurnPad: [31, 31, 32, 31], readTurnBasic: [31] };
 	const keys = ["turnPosition", "turnBitsAre", "turnNumber", "turnKeyAt", "turnKeyFile", "turnKeyNumber", "turnClockOf", "turnOut", "turnDict", "turnSlot",
-		"turnHeaderNoQr", "seqKeyChanged", "qrStepWords", "qrStepNumber", "qrStepQr", "qrStepFixed", "endPad", "endBasic", "whyPad", "makeWarn", "seqIntro", "seqPadIntro",
+		"turnHeaderNoQr", "seqKeyChanged", "qrStepWords", "qrStepNumber", "qrStepQr", "qrStepFixed", "endPad", "endBasic", "whyPad", "makeWarn", "seqIntro", "seqPadIntro", "seqIntroFoot",
 		// reading back: the turn's foot, the ends'
 		"readTap", "readTapBoth", "readTurnPad", "readTurnBasic", "readNoFit", "typeHelp", "handDone", "checkMatch", "checkFixed", "checkPadding", "checkMismatch",
 		"readLockedWhy", "readLockedAhead",

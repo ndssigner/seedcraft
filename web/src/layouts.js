@@ -584,5 +584,31 @@ const SeedcraftLayouts = (() => {
 		return { boxes: b, arrows };
 	}
 
-	return { BUILT, SLOT, POSBOX, RAIL, pitch, qrSquare, qrCellsBox, digitFont, seedQr, VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readColumn, readTurn, pickerPopup, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, REJECT, BADGE, fileRow, fileColumn, store, dictName, dictCheck, dictAsIs };
+	// Before the first turn (spec §5): the QR on the left with its bubble beside
+	// it, the exact count in a card on the right, the string to build at the
+	// bottom (as a turn's, its position box over it) with its bubble above it,
+	// and the position's arrow up into the QR (as makeTurn's). pad: the key's
+	// string (a reference, vertical, as a turn's) between them, its bubble beside it.
+	function seqIntro({ pad }) {
+		const b = { guide: { ...GUIDE }, question: box(16, 28, 648, 32), qr: box(16, 66, 180, 180),
+			string: { ...BUILT }, posBox: { ...POSBOX }, stringTip: box(440, 218, 224, 36) };
+		if (pad) Object.assign(b, { qrTip: box(212, 70, 150, 64), keyString: box(380, 66, 34, 180), count: box(430, 66, 234, 96), keyTip: box(430, 170, 234, 40) });
+		else Object.assign(b, { qrTip: box(212, 80, 180, 56), count: box(424, 66, 240, 120) });
+		const x = b.qr.x + b.qr.w / 2, y = b.posBox.y + b.posBox.h / 2;
+		return { boxes: b, arrows: [arrow("position", "posBox", "qr", "qr", [[b.posBox.x, y], [x, y], [x, b.qr.y + b.qr.h]])] };
+	}
+	// Before checking (spec §7): the string to read, a column as readTurn's
+	// (and the key's beside it, a gap for the seed's bubble between them), each
+	// with its bubble; the QR, blank, on the right with its bubble on its left.
+	function checkIntro({ pad }) {
+		const top = 66, h = 266, b = { guide: { ...GUIDE }, question: box(16, 28, 648, 32), column: box(20, top, 70, h) };
+		if (pad) Object.assign(b, { columnTip: box(106, 80, 150, 64), keyColumn: box(272, top, 70, h), keyTip: box(358, 240, 200, 52),
+			qr: box(490, top, 150, 150), qrTip: box(358, 90, 116, 80) });
+		else Object.assign(b, { columnTip: box(106, 150, 180, 52), qr: box(460, top, 180, 180), qrTip: box(260, 80, 184, 52) });
+		const columns = { seed: readColumn(b.column, { outer: "left" }) };
+		if (pad) columns.key = readColumn(b.keyColumn, { outer: "right" });
+		return { boxes: b, columns, arrows: [] };
+	}
+
+	return { BUILT, SLOT, POSBOX, RAIL, pitch, qrSquare, qrCellsBox, digitFont, seedQr, seqIntro, checkIntro, VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readColumn, readTurn, pickerPopup, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, REJECT, BADGE, fileRow, fileColumn, store, dictName, dictCheck, dictAsIs };
 })();

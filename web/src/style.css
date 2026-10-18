@@ -570,6 +570,14 @@ body { overflow: hidden; }
 .tip.left::after { right: 100%; border-right: calc(var(--u) * 10) solid var(--accent); }
 .tip.right::after { left: 100%; border-left: calc(var(--u) * 10) solid var(--accent); }
 .tip.right { text-align: right; justify-content: flex-end; }
+/* «down»: over its subject, the tail under it (the intro's string) */
+.tip.down::after { top: 100%; left: 50%; margin-top: 0; margin-left: calc(var(--u) * -6); border-top: calc(var(--u) * 10) solid var(--accent);
+	border-left: calc(var(--u) * 6) solid transparent; border-right: calc(var(--u) * 6) solid transparent; border-bottom: 0; }
+/* the intro before the turns: the exact count, big, and what it means */
+.seq-count { position: absolute; z-index: 1; box-sizing: border-box; margin: 0; padding: calc(var(--u) * 8) calc(var(--u) * 12); display: flex; align-items: center; gap: calc(var(--u) * 12);
+	background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-m); }
+.seq-count b { font-size: calc(var(--u) * 44); line-height: 1; color: var(--accent-ink); }
+.seq-count p { margin: 0; font-size: calc(var(--u) * 13); line-height: 1.3; }
 /* a slide with a field (the key file) */
 .slide-form { position: absolute; left: calc(var(--u) * 150); right: calc(var(--u) * 150); top: calc(var(--u) * 70); bottom: calc(var(--u) * 10);
 	display: flex; flex-direction: column; gap: calc(var(--u) * 6); }
@@ -670,6 +678,8 @@ body { overflow: hidden; }
 .qr-number .qr-digits { display: flex; flex-direction: column; align-items: center; }
 .qr-number .qr-bits { position: static; margin-top: .4em; font-family: inherit; font-weight: 400; font-size: .75em; color: var(--muted); }
 .qr-bits, .qr-label { text-align: center; color: var(--muted); font-size: calc(var(--u) * 11); }
+/* «Your QR»: what kind of QR it is, under its label */
+.qr-compact { position: absolute; z-index: 1; box-sizing: border-box; margin: 0; text-align: center; color: var(--muted); font-size: calc(var(--u) * 10); line-height: 1.3; }
 .qr-print .fingerprint .hint, .cf-result .fingerprint .hint { font-size: .85em; }
 .cf-result { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2em 1em; }
 .cf-result > b { font-family: var(--book); font-size: 1.4em; }
