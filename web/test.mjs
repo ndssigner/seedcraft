@@ -833,6 +833,10 @@ for (const pad of [false, true]) {
 			}
 		}
 	}
+	{
+		const pk = V.dictionary({ box: Lay.pickerPopup({ n: 8 }).boxes.picker, things: Array.from({ length: 8 }, (_, i) => ({ name: "N" + i })), mode: "picker", value: null, icon: "seed", hl: 3 });
+		check(walk(pk, cls("v-pick-hl")).length === 1, "picker: the highlighted piece (hl) has v-pick-hl");
+	}
 	const ref = V.string({ box: lay.boxes.keyString, orientation: "v", role: "reference", kind: "key", things, items: [1, 2, 3, 4, 5, 6, 7], firstPosition: 11, current: 3 });
 	check(walk(ref, cls("v-piece")).length === 7 && walk(ref, cls("v-turn-frame")).length === 1 && walk(ref, cls("v-thread-ref")).length === 1, "string: a reference, dotted, its turn's piece framed");
 	const refCy = num(walk(walk(ref, cls("v-current"))[0], (n) => n.tag === "circle")[0].attrs.cy);
@@ -1125,6 +1129,16 @@ for (const pad of [false, true]) {
 		}
 		const c = J.headerBitsUpTo(["mask"], 52, 4, nmod, vals.map((x, j) => j === 210 ? null : x));
 		check(same(c.mask.bits, [null, vals[211], null]), "headerBitsUpTo: a bit not read (null) stays null");
+	}
+	{
+		const colours = ["Red", "Orange Lentil", "Yellow", "Green", "Blue", "Violet", "Pink", "Brown", "Grey", "White", "Black", "Cyan", "Lime", "Teal", "Gold", "Navy"];
+		const beads = colours.map((n) => ({ name: n, emoji: "" })), same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+		check(same(J.pickMatch(beads, "1"), [1, 10, 11, 12, 13, 14, 15]), "pickMatch: 1 of 16 is 1, then 10..15");
+		check(same(J.pickMatch(beads, "12"), [12]), "pickMatch: 12 is 12");
+		check(same(J.pickMatch(beads, "or"), [1]), "pickMatch: or is the Orange one");
+		check(same(J.pickMatch(beads, "zz"), []) && same(J.pickMatch(beads, ""), []), "pickMatch: no match is empty");
+		const user = [{ name: "Black Pipe", emoji: "BP" }, { name: "Brown Lentil", emoji: "BL" }, { name: "Black Lentil", emoji: "BLE" }];
+		check(same(J.pickMatch(user, "bl"), [1, 2, 0]), "pickMatch: bl is BL, BLE, then the names");
 	}
 	{
 		const pk = (o) => J.plusKey({ key: "+", mods: false, buffer: "", keyThings: [1], typedCol: "seed", ...o });

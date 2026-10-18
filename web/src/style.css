@@ -338,6 +338,7 @@ ol.entries.paper li { color: #111; border-bottom-color: #ccc; }
 .v-pick-bg { fill: var(--sunk); stroke: var(--line); }
 .v-pick:hover .v-pick-bg, .v-pick:focus-visible .v-pick-bg { stroke: var(--accent); }
 .v-pick:focus-visible { outline: none; }
+.v-pick.v-pick-hl .v-pick-bg { stroke: var(--accent); stroke-width: 2.5; stroke-dasharray: 5 3; }
 .v-pick.on .v-pick-bg { stroke: var(--accent); stroke-width: 2.5; fill: var(--accent-soft); }
 /* binary: each bit in its box, in a machine face; the header's and the padding's dashed */
 .v-bit-0 .v-bit-box { fill: #ffffff; } .v-bit-1 .v-bit-box { fill: #111111; }
