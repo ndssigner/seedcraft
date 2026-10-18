@@ -213,7 +213,7 @@ const SEEDCRAFT_TEXT = {
 		qrBackStepNumber: "Its squares, read in order, are one number.",
 		qrStepQr: "That number, in bits, fills the QR's squares. It is all known now: we work from this QR, a few squares a turn.",
 		qrStepFixed: "The amber part of the QR is fixed: it costs no pieces.",
-		qrFixedLegend: "fixed: not encoded", dictLabel: "Dictionary", qrPosition: (n) => `Position ${n}`,
+		qrFixedLegend: "fixed: not encoded", wordsLen: (w, L) => `${w} words · a string of ${L} pieces`, dictLabel: "Dictionary", qrPosition: (n) => `Position ${n}`,
 		qrBits: (b) => `${b} bits`,
 		qrLabel: (s) => `its QR · ${s}×${s}`,
 		qrHelp: "The QR is the CompactSeedQR standard: your same seed, as a code any SeedQR wallet reads. The order its squares are read in is the order of your string.",
@@ -243,7 +243,6 @@ const SEEDCRAFT_TEXT = {
 		cards: {
 			basic: { title: "One string", pros: ["One thing to keep", "Quicker to make"], cons: ["Whoever finds it and can read it has your seed"] },
 			pad: { title: "String + key", pros: ["Alone, each one says nothing", "You can keep them in two places"], cons: ["Two things to make and keep", "Lose one and you lose the seed"] },
-			wordsTitle: (w) => `${w} words`,
 			sizeTitle: (n) => `${n} kinds`, sizeEasy: "Kinds easy to tell apart", sizeRecommended: "Recommended for this form",
 			sizeShort: (L, L2) => `A short string: ${L2 ? L + " or " + L2 : L} pieces`, sizeLong: (L, L2) => `A long string: ${L2 ? L + " or " + L2 : L} pieces`, sizeKinds: (n) => `${n} kinds never to confuse`,
 			keyString: { title: "Pieces, like the string", pros: ["No file that can be copied"], cons: ["More pieces, and twice the stringing"] },
@@ -596,7 +595,7 @@ const SEEDCRAFT_TEXT = {
 		qrBackStepNumber: "Sus cuadros, leídos en orden, son un número.",
 		qrStepQr: "Ese número, en bits, llena los cuadros del QR, ya conocido: trabajamos desde él, unos cuadros por turno.",
 		qrStepFixed: "La parte del QR en ámbar es fija: no cuesta piezas.",
-		qrFixedLegend: "fijo: no se codifica", dictLabel: "Diccionario", qrPosition: (n) => `Posición ${n}`,
+		qrFixedLegend: "fijo: no se codifica", wordsLen: (w, L) => `${w} palabras · ristra de ${L} piezas`, dictLabel: "Diccionario", qrPosition: (n) => `Posición ${n}`,
 		qrBits: (b) => `${b} bits`,
 		qrLabel: (s) => `su QR · ${s}×${s}`,
 		qrHelp: "El QR es el estándar CompactSeedQR: tu misma semilla, como un código que lee cualquier cartera SeedQR. El orden en que se leen sus cuadros es el orden de tu ristra.",
@@ -626,7 +625,6 @@ const SEEDCRAFT_TEXT = {
 		cards: {
 			basic: { title: "Una ristra", pros: ["Una sola cosa que guardar", "Más rápida de hacer"], cons: ["Quien la encuentre y sepa leerla, tiene tu seed"] },
 			pad: { title: "Ristra + llave", pros: ["Sola, cada una no dice nada", "Puedes guardarlas en dos sitios"], cons: ["Dos cosas que hacer y guardar", "Si pierdes una, pierdes la seed"] },
-			wordsTitle: (w) => `${w} palabras`,
 			sizeTitle: (n) => `${n} clases`, sizeEasy: "Clases fáciles de distinguir", sizeRecommended: "La recomendada para esta forma",
 			sizeShort: (L, L2) => `Ristra corta: ${L2 ? L + " o " + L2 : L} piezas`, sizeLong: (L, L2) => `Ristra larga: ${L2 ? L + " o " + L2 : L} piezas`, sizeKinds: (n) => `${n} clases que no confundir`,
 			keyString: { title: "En piezas, como la ristra", pros: ["Ningún archivo que se pueda copiar"], cons: ["Más piezas, y el doble de enhebrar"] },

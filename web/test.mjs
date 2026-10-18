@@ -964,6 +964,11 @@ for (const pad of [false, true]) {
 		&& walk(cardList[1], cls("v-con")).length === 2 && textOf(cardList[0]).includes("✓") && textOf(cardList[1]).includes("✕"), "cards: two cards, with their ✓ and ✕ (two at most)");
 	check(cls("on")(cardList[1]) && cardList[1].attrs["aria-pressed"] === "true" && !cls("on")(cardList[0]), "cards: the chosen one marked");
 	cardList[0].attrs.on.click(); check(chose === "a", "cards: a tap chooses");
+	// every card the same slots, in the same order, so the rows line up (an empty list stays as a placeholder)
+	const slotsOf = (c) => c.children.filter((k) => k && k.tag).map((k) => (k.attrs.class || "").split(" ")[0]).join(" ");
+	const cd3 = V.cards({ options: [{ id: "a", art: node("svg", {}), title: "A", pros: ["p"], cons: [] }, { id: "b", art: null, title: "B", pros: [], cons: ["c"] }, { id: "c", title: "C" }], chosen: null });
+	const slots3 = walk(cd3, cls("v-card")).map(slotsOf);
+	check(slots3.length === 3 && slots3.every((x) => x === "v-card-art v-card-title v-card-pros v-card-cons"), "cards: the same slots in every card: " + slots3.join(" | "));
 
 	// a die, and its faces as buttons
 	check(textOf(V.die({ sides: 8, face: 3, size: 56 })) === "4" && textOf(V.die({ sides: 10, face: 3 })) === "3" && textOf(V.die({ sides: 6, face: null })) === "?", "die: its face, in digits from a d8 on");
@@ -1138,6 +1143,7 @@ for (const pad of [false, true]) {
 {
 	vm.runInContext(read("src/i18n.js") + ";globalThis.TEXT = SEEDCRAFT_TEXT;", ctx, { filename: "src/i18n.js" });
 	const TX = ctx.TEXT;
+	for (const n of [2, 4, 8, 16, 32]) { const L = J.symbolsFor(12, n); check(TX.es.wordsLen(12, L).includes(String(L)) && TX.en.wordsLen(24, L).includes(String(L)), `wordsLen names the string's length (n=${n})`); }
 	const args = { turnPosition: [364], turnNumber: ["11111", 31], turnKeyAt: [364], turnKeyFile: [364, "V", 31], turnKeyNumber: [31], turnClockOf: [32],
 		turnOut: [31], turnDict: [31], turnSlot: [364], readTap: [364], readTapBoth: [364], readTurnPad: [31, 31, 32, 31], readTurnBasic: [31] };
 	const keys = ["turnPosition", "turnBitsAre", "turnNumber", "turnKeyAt", "turnKeyFile", "turnKeyNumber", "turnClockOf", "turnOut", "turnDict", "turnSlot",
