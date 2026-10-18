@@ -260,6 +260,19 @@ const SeedcraftJourneys = (() => {
 		return v < n ? { buffer: "", value: v, clear: false } : { buffer: "", value: null, clear: true };
 	}
 
+	// The pieces a typed text points at in an open picker, as indices. Digits: the piece with that
+	// number first, then the numbers they begin (a prefix is pending). Letters: the pieces whose
+	// initials (emoji) begin with them, then those whose name does; each once, in dictionary order.
+	function pickMatch(things, typed) {
+		const q = String(typed || "").trim().toLowerCase();
+		if (!q) return [];
+		const idx = things.map((_, i) => i);
+		if (/^[0-9]+$/.test(q)) return [...idx.filter((i) => String(i) === q), ...idx.filter((i) => String(i) !== q && String(i).startsWith(q))];
+		const ini = idx.filter((i) => String(things[i].emoji || "").toLowerCase().startsWith(q));
+		const nam = idx.filter((i) => !ini.includes(i) && String(things[i].name || "").toLowerCase().startsWith(q));
+		return [...ini, ...nam];
+	}
+
 	// The bits a last turn's cards show, from the turns up to and including turnIndex only (those of
 	// later turns are null: not here yet). parts: the cards ("version", "mask", "padding"); k: bits a
 	// turn; nmod: the QR's data bits (the header follows: version 2, mask 3, then the padding to the
@@ -292,5 +305,5 @@ const SeedcraftJourneys = (() => {
 		if ((key !== "+" && key !== "=") || mods || buffer) return null;
 		return keyThings && typedCol === "key" ? "key" : "seed";
 	}
-	return { cardGrid, plusKey, headerBitsUpTo, ESTIMATE, ESTIMATE_BOTH, maxPerKind, uniqueInitials, onlyPadding, paddingOnlyRead, checkVerdict, typedPiece, EXPLAINED, turnStages, readStages, checkRead, flipRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, splitMaterials, nameProblem, checkOrder, throwParts };
+	return { cardGrid, plusKey, headerBitsUpTo, ESTIMATE, ESTIMATE_BOTH, maxPerKind, uniqueInitials, onlyPadding, paddingOnlyRead, checkVerdict, typedPiece, pickMatch, EXPLAINED, turnStages, readStages, checkRead, flipRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, splitMaterials, nameProblem, checkOrder, throwParts };
 })();

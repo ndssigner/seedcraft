@@ -260,7 +260,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	// middle; from: the value it turns from (animated unless reduced motion).
 	// "picker": every piece as a button; onPick(v). columns ("static"): side by
 	// side, so that every row shows (the first column 0 …, the next on from there).
-	function dictionary({ box, things = [], mode = "static", value = null, icon: kind = "seed", onPick, from, columns = 1, label = null }) {
+	function dictionary({ box, things = [], mode = "static", value = null, icon: kind = "seed", onPick, from, columns = 1, label = null, hl = null }) {
 		const N = things.length, tabH = L.pickerGrid(box, N).tabH;
 		const card = { x: box.x, y: box.y + tabH, w: box.w, h: box.h - tabH }, inner = { x: card.x + 2, y: card.y + 2, w: card.w - 4, h: card.h - 4 };
 		const wide = !!label && box.w >= 110, lfs = Math.max(8, Math.min(10, tabH * 0.7));
@@ -288,7 +288,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 				// its number on top, the piece, its name under it
 				const x = inner.x + (v % cols) * cw, y = inner.y + Math.floor(v / cols) * ch, fs = Math.max(9, Math.min(11, ch * 0.2));
 				const br = Math.max(3, Math.min(cw / 2 - 4, (ch - 2 * fs - 8) / 2));
-				parts.push(press(svg("g", { class: "v-pick" + (v === value ? " on" : ""), role: "button", tabindex: "0", "aria-label": `${v}: ${thing.name || ""}`, "aria-pressed": String(v === value) },
+				parts.push(press(svg("g", { class: "v-pick" + (v === value ? " on" : "") + (v === hl ? " v-pick-hl" : ""), role: "button", tabindex: "0", "aria-label": `${v}: ${thing.name || ""}`, "aria-pressed": String(v === value) },
 					svg("rect", { x: r1(x + gap / 2), y: r1(y + gap / 2), width: r1(cw - gap), height: r1(ch - gap), rx: 4, class: "v-pick-bg" }),
 					text(x + 4, y + fs + 1, fs, v, { class: "v-mono v-dict-num" }),
 					bead(thing, x + cw / 2, y + fs + 3 + br, br),

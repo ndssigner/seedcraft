@@ -2402,10 +2402,32 @@
 		function choose(which) {
 			const th = which === "key" ? keyThings : things, cur = which === "key" ? K : C, pl = Lay.pickerPopup({ n });
 			const pick = (v) => put(which, v);
-			Slides.popup(h("div", { class: "rt-pick" }, h("h2", { class: "rt-pick-q" }, V.iconTag(which), " ", t.readWhich(pos)),
+			// typing in the open picker: a buffer (in the heading), the first match lit, ↓/↑ among them, Enter picks as a tap does
+			let buf = "", matches = [], at = 0;
+			const typedEl = h("span", { class: "rt-pick-typed" });
+			const light = () => {
+				const cells = pop.querySelectorAll(".v-pick");
+				cells.forEach((c, v) => c.classList.toggle("v-pick-hl", matches[at] === v));
+				typedEl.textContent = buf ? " «" + buf + "»" : "";
+				const c = cells[matches[at]];
+				if (c && c.scrollIntoView) c.scrollIntoView({ block: "nearest" });
+			};
+			const typeKey = (e) => {
+				if (e.ctrlKey || e.metaKey || e.altKey) return;
+				const k = e.key, mine = () => { e.preventDefault(); e.stopPropagation(); };
+				if (k === "Backspace") { if (!buf) return; mine(); buf = buf.slice(0, -1); }
+				else if (k === "Enter") { if (!buf) return; mine(); if (matches.length) pick(matches[at]); return; }
+				else if ((k === "ArrowDown" || k === "ArrowUp") && matches.length) { mine(); at = (at + (k === "ArrowDown" ? 1 : matches.length - 1)) % matches.length; light(); return; }
+				else if (k.length === 1 && k !== " ") { mine(); buf += k; }
+				else return;
+				matches = J.pickMatch(th, buf); at = 0; light();
+			};
+			const pop = h("div", { class: "rt-pick" }, h("h2", { class: "rt-pick-q" }, V.iconTag(which), " ", t.readWhich(pos), typedEl),
+				h("p", { class: "hint rt-pick-type", text: T().pickType }),
 				svg("svg", { class: "rt-pick-canvas", viewBox: `0 0 ${pl.view.w} ${pl.view.h}` },
-					V.dictionary({ label: T().dictLabel, box: pl.boxes.picker, things: th, mode: "picker", value: cur === undefined ? null : cur, icon: which, onPick: pick }))),
-			{ label: t.readWhich(pos) });
+					V.dictionary({ label: T().dictLabel, box: pl.boxes.picker, things: th, mode: "picker", value: cur === undefined ? null : cur, icon: which, onPick: pick })));
+			pop.addEventListener("keydown", typeKey, true); // before a focused piece's own Enter
+			Slides.popup(pop, { label: t.readWhich(pos) });
 		}
 		// a row before (or a key file's place) tapped: only where its number comes from
 		const lockLine = (which, x) => {
