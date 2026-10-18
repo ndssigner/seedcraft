@@ -1034,6 +1034,8 @@ for (const pad of [false, true]) {
 	  check(u[4] === "PD" && u[0] !== u[1] && u[2] !== u[3] && u.slice(0, 4).every((x) => x.length >= 3) && new Set(u).size === 5, "uniqueInitials: collisions get three letters, the rest keep theirs"); }
 	{ const k = 4, made = Array.from({ length: 54 }, (_, i) => i % 16), padOnly = made.slice(); padOnly[53] ^= 1; const header = made.slice(); header[53] ^= 8;
 	  check(J.onlyPadding(padOnly, made, k, 213) && !J.onlyPadding(header, made, k, 213) && !J.onlyPadding(made, made, k, 213), "onlyPadding: only bits past the header differ"); }
+	{ const src = read("src/app.js"), calls = src.match(/seedQrParts\(lay, \{[^\n]*\}\)/g) || [], plain = calls.filter((c) => /plain: true/.test(c));
+		check(plain.length === 1 && /toWords: true[^\n]*plain: true/.test(plain[0]) && src.slice(src.indexOf("function recoverEnd")).includes(plain[0]), "recoverEnd alone passes plain: true to seedQrParts (no qrFixed)"); }
 	check(J.symbolsFor(12, 16) === 54 && J.symbolsFor(24, 16) === 91 && J.symbolsFor(12, 32) === 43 && J.symbolsFor(24, 2) === 364, "symbolsFor: SPEC §2");
 	check(ids("make", { mode: "basic" }) === "mode form words size pieces dict seed check store", "make: the basic mode's slides");
 	check(ids("make", { mode: "basic", made: true }) === "mode form words size pieces dict seed qr seq check store", "make: the turns once the sequence is made");

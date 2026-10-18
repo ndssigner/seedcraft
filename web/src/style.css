@@ -509,7 +509,13 @@ body { overflow: hidden; }
 .decision .v-card-title { font-size: 1.3em; line-height: 1.2; }
 .decision .v-card-list { font-size: 1em; line-height: 1.35; }
 .decision .v-card-list li { margin-top: .2em; }
-.v-card-list.empty { min-height: 0; }
+@supports not (grid-template-rows: subgrid) {
+	.v-card { display: flex; flex-direction: column; align-items: center; }
+	.decision .v-card-art { flex: none; }
+	.decision .v-card-title { min-height: 2.4em; }
+	.decision .v-card-pros { min-height: 5.4em; }
+	.decision .v-card-cons { min-height: 5.4em; }
+}
 .decision.many .v-cards { --cw: calc(var(--u) * 118); }
 .decision.many .v-card { padding: calc(var(--u) * 8) calc(var(--u) * 6); }
 .decision.lots { top: calc(var(--u) * 62); bottom: calc(var(--u) * 4); }
