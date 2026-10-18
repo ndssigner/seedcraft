@@ -885,6 +885,16 @@ for (const pad of [false, true]) {
 			const marked = walk(fr, (n) => n.tag === "rect" && cls("v-qr-fixed-reveal")(n)), withDelay = marked.filter((n) => n.style.animationDelay);
 			check(walk(plainQ, cls("v-qr-fixed-reveal")).length === 0, "qr: without fixedReveal nothing is marked to fade in");
 			check(marked.length === fixedRects(fr) && marked.length > 100 && withDelay.length === marked.length && walk(plainQ, (n) => n.style.animationDelay).length === 0, "qr: with fixedReveal every fixed cell carries v-qr-fixed-reveal and an animationDelay");
+			// the step-3 black/white stays under every fixed cell; only the amber layer and the hatch fade
+			{ const cellsOf = (q) => walk(q, (n) => n.tag === "rect" && n.attrs.width !== 10), key = (n) => n.attrs.x + "," + n.attrs.y;
+				const under = new Map(); for (const n of cellsOf(fr)) if (/v-qr-(dark|unknown)( |$)/.test(n.attrs.class || "") && !/reveal/.test(n.attrs.class)) under.set(key(n), n);
+				const darkAt = new Set(cellsOf(plainQ).filter((n) => cls("v-qr-dark")(n)).map(key)), amber = cellsOf(fr).filter((n) => /v-qr-fixed( |$)/.test(n.attrs.class || ""));
+				const darkFixed = amber.filter((n) => cls("on")(n));
+				check(darkFixed.length > 50 && darkFixed.every((n) => under.has(key(n)) && !under.get(key(n)).style.animationDelay), "qr: fixedReveal, every dark fixed cell has a plain dark cell under its amber, not animated");
+				check(walk(fr, (n) => /v-qr-(dark|unknown)( |$)/.test(n.attrs && n.attrs.class || "") && /reveal/.test(n.attrs.class)).length === 0 && amber.every((n) => cls("v-qr-fixed-reveal")(n)), "qr: fixedReveal, only the amber layer carries the reveal animation");
+				void darkAt; }
+			const legendOf = walk(fr, cls("v-qr-legend"))[0];
+			check(legendOf && legendOf.style.animationDelay === "800ms", "qr: the legend fades in after the cells (delay = the reveal's ms)");
 			const bgOf = (q) => JSON.stringify(walk(q, cls("v-qr-bg"))[0].attrs), spaced = V.qr({ box: qb, size: 25, modules: dark, legendSpace: true });
 			check(bgOf(spaced) === bgOf(plainQ) && walk(spaced, (n) => n.tag === "text").length === 0, "qr: legendSpace keeps the square of a legend and draws no legend"); }
 		check(typeof V.glide === "function" && V.ADVANCE_MS === 450 && typeof V.fadeIn === "function", "vocab: glide, fadeIn and ADVANCE_MS");
@@ -1150,8 +1160,9 @@ for (const pad of [false, true]) {
 	const lis = walk(g1, (n) => n.tag === "li");
 	check(lis.length === 2 && cls("v-pro")(lis[0]) && cls("v-con")(lis[1]) && lis.every((li) => li.children.filter((k) => k && k.tag).length === 2 && cls("v-mark")(li.children[0])), "cards: pros then cons in one list, each li the mark and the text");
 	check(textOf(g1).includes("small") && walk(g1, cls("v-card-sub")).length === 1, "cards: the sub line under the title");
-	const allClasses = walk(grid3, () => true).map((n) => (n.attrs && n.attrs.class) || "").join(" ");
-	check(!/cent/.test(allClasses), "cards: no centring class");
+	{ const css = read("src/style.css");
+		const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter((m) => /\.v-card/.test(m[1]));
+		check(rules.length > 5 && !rules.some((m) => /text-align\s*:\s*center/.test(m[2])), "cards: no .v-card rule centres its text (style.css)"); }
 	// a short last row is centred (it starts at a half column)
 	const mk = (n) => V.cards({ grid: J.cardGrid(n), options: Array.from({ length: n }, (_, i) => ({ id: i, title: "T" })) });
 	const starts = (n) => walk(mk(n), cls("v-card")).map((c) => (c.attrs.class.match(/v-card-start-(\d)/) || [])[1] || "-").join("");
@@ -1183,6 +1194,13 @@ for (const pad of [false, true]) {
 			"headerBitsUpTo: turn 52 brings the mask's first two bits, the third is not yet");
 		check(same(b.mask.bits, [vals[210], vals[211], vals[212]]) && same(b.mask.now, [false, false, true]) && same(b.padding.bits, [...vals.slice(213, 216), null, null, null, null]) && same(b.padding.now, [true, true, true, false, false, false, false]),
 			"headerBitsUpTo: turn 53 has all three, only the third is this turn's, plus the padding");
+		{
+			// the mask is known from the turn that brings its last bit on (not only on the turns that bring mask bits)
+			const known = [51, 52, 53, 54, 55].map((t) => J.maskBitsKnown(t, 4, nmod, vals));
+			check(known[0] === null && known[1] === null && same(known[2], [vals[210], vals[211], vals[212]]) && same(known[3], known[2]) && same(known[4], known[2]),
+				"maskBitsKnown: null until the turn that brings the third bit, then the same on the turns after");
+			check(J.maskBitsKnown(54, 4, nmod, vals.map((x, j) => j === 211 ? null : x)) === null, "maskBitsKnown: a bit not read keeps it unknown");
+		}
 		{
 			// k = 5 with nmod 212: the version (212, 213) and the mask's first bit (214) are in turn 42, its other two (215, 216) in turn 43
 			const v5 = Array.from({ length: 225 }, (_, j) => j % 2), d = J.headerBitsUpTo(["version", "mask"], 42, 5, 212, v5), e = J.headerBitsUpTo(["mask", "padding"], 43, 5, 212, v5);
