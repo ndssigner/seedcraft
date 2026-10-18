@@ -593,7 +593,7 @@ const SEEDCRAFT_TEXT = {
 		qrStepNumber: "Cada palabra es un puesto en una lista de 2048; juntas forman un número, siempre el mismo.",
 		qrBackStepQr: "Tu QR, pintado con tus piezas.",
 		qrBackStepNumber: "Sus cuadros, leídos en orden, son un número.",
-		qrStepQr: "Ese número, en bits, llena los cuadros del QR, ya conocido entero: trabajamos desde él, unos cuadros por turno.",
+		qrStepQr: "Ese número, en bits, llena los cuadros del QR, ya conocido: trabajamos desde él, unos cuadros por turno.",
 		qrStepFixed: "La parte del QR en ámbar es fija: no cuesta piezas.",
 		qrFixedLegend: "fijo: no se codifica", dictLabel: "Diccionario", qrPosition: (n) => `Posición ${n}`,
 		qrBits: (b) => `${b} bits`,
