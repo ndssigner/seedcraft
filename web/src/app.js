@@ -2535,7 +2535,7 @@
 			// what is known of each string: while choosing, what has been chosen; once whole, as far as the cycle has gone
 			const seedAt = (id) => whole ? reached(id) : hasC, keyAt = (id) => whole ? reached(id) : hasK;
 			// the row's frame and, beside it, the turn's position in its own box
-			g.frame.replaceChildren(V.frame({ box: b.row, colour: "qr" }),
+			g.frame.replaceChildren(V.frame({ box: b.row, colour: "pos" }),
 				svg("rect", { x: b.posBox.x, y: b.posBox.y, width: b.posBox.w, height: b.posBox.h, rx: 4, class: "v-pos-box" }),
 				posText = svg("text", { x: b.posBox.x + b.posBox.w / 2, y: b.posBox.y + b.posBox.h / 2 + 4, "font-size": 11, "text-anchor": "middle", class: posClass() }, shownPos()));
 			// the dictionaries, each turned to its piece (the key file's numbers need none), and the numbers

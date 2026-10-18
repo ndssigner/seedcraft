@@ -1024,6 +1024,8 @@ for (const pad of [false, true]) {
 		const nos = V.string({ box, role: "build", kind: "seed", things, items, current: 6, firstPosition: 3 });
 		check(!walk(nos, cls("v-spill")).length, "spill along: none unless asked");
 	}
+	// a frame round a row (the turn's, read) is a position: neutral unless told otherwise
+	check(/v-c-pos/.test(V.frame({ box: { x: 0, y: 0, w: 10, h: 10 } }).attrs.class), "frame: the position's colour by default");
 	// the key's icon is drawn (⚿ is missing from common fonts), with no text, the same in SVG and in HTML
 	{
 		const ki = V.icon("key", 50, 50, 24), tag = V.iconTag("key");
