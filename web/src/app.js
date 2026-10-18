@@ -560,10 +560,11 @@
 	// waits until one is chosen. A choice that would undo work asks first.
 	const V = SeedcraftVocab(svg, h);
 	function decide({ question, options, chosen, choose, ready, help, shortcuts, next, caption, intro }) {
+		const grid = J.cardGrid(options.length);
 		return { question, help, shortcuts, next, caption, ready: ready !== undefined ? ready : chosen !== null && chosen !== undefined,
-			body: () => h("div", { class: "decision" + (intro ? " intro" : "") + (options.length > 5 ? " lots" : options.length > 4 ? " many" : "") },
+			body: () => h("div", { class: "decision" + (intro ? " intro" : "") + (grid.compact ? " compact" : "") },
 				intro ? h("p", { class: "decision-intro", text: intro }) : null,
-				V.cards({ options, chosen, cols: options.length > 5 ? 4 : 0, onChoose: (id) => {
+				V.cards({ options, chosen, grid, onChoose: (id) => {
 					// a card chosen from the keyboard keeps the focus on the chosen one, drawn anew
 					const keyed = document.activeElement && document.activeElement.classList && document.activeElement.classList.contains("v-card");
 					choose(id); render();
@@ -615,7 +616,7 @@
 		title: T().forms[f.id].name, pros: T().forms[f.id].pros, cons: T().forms[f.id].cons }));
 	const wordsOptions = (n) => [12, 24].map((w) => {
 		const L = symbolsFor(w, n);
-		return { id: w, title: T().wordsLen(w, L), pros: [], cons: [],
+		return { id: w, title: T().words(w), sub: T().wordsLenSub(L), pros: [], cons: [],
 			// the string's last positions: how long it is
 			art: artOf(V.string({ box: { x: 0, y: 4, w: ART_W, h: ART_H - 8 }, orientation: "h", role: "read", kind: "seed", items: [null, null, null, null], firstPosition: L - 3, showValues: false, room: 20 })) };
 	});

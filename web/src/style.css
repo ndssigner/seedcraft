@@ -393,16 +393,20 @@ ol.entries.paper li { color: #111; border-bottom-color: #ccc; }
 @keyframes v-draw { to { stroke-dashoffset: 0; } }
 .v-frame { fill: none; stroke: currentColor; stroke-width: 2; }
 /* a decision: a card per option, the chosen one with the accent's border */
-/* a grid whose cards take four rows by subgrid (art, title, ✓, ✕): each row's cards line up row by row */
-.v-cards { --cw: 200px; display: grid; grid-template-columns: repeat(auto-fit, minmax(0, var(--cw))); grid-auto-rows: auto; column-gap: var(--sp-4); row-gap: var(--sp-3); justify-content: center; align-items: stretch; }
-.v-card { grid-row: span 4; display: grid; grid-template-rows: subgrid; row-gap: var(--sp-2); justify-items: center; padding: var(--sp-3);
+/* the cards sit on half columns (a card spans two) so a short last row can be centred; --n is the cards per row */
+.v-cards { --cw: 200px; --cg: 12px; --n: 2; display: grid; grid-template-columns: repeat(calc(var(--n) * 2), minmax(0, calc((var(--cw) - var(--cg)) / 2))); column-gap: var(--cg); row-gap: var(--sp-3); justify-content: center; align-items: stretch; }
+.v-cards.cols-1 { --n: 1; } .v-cards.cols-2 { --n: 2; } .v-cards.cols-3 { --n: 3; } .v-cards.cols-4 { --n: 4; } .v-cards.cols-5 { --n: 5; }
+.v-card { grid-column: span 2; display: flex; flex-direction: column; align-items: stretch; gap: var(--sp-2); padding: var(--sp-3);
 	background: var(--surface); border: 2px solid var(--line); border-radius: var(--r-l); cursor: pointer; text-align: left; }
+.v-card-start-2 { grid-column: 2 / span 2; } .v-card-start-3 { grid-column: 3 / span 2; } .v-card-start-4 { grid-column: 4 / span 2; }
 .v-card:hover { border-color: var(--line-strong); }
 .v-card.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
-.v-card-art { display: flex; align-items: center; justify-content: center; width: 100%; }
+.v-card-art { display: flex; align-items: center; justify-content: flex-start; }
 .v-card-art svg { display: block; max-width: 100%; height: auto; }
-.v-card-title { font-family: var(--book); font-size: var(--fs-l); text-align: center; min-height: 2lh; }
-.v-card-list { list-style: none; margin: 0; padding: 0; align-self: stretch; font-size: var(--fs-s); }
+.v-card-title { font-family: var(--book); font-size: var(--fs-l); text-align: left; }
+.v-card-sub { font-size: .8em; color: var(--muted); text-align: left; }
+.v-card-list { list-style: none; margin: 0; padding: 0; font-size: var(--fs-s); text-align: left; }
+.v-card-list li { display: grid; grid-template-columns: auto 1fr; column-gap: .4em; }
 .v-pro .v-mark { color: var(--ok); font-weight: 700; }
 .v-con .v-mark { color: var(--err); font-weight: 700; }
 /* dice and their faces as buttons in relief: pressed, they sink */
@@ -499,38 +503,27 @@ body { overflow: hidden; }
 	border-radius: var(--r-l); box-shadow: var(--tray); padding: calc(var(--u) * 10); }
 /* a decision on the lectern: the cards under the question, sized by the frame (--u) */
 .decision { position: absolute; left: calc(var(--u) * 16); right: calc(var(--u) * 16); top: calc(var(--u) * 66); bottom: calc(var(--u) * 16);
-	display: flex; align-items: center; justify-content: center; }
-.decision.intro { flex-direction: column; gap: calc(var(--u) * 8); }
+	display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.decision.intro { gap: calc(var(--u) * 8); }
 .decision-intro { margin: 0; max-width: calc(var(--u) * 520); text-align: center; font-size: .95em; line-height: 1.3; color: var(--muted); flex: none; }
-.decision .v-cards { --cw: calc(var(--u) * 190); width: 100%; column-gap: calc(var(--u) * 12); row-gap: calc(var(--u) * 8); align-content: center; justify-content: center; }
-.decision .v-card { padding: calc(var(--u) * 10) calc(var(--u) * 8); row-gap: calc(var(--u) * 6); font: inherit; color: var(--fg); }
-.decision .v-card-art { height: calc(var(--u) * 58); }
-.decision .v-card-art svg { width: auto; max-width: 100%; height: calc(var(--u) * 50); }
+.decision .v-cards { --cw: calc(var(--u) * 190); --cg: calc(var(--u) * 12); width: 100%; max-height: 100%; row-gap: calc(var(--u) * 8); }
+.decision .v-cards.cols-5 { --cw: calc(var(--u) * 122); --cg: calc(var(--u) * 8); font-size: .9em; }
+.decision .v-card { padding: calc(var(--u) * 10) calc(var(--u) * 8); gap: calc(var(--u) * 6); font: inherit; color: var(--fg); }
+.decision .v-card-art { height: calc(var(--u) * 50); flex: none; }
+.decision .v-card-art svg { width: auto; max-width: 100%; height: calc(var(--u) * 46); }
 .decision .v-card-title { font-size: 1.3em; line-height: 1.2; }
 .decision .v-card-list { font-size: 1em; line-height: 1.35; }
 .decision .v-card-list li { margin-top: .2em; }
-@supports not (grid-template-rows: subgrid) {
-	.v-card { display: flex; flex-direction: column; align-items: center; }
-	.decision .v-card-art { flex: none; }
-	.decision .v-card-title { min-height: 2.4em; }
-	.decision .v-card-pros { min-height: 5.4em; }
-	.decision .v-card-cons { min-height: 5.4em; }
-}
-.decision.many .v-cards { --cw: calc(var(--u) * 118); }
-.decision.many .v-card { padding: calc(var(--u) * 8) calc(var(--u) * 6); }
-.decision.lots { top: calc(var(--u) * 58); bottom: calc(var(--u) * 6); }
-.decision.lots .v-cards { --cw: calc(var(--u) * 154); --cg: calc(var(--u) * 8); column-gap: var(--cg); row-gap: calc(var(--u) * 5); }
-.decision.lots .v-cards.cols-4 { grid-template-columns: repeat(8, minmax(0, calc((var(--cw) - var(--cg)) / 2))); }
-.v-cards.cols-4 .v-card { grid-column: span 2; }
-.v-cards.cols-4 .v-card-start-2 { grid-column: 2 / span 2; }
-.v-cards.cols-4 .v-card-start-3 { grid-column: 3 / span 2; }
-.v-cards.cols-4 .v-card-start-4 { grid-column: 4 / span 2; }
-.decision.lots .v-card { padding: calc(var(--u) * 5) calc(var(--u) * 6); row-gap: calc(var(--u) * 3); font-size: .78em; }
-.decision.lots .v-card-art { height: calc(var(--u) * 28); }
-.decision.lots .v-card-art svg { height: calc(var(--u) * 24); }
-.decision.lots .v-card-title { font-size: 1.15em; line-height: 1.15; min-height: 0; }
-.decision.lots .v-card-list { line-height: 1.25; }
-.decision.lots .v-card-list li { margin-top: .1em; }
+/* six cards or more: smaller drawing and type, the block taking the body from just under the guide */
+.decision.compact { top: calc(var(--u) * 58); bottom: calc(var(--u) * 6); }
+.decision .v-cards.compact { --cw: calc(var(--u) * 208); --cg: calc(var(--u) * 8); row-gap: calc(var(--u) * 5); font-size: .78em; }
+.decision .v-cards.compact.cols-4 { --cw: calc(var(--u) * 156); font-size: .74em; }
+.decision .v-cards.compact .v-card { padding: calc(var(--u) * 5) calc(var(--u) * 6); gap: calc(var(--u) * 3); }
+.decision .v-cards.compact .v-card-art { height: calc(var(--u) * 24); }
+.decision .v-cards.compact .v-card-art svg { height: calc(var(--u) * 22); }
+.decision .v-cards.compact .v-card-title { font-size: 1.15em; line-height: 1.15; }
+.decision .v-cards.compact .v-card-list { line-height: 1.25; }
+.decision .v-cards.compact .v-card-list li { margin-top: .1em; }
 .card-file { fill: var(--surface); stroke: var(--key); stroke-width: 1.2; }
 .card-device { fill: var(--sunk); stroke: var(--line-strong); stroke-width: 1.2; }
 .card-bag { fill: var(--sunk); stroke: var(--line-strong); stroke-width: 1.5; }
