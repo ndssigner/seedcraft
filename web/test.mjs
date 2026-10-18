@@ -772,8 +772,8 @@ for (const pad of [false, true]) {
 			// an inset box (the real read column: top 14, pitch 37): the 0 stop at the first row's top, row 0's centre at most half opaque
 			const bx = { x: 20, y: 10, w: 60, h: 287 }, top = 14, pitch = (bx.h - 2 * top) / 7, fr = V.fadeRun(bx, pitch, [], top);
 			const gr = walk(fr[0], (n) => n.tag === "linearGradient")[0], stops = walk(gr, (n) => n.tag === "stop");
-			const y1 = num(gr.attrs.y1), y2 = num(gr.attrs.y2), c0 = bx.y + top + pitch / 2, op = (y) => Math.min(1, Math.max(0, (y - y1) / (y2 - y1) / (num(stops[1].attrs.offset) / 100)));
-			check(Math.abs(y1 - (bx.y + top)) < 0.01 && Math.abs(y2 - (bx.y + bx.h - top)) < 0.01 && op(c0) <= 0.5 + 1e-6 && op(y1 + y2 - (bx.y + bx.h - top - pitch / 2)) <= 0.5 + 1e-6, "fadeRun: the fade spans the rows' extent; the end rows' centres are at most half opaque");
+			const y1 = num(gr.attrs.y1), y2 = num(gr.attrs.y2), c0 = bx.y + top + pitch / 2, f = num(stops[1].attrs.offset) / 100, op = (y) => Math.min(1, Math.max(0, Math.min(y - y1, y2 - y) / (y2 - y1) / f));
+			check(Math.abs(y1 - (bx.y + top)) < 0.01 && Math.abs(y2 - (bx.y + bx.h - top)) < 0.01 && op(c0) <= 0.5 + 1e-6 && op(bx.y + bx.h - top - pitch / 2) <= 0.5 + 1e-6, "fadeRun: the fade spans the rows' extent; the end rows' centres are at most half opaque");
 		}
 		const vf = V.string({ box: { x: 20, y: 40, w: 40, h: 200 }, orientation: "v", role: "reference", kind: "key", things, items: [0, 1, 2, 3, 4, 5, 6], current: 3, firstPosition: 2 });
 		check(aboveMask(vf), "string reference (vertical): the same mask");

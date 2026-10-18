@@ -471,13 +471,13 @@ const SeedcraftLayouts = (() => {
 				rows.push({ y, digit: [mid(r.piece), y + 6], value: [mid(r.value), y + 4.5], pos: [mid(r.pos), y + 3],
 					digitBox: r.piece, valueBox: r.value, posBox: r.pos, ring: box(b.x + 2, y - pitch / 2 + 1, b.w - 4, pitch - 2) });
 			});
-			return { icon: [c.icon[0], b.y + 7], pitch, rows };
+			return { icon: [c.icon[0], b.y + 7], pitch, top, rows };
 		}
 		for (let j = 0; j < 7; j++) {
 			const y = b.y + top + pitch * (j + 0.5);
 			rows.push({ y, pos: [b.x + 9, y + 3], digit: [b.x + 25, y + 5], frame: box(b.x, y - pitch / 2 + 0.5, b.w, pitch - 1) });
 		}
-		return { icon: [b.x + b.w / 2, b.y + 11], pitch, rows };
+		return { icon: [b.x + b.w / 2, b.y + 11], pitch, top, rows };
 	}
 
 	// Storing it. With a key, two places (a, b) apart, a red dashed border

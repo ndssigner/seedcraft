@@ -1752,7 +1752,7 @@
 		});
 		// its icon apart: the run glides, the icon stays
 		return svg("g", { class: "v v-file", role: "img", "aria-label": T().padFileTitle },
-			[svg("g", { class: "v-string-icon" }, V.icon("key", col.icon[0], col.icon[1] - 4, 11)), svg("g", { class: "v-string-run" }, parts)]);
+			[svg("g", { class: "v-string-icon" }, V.icon("key", col.icon[0], col.icon[1] - 4, 11)), ...V.fadeRun(box, col.pitch, parts, col.top)]);
 	}
 	function turnSlide() {
 		const t = T(), m = st.make, things = st.dict.things, n = things.length, k = Math.log2(n), pad = st.mode === "pad";
@@ -2191,7 +2191,7 @@
 		});
 		// its icon apart: the run glides on an advance, the icon stays
 		return svg("g", { class: "v v-file", role: "group", "aria-label": T().padFileTitle },
-			[svg("g", { class: "v-string-icon" }, V.icon("key", col.icon[0], col.icon[1], 11)), ...V.fadeRun(box, col.pitch, parts, 14)]);
+			[svg("g", { class: "v-string-icon" }, V.icon("key", col.icon[0], col.icon[1], 11)), ...V.fadeRun(box, col.pitch, parts, col.top)]);
 	}
 
 	// The turn read back (layouts.js's readTurn), recovering and checking a
