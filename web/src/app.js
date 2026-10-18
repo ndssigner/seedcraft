@@ -545,7 +545,7 @@
 		title: T().forms[f.id].name, pros: T().forms[f.id].pros, cons: T().forms[f.id].cons }));
 	const wordsOptions = (n) => [12, 24].map((w) => {
 		const L = symbolsFor(w, n);
-		return { id: w, title: T().cards.wordsTitle(w), pros: [], cons: [],
+		return { id: w, title: T().wordsLen(w, L), pros: [], cons: [],
 			// the string's last positions: how long it is
 			art: artOf(V.string({ box: { x: 0, y: 4, w: ART_W, h: ART_H - 8 }, orientation: "h", role: "read", kind: "seed", items: [null, null, null, null], firstPosition: L - 3, showValues: false, room: 20 })) };
 	});
@@ -1523,7 +1523,7 @@
 	// the arrow on to the last thing. toWords: the other way round (QR, then
 	// number, then words: recovering's end). reveal: the QR filling in; fade: the
 	// number fading in (only when its step was just reached with Next).
-	function seedQrParts(lay, { words, entropy, qr, step, toWords = false, reveal = null, fade = false }) {
+	function seedQrParts(lay, { words, entropy, qr, step, toWords = false, reveal = null, fade = false, plain = false }) {
 		const t = T(), b = lay.boxes, kids = [], over = [];
 		const digits = S.groupDigits(S.entropyNumber(entropy), 5);
 		const showWords = toWords ? step >= 2 : true, showNumber = step >= 1, showQr = toWords ? true : step >= 2;
@@ -1539,7 +1539,7 @@
 			over.push(fade ? V.fadeIn(num) : num);
 		}
 		if (showQr) {
-			kids.push(V.qr({ box: b.qr, size: qr.size, modules: (r, c) => qr.getModule(c, r), reveal, ...qrFixed(qr.size, b.qr) }));
+			kids.push(V.qr({ box: b.qr, size: qr.size, modules: (r, c) => qr.getModule(c, r), reveal, ...(plain ? {} : qrFixed(qr.size, b.qr)) }));
 			over.push(place(h("div", { class: "qr-label" }, V.iconTag("seed"), " " + t.qrLabel(qr.size)), { x: b.qr.x, y: b.qr.y + b.qr.h + 2, w: b.qr.w, h: 16 }));
 		}
 		// the arrow of each step is the current one, the one before it past
@@ -1926,7 +1926,6 @@
 		};
 		const kids = [
 			svg("rect", { x: b.a.x, y: b.a.y, width: b.a.w, height: b.a.h, rx: 8, class: "st-place" }), seedString,
-			V.dictionary({ label: T().dictLabel, box: b.aDict, things: st.dict.things, mode: "static", icon: "seed" }),
 		];
 		const over = [];
 		const note = (box, ...lines) => over.push(place(h("div", { class: "st-note" }, lines.filter(Boolean).map((x) => h("p", { text: x }))), box));
@@ -1938,7 +1937,8 @@
 			const keyThings = file ? null : keyThingsMade();
 			kids.push(svg("rect", { x: b.b.x, y: b.b.y, width: b.b.w, height: b.b.h, rx: 8, class: "st-place st-key" }),
 				file ? keyFile() : V.string({ box: b.bString, orientation: "h", role: "read", kind: "key", things: keyThings, items: first(m.pad), showValues: false }),
-				V.dictionary({ label: T().dictLabel, box: b.bDict, things: own ? st.padDict.things : st.dict.things, mode: "static", icon: "key" }),
+				// the key's card draws no dictionary unless it is the key's own collection, which has no other place
+				own ? V.dictionary({ label: T().dictLabel, box: b.bDict, things: st.padDict.things, mode: "static", icon: "key" }) : null,
 				svg("line", { x1: b.border.x + b.border.w / 2, y1: b.border.y, x2: b.border.x + b.border.w / 2, y2: b.border.y + b.border.h, class: "st-border" }),
 				svg("text", { x: b.apart.x + b.apart.w / 2, y: b.apart.y + 12, "font-size": 12, "text-anchor": "middle", class: "v-t v-bold v-c-err" }, t.storeApart));
 			titled(b.aTitle, "seed", t.storeA); titled(b.bTitle, "key", t.storeB);
@@ -2432,7 +2432,7 @@
 			body: (step) => {
 				const grew = step > recSeen && !calm();
 				recSeen = step;
-				const parts = seedQrParts(lay, { words, entropy: out.entropy, qr, step, toWords: true, fade: step === 1 && grew });
+				const parts = seedQrParts(lay, { words, entropy: out.entropy, qr, step, toWords: true, fade: step === 1 && grew, plain: true });
 				if (how.length) parts.over.push(place(h("div", { class: "qr-how" }, how.map((x) => h("small", { text: x }))), { x: 240, y: 62, w: 200, h: 36 }));
 				if (step >= 2) parts.over.push(place(h("div", { class: "qr-print" }, fingerprintLine(out.entropy)), b.fingerprint),
 					place(h("div", { class: "qr-note" + (out.fixed ? " warn" : "") }, ...note), b.note));
