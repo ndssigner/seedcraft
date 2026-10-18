@@ -93,8 +93,8 @@ to paint the QR code. You don't even need a calculator.
   ([español](docs/seedcraft-by-hand-es.pdf)): from a sequence to its QR
   code and back with a pencil. A guide, a worked example, the number → bits
   and mask tables, a worksheet, and a template for each size and mask with
-  the fixed parts already drawn. It covers the mode without a key; the key
-  is not in it yet.
+  the fixed parts already drawn; and, for the key, how to make it with dice,
+  the addition tables, the key file and a worked example.
 - [`docs/seedqr-templates-en.pdf`](docs/seedqr-templates-en.pdf)
   ([español](docs/seedqr-templates-es.pdf)): templates to copy a SeedQR,
   Standard (25 × 25, 29 × 29) or Compact (21 × 21, 25 × 25), from SeedSigner

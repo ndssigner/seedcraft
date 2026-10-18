@@ -266,11 +266,11 @@ reference implementation by `tools/gen_manual_data.py`:
   of data modules in each row (to check each row while filling it in);
 - a worksheet and a worked example.
 
-Pad mode (§10) is in the reference implementation, its test vectors and
-the web tool. By hand it needs: the dice rule of §10.2, a table of addition
-mod N (read the other way round to subtract, §10.3), how to work out the
-pad file's check character (§10.9), and a worksheet with a column for the
-pad. These are not in the PDFs yet (§12).
+For pad mode (§10), its chapter "With a key" (the PDF calls the pad the
+key) has: the dice rule of §10.2, tables of addition mod N for N = 2…32
+(read the other way round to subtract, §10.3), the pad file and how to work
+out its check character (§10.9), a worked example and a worksheet with a
+column for the pad.
 
 ## 9. Security considerations
 
@@ -642,7 +642,6 @@ anyone find it odd where it is?**
 - An independent audit of the method, the reference implementation and the
   web tool.
 - More test vectors (other masks).
-- Pad mode in the PDFs.
 - Free decorative pieces outside the dictionary, to break the signature of
   a fixed length and N kinds (`RISK-AUDIT.md` §5).
 - Illustrated instructions with real beads.
