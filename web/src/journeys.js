@@ -241,5 +241,24 @@ const SeedcraftJourneys = (() => {
 		return v < n ? { buffer: "", value: v, clear: false } : { buffer: "", value: null, clear: true };
 	}
 
-	return { ESTIMATE, ESTIMATE_BOTH, maxPerKind, uniqueInitials, onlyPadding, typedPiece, EXPLAINED, turnStages, readStages, checkRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, splitMaterials, nameProblem, checkOrder, throwParts };
+	// The bits a last turn's cards show, from the turns up to and including turnIndex only (those of
+	// later turns are null: not here yet). parts: the cards ("version", "mask", "padding"); k: bits a
+	// turn; nmod: the QR's data bits (the header follows: version 2, mask 3, then the padding to the
+	// end); values: every bit of the sequence, null where it is not known (a bit not read).
+	// Returns { part: { bits: (0|1|null)[], now: bool[] } }: now, the bits this turn brings.
+	function headerBitsUpTo(parts, turnIndex, k, nmod, values) {
+		const range = { version: [nmod, nmod + 2], mask: [nmod + 2, nmod + 5], padding: [nmod + 5, values.length] }, out = {};
+		for (const p of parts) {
+			const bits = [], now = [];
+			for (let j = range[p][0]; j < range[p][1]; j++) {
+				const turn = Math.floor(j / k), v = values[j];
+				bits.push(turn <= turnIndex && v !== undefined ? v : null);
+				now.push(turn === turnIndex);
+			}
+			out[p] = { bits, now };
+		}
+		return out;
+	}
+
+	return { headerBitsUpTo, ESTIMATE, ESTIMATE_BOTH, maxPerKind, uniqueInitials, onlyPadding, typedPiece, EXPLAINED, turnStages, readStages, checkRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, splitMaterials, nameProblem, checkOrder, throwParts };
 })();

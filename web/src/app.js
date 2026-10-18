@@ -1710,19 +1710,31 @@
 		const close = Slides.popup(h("div", { class: "seq-map" }, drawSeq(st.dict.things, m.symbols, { current: m.turn || 0, perRow, form: st.plan.form,
 			onPick: (j) => { close(); turnGo(j, true); } })), { label: T().seqWhole });
 	}
-	// A last turn's cards (layouts.js's header boxes, spec §8): each part's bits
-	// (valueAt(j): bit j of the sequence, null while it is not known), the
-	// mask's value (null: not known), the padding's die. total: the sequence's bits.
-	function headerCardsOf(b, parts, size, total, valueAt, mask) {
-		const t = T(), nmod = S.dataModulesRowMajor(size).length;
-		const range = (a, z) => Array.from({ length: Math.max(0, z - a) }, (_, j) => valueAt(a + j));
-		const pb = range(nmod + S.HEADER_BITS, total), known = pb.every((x) => x !== null);
-		const of = {
-			version: { title: t.hdrVersion, bits: range(nmod, nmod + 2), note: t.hdrVersionNote },
-			mask: { title: t.hdrMask, bits: range(nmod + 2, nmod + S.HEADER_BITS), value: mask },
-			padding: { title: t.hdrPadding, bits: pb, note: t.hdrPaddingNote, face: known ? parseInt(pb.join("") || "0", 2) % 6 : null },
+	// A last turn's cards (layouts.js's header boxes, spec §8, §6): each part's bits from the turns up to
+	// this one (turn i; values: every bit of the sequence, null where it is not known: J.headerBitsUpTo),
+	// this turn's ringed and the others dimmed, «·» for those still to come. The mask's value once its 3 bits
+	// are there; the padding's die once all of it is.
+	function headerCardsOf(b, parts, size, k, i, values) {
+		const t = T(), nmod = S.dataModulesRowMajor(size).length, of = J.headerBitsUpTo(parts, i, k, nmod, values);
+		const whole = (p) => of[p].bits.every((x) => x !== null), num = (p) => parseInt(of[p].bits.join("") || "0", 2);
+		const extra = {
+			version: { title: t.hdrVersion, note: t.hdrVersionNote },
+			mask: { title: t.hdrMask, note: t.hdrMaskFoot, value: parts.includes("mask") && whole("mask") ? num("mask") : null },
+			padding: { title: t.hdrPadding, note: t.hdrPaddingNote, face: parts.includes("padding") && whole("padding") ? num("padding") % 6 : null },
 		};
-		return parts.map((p) => V.headerCard({ box: b["card" + p[0].toUpperCase() + p.slice(1)], kind: p, ...of[p] }));
+		return parts.map((p) => V.headerCard({ box: b["card" + p[0].toUpperCase() + p.slice(1)], kind: p, bits: of[p].bits, now: of[p].now, ...extra[p] }));
+	}
+	// The one-time bubble on why the mask is what it is (spec §6), beside a last turn's mask card: on the
+	// first turn of the run that brings it, until it is closed or that turn is left (st.seen.maskWhy)
+	let maskTipTurn = null;
+	function maskTip(lay, header, i) {
+		if (maskTipTurn !== null && maskTipTurn !== i) st.seen.maskWhy = true;
+		if (st.seen.maskWhy || !header || !lay.maskTip) return [];
+		maskTipTurn = i;
+		const el = place(h("div", { class: "tip mask-tip " + lay.maskTip.dir }, h("span", { text: T().hdrMaskWhy }),
+			h("button", { class: "tip-close", type: "button", "aria-label": T().slidesClose, text: "×", on: { click: () => { st.seen.maskWhy = true; el.remove(); } } })), lay.maskTip.box);
+		el.style.setProperty("--at", `calc(var(--u) * ${lay.maskTip.at})`);
+		return [el];
 	}
 	// the parts of a turn that are not squares (S.turnBits's), or false: none
 	const headerOf = (turn) => { const parts = [...new Set(turn.map((x) => x.part).filter((p) => p !== "data"))]; return parts.length ? parts : false; };
@@ -1780,7 +1792,7 @@
 			if (!qrDrawn) groups.qr.replaceChildren(V.qr({ box: b.qr, size, modules, turnCells, markerLabel: T().qrPosition(i + 1), ...qrFixed(size, b.qr) }));
 			qrDrawn = true;
 			// the cards, filled from their stage on (the mask is the QR's, written in its format band)
-			if (header) groups.cards.replaceChildren(...headerCardsOf(b, header, size, bits.length, (j) => reached("cards") ? bits[j] : null, reached("cards") ? qr.mask : null));
+			if (header) groups.cards.replaceChildren(...headerCardsOf(b, header, size, k, i, bits.map((x, j) => Math.floor(j / k) === i && !reached("cards") ? null : x)));
 			groups.bits.replaceChildren(V.bits({ box: b.bits, bits: turn.map((x) => reached("bits") ? bits[x.bit] : null), roles, colour: "qr" }));
 			groups.number.replaceChildren(V.number({ box: b.number, value: reached("number") ? P : null, colour: "qr" }));
 			if (pad) {
@@ -1838,7 +1850,7 @@
 			else draw(last, false);
 			if (from !== null) glides = glideIn(from, advance);
 			from = null;
-			return h("div", { class: "dict-slide tn-slide" }, canvas(...kids));
+			return h("div", { class: "dict-slide tn-slide" }, canvas(...kids), ...maskTip(lay, header, i));
 		}
 		// Next while it plays: the advance's end, then the cycle's; true if either was playing
 		const hurry = () => {
@@ -1870,7 +1882,8 @@
 			{ icon: "◀", label: t.otherSeed, go: () => { if (confirm(t.otherSeedAsk(st.mode))) otherSeed(); } },
 		];
 		return {
-			count: `${pos}/${L}`, steps: explaining ? stages.length : 1, startStep: explaining && back ? last : 0, caption, shortcuts, help: explainTurn, body,
+			count: `${pos}/${L}`, steps: explaining ? stages.length : 1, startStep: explaining && back ? last : 0, caption, shortcuts, body,
+			help: header && header.includes("mask") ? helpOf(t.hdrMask, t.hdrMaskWhy, []) : explainTurn,
 			// Next while the advance or the cycle plays: first its end, then on
 			hurry,
 			prev: i > 0 ? { go: () => turnGo(i - 1) } : { go: () => goSlide("make", "seqIntro") },
@@ -2320,8 +2333,7 @@
 			// the cards, with the bits as read: the other turns' read, this one's once its cycle reaches them
 			if (header) {
 				const valueAt = (j) => { const x = Math.floor(j / k); return (x === i ? reached("cards") : wholeAt(x)) ? bitsOf(plainOf(x), k)[j - x * k] : null; };
-				const ms = Array.from({ length: 3 }, (_, j) => valueAt(cells.length + 2 + j));
-				g.cards.replaceChildren(...headerCardsOf(b, header, size, L * k, valueAt, ms.includes(null) ? null : parseInt(ms.join(""), 2)));
+				g.cards.replaceChildren(...headerCardsOf(b, header, size, k, i, Array.from({ length: L * k }, (_, j) => valueAt(j))));
 			}
 			if (paintDrawn !== reached("paint")) {
 				paintDrawn = reached("paint");
@@ -2354,7 +2366,7 @@
 			if (from !== null) glides = glideIn(from, advance);
 			from = null;
 			markCol();
-			return h("div", { class: "dict-slide rt-slide" }, canvas(g.frame, g.seed, g.key, g.dicts, g.numbers, g.clock, g.bits, g.cards, g.qr, ...arrowGroups));
+			return h("div", { class: "dict-slide rt-slide" }, canvas(g.frame, g.seed, g.key, g.dicts, g.numbers, g.clock, g.bits, g.cards, g.qr, ...arrowGroups), ...maskTip(lay, header, i));
 		}
 
 		// the foot: what to do now; once it is read, what it gave (the header and the padding have no squares)
@@ -2388,7 +2400,8 @@
 			// Next while the advance or the cycle plays: first its end, then on
 			hurry: () => { const playing = !!glides && glides.playing; if (glides) glides.finish(); const held = !!hold && hold.finish(); return (!!cycle && cycle.finish()) || held || playing; },
 			help: helpOf(stepName(checking ? "make" : "read", checking ? "check" : "recover"), checking ? (pad ? t.checkHelpPad : t.checkReadHelp) : null,
-				[t.forms[form].read, keyThings ? t.keysHintTab : t.keysHint, keyThings ? t.tapPadHelp : null, pad ? null : t.whyBasic(n, k), t.readLockedWhy].filter(Boolean)),
+				[t.forms[form].read, keyThings ? t.keysHintTab : t.keysHint, keyThings ? t.tapPadHelp : null, pad ? null : t.whyBasic(n, k), t.readLockedWhy,
+					header && header.includes("mask") ? t.hdrMaskWhy : null].filter(Boolean)),
 			shortcuts: readShortcuts(rd, L, opts.done),
 			prev: i > 0 ? { go: () => readGo(rd, i - 1) } : undefined,
 			next: { go: () => { if (i < L - 1) readGo(rd, i + 1); else opts.done(); }, ready: whole },

@@ -61,7 +61,7 @@ const SeedcraftLayouts = (() => {
 	// follow one another); one alone takes the middle place, so the column's middle
 	// (CARDS_MID) always has a card. cards: the column, as tall as its cards.
 	const HEADER_PARTS = ["version", "mask", "padding"];
-	const CARD_SLOT = { version: [36, 46], mask: [86, 60], padding: [150, 56] }, CARDS_MID = 116;
+	const CARD_SLOT = { version: [32, 42], mask: [78, 72], padding: [154, 52] }, CARDS_MID = 116;
 	const cardId = (p) => "card" + p[0].toUpperCase() + p.slice(1);
 	function headerCards(b, x, w, header) {
 		const parts = HEADER_PARTS.filter((p) => header === true || header.includes(p));
@@ -74,6 +74,15 @@ const SeedcraftLayouts = (() => {
 	// mask is written), into its card's left edge (amber, as the QR's fixed areas)
 	const maskArrow = (b, size) => arrow("mask", "qr", "cardMask", "key", [[b.qr.x + b.qr.w, b.qr.y + 8.5 * b.qr.h / size], [b.cardMask.x, b.qr.y + 8.5 * b.qr.h / size]]);
 
+	// The one-time bubble that says why the mask is what it is (a turn that brings it): over a free place
+	// near the cards (it may cover an arrow while it is open), its tail to the cards' column: dir the side
+	// the tail is on, at where along that side (from the bubble's top or left).
+	const MASK_TIP = {
+		make: { box: box(284, 36, 330, 60), dir: "left", at: 54 }, makePad: { box: box(16, 208, 300, 52), dir: "up", at: 134 },
+		read: { box: box(444, 208, 220, 70), dir: "up", at: 156 }, readPad: { box: box(504, 208, 160, 90), dir: "up", at: 96 },
+	};
+	const withMaskTip = (lay, header, tip) => { if (header === true || (header && header.includes("mask"))) lay.maskTip = { ...tip, box: { ...tip.box } }; return lay; };
+
 	// The turn while making the copy. Bottom to top, left to right: the seed
 	// string being built, its slot's position → the QR → its bits → their
 	// number; with a key, the key string's piece → its dictionary → its number,
@@ -83,7 +92,7 @@ const SeedcraftLayouts = (() => {
 	// header: a last turn (true, or the parts it brings: "version", "mask",
 	// "padding"): makeHeaderTurn's. data, size: there.
 	function makeTurn({ pad, n, file = false, header = false, data = false, size = 21 }) {
-		if (header) return makeHeaderTurn({ pad, n, file, header, data, size });
+		if (header) return withMaskTip(makeHeaderTurn({ pad, n, file, header, data, size }), header, pad ? MASK_TIP.makePad : MASK_TIP.make);
 		const bits = bitsOf(n);
 		const b = {
 			qr: box(16, 36, 180, 180),
@@ -217,7 +226,10 @@ const SeedcraftLayouts = (() => {
 	// position over the top as usual, and «paint» up a corridor between the QR
 	// and the column into the QR's right edge beside the cursor. With a key the
 	// key's number goes under the QR into the clock. size: the QR's.
-	function readTurn({ pad, n, file = false, cursor = null, header = false, size = 21 }) {
+	function readTurn(o) {
+		return withMaskTip(readTurnBase(o), o.header, o.pad ? MASK_TIP.readPad : MASK_TIP.read);
+	}
+	function readTurnBase({ pad, n, file = false, cursor = null, header = false, size = 21 }) {
 		const bits = bitsOf(n), bw = bits * BIT, piece = 41, top = 40, rowY = top + 3 * piece, TOP = 32, OUTER = 654;
 		const seedColumn = box(20, top, 70, 7 * piece), seed = readColumn(seedColumn, { outer: "left" });
 		const slotIn = (c) => box(c.rows[3].piece.x, rowY + 2, c.rows[3].piece.w, piece - 4);

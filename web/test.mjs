@@ -436,6 +436,9 @@ for (const size of [21, 25]) for (const n of [2, 4, 8, 16, 32]) for (const pad o
 			check(!!mask === parts.includes("mask") && (!mask || (starts(mask)[0] === b.qr.x + b.qr.w && starts(mask)[1] === b.qr.y + 8.5 * b.qr.h / size && ends(mask)[0] === b.cardMask.x)),
 				`${what} ${name}: the mask's arrow from the QR's format row 8 into its card`);
 			check(ids.includes("cards") && b.qr.h < 150 && b.qr.w === b.qr.h, `${what} ${name}: the cards' arrow, the QR smaller`);
+			const tip = lay.maskTip, hit = (p, q) => p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q.y < p.y + p.h;
+			check(!!tip === parts.includes("mask") && (!tip || (tip.box.x >= 16 && tip.box.x + tip.box.w <= 664 && tip.box.y >= 30 && tip.box.y + tip.box.h <= 334
+				&& Object.entries(b).every(([id, x]) => id === "guide" || !x || x.w === undefined || !hit(tip.box, x)))), `${what} ${name}: the mask bubble in free space, only with the mask`);
 			check(ids.includes("position") === cells.length > 0 && ids.includes("paint") === (what === "read" && cells.length > 0), `${what} ${name}: the position (and the painting) only with data squares`);
 		}
 		const cardsArrow = (lay) => lay.arrows.find((a) => a.id === "cards");
@@ -688,6 +691,15 @@ for (const pad of [false, true]) {
 			"headerCard padding: a die, its bits dashed, «by chance»");
 		check(walk(vs, (n) => n.tag === "text" && textOf(n) === "Versión del formato").length === 1 && walk(vs, cls("v-bit-version")).length === 2 && walk(vs, cls("v-bit-empty")).length === 1,
 			"headerCard version: the whole title, a bit not known yet empty");
+		// the bits each turn brings: pending bits «·», this turn's ringed, the others dimmed
+		const pend = V.headerCard({ box: cb, title: "Máscara de tu QR", bits: [1, 1, null], now: [true, false, false], note: "Está escrita en la franja ámbar, junto a las esquinas.", kind: "mask" });
+		const gs = walk(pend, cls("v-bit"));
+		check(gs.length === 3 && walk(gs[2], (n) => n.tag === "text" && textOf(n) === "·").length === 1 && walk(pend, cls("v-bit-now")).length === 1 && cls("v-bit-now")(gs[0])
+			&& walk(pend, cls("v-bit-dim")).length === 2 && !walk(pend, (n) => n.tag === "text" && textOf(n).startsWith("=")).length,
+			"headerCard: a pending bit draws «·», only the bits this turn brings carry v-bit-now, the others dimmed");
+		check(walk(pend, (n) => n.tag === "text" && textOf(n).includes("ámbar")).length >= 1 && walk(pend, (n) => n.tag === "text").map(textOf).join(" ").includes("Está escrita en la"),
+			"headerCard: a long note wraps over its lines");
+		within({ ...pend, children: pend.children.filter((n) => n.tag !== "svg") }, { x: 100, y: 86, w: 104, h: 72 }, "headerCard pending mask");
 		for (const [what, c] of [["mask", mk], ["padding", pd], ["version", vs]]) within({ ...c, children: c.children.filter((n) => n.tag !== "svg") }, cb, `headerCard ${what}`);
 	}
 	// the QR's fixed areas, the cursor label, black and white bits, the labelled dictionary
@@ -998,6 +1010,17 @@ for (const pad of [false, true]) {
 	check(V.faceButton({ sides: 6, face: 1, disabled: true }).attrs.disabled === true, "faceButton: disabled");
 }
 {
+	{
+		// the bits each last turn brings (12 words, N = 16: nmod 208, 4 bits a turn; the header is turn 52 and 53, 0-based)
+		const nmod = 208, vals = Array.from({ length: 220 }, (_, j) => j % 2), same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+		const a = J.headerBitsUpTo(["version", "mask"], 52, 4, nmod, vals), b = J.headerBitsUpTo(["mask", "padding"], 53, 4, nmod, vals);
+		check(same(a.mask.bits, [vals[210], vals[211], null]) && same(a.mask.now, [true, true, false]) && same(a.version.bits, [vals[208], vals[209]]) && same(a.version.now, [true, true]),
+			"headerBitsUpTo: turn 52 brings the mask's first two bits, the third is not yet");
+		check(same(b.mask.bits, [vals[210], vals[211], vals[212]]) && same(b.mask.now, [false, false, true]) && same(b.padding.bits, [...vals.slice(213, 216), null, null, null, null]) && same(b.padding.now, [true, true, true, false, false, false, false]),
+			"headerBitsUpTo: turn 53 has all three, only the third is this turn's, plus the padding");
+		const c = J.headerBitsUpTo(["mask"], 52, 4, nmod, vals.map((x, j) => j === 210 ? null : x));
+		check(same(c.mask.bits, [null, vals[211], null]), "headerBitsUpTo: a bit not read (null) stays null");
+	}
 	let r = J.typedPiece("", "1", 16); check(r.value === null && r.buffer === "1", "typed: one digit of two waits");
 	r = J.typedPiece("1", "2", 16); check(r.value === 12 && r.buffer === "", "typed: two digits choose 12");
 	r = J.typedPiece("1", "7", 16); check(r.value === null && r.clear && r.buffer === "", "typed: 17 of 16 clears");

@@ -316,7 +316,7 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	// comes from (S.turnBits's part): "data" (a square), or the border of its
 	// header card: "version" neutral, "mask" amber, "padding" dashed ("header",
 	// the version and the mask together, dashed too). colour: "qr" or "key".
-	function bits({ box, bits = [], orientation = "row", roles = [], colour = "qr" }) {
+	function bits({ box, bits = [], orientation = "row", roles = [], colour = "qr", now = null, pending = false }) {
 		const n = Math.max(1, bits.length), SUB = 8, parts = [], tower = orientation === "tower";
 		const pitch = tower ? box.h / n : (box.w - SUB) / n;
 		const size = Math.max(4, Math.min(tower ? box.w - SUB : box.h, pitch - 2));
@@ -324,9 +324,12 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			const x = tower ? box.x + (box.w - SUB - size) / 2 : box.x + i * pitch + (pitch - size) / 2;
 			const y = tower ? box.y + i * pitch + (pitch - size) / 2 : box.y + (box.h - size) / 2;
 			const role = roles[i] && roles[i] !== "data" ? (roles[i] === "padding" || roles[i] === "header" ? " v-bit-dashed" : "") + " v-bit-" + roles[i] : "";
-			parts.push(svg("g", { class: "v-bit" + (b === 0 ? " v-bit-0" : b === 1 ? " v-bit-1" : "") + (b === null || b === undefined ? " v-bit-empty" : "") + role },
+			parts.push(svg("g", { class: "v-bit" + (b === 0 ? " v-bit-0" : b === 1 ? " v-bit-1" : "") + (b === null || b === undefined ? " v-bit-empty" : "") + role
+				+ (now ? (now[i] ? " v-bit-now" : " v-bit-dim") : "") },
+				now && now[i] ? svg("rect", { x: r1(x - 2.5), y: r1(y - 2.5), width: r1(size + 5), height: r1(size + 5), rx: 5, class: "v-bit-ring" }) : null,
 				svg("rect", { x: r1(x), y: r1(y), width: r1(size), height: r1(size), rx: 3, class: "v-bit-box" }),
-				b === null || b === undefined ? null : text(x + size / 2, y + size * 0.72, size * 0.62, b, { "text-anchor": "middle", class: "v-mono" })));
+				b === null || b === undefined ? (pending ? text(x + size / 2, y + size * 0.72, size * 0.62, "·", { "text-anchor": "middle", class: "v-mono" }) : null)
+					: text(x + size / 2, y + size * 0.72, size * 0.62, b, { "text-anchor": "middle", class: "v-mono" })));
 		});
 		const last = n - 1, sx = tower ? box.x + box.w - SUB / 2 : box.x + box.w - SUB / 2;
 		const sy = tower ? box.y + last * pitch + (pitch + size) / 2 : box.y + (box.h + size) / 2;
@@ -338,16 +341,29 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 	// kind "version" (neutral), "mask" (amber, as the QR's fixed areas: its
 	// value beside its bits) or "padding" (dashed, with a die: by chance).
 	// title over the bits (0, 1 or null: not known yet), note under them.
-	function headerCard({ box: b, title, bits: values = [], note = null, kind = "version", value = null, face = 3 }) {
+	function headerCard({ box: b, title, bits: values = [], now = null, note = null, kind = "version", value = null, face = 3 }) {
 		const BW = 14, row = { x: b.x + 6, y: b.y + 18, w: values.length * BW + 8, h: 14 };
 		const parts = [svg("rect", { x: b.x, y: b.y, width: b.w, height: b.h, rx: 5, class: "v-hcard-box" }),
 			text(b.x + 6, b.y + 12, 8.5, fit(title, b.w - 12, 8.5), { class: "v-bold" }),
-			bits({ box: row, bits: values, roles: values.map(() => kind), colour: kind === "mask" ? "key" : "seed" })];
+			bits({ box: row, bits: values, roles: values.map(() => kind), colour: kind === "mask" ? "key" : "seed", now, pending: true })];
 		if (kind === "mask" && value !== null && value !== undefined) parts.push(text(row.x + row.w + 6, row.y + 12, 14, "= " + value, { class: "v-bold v-c-key v-hcard-value" }));
 		if (kind === "padding") {
 			parts.push(die({ sides: 6, face, size: 22, x: b.x + b.w - 28, y: b.y + 15 }));
 		}
-		if (note) parts.push(text(b.x + 6, b.y + b.h - 7, 8, fit(note, b.w - 12, 8), { class: "v-sub" }));
+		if (note) {
+			// the note over as many lines as it needs, the last one at the foot of the card
+			const wrap = (size) => {
+				const max = Math.max(1, Math.floor((b.w - 12) / (size * 0.56))), lines = [];
+				for (const word of String(note).split(/\s+/)) {
+					if (lines.length && (lines[lines.length - 1] + " " + word).length <= max) lines[lines.length - 1] += " " + word;
+					else lines.push(word);
+				}
+				return lines;
+			};
+			let size = 8, lines = wrap(size);
+			if (lines.length > 1) { size = 7.5; lines = wrap(size); }
+			lines.forEach((l, j) => parts.push(text(b.x + 6, b.y + b.h - 7 - (lines.length - 1 - j) * 8.5, size, fit(l, b.w - 12, size), { class: "v-sub" })));
+		}
 		return svg("g", { class: `v v-hcard v-hcard-${kind}` }, parts);
 	}
 
