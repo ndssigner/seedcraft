@@ -1156,7 +1156,9 @@ for (const pad of [false, true]) {
 	// a starred option shows a star top-right with its title; nothing else changes
 	{ const st1 = V.cards({ options: [{ id: "a", title: "A", star: true, starLabel: "Recommended" }, { id: "b", title: "B" }], chosen: null });
 		const stars = walk(st1, cls("v-card-star"));
-		check(stars.length === 1 && textOf(stars[0]).includes("★") && /Recom/.test(stars[0].attrs.title || "") && /Recom/.test(stars[0].attrs["aria-label"] || ""), "cards: the starred option's star, with its title"); }
+		check(stars.length === 1 && textOf(stars[0]).includes("★") && /Recom/.test(stars[0].attrs.title || "") && /Recom/.test(stars[0].attrs["aria-label"] || "") && stars[0].attrs.role === "img", "cards: the starred option's star, with its title"); }
+	// the relief edge (6 down) stays inside the 100-unit viewBox
+	for (const s of [4, 8, 10, 12, 16, 20]) { const d = V.diceShape({ sides: s, size: 56 }); const ys = walk(d, (n) => n.tag === "polygon").flatMap((p) => p.attrs.points.split(" ").map((q) => +q.split(",")[1] + (/translate\(0 6\)/.test(p.attrs.transform || "") ? 6 : 0))); check(Math.max(...ys) <= 100, `diceShape d${s}: the edge inside the viewBox`); }
 	for (const s of [4, 6, 8, 10, 12, 16, 20]) { const d = V.diceShape({ sides: s, size: 56 }); check(walk(d, (n) => n.tag === "path" || n.tag === "polygon" || n.tag === "rect").length >= 1 && walk(d, (n) => n.tag === "text").some((t) => textOf(t) === String(s)), `diceShape d${s}`); }
 	// a card: art, title, one list; pros then cons; each li is the mark, then the text; nothing centred
 	const grid3 = V.cards({ options: [{ id: "a", art: node("svg", {}), title: "A", sub: "small", pros: ["p"], cons: ["c"] }, { id: "b", title: "B", pros: [], cons: [] }, { id: "c", title: "C", cons: ["c"] }], chosen: null });
