@@ -288,7 +288,8 @@
 	// The base photo of a dictionary being named (one photo with all its pieces), read once and kept on
 	// the editor's state (st.edit.photoBase, never stored): every piece's photo is cropped from it.
 	let baseIds = 0;
-	const loadBase = (file) => readImage(file).then(({ img, src }) => ({ img, src, iw: img.naturalWidth, ih: img.naturalHeight, id: ++baseIds }));
+	// (the data URL is not kept: the decoded image is enough)
+	const loadBase = (file) => readImage(file).then(({ img }) => ({ img, iw: img.naturalWidth, ih: img.naturalHeight, id: ++baseIds }));
 	// a piece's photo: a square of a loaded image (crop: {x, y, side} in its own pixels; none: the centred
 	// largest), 192 px, as a JPEG data URL
 	function photoOf(img, crop = null) {
@@ -351,8 +352,10 @@
 				paint();
 			}
 			// the square: resized about its centre, moved, by a corner
-			const resize = (side) => { const m = Lay.cropClamp({ iw: B.iw, ih: B.ih, x: 0, y: 0, side }).side, cx = c.x + c.side / 2, cy = c.y + c.side / 2; c = Lay.cropClamp({ iw: B.iw, ih: B.ih, x: cx - m / 2, y: cy - m / 2, side: m }); paint(); };
-			const move = (dx, dy) => { c = Lay.cropClamp({ iw: B.iw, ih: B.ih, x: c.x + dx, y: c.y + dy, side: c.side }); paint(); };
+			// (by the slider or the arrows: a square gone out of the viewport brings the view back onto it)
+			const follow = () => { if (!seen()) view = Lay.cropViewOn(dims, view.zoom, { ix: c.x + c.side / 2, iy: c.y + c.side / 2 }); };
+			const resize = (side) => { const m = Lay.cropClamp({ iw: B.iw, ih: B.ih, x: 0, y: 0, side }).side, cx = c.x + c.side / 2, cy = c.y + c.side / 2; c = Lay.cropClamp({ iw: B.iw, ih: B.ih, x: cx - m / 2, y: cy - m / 2, side: m }); follow(); paint(); };
+			const move = (dx, dy) => { c = Lay.cropClamp({ iw: B.iw, ih: B.ih, x: c.x + dx, y: c.y + dy, side: c.side }); follow(); paint(); };
 			// the view: zoomed about a viewport point, panned
 			const zoomAt = (p, k) => { view = Lay.cropZoomAt(view, p, k, dims); paint(); };
 			const pan = (dx, dy) => { view = Lay.cropViewClamp({ ...dims, zoom: view.zoom, ox: view.ox + dx, oy: view.oy + dy }); paint(); };
@@ -373,7 +376,8 @@
 				else if (pts.size === 1) {
 					const q = Lay.cropToImage(view, p);
 					mode = e.target === handle ? "corner" : inside(p) ? "move" : "pan";
-					if (mode === "corner") grip = { dx: c.x + c.side - q.ix, dy: c.y + c.side - q.iy };
+					// the grip: where the square's corner is from the finger, so a clamped square follows it again at once
+					grip = mode === "corner" ? { dx: c.x + c.side - q.ix, dy: c.y + c.side - q.iy } : { dx: c.x - q.ix, dy: c.y - q.iy };
 				}
 			});
 			stage.addEventListener("pointermove", (e) => {
@@ -386,7 +390,10 @@
 					if (last > 0 && g.span > 0) view = Lay.cropZoomAt(view, g, g.span / last, dims);
 					view = Lay.cropViewClamp({ ...dims, zoom: view.zoom, ox: view.ox + g.px - centre.px, oy: view.oy + g.py - centre.py });
 					last = g.span; centre = g; paint();
-				} else if (mode === "move") move(dx / view.zoom, dy / view.zoom);
+				} else if (mode === "move") {
+					const q = Lay.cropToImage(view, p);
+					c = Lay.cropClamp({ iw: B.iw, ih: B.ih, x: q.ix + grip.dx, y: q.iy + grip.dy, side: c.side }); paint();
+				}
 				else if (mode === "pan") pan(dx, dy);
 				else if (mode === "corner") {
 					const q = Lay.cropToImage(view, p);
@@ -395,9 +402,12 @@
 			});
 			// a finger lifted from a pinch: the other does nothing until pressed again
 			const up = (e) => { pts.delete(e.pointerId); if (mode === "pinch" || !pts.size) mode = null; };
-			stage.addEventListener("pointerup", up); stage.addEventListener("pointercancel", up);
+			stage.addEventListener("pointerup", up); stage.addEventListener("pointercancel", up); stage.addEventListener("lostpointercapture", up);
+			// the window losing the focus mid-gesture: no finger is left pressed
+			const blur = () => { pts.clear(); mode = null; };
+			addEventListener("blur", blur);
 			stage.addEventListener("wheel", (e) => { e.preventDefault(); zoomAt(at(e), Math.exp(-e.deltaY * (e.deltaMode === 1 ? 16 : 1) * 0.002)); }, { passive: false });
-			const finish = (r) => { if (done) return; done = true; if (ro) ro.disconnect(); resolve(r); };
+			const finish = (r) => { if (done) return; done = true; if (ro) ro.disconnect(); removeEventListener("blur", blur); resolve(r); };
 			const crop = () => {
 				ed.lastView = { ...Lay.cropToImage(view, mid()), zoom: view.zoom, base: B.id };
 				finish({ x: c.x, y: c.y, side: c.side }); close();
@@ -1266,7 +1276,7 @@
 				place(h("div", { class: "dict-form" }, nameIn,
 					h("div", { class: "dict-buttons" },
 						h("button", { type: "button", class: "btn ghost", on: { click: () => colourPopup(x) } }, dot, t.pieceColour),
-						h("button", { type: "button", class: "btn ghost", title: t.photoTake, on: { click: takePhoto } }, x.photo ? t.photoAgain : t.piecePhoto),
+						h("button", { type: "button", class: "btn ghost", title: t.photoTake, on: { click: takePhoto } }, ed.photoBase ? t.photoFromBase : x.photo ? t.photoAgain : t.piecePhoto),
 						x.photo ? h("button", { type: "button", class: "btn ghost", title: t.photoRemove, "aria-label": t.photoRemove, on: { click: () => { x.photo = ""; if (ed.crops) delete ed.crops[ed.i]; render(); } } }, "✕") : null,
 						// editing a dictionary already there: saved from any piece, no need to page to the end
 						ed.base && ed.i < n - 1 ? h("button", { type: "button", class: "btn", on: { click: () => { if (!problem()) finish(); } } }, "✓ " + t.dictSaveNames) : null),
