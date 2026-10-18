@@ -1082,7 +1082,8 @@ for (const pad of [false, true]) {
 	// the reel with no value yet: no row framed
 	check(walk(V.dictionary({ box: lay.boxes.keyDict, things: things.slice(0, 16), mode: "reel", value: null, icon: "key" }), cls("v-dict-on")).length === 0, "dictionary reel without a value: nothing framed");
 	check(walk(pk, cls("v-pick")).every((b) => walk(b, cls("v-name")).length === 1), "dictionary picker: each button with its name");
-	// what is read from the lectern is never smaller than 9 units (a bead's own glyph is a picture, not text)
+	// what is read from the lectern is never smaller than 9 units (a bead's own glyph is a picture, not text;
+	// the picker's corner number and initials only label a cell, and the user asked for them smaller)
 	{
 		const th6 = Lay.keyThrow({ sides: 6, bits: 5 }), simple = Lay.makeTurn({ pad: false, n: 16 });
 		const drawn = [
@@ -1093,7 +1094,7 @@ for (const pad of [false, true]) {
 			...[2, 8, 16, 32].flatMap((n) => [V.clock({ box: lay.boxes.clock, n, from: n - 1, by: 1, phase: "done" }), V.clock({ box: rlay.boxes.clock, n, from: 0, by: n - 1, sign: -1, phase: "done" })]),
 			V.number({ box: lay.boxes.number, value: 11 }), V.piece({ box: th6.boxes.piece, thing: things[3] }),
 		];
-		const small = drawn.flatMap((d) => walk(d, (n) => n.tag === "text" && !cls("v-glyph")(n) && num(n.attrs["font-size"]) < 9));
+		const small = drawn.flatMap((d) => walk(d, (n) => n.tag === "text" && !cls("v-glyph")(n) && !cls("v-pick-corner")(n) && num(n.attrs["font-size"]) < 9));
 		check(!small.length, `no text under 9 units ${small.slice(0, 3).map((t) => textOf(t) + "@" + t.attrs["font-size"]).join(", ")}`);
 		// the turn's position in blue and bold, whatever the string
 		check([s, ref, rd].every((d) => { const p = walk(d, cls("v-pos-current")); return p.length === 1 && cls("v-c-qr")(p[0]) && cls("v-bold")(p[0]); }), "string: the turn's position blue and bold in every role");

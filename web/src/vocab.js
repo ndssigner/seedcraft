@@ -305,13 +305,14 @@ function SeedcraftVocab(svg, h, L = SeedcraftLayouts) {
 			const { cols, cw, ch } = L.pickerGrid(box, N), gap = 2;
 			things.forEach((thing, v) => {
 				// its number on top, the piece, its name under it
-				const x = inner.x + (v % cols) * cw, y = inner.y + Math.floor(v / cols) * ch, fs = Math.max(9, Math.min(11, ch * 0.2));
+				const x = inner.x + (v % cols) * cw, y = inner.y + Math.floor(v / cols) * ch, fs = Math.max(9, Math.min(11, ch * 0.2)), sfs = Math.max(7, fs * 0.75);
+				// the corners' number and initials are smaller than the name: they label the cell, they are not read first
 				const br = Math.max(3, Math.min(cw / 2 - 4, (ch - 2 * fs - 8) / 2));
 				parts.push(press(svg("g", { class: "v-pick" + (v === value ? " on" : ""), role: "button", tabindex: "0", "aria-label": `${v}: ${thing.name || ""}`, "aria-pressed": String(v === value) },
 					svg("rect", { x: r1(x + gap / 2), y: r1(y + gap / 2), width: r1(cw - gap), height: r1(ch - gap), rx: 4, class: "v-pick-bg" }),
-					text(x + 4, y + fs + 1, fs, v, { class: "v-mono v-dict-num" }),
+					text(x + 4, y + sfs + 2, sfs, v, { class: "v-mono v-dict-num v-pick-corner" }),
 					// its initials in the opposite top corner, in the number's type, in the room the number leaves
-					(initials ? initials[v] : thing.emoji) ? text(x + cw - 4, y + fs + 1, fs, fit(initials ? initials[v] : thing.emoji, cw - 10 - String(v).length * fs * 0.6, fs), { "text-anchor": "end", class: "v-mono v-dict-num v-pick-ini" }) : null,
+					(initials ? initials[v] : thing.emoji) ? text(x + cw - 4, y + sfs + 2, sfs, fit(initials ? initials[v] : thing.emoji, cw - 10 - String(v).length * sfs * 0.6, sfs), { "text-anchor": "end", class: "v-mono v-dict-num v-pick-ini v-pick-corner" }) : null,
 					bead(thing, x + cw / 2, y + fs + 3 + br, br),
 					text(x + cw / 2, y + ch - 3, fs, fit(thing.name, cw - 6, fs), { "text-anchor": "middle", class: "v-name" }),
 					svg("title", {}, `${v}: ${thing.name || ""}`)), () => onPick && onPick(v)));
