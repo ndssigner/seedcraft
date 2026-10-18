@@ -130,10 +130,14 @@ const SeedcraftJourneys = (() => {
 	// layouts.js's makeTurn it reveals. pad: with a key; file: the key is a file
 	// (its number is read straight from its row: no key dictionary). The clock's
 	// two inputs are one stage, and so is what comes out of it (no arrow).
-	function turnStages({ pad = false, file = false } = {}) {
+	// header: a last turn (layouts.js's makeHeaderTurn): the cards first (the
+	// mask's arrow from the QR), then the bits (from the cards, and from the QR
+	// if it has data squares); the position only with data squares (data).
+	function turnStages({ pad = false, file = false, header = false, data = false } = {}) {
 		const st = (id, ...arrows) => ({ id, arrows });
-		if (!pad) return [st("position", "position"), st("bits", "bits"), st("number", "number"), st("dict", "dict"), st("slot", "slot")];
-		return [st("position", "position"), st("bits", "bits"), st("number", "number"),
+		const start = header ? [...(data ? [st("position", "position")] : []), st("cards", "mask"), st("bits", "cards", "bits")] : [st("position", "position"), st("bits", "bits")];
+		if (!pad) return [...start, st("number", "number"), st("dict", "dict"), st("slot", "slot")];
+		return [...start, st("number", "number"),
 			...(file ? [st("key", "keyNumber")] : [st("key", "keyPiece"), st("keyNumber", "keyNumber")]),
 			st("clock", "clockSeed", "clockKey"), st("out"), st("dict", "output"), st("slot", "slot")];
 	}
@@ -147,11 +151,16 @@ const SeedcraftJourneys = (() => {
 	// into its dictionary and its number; with a key its piece (none for a key
 	// file) and number, the two numbers into the clock and what comes out of it
 	// (no arrow); then the bits, then the squares painted.
-	function readStages({ pad = false, file = false } = {}) {
+	// header: a last turn (readTurn's header): after the bits (and their squares
+	// painted, if it has some: data), the bits into their cards, the mask's arrow
+	// from the QR's format band with them.
+	function readStages({ pad = false, file = false, header = false, data = false } = {}) {
 		const st = (id, ...arrows) => ({ id, arrows });
-		const seed = [st("position", "position"), st("piece", "piece"), st("number", "number")];
-		return pad ? [...seed, ...(file ? [] : [st("keyPiece", "keyPiece")]), st("keyNumber", "keyNumber"), st("in", "clockSeed", "clockKey"), st("out"), st("bits", "bits"), st("paint", "paint")]
-			: [...seed, st("bits", "bits"), st("paint", "paint")];
+		const squares = !header || data;
+		const seed = [...(squares ? [st("position", "position")] : []), st("piece", "piece"), st("number", "number")];
+		const end = [st("bits", "bits"), ...(squares ? [st("paint", "paint")] : []), ...(header ? [st("cards", "cards", "mask")] : [])];
+		return pad ? [...seed, ...(file ? [] : [st("keyPiece", "keyPiece")]), st("keyNumber", "keyNumber"), st("in", "clockSeed", "clockKey"), st("out"), ...end]
+			: [...seed, ...end];
 	}
 	// A copy read back against the one just made, piece by piece. taps and
 	// keys: what was read, turn by turn (keys: the key's column, null with no

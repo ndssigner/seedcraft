@@ -9,7 +9,7 @@ import vm from "node:vm";
 const here = new URL(".", import.meta.url);
 const read = (p) => readFileSync(new URL(p, here), "utf8");
 const ctx = vm.createContext({ crypto: globalThis.crypto, TextEncoder }); // the browser's crypto.getRandomValues and TextEncoder
-for (const f of ["third_party/qrcodegen.js", "src/bip39-english.js", "src/seedcraft-sequences.js", "src/layouts.js"])
+for (const f of ["third_party/qrcodegen.js", "src/bip39-english.js", "src/seedcraft-sequences.js", "src/layouts.js", "src/journeys.js"])
 	vm.runInContext(read(f), ctx, { filename: f });
 vm.runInContext("globalThis.S = SeedcraftSequences; globalThis.SeedcraftLayouts = SeedcraftLayouts;", ctx); // top-level consts are not properties of the context
 const S = ctx.S;
@@ -297,7 +297,7 @@ check(S.changedPieces([1, 2], [1, 2]).length === 0 && S.changedPieces([1], [1, 2
 }
 // the slides' geometry: everything fits in the canvas, no arrow crosses a box
 // (a box overlapping an arrow's own ends, like the frame around a row, is not crossed)
-const Lay = ctx.SeedcraftLayouts;
+const Lay = ctx.SeedcraftLayouts, J = vm.runInContext("SeedcraftJourneys", ctx);
 check(Lay.route([[0, 0], [10, 0], [10, 5]]) === "M0 0 L10 0 L10 5", "route");
 let threw = false; try { Lay.route([[0, 0], [3, 4]]); } catch { threw = true; }
 check(threw, "route refuses a diagonal");
@@ -401,6 +401,48 @@ for (const size of [21, 25]) for (const n of [2, 16, 32]) for (const pad of [fal
 			check(p[1] === lay.boxes.qr.y && Math.abs(p[0] - mid(cursor.x, cursor.w)) <= 1 && q[0] === drawn.x + drawn.w && Math.abs(q[1] - mid(cursor.y, cursor.h)) <= 1,
 				`read size=${size} n=${n} pad=${pad} turn ${i}: position reaches the QR above the cursor, the bits beside it`);
 		}
+	}
+}
+// the last turns: their bits come from the header (format version, the QR's mask) and the padding
+for (const [size, words] of [[21, 12], [25, 24]]) for (const n of [2, 16, 32]) {
+	const k = Math.log2(n), nmod = S.dataModulesRowMajor(size).length, last = Math.floor((nmod + 5 - 1) / k);
+	const all = []; for (let i = 0; i <= last + 1; i++) all.push(...S.turnBits(size, i, k));
+	check(all.filter((x) => x.part === "version").length === 2 && all.filter((x) => x.part === "mask").length === 3 && all.every((x) => (x.part === "data") === (x.role === "data")),
+		`turnBits size=${size} n=${n}: 2 version bits, 3 mask bits, parts match roles`);
+	const straddle = S.turnBits(size, Math.floor(nmod / k), k);
+	if (nmod % k) check(straddle.some((x) => x.part === "data") && straddle.some((x) => x.part !== "data"), `turnBits size=${size} n=${n}: the turn across the end mixes data and header`);
+}
+for (const n of [2, 16, 32]) for (const pad of [false, true]) {
+	checkLayout(`make header n=${n} pad=${pad}`, Lay.makeTurn({ pad, n, header: true }));
+	checkLayout(`read header n=${n} pad=${pad}`, Lay.readTurn({ pad, n, cursor: null, header: true }));
+}
+// every header turn there is (the cards it brings, its data squares if any), made and read, with or without a key (or a key file)
+for (const size of [21, 25]) for (const n of [2, 4, 8, 16, 32]) for (const pad of [false, true]) for (const file of pad ? [false, true] : [false]) {
+	const k = Math.log2(n), nmod = S.dataModulesRowMajor(size).length, L = Math.ceil((nmod + 5) / k);
+	for (let i = Math.floor(nmod / k); i < L; i++) {
+		const turn = S.turnBits(size, i, k), parts = [...new Set(turn.map((x) => x.part).filter((p) => p !== "data"))], cells = turn.filter((x) => x.cell).map((x) => x.cell);
+		if (!parts.length) continue;
+		const name = `header size=${size} n=${n} pad=${pad} file=${file} turn ${i}`;
+		const make = Lay.makeTurn({ pad, n, file, header: parts, data: cells.length > 0, size });
+		const probe = Lay.readTurn({ pad, n, file, header: parts }).boxes.qr, cursor = Lay.qrCellsBox(probe, size, cells, { legend: probe.h >= 150 });
+		const read = Lay.readTurn({ pad, n, file, cursor, header: parts, size });
+		for (const [what, lay] of [["make", make], ["read", read]]) {
+			checkLayout(`${what} ${name}`, lay);
+			margin(`${what} ${name}`, lay);
+			const b = lay.boxes, mask = lay.arrows.find((a) => a.id === "mask"), ids = lay.arrows.map((a) => a.id);
+			for (const a of lay.arrows) if (!(onBorder(starts(a), b[a.from]) && onBorder(ends(a), b[a.to]))) check(false, `${what} ${name}: arrow ${a.id} leaves and reaches its boxes`);
+			check(parts.every((p) => b["card" + p[0].toUpperCase() + p.slice(1)]) && ["version", "mask", "padding"].every((p) => parts.includes(p) === !!b["card" + p[0].toUpperCase() + p.slice(1)])
+				&& Object.keys(b).filter((id) => id.startsWith("card")).every((id) => contains(b.cards, b[id])), `${what} ${name}: a card for each part it brings, in the column`);
+			check(!!mask === parts.includes("mask") && (!mask || (starts(mask)[0] === b.qr.x + b.qr.w && starts(mask)[1] === b.qr.y + 8.5 * b.qr.h / size && ends(mask)[0] === b.cardMask.x)),
+				`${what} ${name}: the mask's arrow from the QR's format row 8 into its card`);
+			check(ids.includes("cards") && b.qr.h < 150 && b.qr.w === b.qr.h, `${what} ${name}: the cards' arrow, the QR smaller`);
+			check(ids.includes("position") === cells.length > 0 && ids.includes("paint") === (what === "read" && cells.length > 0), `${what} ${name}: the position (and the painting) only with data squares`);
+		}
+		const cardsArrow = (lay) => lay.arrows.find((a) => a.id === "cards");
+		check(cardsArrow(make).from === "cards" && cardsArrow(make).to === "bits" && cardsArrow(read).from === "bits" && cardsArrow(read).to === "cards", `header ${name}: making, the cards give the bits; reading, the bits go to the cards`);
+		check(J.turnStages({ pad, file, header: true, data: cells.length > 0 }).flatMap((x) => x.arrows).filter((id) => make.arrows.some((a) => a.id === id)).join() === make.arrows.map((a) => a.id).join()
+			&& J.readStages({ pad, file, header: true, data: !!cursor }).flatMap((x) => x.arrows).filter((id) => read.arrows.some((a) => a.id === id)).join() === read.arrows.map((a) => a.id).join(),
+			`header ${name}: the stages show every arrow in order`);
 	}
 }
 for (const sides of [2, 6, 20]) for (const tool of ["dice", "device", "bag"]) margin(`throw d${sides} ${tool}`, Lay.keyThrow({ sides, tool }));
@@ -610,6 +652,20 @@ for (const pad of [false, true]) {
 	const things = Array.from({ length: 32 }, (_, i) => ({ name: "Piece " + i, emoji: i % 3 ? "" : "🍎", colour: i % 2 ? "#d04040" : "", photo: "", symbol: "" }));
 	const lay = Lay.makeTurn({ pad: true, n: 16 }), rlay = Lay.readTurn({ pad: true, n: 16 });
 
+	// a last turn's cards: the mask's value beside its bits (amber), the padding's die, each bit with its card's border
+	{
+		const cb = { x: 100, y: 86, w: 104, h: 60 };
+		const mk = V.headerCard({ box: cb, title: "Máscara de tu QR", bits: [0, 1, 1], kind: "mask", value: 3 });
+		const pd = V.headerCard({ box: cb, title: "Relleno", bits: [1, 0, 1, 1], note: "por azar", kind: "padding" });
+		const vs = V.headerCard({ box: cb, title: "Versión del formato", bits: [0, null], note: "siempre, hoy", kind: "version" });
+		check(cls("v-hcard-mask")(mk) && walk(mk, (n) => n.tag === "text" && textOf(n) === "= 3").length === 1 && walk(mk, cls("v-bit-mask")).length === 3 && !walk(mk, cls("v-bit-dashed")).length,
+			"headerCard mask: its value beside its 3 bits, amber, not dashed");
+		check(walk(pd, (n) => n.tag === "svg" && cls("v-die")(n)).length === 1 && walk(pd, cls("v-bit-padding")).length === 4 && walk(pd, cls("v-bit-dashed")).length === 4 && walk(pd, (n) => n.tag === "text" && textOf(n) === "por azar").length === 1,
+			"headerCard padding: a die, its bits dashed, «by chance»");
+		check(walk(vs, (n) => n.tag === "text" && textOf(n) === "Versión del formato").length === 1 && walk(vs, cls("v-bit-version")).length === 2 && walk(vs, cls("v-bit-empty")).length === 1,
+			"headerCard version: the whole title, a bit not known yet empty");
+		for (const [what, c] of [["mask", mk], ["padding", pd], ["version", vs]]) within({ ...c, children: c.children.filter((n) => n.tag !== "svg") }, cb, `headerCard ${what}`);
+	}
 	// the QR's fixed areas, the cursor label, black and white bits, the labelled dictionary
 	for (const size of [21, 25]) {
 		const fm = S.formatModules(size), fn = S.functionModules(size);
@@ -928,7 +984,6 @@ for (const pad of [false, true]) {
 }
 // the journeys (journeys.js): which slides there are, and how many pieces to get
 {
-	vm.runInContext(read("src/journeys.js"), ctx, { filename: "src/journeys.js" });
 	const J = vm.runInContext("SeedcraftJourneys", ctx);
 	const ids = (flow, s) => J.slides(flow, s).map((x) => x.id).join(" ");
 	check(J.buyFor(12, 16, "basic") === 15 && J.buyFor(24, 16, "basic") === 20 && J.buyFor(12, 16, "pad", "string") === 20 && J.buyFor(24, 32, "pad", "string") === 20
@@ -1002,6 +1057,16 @@ for (const pad of [false, true]) {
 	}
 	check(J.turnStages({ pad: true }).map((x) => x.id).join() === "position,bits,number,key,keyNumber,clock,out,dict,slot" && J.turnStages({ pad: true }).find((x) => x.id === "out").arrows.length === 0
 		&& J.turnStages({ pad: true }).find((x) => x.id === "clock").arrows.join() === "clockSeed,clockKey", "turnStages: the spec's nine steps; both inputs one step, the output of the clock one with no arrow");
+	check(J.turnStages({ header: true }).map((x) => x.id).join() === "cards,bits,number,dict,slot" && J.turnStages({ header: true, data: true }).map((x) => x.id).join() === "position,cards,bits,number,dict,slot"
+		&& J.turnStages({ header: true }).find((x) => x.id === "cards").arrows.join() === "mask" && J.turnStages({ header: true, data: true }).find((x) => x.id === "bits").arrows.join() === "cards,bits",
+		"turnStages: a header turn, the cards (the mask from the QR) before the bits; the position only with data squares");
+	check(J.readStages({ header: true }).map((x) => x.id).join() === "piece,number,bits,cards" && J.readStages({ header: true, data: true }).map((x) => x.id).join() === "position,piece,number,bits,paint,cards"
+		&& J.readStages({ pad: true, header: true }).map((x) => x.id).join() === "piece,number,keyPiece,keyNumber,in,out,bits,cards" && J.readStages({ header: true }).at(-1).arrows.join() === "cards,mask",
+		"readStages: a header turn, the bits into the cards after the squares painted (if any)");
+	for (const [pad, file] of [[false, false], [true, false], [true, true]]) {
+		const stages = J.turnStages({ pad, file, header: true, data: true }), arrows = Lay.makeTurn({ pad, n: 16, file, header: true, data: true }).arrows.map((a) => a.id);
+		check(stages.flatMap((x) => x.arrows).join() === arrows.join(), `turnStages header pad=${pad} file=${file}: every arrow once, in order`);
+	}
 	check(J.EXPLAINED === 3, "the first three turns are explained step by step");
 	// your own dictionary: naming each piece, the order it is checked in
 	const named = [{ name: "Red" }, { name: " red " }, { name: "" }, { name: "Blue" }];
@@ -1035,7 +1100,7 @@ for (const pad of [false, true]) {
 	const args = { turnPosition: [364], turnNumber: ["11111", 31], turnKeyAt: [364], turnKeyFile: [364, "V", 31], turnKeyNumber: [31], turnClockOf: [32],
 		turnOut: [31], turnDict: [31], turnSlot: [364], readTap: [364], readTapBoth: [364], readTurnPad: [31, 31, 32, 31], readTurnBasic: [31] };
 	const keys = ["turnPosition", "turnBitsAre", "turnNumber", "turnKeyAt", "turnKeyFile", "turnKeyNumber", "turnClockOf", "turnOut", "turnDict", "turnSlot",
-		"turnHeader", "turnPadding", "seqKeyChanged", "endPad", "endBasic", "whyPad", "makeWarn", "seqIntro", "seqPadIntro",
+		"turnHeaderNoQr", "seqKeyChanged", "endPad", "endBasic", "whyPad", "makeWarn", "seqIntro", "seqPadIntro",
 		// reading back: the turn's foot, the ends'
 		"readTap", "readTapBoth", "readTurnPad", "readTurnBasic", "readNoFit", "typeHelp", "handDone", "checkMatch", "checkFixed", "checkPadding", "checkMismatch",
 		"readLockedWhy", "readLockedAhead",
