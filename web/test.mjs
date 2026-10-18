@@ -1205,6 +1205,23 @@ for (const pad of [false, true]) {
 	  check(!J.paddingOnlyRead({ wrong: [{ pos: 52, turn: 52, column: "seed" }], readPlain: at(52, 1), madePlain: made, k, nbits })
 		&& !J.paddingOnlyRead({ wrong: [{ pos: 53, turn: 53, column: "seed" }], readPlain: at(53, 8), madePlain: made, k, nbits }), "paddingOnlyRead: a header bit differing blocks");
 	  check(!J.paddingOnlyRead({ wrong: [], readPlain: made, madePlain: made, k, nbits }), "paddingOnlyRead: nothing wrong is not a padding difference"); }
+	// the check's verdict (app.js's checkTurns): exact, or only the padding differs, and never when the QR's correction put a piece right
+	{ const k = 4, nbits = 213, made = Array.from({ length: 54 }, (_, i) => i % 16), at = (p, v) => { const r = made.slice(); r[p] = v; return r; };
+	  const rd = (taps, extra = {}) => J.checkRead({ taps, symbols: made, ...extra });
+	  const v = (diff, over = {}) => J.checkVerdict({ sameEntropy: true, fixed: false, diff, readPlain: diff && diff.seed, madePlain: made, k, nbits, ...over });
+	  check(v(rd(made)) === true, "checkVerdict: exact");
+	  check(v(rd(made.slice().reverse())) === true && rd(made.slice().reverse()).reversed, "checkVerdict: reversed-exact");
+	  const last = rd(at(53, made[53] ^ 1));
+	  check(last.wrong.length === 1 && v(last) === true, "checkVerdict: the padding of the last piece differs");
+	  const both = rd(at(53, made[53] ^ 9));
+	  check(both.wrong.length === 1 && v(both) === false, "checkVerdict: padding and a header bit in the same piece");
+	  const comp = J.checkRead({ taps: at(3, made[3] ^ 5), keys: at(3, made[3] ^ 5), symbols: made, pad: made, keyRead: false });
+	  check(comp.wrong.length === 2 && v(comp, { readPlain: made }) === false, "checkVerdict: a compensated seed/key pair at a data position");
+	  check(v(last, { fixed: true }) === false && v(rd(made), { fixed: true }) === false, "checkVerdict: put right by the QR's correction");
+	  check(v(rd(made), { sameEntropy: false }) === false && v(last, { sameEntropy: false }) === false, "checkVerdict: a different seed");
+	  check(v(null) === false, "checkVerdict: nothing read through yet");
+	  const key = made.map((x) => (x * 7 + 3) % 16), sw = J.checkRead({ taps: key, keys: made, symbols: made, pad: key, keyRead: true });
+	  check(sw.swapped && v(sw, { readPlain: made }) === true, "checkVerdict: swapped-exact"); }
 	// a read from the other end (or the two strings swapped), turned the way the copy was made
 	{ const symbols = [1, 2, 3, 4], read = [4, 3, 2, 1], d = J.checkRead({ taps: read, symbols });
 	  const f = J.flipRead({ taps: read, keyTaps: [], reversed: d.reversed, keyReversed: false, swapped: false });
@@ -1289,7 +1306,7 @@ for (const pad of [false, true]) {
 	const keys = ["turnPosition", "turnBitsAre", "turnNumber", "turnKeyAt", "turnKeyFile", "turnKeyNumber", "turnClockOf", "turnOut", "turnDict", "turnSlot",
 		"turnHeaderNoQr", "seqKeyChanged", "qrStepWords", "qrStepNumber", "qrStepQr", "qrStepFixed", "endPad", "endBasic", "whyPad", "makeWarn", "seqIntro", "seqPadIntro", "seqIntroFoot",
 		// reading back: the turn's foot, the ends'
-		"readTap", "readTapBoth", "readTurnPad", "readTurnBasic", "readNoFit", "typeHelp", "handDone", "checkMatch", "checkFixed", "checkPadding", "checkMismatch",
+		"readTap", "readTapBoth", "readTurnPad", "readTurnBasic", "readNoFit", "typeHelp", "handDone", "checkMatch", "checkFixed", "checkMismatch",
 		"readLockedWhy", "readLockedAhead",
 		// storing it
 		"storeForgetWhy", "storeKeyUnsaved", "storeNotChecked"];
@@ -1353,6 +1370,8 @@ for (const pad of [false, true]) {
 }
 { const c1 = Lay.cropClamp({ iw: 400, ih: 300, x: 350, y: -20, side: 500 }); check(c1.side === 300 && c1.x === 100 && c1.y === 0, "cropClamp: inside the photo, no larger than it");
   const c2 = Lay.cropClamp({ iw: 400, ih: 300, x: 10, y: 10, side: 5 }); check(c2.side === 32, "cropClamp: a minimum size"); }
+check(Lay.cropKeyScale("+") > 1 && Lay.cropKeyScale("=") > 1 && Lay.cropKeyScale("-") < 1 && Lay.cropKeyScale("a") === 0, "crop keyboard: + and = grow the square, - shrinks it");
+check(Lay.cropPinch(100, 50, 100) === 200 && Lay.cropPinch(100, 100, 50) === 50, "crop pinch: fingers spreading grow the square, closing shrink it");
 console.log(`${failures ? "FAIL" : "ok"}: ${vectors.length} vectors, ${padVectors.length} pad vectors, ${failures} failures`);
 process.exit(failures ? 1 : 0);
 
