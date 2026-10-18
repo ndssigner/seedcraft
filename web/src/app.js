@@ -1924,24 +1924,43 @@
 		const rd = m.check, L = readLength(rd), pad = st.mode === "pad", done = () => { rd.turn = L; render(); };
 		readOut(rd);
 		// the copy reads back only while every piece read gives the seed made, exactly: a piece the
-		// QR code's error correction had to put right is still wrong on the string (and so is one
-		// that differs only in its padding)
+		// QR code's error correction had to put right is still wrong on the string. A piece that
+		// differs only in its padding (random bits, with no square: SPEC §11) does not block.
 		const diff = readFrontier(rd) >= L ? J.checkRead({ taps: rd.taps.slice(0, L), keys: pad ? readKey(rd).slice(0, L) : null, symbols: m.symbols,
 			pad: pad ? m.pad : null, keyRead: pad && st.plan.padAs === "string" }) : null;
-		m.checked = !!rd.out && !rd.out.fixed && [...rd.out.entropy].join() === [...m.entropy].join() && !!diff && !diff.wrong.length;
+		const same = !!rd.out && [...rd.out.entropy].join() === [...m.entropy].join();
+		m.checked = same && !!diff && ((!rd.out.fixed && !diff.wrong.length) || onlyPaddingDiffers(m, diff));
 		if (m.checked) m.keyChanged = null;
 		if (rd.typing) return readTypingSlide(rd, done);
 		if (rd.turn >= L && diff) return checkEnd(rd, diff);
 		return readTurnSlide(rd, { checking: true, done });
 	}
+	// what was read differs from what was made, but only in the padding: every bit past the QR
+	// code's data squares and its header (plain values: with a key, each piece less its key's)
+	function onlyPaddingDiffers(m, diff) {
+		if (!diff || !diff.wrong.length) return false;
+		const n = st.dict.things.length, pad = st.mode === "pad";
+		const plain = (seed, key) => seed.map((c, p) => pad ? S.clockStep(c, key[p], n, -1).value : c);
+		const nbits = S.dataModulesRowMajor(S.compactSeedQR(m.entropy).size).length + 5;
+		return J.onlyPadding(plain(diff.seed, diff.key), plain(m.symbols, m.pad), Math.log2(n), nbits);
+	}
+	// what was read so far forgotten (once asked), to start again from the first piece; a key file stays
+	function restartRead(rd) {
+		if (!confirm(T().readRestartAsk)) return;
+		Object.assign(rd, freshRead(rd), { keyFile: rd.keyFile, fileText: rd.fileText });
+		render();
+	}
 	// The end of checking (layouts.js's checkFinal): the QR code of your words
 	// and the one you read, side by side. The same: «=», «✓ It is your seed»,
 	// its fingerprint and «the N pieces, exact», and on to Store. Not: «≠», the
 	// squares that differ in red, the strings as read around the first piece
-	// that does not match, it framed in red, and Next goes to it.
+	// that does not match, it framed in red, and Next goes to it. Read from the
+	// other end (or the two strings swapped): it says so, and offers to turn
+	// it round (to swap them); whatever differs, to start again. Only the
+	// padding differs: the same seed, «=», and on to Store.
 	function checkEnd(rd, diff) {
 		const t = T(), m = st.make, things = st.dict.things, n = things.length, k = Math.log2(n), pad = st.mode === "pad", L = readLength(rd);
-		const exact = !!m.checked, cf = Lay.checkFinal({ pad }), b = cf.boxes, cols = cf.columns;
+		const exact = !!m.checked, padOnly = exact && diff.wrong.length > 0, cf = Lay.checkFinal({ pad }), b = cf.boxes, cols = cf.columns;
 		const qr = S.compactSeedQR(m.entropy), size = qr.size, cells = S.dataModulesRowMajor(size), made = (r, c) => qr.getModule(c, r);
 		// what was read, place by place along the strings (as it reads best), on the template
 		const plain = diff.seed.map((c, p) => pad ? S.clockStep(c, diff.key[p], n, -1).value : c);
@@ -1964,9 +1983,25 @@
 				: swapped ? readColumn(b.keyColumn, "seed", things, rd.keyTaps, w.turn, L, { column: cols.key }) : readColumn(b.keyColumn, "key", keyThings, rd.keyTaps, w.turn, L, { column: cols.key }));
 			kids.push(V.frame({ box: w.column === "key" && b.keyRow ? b.keyRow : b.seedRow, colour: "err" }));
 		}
-		const result = exact
+		// the reading turned the way the copy was made (only the seed's string, with a key file), and read again
+		const turn = (how) => {
+			const f = J.flipRead({ taps: rd.taps.slice(0, L), keyTaps: rd.keyTaps.slice(0, L), ...how });
+			rd.taps = f.taps;
+			if (pad && rd.padAs === "string") rd.keyTaps = f.keyTaps;
+			rd.turn = L;
+			render();
+		};
+		const act = (label, fn) => h("button", { type: "button", class: "btn ghost small", on: { click: fn } }, label);
+		const reversed = diff.reversed || diff.keyReversed;
+		const result = padOnly
+			? h("div", { class: "cf-result ok" }, h("b", { text: "✓ " + t.checkSame }), h("span", { class: "cf-exact", text: t.checkPaddingOk }))
+			: exact
 			? h("div", { class: "cf-result ok" }, h("b", { text: "✓ " + t.checkSame }), h("span", { class: "cf-exact", text: t.checkExact(L) }), fingerprintLine(m.entropy))
-			: h("div", { class: "cf-result bad" }, h("b", { text: t.checkWrongPiece(w.turn + 1) }));
+			: h("div", { class: "cf-result bad" },
+				h("b", { text: diff.swapped ? t.checkSwapped : reversed ? t.checkReversed : t.checkWrongPiece(w.turn + 1) }),
+				reversed ? act(t.checkFlip, () => turn(diff)) : null,
+				diff.swapped ? act(t.checkSwap, () => turn({ reversed: false, keyReversed: false, swapped: true })) : null,
+				act(t.checkRestart, () => restartRead(rd)));
 		const same = !!rd.out && [...rd.out.entropy].join() === [...m.entropy].join();
 		return {
 			// the same seed: put right by the QR code, or wrong only in the padding (bits with no square)
@@ -2423,11 +2458,7 @@
 			Object.assign(rd, { typing: true, typeError: "", text: names(rd.taps, dictFor(rd).things), keyText: keyThings ? names(rd.keyTaps, keyThings) : "" });
 			render();
 		};
-		const restart = () => {
-			if (!confirm(t.readRestartAsk)) return;
-			Object.assign(rd, freshRead(rd), { keyFile: rd.keyFile, fileText: rd.fileText });
-			render();
-		};
+		const restart = () => restartRead(rd);
 		return [{ icon: "⌨", label: t.typeAll, go: typeAll },
 			frontier > (rd.turn || 0) + 1 && rd.turn < L ? { icon: "⏩", label: t.readToEnd, go: () => { if (frontier >= L) done(); else readGo(rd, frontier); } } : null,
 			rd.taps.length || rd.keyTaps.length ? { icon: "↺", label: t.readRestart, go: restart } : null].filter(Boolean);
