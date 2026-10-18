@@ -332,21 +332,23 @@
 				const p = pts.get(e.pointerId); if (!p) return;
 				const dx = e.clientX - p.x, dy = e.clientY - p.y;
 				pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-				if (pts.size >= 2) { const s = span(); if (last > 0 && s > 0) resize(c.side * last / s); last = s; }
+				if (pts.size >= 2) { const s = span(); if (last > 0 && s > 0) resize(Lay.cropPinch(c.side, last, s)); last = s; }
 				else { const k = pxPerImg(); move(dx / k, dy / k); }
 			});
 			const up = (e) => { pts.delete(e.pointerId); if (pts.size === 1) last = 0; };
 			stage.addEventListener("pointerup", up); stage.addEventListener("pointercancel", up);
 			stage.addEventListener("wheel", (e) => { e.preventDefault(); resize(c.side * Math.exp(e.deltaY * 0.002)); }, { passive: false });
 			stage.addEventListener("keydown", (e) => {
+				const zoom = Lay.cropKeyScale(e.key);
+				if (zoom && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); resize(c.side * zoom); return; }
 				const d = Math.max(1, Math.round(c.side / 20)), v = { ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, -d], ArrowDown: [0, d] }[e.key];
 				if (v) { e.preventDefault(); move(...v); }
 			});
 			slider.addEventListener("input", () => resize(+slider.value));
 			const finish = (r) => { if (done) return; done = true; resolve(r); };
 			const close = Slides.popup(h("div", { class: "slide-help crop-pop" }, h("h2", { text: t.cropQ }), stage,
-				h("div", { class: "crop-row" }, h("button", { type: "button", class: "btn ghost", "aria-label": "−", text: "−", on: { click: () => resize(c.side * 0.9) } }), slider,
-					h("button", { type: "button", class: "btn ghost", "aria-label": "+", text: "+", on: { click: () => resize(c.side / 0.9) } })),
+				h("div", { class: "crop-row" }, h("button", { type: "button", class: "btn ghost", "aria-label": "−", text: "−", on: { click: () => resize(c.side * Lay.CROP_STEP) } }), slider,
+					h("button", { type: "button", class: "btn ghost", "aria-label": "+", text: "+", on: { click: () => resize(c.side / Lay.CROP_STEP) } })),
 				h("div", { class: "crop-row" }, h("button", { type: "button", class: "btn ghost", text: t.cropCancel, on: { click: () => close() } }),
 					h("button", { type: "button", class: "btn", text: t.cropDo, on: { click: () => { finish({ x: c.x, y: c.y, side: c.side }); close(); } } }))),
 				{ label: t.cropQ, onClose: () => finish(null) });
@@ -1663,6 +1665,9 @@
 		return [...parts, " (", link("https://github.com/SeedSigner/seedsigner/blob/dev/docs/seed_qr/README.md", t.qrStandard), ")"];
 	}
 
+	// a bubble beside a drawing (the intros before the turns and before checking)
+	const tip = (cls, text, box) => place(h("p", { class: "tip " + cls, text }), box);
+
 	// ---- before the first turn: the QR, the string to build, the count ------------
 	// layouts.js's seqIntro: the QR (this turn's squares marked), the string empty
 	// (position 1 waiting), each with its bubble; the exact count of pieces of each
@@ -1685,8 +1690,10 @@
 		if (pad) kids.push(file ? keyFileReference(b.keyString, m.pad, 0, L)
 			: V.string({ box: b.keyString, orientation: "v", role: "reference", kind: "key", things: keyThings,
 				items: Array.from({ length: 7 }, (_, j) => j < 3 || j - 3 >= L ? undefined : m.pad[j - 3]), current: 3, firstPosition: -2 }));
-		const tip = (cls, text, box) => place(h("p", { class: "tip " + cls, text }), box);
-		const count = g.written ? [] : [place(h("div", { class: "seq-count" }, h("b", { text: String(most) }), h("p", { text: t.seqCount(most, est) })), b.count)];
+		// a key in a collection of its own: its exact count too, from its group as the seed's from its own
+		const kg = pad && !file && !shared ? gatherPlan().groups[1] : null, keyLine = kg && !kg.written ? t.seqCountKey(J.maxPerKind(m.pad) + kg.copies, kg.each + kg.copies) : null;
+		const count = g.written ? [] : [place(h("div", { class: "seq-count" }, h("div", { class: "seq-row" }, h("b", { text: String(most) }), h("p", { text: t.seqCount(most, est) })),
+			...(keyLine ? [h("p", { class: "seq-key", text: keyLine })] : [])), b.count)];
 		return {
 			question: t.seqIntroQ, wide: true, caption: () => t.seqIntroFoot,
 			// Back: «Your QR» at its last step, nothing replays
@@ -1987,7 +1994,6 @@
 		const kids = [readColumn(b.column, "seed", things, [], 0, L, { column: lay.columns.seed }),
 			V.qr({ box: b.qr, size, modules: (r, c) => S.templateModule(size, r, c), ...qrFixed(size, b.qr) })];
 		if (pad) kids.push(file ? fileColumn(b.keyColumn, m.pad, 0, L) : readColumn(b.keyColumn, "key", keyThingsMade(), [], 0, L, { column: lay.columns.key }));
-		const tip = (cls, text, box) => place(h("p", { class: "tip " + cls, text }), box);
 		return {
 			question: t.checkIntroQ, wide: true,
 			next: { go: () => { if (m.check) m.check.turn = 0; goSlide("make", "check"); } },
@@ -2012,21 +2018,19 @@
 		const diff = readFrontier(rd) >= L ? J.checkRead({ taps: rd.taps.slice(0, L), keys: pad ? readKey(rd).slice(0, L) : null, symbols: m.symbols,
 			pad: pad ? m.pad : null, keyRead: pad && st.plan.padAs === "string" }) : null;
 		const same = !!rd.out && [...rd.out.entropy].join() === [...m.entropy].join();
-		m.checked = same && !rd.out.fixed && !!diff && (!diff.wrong.length || onlyPaddingDiffers(m, diff));
+		m.checked = J.checkVerdict({ sameEntropy: same, fixed: !!(rd.out && rd.out.fixed), diff, ...plainsOf(m, diff) });
 		if (m.checked) m.keyChanged = null;
 		if (rd.typing) return readTypingSlide(rd, done);
 		if (rd.turn >= L && diff) return checkEnd(rd, diff);
 		return readTurnSlide(rd, { checking: true, done });
 	}
-	// what was read differs from what was made, but only in the padding: every wrong piece holds
-	// bits past the QR code's data squares and its header, and only those differ (plain values:
-	// with a key, each piece less its key's)
-	function onlyPaddingDiffers(m, diff) {
-		if (!diff || !diff.wrong.length) return false;
+	// the plain values to compare (with a key, each piece less its key's) and the bits that carry data
+	// (the QR code's data squares and its header), for J.checkVerdict
+	function plainsOf(m, diff) {
 		const n = st.dict.things.length, pad = st.mode === "pad";
+		if (!diff || !diff.wrong.length) return { k: Math.log2(n) };
 		const plain = (seed, key) => seed.map((c, p) => pad ? S.clockStep(c, key[p], n, -1).value : c);
-		const nbits = S.dataModulesRowMajor(S.compactSeedQR(m.entropy).size).length + 5;
-		return J.paddingOnlyRead({ wrong: diff.wrong, readPlain: plain(diff.seed, diff.key), madePlain: plain(m.symbols, m.pad), k: Math.log2(n), nbits });
+		return { readPlain: plain(diff.seed, diff.key), madePlain: plain(m.symbols, m.pad), k: Math.log2(n), nbits: S.dataModulesRowMajor(S.compactSeedQR(m.entropy).size).length + 5 };
 	}
 	// what was read so far forgotten (once asked), to start again from the first piece; a key file stays
 	function restartRead(rd) {
@@ -2087,12 +2091,12 @@
 			: [line("bad", diff.swapped ? t.checkSwapped : reversed ? t.checkReversed : t.checkWrongPiece(w.turn + 1)),
 				place(h("div", { class: "cf-actions" },
 					reversed ? act(t.checkFlip, () => turn(diff)) : null,
-					diff.swapped ? act(t.checkSwap, () => turn({ reversed: false, keyReversed: false, swapped: true })) : null,
+					diff.swapped && !reversed ? act(t.checkSwap, () => turn({ reversed: false, keyReversed: false, swapped: true })) : null,
 					act(t.checkRestart, () => restartRead(rd))), b.actions)];
 		const same = !!rd.out && [...rd.out.entropy].join() === [...m.entropy].join();
 		return {
 			// the same seed: put right by the QR code, or wrong only in the padding (bits with no square)
-			caption: () => exact ? t.checkMatch : same && rd.out.fixed ? t.checkFixed : same ? t.checkPadding : t.checkMismatch,
+			caption: () => exact ? t.checkMatch : same && rd.out.fixed ? t.checkFixed : t.checkMismatch,
 			shortcuts: readShortcuts(rd, L, () => {}),
 			prev: { go: () => readGo(rd, L - 1) },
 			next: exact ? { label: stepName("make", "store") + " ▶", go: () => goSlide("make", "store") }

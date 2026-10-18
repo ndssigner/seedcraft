@@ -50,6 +50,12 @@ const SeedcraftJourneys = (() => {
 	function paddingOnlyRead({ wrong, readPlain, madePlain, k, nbits }) {
 		return wrong.length > 0 && wrong.every((w) => (w.pos + 1) * k > nbits) && onlyPadding(readPlain, madePlain, k, nbits);
 	}
+	// whether the copy reads back (the check's safety rule): the seed read is the one made, no piece
+	// was put right by the QR code's error correction, and every piece read matches, or the only
+	// pieces that differ are padding (paddingOnlyRead). diff: checkRead's result, or null if not read through.
+	function checkVerdict({ sameEntropy, fixed, diff, readPlain, madePlain, k, nbits }) {
+		return !!sameEntropy && !fixed && !!diff && (!diff.wrong.length || paddingOnlyRead({ wrong: diff.wrong, readPlain, madePlain, k, nbits }));
+	}
 	// how many pieces a seed takes (SPEC §2)
 	const symbolsFor = (words, n) => Math.ceil((words === 12 ? 213 : 364) / Math.log2(n));
 
@@ -279,5 +285,5 @@ const SeedcraftJourneys = (() => {
 		if ((key !== "+" && key !== "=") || mods || buffer) return null;
 		return keyThings && typedCol === "key" ? "key" : "seed";
 	}
-	return { plusKey, headerBitsUpTo, ESTIMATE, ESTIMATE_BOTH, maxPerKind, uniqueInitials, onlyPadding, paddingOnlyRead, typedPiece, EXPLAINED, turnStages, readStages, checkRead, flipRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, splitMaterials, nameProblem, checkOrder, throwParts };
+	return { plusKey, headerBitsUpTo, ESTIMATE, ESTIMATE_BOTH, maxPerKind, uniqueInitials, onlyPadding, paddingOnlyRead, checkVerdict, typedPiece, EXPLAINED, turnStages, readStages, checkRead, flipRead, buyFor, symbolsFor, slides, resolve, jump, pieces, gatherDone, splitMaterials, nameProblem, checkOrder, throwParts };
 })();

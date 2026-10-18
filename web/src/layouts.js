@@ -635,5 +635,9 @@ const SeedcraftLayouts = (() => {
 		const s = Math.max(1, Math.min(Math.max(32, side), iw, ih));
 		return { x: Math.min(Math.max(0, x), iw - s), y: Math.min(Math.max(0, y), ih - s), side: s };
 	}
-	return { cropClamp, BUILT, SLOT, POSBOX, RAIL, pitch, qrSquare, qrCellsBox, digitFont, seedQr, seqIntro, underQr, checkIntro, VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readColumn, readTurn, pickerPopup, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, REJECT, BADGE, fileRow, fileColumn, store, dictName, dictCheck, dictAsIs };
+	// the crop square: one keyboard/button step, the factor a key asks for, and a pinch (fingers spreading grow it)
+	const CROP_STEP = 0.9;
+	const cropKeyScale = (key) => key === "+" || key === "=" ? 1 / CROP_STEP : key === "-" ? CROP_STEP : 0;
+	const cropPinch = (side, last, span) => side * span / last;
+	return { cropClamp, CROP_STEP, cropKeyScale, cropPinch, BUILT, SLOT, POSBOX, RAIL, pitch, qrSquare, qrCellsBox, digitFont, seedQr, seqIntro, underQr, checkIntro, VIEW, BIT, bitsOf, binary, route, segmentHitsBox, clockModule, makeTurn, readColumn, readTurn, pickerPopup, checkFinal, keyThrow, pickerGrid, pickerCell, faceBox, throwMarks, REJECT, BADGE, fileRow, fileColumn, store, dictName, dictCheck, dictAsIs };
 })();
