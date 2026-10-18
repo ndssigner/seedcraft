@@ -385,6 +385,7 @@ ol.entries.paper li { color: #111; border-bottom-color: #ccc; }
 .v-qr-legend-text { fill: var(--muted); font-family: var(--sans); }
 .v-qr-tab { fill: var(--pos); } .v-qr-tab-text { fill: #ffffff; font-family: var(--sans); font-weight: 600; }
 .v-dict-label { fill: var(--fg); font-family: var(--sans); }
+.v-qr-cursor-mask .v-qr-tab { fill: var(--key); } .v-qr-cursor-mask .v-qr-marker { stroke: var(--key); }
 .v-qr-marker { fill: none; stroke: var(--pos); stroke-width: 2.5; pointer-events: none; }
 .v-qr-mask-line { fill: none; stroke: var(--key); stroke-width: 1; opacity: .7; pointer-events: none; }
 .v-qr-reveal { animation: v-reveal 1ms both; }
