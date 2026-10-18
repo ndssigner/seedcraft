@@ -1,12 +1,12 @@
-// Seedcraft Sequences by hand: guide, tables, worksheet and templates.
+// SeedCraft by hand: guide, tables, worksheet and templates.
 //     docs/manual/build.sh        (both languages, reproducible)
 // The data (templates, tables, worked example) comes from
 // tools/gen_manual_data.py, i.e. from the reference implementation.
 
 #import "common.typ": *
 #show: doc.with(
-  title: tr[SeedCraft Sequences by hand][SeedCraft Sequences a mano],
-  footer: [SeedCraft Sequences v0 — #tr[by hand][a mano]])
+  title: tr[SeedCraft by hand][SeedCraft a mano],
+  footer: [SeedCraft v0 — #tr[by hand][a mano]])
 
 // the example QR, with the template's data cells marked
 #let example-rows = {
@@ -65,7 +65,7 @@
 // ---- cover and guide --------------------------------------------------------
 #align(center)[
   #v(4mm)
-  #text(24pt, weight: "bold")[SeedCraft Sequences]
+  #text(24pt, weight: "bold")[SeedCraft]
   #v(-2mm)
   #text(15pt)[#tr[by hand][a mano]]
   #v(1mm)
@@ -74,9 +74,9 @@
 #v(3mm)
 
 #tr[
-  A *Seedcraft sequence* stores a BIP-39 seed as a row of objects — beads, charms, bricks… — in a fixed order. Behind it there is a *CompactSeedQR*, the QR code of the seed that SeedSigner and NDS-Signer scan. This booklet lets you go from the sequence to that QR code, and from the QR code to a sequence, *with a pencil and nothing else*: no computer, no arithmetic. Then scan the QR code you drew with an air-gapped signer.
+  A *SeedCraft sequence* stores a BIP-39 seed as a row of objects — beads, charms, bricks… — in a fixed order. Behind it there is a *CompactSeedQR*, the QR code of the seed that SeedSigner and NDS-Signer scan. This booklet lets you go from the sequence to that QR code, and from the QR code to a sequence, *with a pencil and nothing else*: no computer, no arithmetic. Then scan the QR code you drew with an air-gapped signer.
 ][
-  Una *secuencia de Seedcraft* guarda una semilla BIP-39 como una fila de objetos —cuentas, abalorios, piezas…— en un orden fijo. Detrás hay un *CompactSeedQR*, el código QR de la semilla que leen SeedSigner y NDS-Signer. Este cuadernillo permite pasar de la secuencia a ese código QR, y del código QR a una secuencia, *con un lápiz y nada más*: sin ordenador y sin hacer cuentas. Después, escanea el QR que has dibujado con un firmador sin conexión.
+  Una *secuencia de SeedCraft* guarda una semilla BIP-39 como una fila de objetos —cuentas, abalorios, piezas…— en un orden fijo. Detrás hay un *CompactSeedQR*, el código QR de la semilla que leen SeedSigner y NDS-Signer. Este cuadernillo permite pasar de la secuencia a ese código QR, y del código QR a una secuencia, *con un lápiz y nada más*: sin ordenador y sin hacer cuentas. Después, escanea el QR que has dibujado con un firmador sin conexión.
 ]
 
 #note[
@@ -176,9 +176,9 @@
 #step(5) #tr[*Turn each group into its number* with the conversion table, and string one object per number, as your dictionary says (made beforehand, kept apart).][*Convierte cada grupo en su número* con la tabla de conversión y ensarta un objeto por número, según tu diccionario (hecho antes y guardado aparte).]
 
 #tr[
-  If your signer chose a different mask from the one Seedcraft's software would pick, your sequence is still valid: readers try every mask.
+  If your signer chose a different mask from the one SeedCraft's software would pick, your sequence is still valid: readers try every mask.
 ][
-  Si tu firmador eligió una máscara distinta de la que elegiría el programa de Seedcraft, tu secuencia sigue siendo válida: los lectores prueban todas las máscaras.
+  Si tu firmador eligió una máscara distinta de la que elegiría el programa de SeedCraft, tu secuencia sigue siendo válida: los lectores prueban todas las máscaras.
 ]
 
 // ---- worked example ---------------------------------------------------------

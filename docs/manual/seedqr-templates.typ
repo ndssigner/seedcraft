@@ -5,7 +5,7 @@
 #import "common.typ": *
 #show: doc.with(
   title: tr[SeedQR templates][Plantillas para SeedQR],
-  footer: [Seedcraft — #tr[SeedQR templates][plantillas para SeedQR]])
+  footer: [SeedCraft — #tr[SeedQR templates][plantillas para SeedQR]])
 
 #align(center)[
   #v(4mm)

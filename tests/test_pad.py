@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests of pad mode (SPEC §10) against vectors/sequences-pad.json, and the
+"""Tests of pad mode (SPEC §10) against vectors/seedcraft-pad.json, and the
 evidence of RISK-AUDIT.md §6 that can run as tests:
 
     E2  the dictionary attack finds nothing on a pad-mode sequence
@@ -23,9 +23,9 @@ sys.path.insert(0, str(ROOT / "tools"))
 import dictionary_attack  # noqa: E402
 import pad_reuse  # noqa: E402
 import seedcraft_pad as pad  # noqa: E402
-import seedcraft_sequences as sc  # noqa: E402
+import seedcraft as sc  # noqa: E402
 
-VECTORS = json.loads((ROOT / "vectors" / "sequences-pad.json").read_text())["vectors"]
+VECTORS = json.loads((ROOT / "vectors" / "seedcraft-pad.json").read_text())["vectors"]
 failures = 0
 
 
@@ -120,7 +120,7 @@ def test_pad_file_format():
 def test_e2_attack_finds_nothing():
     """E2: on a pad-mode sequence the dictionary attack's equations are
     inconsistent for all 8 masks, and it recovers nothing. On the basic
-    sequence of the same seed it works (tests/test_sequences.py)."""
+    sequence of the same seed it works (tests/test_seedcraft.py)."""
     for v in VECTORS:
         if v["k"] > 4:
             continue  # N = 32 leaves free bits even for a basic sequence (SPEC §9)
@@ -222,7 +222,7 @@ def test_e4_uniform():
 
 def test_e5_reuse():
     """E5: two seeds with one pad, and one seed known, give the other."""
-    basic = json.loads((ROOT / "vectors" / "sequences-v0.json").read_text())["vectors"]
+    basic = json.loads((ROOT / "vectors" / "seedcraft-v0.json").read_text())["vectors"]
     for k in range(1, 6):
         for nbytes in (16, 32):
             seeds = [bytes.fromhex(v["entropy"]) for v in basic

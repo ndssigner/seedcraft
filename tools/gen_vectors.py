@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Writes vectors/sequences-v0.json: public test seeds encoded as Seedcraft
+"""Writes vectors/seedcraft-v0.json: public test seeds encoded as Seedcraft
 Sequences for every alphabet size, with and without a PIN. Needs embit
 (mnemonic -> entropy); the reference implementation itself does not.
 
-    tools/gen_vectors.py > vectors/sequences-v0.json
+    tools/gen_vectors.py > vectors/seedcraft-v0.json
 """
 import json
 import pathlib
@@ -12,7 +12,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "reference" / "python"))
 from embit import bip39  # noqa: E402
 
-import seedcraft_sequences as sc  # noqa: E402
+import seedcraft as sc  # noqa: E402
 
 # Public test seeds ONLY: NDS-Signer's test seed and SeedSigner's SeedQR test
 # vectors (docs/seed_qr/README.md). Never put a real seed here.
@@ -40,7 +40,7 @@ def main():
                 "k": k, "n": 1 << k, "mask": sc.compact_seedqr(entropy).get_mask(),
                 "symbols": symbols,
             })
-    json.dump({"format": "seedcraft-sequences", "version": sc.FORMAT_VERSION,
+    json.dump({"format": "seedcraft", "version": sc.FORMAT_VERSION,
                "note": "Public test seeds only. Symbols = data + header + padding (0 here, "
                        "random in use), in reading order. The dictionary is kept apart.",
                "vectors": vectors}, sys.stdout, indent=1)

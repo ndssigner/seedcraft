@@ -1,4 +1,4 @@
-[English](SPEC-sequences.md) · Español
+[English](SPEC.md) · Español
 
 *Esta es una traducción; si difiere de la versión inglesa, manda la inglesa.*
 
@@ -76,9 +76,9 @@ Qué modo y qué forma convienen en cada situación: §11. `RISK-AUDIT.es.md`
 expone de qué protege cada modo y de qué no, con las pruebas, para que
 cualquiera pueda comprobarlo.
 
-La implementación de referencia es `reference/python/seedcraft_sequences.py`,
-y `seedcraft_pad.py` para el modo con llave; `vectors/sequences-v0.json` y
-`vectors/sequences-pad.json` tienen vectores de prueba (solo semillas y
+La implementación de referencia es `reference/python/seedcraft.py`,
+y `seedcraft_pad.py` para el modo con llave; `vectors/seedcraft-v0.json` y
+`vectors/seedcraft-pad.json` tienen vectores de prueba (solo semillas y
 llaves de prueba públicas). La herramienta web (`web/`) se comprueba con los
 mismos vectores (`web/test.mjs`).
 

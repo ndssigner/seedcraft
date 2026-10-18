@@ -1,4 +1,4 @@
-// Seedcraft web tool: user interface. Everything the user types is shown as
+// SeedCraft web tool: user interface. Everything the user types is shown as
 // text (textContent), never as HTML. Nothing is stored (no localStorage):
 // closing the page forgets everything; a dictionary can be saved to a file.
 "use strict";
@@ -832,7 +832,7 @@
 			hand: () => introText("hand", [[REPO_URL + "/blob/main/docs/seedcraft-by-hand-" + st.lang + ".pdf", T().introHandLink]]),
 			calm: () => introText("calm"),
 			audit: () => introText("audit", [[REPO_URL, T().introAuditRepo], [REPO_URL + "/tree/main/docs", T().introAuditDocs],
-				[REPO_URL + "/blob/main/RISK-AUDIT.md", T().introAuditRisk], [REPO_URL + "/blob/main/SPEC-sequences.md", T().introAuditSpec]]),
+				[REPO_URL + "/blob/main/RISK-AUDIT.md", T().introAuditRisk], [REPO_URL + "/blob/main/SPEC.md", T().introAuditSpec]]),
 			notice: () => introNotice(),
 		},
 		make: {
@@ -2945,7 +2945,7 @@
 			h("p", { text: t.aboutNet }),
 			h("p", { text: t.aboutRisk }),
 			h("p", { text: t.aboutCheck }),
-			h("pre", { class: "code" }, "macOS / Linux:  shasum -a 256 seedcraft-sequences.html\nWindows:        certutil -hashfile seedcraft-sequences.html SHA256"),
+			h("pre", { class: "code" }, "macOS / Linux:  shasum -a 256 seedcraft.html\nWindows:        certutil -hashfile seedcraft.html SHA256"),
 			h("p", { text: t.aboutStore }),
 			h("p", { class: "hint", text: t.aboutSpec(FORMAT_VERSION) }));
 	}

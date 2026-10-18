@@ -57,16 +57,16 @@ carton, one kind per cup.</td></tr>
   it is the seed. What hides it is the thing itself, as long as the
   dictionary is not next to it; it is **not a lock**: someone who knows this
   method reads the seed from the string alone in a fraction of a second
-  ([SPEC §9](SPEC-sequences.md#9-security-considerations),
+  ([SPEC §9](SPEC.md#9-security-considerations),
   `tools/dictionary_attack.py`). For a backup in a place you control; add a
   BIP-39 passphrase for real protection.
 - **With a key.** Two strings (or a string and a file), kept apart. Either
   one alone says nothing about the seed; both are needed to rebuild it. For
   places you do not control: travel, hotels, inspections. The price:
   **losing either half loses the seed.** The specification calls it pad
-  mode ([SPEC §10](SPEC-sequences.md#10-pad-mode)).
+  mode ([SPEC §10](SPEC.md#10-pad-mode)).
 
-[SPEC §11](SPEC-sequences.md#11-choosing-a-mode-and-a-form) helps choose a
+[SPEC §11](SPEC.md#11-choosing-a-mode-and-a-form) helps choose a
 mode and a form, and says what not to do. [RISK-AUDIT.md](RISK-AUDIT.md),
 the threat model, sets out what each mode protects against and what it does
 not, with the evidence.
@@ -82,7 +82,7 @@ scanned, or decoded by software. With a key, a random number is added to
 each piece, on a clock of N, before it is made.
 
 The things can be anything in any carrier, as long as the order is fixed
-for ever and no piece can come off. See [SPEC-sequences.md](SPEC-sequences.md).
+for ever and no piece can come off. See [SPEC.md](SPEC.md).
 
 ## By hand, or with the tool
 
@@ -119,7 +119,7 @@ It is a single file that cannot connect anywhere: its Content-Security-Policy
 forbids every network request, external script and `eval`; only its own
 inline script and style run, pinned by their SHA-256. It stores nothing.
 Check it with your operating system (`shasum -a 256
-seedcraft-sequences.html`) against the hash published with the release;
+seedcraft.html`) against the hash published with the release;
 `node web/build.mjs` rebuilds it byte for byte. The page cannot connect, but
 the rest of an online computer can see what is typed in it: on a computer
 that is online, use test seeds only.
@@ -147,18 +147,18 @@ The repository holds the documentation that matters: the threat model, the
 mathematical development of the system and the code, open for anyone to
 review.
 
-- [`SPEC-sequences.md`](SPEC-sequences.md): the specification, format
+- [`SPEC.md`](SPEC.md): the specification, format
   version 0: the mode without a key and pad mode (with a key).
 - [`RISK-AUDIT.md`](RISK-AUDIT.md): the threat model: what each mode
   protects against, and the evidence.
-- `reference/python/seedcraft_sequences.py`: reference implementation
+- `reference/python/seedcraft.py`: reference implementation
   (standard library only, plus Project Nayuki's QR Code generator, MIT,
   unmodified); `seedcraft_pad.py`: pad mode, on top of it.
-- `vectors/sequences-v0.json`: test vectors from public test seeds
-  (`tools/gen_vectors.py`, needs `embit`); `vectors/sequences-pad.json`:
+- `vectors/seedcraft-v0.json`: test vectors from public test seeds
+  (`tools/gen_vectors.py`, needs `embit`); `vectors/seedcraft-pad.json`:
   the same seeds in pad mode, with fixed public pads
   (`tools/gen_pad_vectors.py`).
-- `tests/test_sequences.py`: every vector, a misread thing repaired, either
+- `tests/test_seedcraft.py`: every vector, a misread thing repaired, either
   end, random padding, and the dictionary attack; give it a quirc
   `qrdecode` binary to also check that the QR code drawn back is the seed's
   CompactSeedQR.
@@ -174,10 +174,10 @@ review.
 - `docs/images/samples/`: the sample photos above, without metadata.
 
 ```bash
-python3 tests/test_sequences.py          # the Python reference
+python3 tests/test_seedcraft.py          # the Python reference
 python3 tests/test_pad.py                # pad mode and the audit's evidence
 node web/test.mjs                        # the JavaScript (Node.js ≥ 18)
-node web/build.mjs                       # dist/seedcraft-sequences.html + its SHA-256
+node web/build.mjs                       # dist/seedcraft.html + its SHA-256
 docs/manual/build.sh                     # the PDFs (Typst 0.15.1)
 python3 tools/bundle.py vX.Y.Z           # the release zip
 python3 tools/readme_hero.py             # this README's picture (needs Chrome)

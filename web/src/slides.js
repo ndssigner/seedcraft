@@ -1,4 +1,4 @@
-// Seedcraft Sequences, the web tool's slides: the lectern. One 16:9 slide at
+// SeedCraft, the web tool's slides: the lectern. One 16:9 slide at
 // a time, scaled to fit the window whole (never a scroll), with its fixed
 // places: the guide top left (where you are), «?» and «⋯» top right, the
 // question big and centred under them, the body (layouts.js's canvas), and at

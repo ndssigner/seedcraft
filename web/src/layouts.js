@@ -1,4 +1,4 @@
-// Seedcraft Sequences, the web tool's slides: the pure geometry of each slide
+// SeedCraft, the web tool's slides: the pure geometry of each slide
 // (boxes and arrows on a 680×350 canvas), with no DOM, so web/test.mjs can
 // check that everything fits and that no arrow crosses a box or another arrow.
 // vocab.js draws the visual vocabulary on these boxes.

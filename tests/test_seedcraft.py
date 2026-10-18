@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Tests of the reference implementation against vectors/sequences-v0.json.
+"""Tests of the reference implementation against vectors/seedcraft-v0.json.
 
-    python3 tests/test_sequences.py [path to a quirc 'qrdecode' binary]
+    python3 tests/test_seedcraft.py [path to a quirc 'qrdecode' binary]
 
 With a QR decoder, also checks that the QR code drawn back from the symbols
 is the seed's CompactSeedQR as another reader sees it.
@@ -14,9 +14,9 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "reference" / "python"))
-import seedcraft_sequences as sc  # noqa: E402
+import seedcraft as sc  # noqa: E402
 
-VECTORS = json.loads((ROOT / "vectors" / "sequences-v0.json").read_text())["vectors"]
+VECTORS = json.loads((ROOT / "vectors" / "seedcraft-v0.json").read_text())["vectors"]
 failures = 0
 
 

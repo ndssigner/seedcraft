@@ -1,8 +1,8 @@
 English · [Español](RISK-AUDIT.es.md)
 
-# SeedCraft Sequences: risk audit
+# SeedCraft: risk audit
 
-What each mode of [SPEC-sequences.md](SPEC-sequences.md) protects against,
+What each mode of [SPEC.md](SPEC.md) protects against,
 what it does not, and the evidence for each claim, so that anyone can check
 it rather than take it on trust. It covers format version 0 of the
 specification. **Nobody independent has audited it yet**: this document is
@@ -263,7 +263,7 @@ open question (§8).
 
 | | Claim | Evidence | Status |
 | :--- | :--- | :--- | :--- |
-| E1 | A basic sequence gives up its dictionary in $\le 8$ tries for $N \le 16$ | `tools/dictionary_attack.py`; `tests/test_sequences.py` | In the repository, runs in CI |
+| E1 | A basic sequence gives up its dictionary in $\le 8$ tries for $N \le 16$ | `tools/dictionary_attack.py`; `tests/test_seedcraft.py` | In the repository, runs in CI |
 | E2 | The same attack finds nothing on a pad-mode sequence: its equations are inconsistent for all 8 masks | `tests/test_pad.py`, every pad-mode vector with $N \le 16$ | In the repository, runs in CI |
 | E3 | One wrong pad symbol is repaired | `tests/test_pad.py`: every position of every vector, in the pad and in the sequence; `web/test.mjs`: a random position of each, in the web tool | In the repository, runs in CI |
 | E4 | $C$ is uniform whatever the seed | Proof in §4.1; `tests/test_pad.py`: $\chi^2$ over many encodings of one seed, each position, all together and neighbouring pairs, for every $N$ (and a check that a slightly biased pad is caught) | In the repository, runs in CI |

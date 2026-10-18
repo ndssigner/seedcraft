@@ -1,5 +1,5 @@
 {
- "format": "seedcraft-sequences",
+ "format": "seedcraft",
  "version": 0,
  "note": "Public test seeds only. Symbols = data + header + padding (0 here, random in use), in reading order. The dictionary is kept apart.",
  "vectors": [

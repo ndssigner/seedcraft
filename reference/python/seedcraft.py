@@ -1,4 +1,4 @@
-"""SeedCraft Sequences, reference implementation (format v0, SPEC-sequences.md).
+"""SeedCraft, reference implementation (format v0, SPEC.md).
 
 A BIP-39 seed's entropy -> its CompactSeedQR -> the QR code's data modules,
 row by row -> data bits + header -> symbols of k bits (N = 2**k kinds of
@@ -44,7 +44,7 @@ def function_modules(size):
 
 
 def data_modules_row_major(size):
-    """The data modules in Seedcraft's reading order (SPEC §3.4): row by row,
+    """The data modules in SeedCraft's reading order (SPEC §3.4): row by row,
     top to bottom, each row left to right, as a person writes."""
     func = function_modules(size)
     return [(r, c) for r in range(size) for c in range(size) if (r, c) not in func]

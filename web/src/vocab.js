@@ -1,4 +1,4 @@
-// Seedcraft Sequences, the web tool's slides: the visual vocabulary every
+// SeedCraft, the web tool's slides: the visual vocabulary every
 // slide is built from (strings, dictionaries, bits, the clock module, the QR
 // code, arrows, decision cards, dice), drawn on the boxes layouts.js gives.
 // It draws with the svg() and h() it is given, so web/test.mjs can check its
