@@ -1555,7 +1555,7 @@ for (const pad of [false, true]) {
 {
 	vm.runInContext(I18N_SRC + ";globalThis.TEXT = SEEDCRAFT_TEXT;", ctx, { filename: "src/i18n" });
 	const TX = ctx.TEXT;
-	for (const lang of ["en", "es"]) { const c = TX[lang].seqCount(7, 8); check(!c.includes("7") && c.includes("8"), `seqCount ${lang}: the estimate only (the count is the big figure beside it)`); }
+	for (const lang of Object.keys(TX)) { const c = TX[lang].seqCount(7, 8); check(!c.includes("7") && c.includes("8"), `seqCount ${lang}: the estimate only (the count is the big figure beside it)`); }
 	check(TX.es.cards.dieTitle(6) === "Dado de 6 caras (d6)" && TX.en.cards.dieTitle(6) === "6-sided die (d6)", "dieTitle");
 	check(!("sizeRecommended" in TX.es.cards) && !("sizeRecommended" in TX.en.cards) && TX.es.cards.recommended === "Recomendada" && TX.en.cards.recommended === "Recommended", "the recommended size is a star, not a line");
 	check(TX.es.keyRowCheckLine === "El último carácter comprueba la fila: si copias mal otro carácter, deja de cuadrar." && !!TX.en.keyRowCheckLine, "row check line");
@@ -1595,7 +1595,7 @@ for (const pad of [false, true]) {
 		const tt = (lang) => TX[lang].gatherTip;
 		for (const [lang, k] of [["es", "la llave y su diccionario"], ["en", "the key and its dictionary"]]) check(TX[lang].gatherTotalLine(3, "key").endsWith(k) && !TX[lang].gatherTotalLine(3, "seq").includes(k) && !TX[lang].gatherTotalLine(3, "both").includes(k), "gatherTotalLine: key group names the key " + lang);
 	check(tt("es").box(4) === "Una cajita con 4 compartimentos" && tt("en").box(4) === "A box with 4 compartments" && !TX.es.gatherBox, "gatherTip: box moved");
-	for (const lang of ["en", "es"]) { const f = TX[lang].gatherTotalLine; check(typeof f === "function" && f(144, "seq").includes("144") && f(144, "both").includes("144") && f(144, "seq") !== f(144, "both"), `gatherTotalLine ${lang}: the count, and a line for both`); }
+	for (const lang of Object.keys(TX)) { const f = TX[lang].gatherTotalLine; check(typeof f === "function" && f(144, "seq").includes("144") && f(144, "both").includes("144") && f(144, "seq") !== f(144, "both"), `gatherTotalLine ${lang}: the count, and a line for both`); }
 	check(TX.es.gatherTotalLine(5, "seq") === "En total: 5 piezas para la ristra y el diccionario" && TX.es.gatherTotalLine(5, "both") === "En total: 5 piezas para las dos ristras y los diccionarios" && TX.en.gatherTotalLine(5, "seq") === "In all: 5 pieces for the string and the dictionary" && TX.en.gatherTotalLine(5, "both") === "In all: 5 pieces for both strings and the dictionaries", "gatherTotalLine: exact copy");
 	check(TX.en.qrCompact.includes("SeedSigner") && TX.en.qrCompact.includes("NDS-Signer") && TX.es.qrCompact.includes("SeedSigner") && TX.es.qrCompact.includes("NDS-Signer"), "qrCompact names both readers");
 	for (const n of [2, 4, 8, 16, 32]) { const L = J.symbolsFor(12, n); check(TX.es.wordsLenSub(L).includes(String(L)) && TX.en.wordsLenSub(L).includes(String(L)), `wordsLenSub names the string's length (n=${n})`); }
@@ -1637,12 +1637,12 @@ for (const pad of [false, true]) {
 		for (const lang of ["en", "es"]) for (const k of ["stepsTitle", "expectTitle", "expect", "safeTitle", "safe", "introLead", "releases"]) check(!(k in TX[lang]), `${lang}: ${k} is gone with the old start page`); }
 	check(/intro: t\.dictIntro/.test(appSrc0) && !/caption: \(\) => ways\.error \|\| t\.dictIntro/.test(appSrc0), "dictIntro is under the question, not in the clamped caption");
 	// the explained turn's last step with a changed piece: the slot's sentence and the key's change together
-	for (const lang of ["en", "es"]) check((TX[lang].turnSlot(364) + " " + TX[lang].seqKeyChanged).length <= 110, `caption ${lang}: slot + key changed fits`);
+	for (const lang of Object.keys(TX)) check((TX[lang].turnSlot(364) + " " + TX[lang].seqKeyChanged).length <= 110, `caption ${lang}: slot + key changed fits`);
 	check(TX.es.hdrMaskSeen("001", "100") === "Aquí está escrita tu máscara, mezclada con 101: se ve 001, es 100." && TX.en.hdrMaskSeen("001", "100") === "Your mask is written here, mixed with 101: it shows 001, it is 100."
 		&& TX.es.hdrMaskCatalog === "El catálogo de las 8 máscaras está en el manual en PDF y en la documentación del proyecto." && /8 masks/.test(TX.en.hdrMaskCatalog)
 		&& TX.es.qrMask === "Máscara" && TX.en.qrMask === "Mask", "hdrMaskSeen, hdrMaskCatalog, qrMask: exact copy");
 	// the first turn read: how to read each form
-	for (const lang of ["en", "es"]) for (const [id, f] of Object.entries(TX[lang].forms)) check(f.read.length <= 110, `caption ${lang}.forms.${id}.read at most 110 characters (${f.read.length})`);
+	for (const lang of Object.keys(TX)) for (const [id, f] of Object.entries(TX[lang].forms)) check(f.read.length <= 110, `caption ${lang}.forms.${id}.read at most 110 characters (${f.read.length})`);
 }
 // reading with a key: both strings are read from their start, so the copy never says either end (the key column is only shown with a key)
 {
@@ -1767,7 +1767,7 @@ check(Lay.cropPinch(100, 50, 100) === 200 && Lay.cropPinch(100, 100, 50) === 50,
   const crops = { 0: { x: 1, y: 2, side: 40, base: 7 }, 2: { x: 5, y: 6, side: 50, base: 7 }, 3: { x: 9, y: 9, side: 60, base: 6 }, 5: { x: 0, y: 0, side: 32, base: 7 } };
   check(JSON.stringify(J.usedCrops(crops, 2, 7)) === JSON.stringify([{ i: 0, x: 1, y: 2, side: 40 }, { i: 5, x: 0, y: 0, side: 32 }]), "usedCrops: the other pieces' squares on this photo, not the current piece's nor another photo's");
   check(J.usedCrops({}, 0, 1).length === 0 && J.usedCrops(null, 0, 1).length === 0, "usedCrops: none");
-  for (const lang of ["en", "es"]) check(!!TX_CROP[lang].cropOther && !!TX_CROP[lang].cropHint && !!TX_CROP[lang].cropZoomIn && !!TX_CROP[lang].cropZoomOut, `${lang}: the cropper's copy`);
+  for (const lang of Object.keys(TX_CROP)) check(!!TX_CROP[lang].cropOther && !!TX_CROP[lang].cropHint && !!TX_CROP[lang].cropZoomIn && !!TX_CROP[lang].cropZoomOut, `${lang}: the cropper's copy`);
   check(TX_CROP.es.photoFromBase === "Elegir de la foto" && TX_CROP.en.photoFromBase === "Pick from the photo", "the naming slide's photo button, with a base photo");
   check(TX_CROP.es.cropOther === "Otra foto" && TX_CROP.en.cropOther === "Another photo"
 	&& TX_CROP.es.cropHint === "Arrastra el cuadro hasta la pieza; amplía con la rueda o pellizcando." && TX_CROP.en.cropHint === "Drag the square onto the piece; zoom with the wheel or a pinch.", "the cropper's copy, as approved");
