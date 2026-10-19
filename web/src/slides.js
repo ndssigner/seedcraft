@@ -261,7 +261,7 @@ const SeedcraftSlides = (() => {
 
 	// ---- the «⋯» panel: this slide's shortcuts, the language, the screen awake ----
 	function buildPanel() {
-		const s = slide, t = T();
+		const s = slide;
 		const close = h("button", { class: "slide-tool slide-close", id: "slide-close", "aria-label": say("slidesClose", "Close"), title: say("slidesClose", "Close"), on: { click: () => panel(false) } }, "✕");
 		const awakeBox = h("input", { type: "checkbox", id: "slide-awake", checked: awake, on: { change: (e) => wakeLock(e.target.checked) } });
 		el.scrim = h("div", { class: "slide-scrim", on: { click: () => panel(false) } });
@@ -270,7 +270,7 @@ const SeedcraftSlides = (() => {
 			h("ul", { class: "slide-shortcuts" }, (s.shortcuts || []).map((x) => h("li", {},
 				h("button", { on: { click: () => { panel(false); x.go(); } } }, h("span", { class: "slide-icon", "aria-hidden": "true" }, x.icon || ""), h("span", { text: x.label }))))),
 			h("div", { class: "slide-panel-foot" },
-				t.langSwitch ? h("button", { class: "btn ghost small", id: "slide-lang", on: { click: () => switchLang(t.langSwitch) } }, t.langName) : null,
+				languages().length > 1 ? langMenu({ id: "slide-lang", cls: "btn ghost small", current: lang, langs: languages(), up: true, onPick: switchLang }) : null,
 				h("label", { class: "slide-awake" }, awakeBox, h("span", { text: say("slidesAwake", "Keep the screen on") }))));
 	}
 	// opens or closes the panel over the slide as it is: the body is not redrawn
@@ -296,6 +296,61 @@ const SeedcraftSlides = (() => {
 		if (onLang) onLang(l); else draw();
 		const f = document.getElementById("slide-lang") || document.getElementById("slide-close");
 		if (panelOpen && f) f.focus();
+	}
+
+	// ---- the language menu (the start page's bar, the «⋯» panel) ----
+	// the languages there are (core.js's, those whose file is loaded), each named in itself
+	const languages = () => typeof SEEDCRAFT_LANGS === "undefined" ? [] : SEEDCRAFT_LANGS.filter(([code]) => SEEDCRAFT_TEXT[code]);
+	// What a key does in the open menu, at item index of count: { index } to
+	// move the focus to, { pick } to choose that item, { close } to close the
+	// menu (keep: the key still does its own thing, as Tab moves on), or null
+	// (nothing). Pure: tested in web/test.mjs.
+	function menuKey(key, index, count) {
+		if (key === "ArrowDown" || key === "Down") return { index: (index + 1) % count };
+		if (key === "ArrowUp" || key === "Up") return { index: (index + count - 1) % count };
+		if (key === "Home") return { index: 0 };
+		if (key === "End") return { index: count - 1 };
+		if (key === "Enter" || key === " " || key === "Spacebar") return { pick: index };
+		if (key === "Escape" || key === "Esc") return { close: true };
+		if (key === "Tab") return { close: true, keep: true };
+		return null;
+	}
+	// A button naming the current language that opens the list of the
+	// languages (each named in itself, the current one marked), and
+	// onPick(code) when another is chosen. Enter or Space opens it; the arrows
+	// move, Enter picks, Esc closes; a tap outside closes it.
+	// opts: { id, cls (the button's class), current, langs: [[code, name]], up (opens upwards), onPick }
+	function langMenu(opts) {
+		const langs = opts.langs, at = Math.max(0, langs.findIndex(([code]) => code === opts.current));
+		let index = at;
+		const items = langs.map(([code, name], i) => h("button", { role: "menuitemradio", lang: code, tabindex: "-1", "aria-checked": String(i === at),
+			on: { click: () => choose(i) } }, name));
+		const list = h("div", { class: "lang-list", role: "menu", hidden: true }, items);
+		const button = h("button", { class: opts.cls || "pill", id: opts.id, "aria-haspopup": "menu", "aria-expanded": "false",
+			on: { click: () => toggle(list.hidden) } }, langs[at] ? langs[at][1] : opts.current, h("span", { class: "lang-caret", "aria-hidden": "true", text: "▾" }));
+		const wrap = h("div", { class: "lang-menu" + (opts.up ? " up" : "") }, button, list);
+		const outside = (e) => { if (!wrap.contains(e.target)) toggle(false); };
+		function toggle(open, focusButton) {
+			list.hidden = !open;
+			button.setAttribute("aria-expanded", String(open));
+			if (open) { document.addEventListener("pointerdown", outside, true); index = at; items[index].focus(); }
+			else { document.removeEventListener("pointerdown", outside, true); if (focusButton) button.focus(); }
+		}
+		function choose(i) {
+			toggle(false, true);
+			if (langs[i][0] !== opts.current) opts.onPick(langs[i][0]);
+		}
+		// its keys are its own: not the lectern's (Space, the arrows, Esc closing the panel)
+		list.addEventListener("keydown", (e) => {
+			const r = menuKey(e.key, index, items.length);
+			if (!r) return;
+			// (Tab: back on the button, and then on, as from the button)
+			if (!r.keep) { e.stopPropagation(); e.preventDefault(); }
+			if ("index" in r) { index = r.index; items[index].focus(); }
+			else if ("pick" in r) choose(r.pick);
+			else toggle(false, true);
+		});
+		return wrap;
 	}
 
 	// ---- a popup over the slide (a dictionary opened to choose a piece) ----
@@ -324,6 +379,6 @@ const SeedcraftSlides = (() => {
 		if (!quiet && p.onClose) p.onClose();
 	}
 
-	return { nextOf, keyRoute, tabIsSlide, mount, show, setLang, setReady, wakeLock, popup: openPopup, closePopup,
+	return { nextOf, keyRoute, tabIsSlide, menuKey, langMenu, mount, show, setLang, setReady, wakeLock, popup: openPopup, closePopup,
 		get step() { return step; }, get panelOpen() { return panelOpen; } };
 })();

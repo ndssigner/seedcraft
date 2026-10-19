@@ -3,11 +3,14 @@
 // crypto.
 //     node web/test.mjs
 import { createECDH, createHash, createHmac, pbkdf2Sync } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import vm from "node:vm";
 
 const here = new URL(".", import.meta.url);
 const read = (p) => readFileSync(new URL(p, here), "utf8");
+// the interface's texts: the core, then one file per language, in web/build.mjs's order
+const I18N_FILES = [...read("build.mjs").matchAll(/"(src\/i18n\/[a-z]+\.js)"/g)].map((m) => m[1]);
+const I18N_SRC = I18N_FILES.map(read).join("\n");
 const ctx = vm.createContext({ crypto: globalThis.crypto, TextEncoder }); // the browser's crypto.getRandomValues and TextEncoder
 for (const f of ["third_party/qrcodegen.js", "src/bip39-english.js", "src/seedcraft.js", "src/layouts.js", "src/journeys.js"])
 	vm.runInContext(read(f), ctx, { filename: f });
@@ -494,7 +497,7 @@ for (const pad of [false, true]) {
 	check(!!pos && pos.from === "posBox" && pos.to === "qr" && onBorder(starts(pos), sb.posBox) && onBorder(ends(pos), Lay.qrSquare(sb.qr, { legend: true })), `seqIntro pad=${pad}: the position's arrow from its box to the QR`);
 	// no arrow into a QR from below crosses the legend drawn under it (V.qr: centred at the box's bottom, a swatch and the text at 9 high)
 	const legendBox = (qr, text) => { const w = 10 + 4 + 0.5 * 9 * text.length; return { x: qr.x + (qr.w - w) / 2, y: qr.y + qr.h - 14, w, h: 14 }; };
-	for (const text of [...read("src/i18n.js").matchAll(/qrFixedLegend: "([^"]*)"/g)].map((m) => m[1]))
+	for (const text of [...I18N_SRC.matchAll(/qrFixedLegend: "([^"]*)"/g)].map((m) => m[1]))
 		for (const [name, lay] of [["seqIntro", si], ["makeTurn", Lay.makeTurn({ pad, n: 16 })]]) {
 			const p = lay.arrows.find((a) => a.id === "position"), lb = legendBox(lay.boxes.qr, text);
 			check(p.points.slice(1).every((pt, i) => !Lay.segmentHitsBox(p.points[i], pt, lb)) && (p.points.at(-1)[0] < lb.x || p.points.at(-1)[0] > lb.x + lb.w), `${name} pad=${pad}: the position's arrow clear of the legend «${text}»`);
@@ -1076,7 +1079,7 @@ for (const pad of [false, true]) {
 		check(textOf(bd) === "12" && walk(bd, cls("v-badge-ring")).length === 1 && num(walk(bd, cls("v-badge-ring"))[0].attrs.width) >= 0.6 * 10 * 2 + 4, "badge: an order number in a ring, drawn (no ①), wide enough for two digits");
 		// no symbol a common font may lack, anywhere in the page's code or texts
 		const glyphs = /[\u26BF\u2302\u2913\u2460-\u24FF\u3251-\u32BF]/u;
-		for (const f of ["src/vocab.js", "src/app.js", "src/slides.js", "src/journeys.js", "src/i18n.js", "src/style.css", "src/seedcraft.html"])
+		for (const f of ["src/vocab.js", "src/app.js", "src/slides.js", "src/journeys.js", ...I18N_FILES, "src/style.css", "src/seedcraft.html"])
 			check(!glyphs.test(read(f)), `${f}: no ⚿ ⌂ ⤓ nor circled numbers (drawn instead)`);
 	}
 
@@ -1396,7 +1399,7 @@ for (const pad of [false, true]) {
 	{ const src = read("src/app.js"), sn = src.slice(src.indexOf("function slideNow"), src.indexOf("// ---- the journeys, slide by slide"));
 		check(/return journeySlide\("intro", view, null, null\)/.test(sn) && !/footBar\(\)/.test(src) && !/function intro\(\)/.test(src), "intro: drawn through journeySlide, no foot bar, no old start page");
 		check(/intro: \{/.test(src) && ["start", "what", "blend", "modes", "hand", "calm", "audit", "notice"].every((id) => new RegExp("\\b" + id + ": \\(\\) =>").test(src.slice(src.indexOf("intro: {", src.indexOf("const SLIDES"))))), "intro: SLIDES.intro draws every slide");
-		check(/REPO_URL \+ "\/blob\/main\/RISK-AUDIT\.md"/.test(src) && /REPO_URL \+ "\/blob\/main\/SPEC\.md"/.test(src) && /REPO_URL \+ "\/tree\/main\/docs"/.test(src) && /seedcraft-by-hand-" \+ st\.lang \+ "\.pdf"/.test(src), "intro: the links to the audit, the spec, the docs and the manual");
+		check(/REPO_URL \+ "\/blob\/main\/RISK-AUDIT\.md"/.test(src) && /REPO_URL \+ "\/blob\/main\/SPEC\.md"/.test(src) && /REPO_URL \+ "\/tree\/main\/docs"/.test(src) && /seedcraft-by-hand-" \+ docLang\(\) \+ "\.pdf"/.test(src), "intro: the links to the audit, the spec, the docs and the manual");
 		const fs = await import("node:fs"), root = new URL("../", import.meta.url).pathname;
 		for (const f of ["RISK-AUDIT.md", "SPEC.md", "docs/seedcraft-by-hand-en.pdf", "docs/seedcraft-by-hand-es.pdf"]) check(fs.existsSync(root + f), `linked file ${f}`);
 		check(/\.with-top \.lectern\s*\{[^}]*top:\s*var\(--top-h/.test(read("src/style.css")), "intro: the top bar above the lectern, which takes the height left"); 	check(/\.with-top \.lectern\s*\{[^}]*align-items:\s*flex-start/.test(read("src/style.css")), "intro: the lectern right under the top bar, not centred in the height left");
@@ -1550,7 +1553,7 @@ for (const pad of [false, true]) {
 }
 // the sequence's captions (the foot of a turn, the seed's slide): short enough for the foot's two lines, in both languages
 {
-	vm.runInContext(read("src/i18n.js") + ";globalThis.TEXT = SEEDCRAFT_TEXT;", ctx, { filename: "src/i18n.js" });
+	vm.runInContext(I18N_SRC + ";globalThis.TEXT = SEEDCRAFT_TEXT;", ctx, { filename: "src/i18n" });
 	const TX = ctx.TEXT;
 	for (const lang of ["en", "es"]) { const c = TX[lang].seqCount(7, 8); check(!c.includes("7") && c.includes("8"), `seqCount ${lang}: the estimate only (the count is the big figure beside it)`); }
 	check(TX.es.cards.dieTitle(6) === "Dado de 6 caras (d6)" && TX.en.cards.dieTitle(6) === "6-sided die (d6)", "dieTitle");
@@ -1644,7 +1647,7 @@ for (const pad of [false, true]) {
 // reading with a key: both strings are read from their start, so the copy never says either end (the key column is only shown with a key)
 {
 	const copy = vm.createContext({});   // its own context: the i18n file declares top-level names
-	vm.runInContext(read("src/i18n.js") + ";globalThis.TEXT = SEEDCRAFT_TEXT;", copy, { filename: "src/i18n.js" });
+	vm.runInContext(I18N_SRC + ";globalThis.TEXT = SEEDCRAFT_TEXT;", copy, { filename: "src/i18n" });
 	const TX = copy.TEXT;
 	for (const lang of ["en", "es"]) {
 		const t = TX[lang];
@@ -1768,6 +1771,90 @@ check(Lay.cropPinch(100, 50, 100) === 200 && Lay.cropPinch(100, 100, 50) === 50,
   check(TX_CROP.es.photoFromBase === "Elegir de la foto" && TX_CROP.en.photoFromBase === "Pick from the photo", "the naming slide's photo button, with a base photo");
   check(TX_CROP.es.cropOther === "Otra foto" && TX_CROP.en.cropOther === "Another photo"
 	&& TX_CROP.es.cropHint === "Arrastra el cuadro hasta la pieza; amplía con la rueda o pellizcando." && TX_CROP.en.cropHint === "Drag the square onto the piece; zoom with the wheel or a pinch.", "the cropper's copy, as approved");
+}
+// the languages (spec «La herramienta en nueve idiomas»): one file each, the same keys and types as English,
+// every text function saying something for any sample, the sets' names, the first language, the menu
+{
+	const L = vm.createContext({});
+	vm.runInContext(I18N_SRC + ";globalThis.I = { TEXT: SEEDCRAFT_TEXT, NAMES: SEEDCRAFT_NAMES, LANGS: SEEDCRAFT_LANGS, pickLang, sets: seedcraftSets(), colours: seedcraftColours() };", L, { filename: "src/i18n" });
+	const { TEXT, NAMES, LANGS, pickLang, sets, colours } = L.I;
+	check(JSON.stringify(LANGS) === JSON.stringify([["en", "English"], ["es", "Español"], ["fr", "Français"], ["de", "Deutsch"], ["it", "Italiano"], ["ja", "日本語"], ["ko", "한국어"], ["zh", "中文"], ["ru", "Русский"]]), "the nine languages, each named in itself");
+	const codes = LANGS.map(([c]) => c), present = codes.filter((c) => TEXT[c]);
+	check(present.includes("en") && present.includes("es"), "English and Spanish are there");
+	check(I18N_FILES[0] === "src/i18n/core.js" && I18N_FILES.slice(1).every((f) => codes.includes(f.slice(9, -3))), "build.mjs: the core first, then one file per language");
+	const onDisk = readdirSync(new URL("src/i18n/", here)).filter((f) => f.endsWith(".js")).map((f) => "src/i18n/" + f).sort();
+	check(JSON.stringify(onDisk) === JSON.stringify([...I18N_FILES].sort()), "build.mjs loads every file in src/i18n/");
+	check(Object.keys(TEXT).every((c) => present.includes(c)) && Object.keys(NAMES).sort().join() === present.slice().sort().join(), "each language file sets its texts and its names");
+	// the same shape as English: keys, types, list lengths, a function's number of arguments
+	const kind = (v) => Array.isArray(v) ? "array" : v === null ? "null" : typeof v;
+	const shape = (a, b, path, out) => {
+		if (kind(a) !== kind(b)) return out.push(`${path}: ${kind(b)}, English has ${kind(a)}`);
+		if (typeof a === "function") { if (a.length !== b.length) out.push(`${path}: ${b.length} arguments, English ${a.length}`); return; }
+		if (Array.isArray(a)) { if (a.length !== b.length) out.push(`${path}: ${b.length} items, English ${a.length}`); a.forEach((x, i) => i < b.length && shape(x, b[i], `${path}[${i}]`, out)); return; }
+		if (kind(a) === "object") for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) {
+			if (!(k in b)) out.push(`${path}.${k}: missing`); else if (!(k in a)) out.push(`${path}.${k}: not in English`); else shape(a[k], b[k], `${path}.${k}`, out);
+		}
+	};
+	for (const c of present) {
+		const out = []; shape(TEXT.en, TEXT[c], c, out); shape(NAMES.en, NAMES[c], c + " names", out);
+		check(out.length === 0, `${c}: the same keys and types as English` + (out.length ? ": " + out.slice(0, 8).join("; ") : ""));
+		check(!("langName" in TEXT[c]) && !("langSwitch" in TEXT[c]), `${c}: no langName/langSwitch (the menu names the languages)`);
+		check(typeof TEXT[c].aiTranslated === "string" && (["en", "es"].includes(c) ? TEXT[c].aiTranslated === "" : TEXT[c].aiTranslated.length > 0), `${c}: aiTranslated (empty only in English and Spanish)`);
+	}
+	// every text function, with sample arguments (numbers 0, 1, 2, 5, 21, 91; "x" for a name), says something in every language
+	const NUMS = [0, 1, 2, 5, 21, 91];
+	const SIGS = { errDictDupOne: "s", errUnknown: "s", needFirst: "s", keyDictHaveQ: "s", piecesTwice: "s", hdrMaskSeen: "ss", turnNumber: "sn", turnKeyFile: "nsn",
+		readLockedFile: "nsn", readLocked: "nnsb", gatherTotalLine: "nw", piecesSplit: "nnw", otherSeedAsk: "m", storeQ: "b", storeForgetAsk: "a" };
+	const PAD_CODES = ["empty", "first", "n", "nocheck", "char", "row", "check", "count", "dictn", "words"];
+	const samples = (path, f) => {
+		if (path === "errPadFile") return PAD_CODES.flatMap((code) => [0, 5].map((line) => [code, line, ["count", "dictn", "words"].includes(code) ? [21, 91, 5] : code === "char" ? "x" : 5]));
+		const sig = SIGS[path] || "n".repeat(f.length);
+		return NUMS.map((n, i) => [...sig].map((t) => ({ n, s: "x", b: i % 2 === 0, w: ["seq", "both", "key"][i % 3], m: ["pad", "basic"][i % 2], a: [[], ["x"], ["x", "x"]][i % 3] })[t]));
+	};
+	const fns = (o, path = "") => Object.entries(o).flatMap(([k, v]) => typeof v === "function" ? [[path + k, v]] : kind(v) === "object" ? fns(v, path + k + ".") : []);
+	const enFns = fns(TEXT.en);
+	check(Object.keys(SIGS).every((k) => enFns.some(([p]) => p === k)), "the samples' signatures name only text functions there are");
+	check(enFns.length >= 70, `the text functions are found (${enFns.length})`);
+	for (const c of present) for (const [path] of enFns) {
+		const f = path.split(".").reduce((o, k) => o && o[k], TEXT[c]);
+		if (typeof f !== "function") continue;   // (the shape check above already failed)
+		for (const args of samples(path, f)) {
+			let s; try { s = f(...args); } catch (e) { s = e; }
+			check(typeof s === "string" && (s.length > 0 || path === "forms.other.materials") && !/undefined|NaN|\[object /.test(s), `${c}.${path}(${JSON.stringify(args).slice(1, -1)}): ${s}`);
+		}
+	}
+	// the sets' names: every list as long as English's, every name there; the street types in the language's own alphabetical order
+	const LENGTHS = { beads: 32, colours: 16, bricks: 32, animals: 32, charms: 32, streets: 8, gems: 16, photos: 8, authors: 8, suits: 4 };
+	for (const c of present) {
+		const N = NAMES[c];
+		check(Object.entries(LENGTHS).every(([k, n]) => Array.isArray(N[k]) && N[k].length === n && N[k].every((x) => typeof x === "string" && x.trim().length > 0)), `${c}: every name list whole`);
+		check(sets.every((s) => typeof N.sets[s.id] === "string" && N.sets[s.id].length > 0), `${c}: every set named`);
+		check(N.streets.length === 8 && N.streets.every((x, i) => !i || new Intl.Collator(c).compare(N.streets[i - 1], x) < 0), `${c}: the 8 street types in ${c}'s alphabetical order: ${N.streets.join(", ")}`);
+		check(sets.every((s) => typeof s[c] === "string" && s.things.every((x) => typeof x[c] === "string" && x[c].length > 0)) && colours.every((x) => !!x.name[c]), `${c}: every thing of every set named`);
+		check(new Set(N.beads).size === 32 && new Set(N.colours).size === 16 && new Set(N.bricks).size === 32 && new Set(N.animals).size === 32 && new Set(N.charms).size === 32 && new Set(N.gems).size === 16, `${c}: no two things of a set with the same name`);
+	}
+	// English and Spanish as before the split
+	const bricks = sets.find((s) => s.id === "bricks").things, streets = sets.find((s) => s.id === "streets").things;
+	check(sets[0].en === "Coloured beads" && sets[0].es === "Cuentas de colores" && sets[0].things[7].colour === "#1e4fd8" && sets[0].things[7].symbol === "✿" && sets[0].things[7].es === "Cuenta azul"
+		&& bricks[0].en === "Red brick" && bricks[0].es === "Pieza roja" && bricks[0].brick === true && sets[2].things[1].emoji === "❤️" && sets[2].things[1].es === "Corazón"
+		&& streets.map((x) => x.es).join() === "Avenida,Bulevar,Calle,Camino,Carretera,Paseo,Plaza,Ronda" && streets.map((x) => x.en).join() === "Avenue,Boulevard,Lane,Road,Square,Street,Walk,Way"
+		&& sets.find((s) => s.id === "mixed").things[1].en === "Star" && colours[0].name.en === "Red" && colours[0].name.es === "roja" && colours[15].colour === "#fafafa", "the sets: English and Spanish as before");
+	check(sets.map((s) => s.id).join() === "beads,animals,charms,bricks,mixed,streets,gems,photos,authors,suits" && sets.map((s) => s.things.length).join() === "32,32,32,32,32,8,16,8,8,4", "the sets: the same sets, as many things");
+	// the first visit's language
+	check(pickLang(["de-AT", "en"], codes) === "de" && pickLang(["zh-TW"], codes) === "zh" && pickLang(["pt-BR", "fr"], codes) === "fr" && pickLang(["pt"], codes) === "en", "pickLang: the spec's cases");
+	check(pickLang([], codes) === "en" && pickLang(undefined, codes) === "en" && pickLang(["ES-es"], codes) === "es" && pickLang(["de"], ["en", "es"]) === "en" && pickLang(["ja_JP"], codes) === "ja", "pickLang: none, case, only the languages there are");
+	// the menu's keys (slides.js)
+	const Sl = vm.runInContext("SeedcraftSlides", ctx), mk = Sl.menuKey;
+	check(typeof mk === "function" && mk("ArrowDown", 8, 9).index === 0 && mk("ArrowUp", 0, 9).index === 8 && mk("ArrowDown", 2, 9).index === 3 && mk("Home", 5, 9).index === 0 && mk("End", 1, 9).index === 8
+		&& mk("Enter", 3, 9).pick === 3 && mk(" ", 4, 9).pick === 4 && mk("Escape", 2, 9).close === true && mk("Tab", 2, 9).close === true && mk("Tab", 2, 9).keep === true && mk("a", 2, 9) === null, "menuKey: arrows move round, Enter and Space pick, Esc and Tab close");
+	// the menu in the page: the start page's bar and the «⋯» panel; the first language from the browser; the choice kept if it can be
+	const app = read("src/app.js"), slides = read("src/slides.js"), css = read("src/style.css");
+	check(!/langSwitch|langName/.test(app + slides), "app.js, slides.js: no langSwitch/langName");
+	check(/pickLang\(navigator\.languages \|\| \[navigator\.language\]/.test(app) && /try \{[^}]*localStorage\.getItem/.test(app) && /try \{[^}]*localStorage\.setItem/.test(app), "app.js: the browser's language first, the choice kept (in try/catch)");
+	check(/document\.documentElement\.lang = st\.lang/.test(app) && /langMenu\(/.test(app) && /langMenu\(/.test(slides) && /id: "slide-lang"/.test(slides), "the menu on the bar and in the panel; <html lang> follows");
+	check(/"aria-haspopup": "menu"/.test(slides) && /"aria-expanded"/.test(slides) && /role: "menuitemradio"/.test(slides), "the menu: aria-haspopup, aria-expanded, its items");
+	check(/t\.aiTranslated \?/.test(app), "About: the machine translation's line, when there is one");
+	check(/:lang\(ja\), :lang\(zh\) \{[^}]*line-break: strict/.test(css) && /:lang\(ko\) \{[^}]*word-break: keep-all/.test(css) && /"Hiragino Sans"/.test(css) && /"Malgun Gothic"/.test(css) && /"Microsoft YaHei"/.test(css), "style.css: CJK line breaking and fonts");
 }
 console.log(`${failures ? "FAIL" : "ok"}: ${vectors.length} vectors, ${padVectors.length} pad vectors, ${failures} failures`);
 process.exit(failures ? 1 : 0);

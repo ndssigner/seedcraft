@@ -1,18 +1,18 @@
 // SeedCraft web tool: user interface. Everything the user types is shown as
-// text (textContent), never as HTML. Nothing is stored (no localStorage):
-// closing the page forgets everything; a dictionary can be saved to a file.
+// text (textContent), never as HTML. Nothing typed is stored: closing the
+// page forgets everything; a dictionary can be saved to a file. Only the
+// language chosen is kept in the browser (localStorage), if it can be.
 "use strict";
 
 (() => {
 	const S = SeedcraftSequences;
-	const SETS = SEEDCRAFT_SETS;
+	const SETS = seedcraftSets();
 	const FORMAT_VERSION = document.body.dataset.formatVersion;
 	const NS = "http://www.w3.org/2000/svg";
 	const $ = (id) => document.getElementById(id);
 	const SIZES = [2, 4, 8, 16, 32];
 	// the colours offered for a piece: the first 16 example beads' (their names without "bead")
-	const BEAD_COLOURS = SETS.find((set) => set.id === "beads").things.slice(0, 16).map((b) => ({ colour: b.colour,
-		name: { en: b.en.replace(/ bead$/, ""), es: b.es.replace(/^Cuenta /, "") } }));
+	const BEAD_COLOURS = seedcraftColours();
 	// how long a seed is, what to buy, and the journeys as lists of slides (journeys.js)
 	const J = SeedcraftJourneys;
 	const { symbolsFor } = J;
@@ -59,7 +59,17 @@
 		read: freshRead(),
 		seen: {},  // the one-line explanations already shown once: keyWhy, reroll, keyPart, readTap; throwIntro: the throw's bubbles
 	});
-	const st = { lang: (navigator.language || "en").toLowerCase().startsWith("es") ? "es" : "en", ...freshState() };
+	// the languages there are (core.js's, those whose file is loaded), each named in itself
+	const LANGS = SEEDCRAFT_LANGS.filter(([code]) => SEEDCRAFT_TEXT[code]), LANG_CODES = LANGS.map(([code]) => code);
+	// the language: the one chosen before in this browser, if it was kept; else the browser's own (core.js's pickLang)
+	const LANG_KEY = "seedcraft.lang";
+	const keptLang = () => { try { const l = localStorage.getItem(LANG_KEY); return LANG_CODES.includes(l) ? l : null; } catch (e) { return null; } };
+	const keepLang = (l) => { try { localStorage.setItem(LANG_KEY, l); } catch (e) { /* not kept: it is only asked again next time */ } };
+	const st = { lang: keptLang() || pickLang(navigator.languages || [navigator.language], LANG_CODES), ...freshState() };
+	// another language: the same slide, the same state, redrawn (the menu on the bar, the «⋯» panel's)
+	function setLang(l) { st.lang = l; keepLang(l); render(); }
+	// the documents (the manual) are in English and Spanish only
+	const docLang = () => (st.lang === "es" ? "es" : "en");
 	// What is being read, turn by turn (readTurnSlide): the turn shown (L: the
 	// end), each turn's piece of the sequence (taps) and, in pad mode, of the
 	// key (keyTaps, or keyFile: the key file's numbers, from fileText, checked
@@ -467,7 +477,7 @@
 				h("button", { class: "net", id: "net", "aria-describedby": "net-why", on: { click: (e) => { e.stopPropagation(); $("net-why").classList.toggle("open"); } } }),
 				h("div", { class: "net-why", id: "net-why", role: "tooltip" })),
 			h("a", { class: "pill", id: "gh", href: REPO_URL, title: t.repo, target: "_blank", rel: "noopener noreferrer" }, "GitHub ↗"),
-			h("button", { class: "pill", id: "lang", on: { click: () => { st.lang = t.langSwitch; render(); } } }, t.langName));
+			LANGS.length > 1 ? SeedcraftSlides.langMenu({ id: "lang", current: st.lang, langs: LANGS, onPick: (l) => { setLang(l); if ($("lang")) $("lang").focus(); } }) : null);
 	}
 	// the top bar sits over the lectern, which takes the height left (style.css's .with-top; --top-h: the bar's height)
 	let topSlot = null;
@@ -525,7 +535,7 @@
 		document.documentElement.lang = st.lang;
 		if (!mounted) {
 			// another language from the «⋯» panel: the same slide, the same state, redrawn
-			Slides.mount($("app"), { lang: st.lang, onLang: (l) => { st.lang = l; render(); } });
+			Slides.mount($("app"), { lang: st.lang, onLang: setLang });
 			mounted = true;
 		}
 		Slides.setLang(st.lang);
@@ -829,7 +839,7 @@
 			what: () => introText("what"),
 			blend: () => introBlend(),
 			modes: () => introModes(),
-			hand: () => introText("hand", [[REPO_URL + "/blob/main/docs/seedcraft-by-hand-" + st.lang + ".pdf", T().introHandLink]]),
+			hand: () => introText("hand", [[REPO_URL + "/blob/main/docs/seedcraft-by-hand-" + docLang() + ".pdf", T().introHandLink]]),
 			calm: () => introText("calm"),
 			audit: () => introText("audit", [[REPO_URL, T().introAuditRepo], [REPO_URL + "/tree/main/docs", T().introAuditDocs],
 				[REPO_URL + "/blob/main/RISK-AUDIT.md", T().introAuditRisk], [REPO_URL + "/blob/main/SPEC.md", T().introAuditSpec]]),
@@ -2947,7 +2957,9 @@
 			h("p", { text: t.aboutCheck }),
 			h("pre", { class: "code" }, "macOS / Linux:  shasum -a 256 seedcraft.html\nWindows:        certutil -hashfile seedcraft.html SHA256"),
 			h("p", { text: t.aboutStore }),
-			h("p", { class: "hint", text: t.aboutSpec(FORMAT_VERSION) }));
+			h("p", { class: "hint", text: t.aboutSpec(FORMAT_VERSION) }),
+			// a machine translation says so, and where to send corrections
+			t.aiTranslated ? h("p", { class: "hint" }, t.aiTranslated + " ", link(REPO_URL, "github.com/ndssigner/seedcraft")) : null);
 	}
 
 	// The start page's picture: the first pieces of the pretend seed "abandon … about"
