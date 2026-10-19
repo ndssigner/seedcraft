@@ -40,6 +40,16 @@
 		color-scheme: dark;
 	}
 }
+/* Japanese, Korean and Chinese: the systems' own fonts (macOS, Windows, Linux; nothing loaded), after the Latin ones */
+:root:lang(ja) { --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Yu Gothic", Meiryo, "Noto Sans CJK JP", "Noto Sans JP", sans-serif;
+	--book: "Iowan Old Style", "Palatino Linotype", Palatino, "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif CJK JP", serif; }
+:root:lang(ko) { --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans CJK KR", "Noto Sans KR", sans-serif;
+	--book: "Iowan Old Style", "Palatino Linotype", Palatino, "AppleMyungjo", "Batang", "Noto Serif CJK KR", serif; }
+:root:lang(zh) { --sans: system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", sans-serif;
+	--book: "Iowan Old Style", "Palatino Linotype", Palatino, "Songti SC", "SimSun", "Noto Serif CJK SC", serif; }
+/* their lines: no small kana or closing marks at a line's start; Korean broken between words, not inside one */
+:lang(ja), :lang(zh) { line-break: strict; }
+:lang(ko) { word-break: keep-all; overflow-wrap: break-word; }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
 body { background-color: var(--paper); color: var(--fg); font: var(--fs-m)/1.5 var(--sans);
@@ -69,6 +79,18 @@ header.top { position: sticky; top: 0; z-index: 5; display: flex; align-items: c
 .tabs button.on::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 3px; border-radius: 3px 3px 0 0; background: var(--accent); }
 .pill { border: 1px solid var(--line); background: none; border-radius: var(--r-s); padding: 4px 10px; cursor: pointer; font-size: var(--fs-s); color: var(--fg); text-decoration: none; white-space: nowrap; flex: none; }
 .pill:hover { border-color: var(--line-strong); }
+/* the language menu: the current language's name; under it (over it, in the «⋯» panel) the languages, each named in itself */
+.lang-menu { position: relative; flex: none; }
+.lang-caret { margin-left: .35em; font-size: .8em; color: var(--muted); }
+.lang-list { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; display: flex; flex-direction: column; min-width: 9em; padding: 4px;
+	background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-m); box-shadow: var(--tray); }
+.lang-list[hidden] { display: none; }
+.lang-list button { border: 0; background: none; text-align: left; white-space: nowrap; padding: .3em .7em; border-radius: var(--r-s); cursor: pointer; font-size: var(--fs-s); line-height: 1.4; }
+.lang-list button:hover, .lang-list button:focus { background: var(--soft); }
+.lang-list button[aria-checked="true"] { font-weight: 650; }
+.lang-list button[aria-checked="true"]::after { content: " ✓"; color: var(--accent); }
+.lang-menu.up .lang-list { top: auto; bottom: calc(100% + .3em); left: 0; right: auto; padding: .3em; }
+.lang-menu.up .lang-list button { font-size: 1em; padding: .2em .7em; }
 .net-wrap { position: relative; flex: none; }
 .net { white-space: nowrap; font-size: var(--fs-s); font-weight: 700; cursor: help; border: 0; border-radius: 99px; padding: 4px 11px; }
 .net.off { background: var(--ok-soft); color: var(--ok); }
