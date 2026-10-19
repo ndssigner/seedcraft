@@ -51,7 +51,8 @@ ella.</td></tr>
 <td width="50%"><img src="docs/images/samples/skd8-pieces.jpg" width="100%" alt="Vista cenital de una caja de huevos usada como caja de cuentas: ocho huecos con un tipo de cuenta cada uno y el resto vacíos."></td>
 </tr>
 <tr><td colspan="2"><b>Con llave, N = 8.</b> Dos collares de 71 cuentas
-cada uno: la semilla más la llave, y la llave. El aro pequeño es el
+cada uno: la ristra de la semilla, ya combinada con la llave (derecha), y
+la llave (izquierda). El aro pequeño es el
 diccionario que comparten, los 8 tipos en orden. A la derecha: la caja de
 piezas, una caja de huevos con un tipo en cada hueco.</td></tr>
 </table>

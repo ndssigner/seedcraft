@@ -46,9 +46,9 @@ dictionary. Right: the 16 kinds, numbered 0 to 15, next to it.</td></tr>
 <td width="50%"><img src="docs/images/samples/skd8-pieces.jpg" width="100%" alt="Top view of an egg carton used as a bead box: eight cups hold a different bead type each, the rest are empty."></td>
 </tr>
 <tr><td colspan="2"><b>With a key, N = 8.</b> Two necklaces of 71 beads
-each: the seed plus the key, and the key. The small ring is the dictionary
-they share, the 8 kinds in order. Right: the box of pieces: an egg
-carton, one kind per cup.</td></tr>
+each: the seed's string, already combined with the key (right), and the key
+(left). The small ring is the dictionary they share, the 8 kinds in
+order. Right: the box of pieces: an egg carton, one kind per cup.</td></tr>
 </table>
 
 ## Two modes
