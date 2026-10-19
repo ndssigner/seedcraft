@@ -97,6 +97,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" seedcraft-*.zip SHA256SUMS \
-            --repo "$GITHUB_REPOSITORY" --draft --prerelease \
+            --repo "$GITHUB_REPOSITORY" --draft \
             --title "SeedCraft $GITHUB_REF_NAME" \
-            --notes "Web tool, by-hand guide and SeedQR templates (EN/ES), specification. Drafts: test seeds only. Verify: sha256sum -c SHA256SUMS"
+            --notes "Web tool (nine languages), by-hand guide and SeedQR templates (EN/ES), specification and threat model (EN/ES). Not yet independently audited: real seeds only on an offline computer, at your own risk. Verify: sha256sum -c SHA256SUMS"
