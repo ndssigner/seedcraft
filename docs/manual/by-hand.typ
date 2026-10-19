@@ -81,9 +81,17 @@
 
 #note[
   #tr[
-    *Before you start.* Whoever has the sequence, or the QR code you draw, has the seed — even without your dictionary, if they know this method. Work alone, and burn or shred the worksheets afterwards.
+    *Before you start.* Without a key, whoever has the sequence, or the QR code you draw, has the seed — even without your dictionary, if they know this method. Work alone, and burn or shred the worksheets afterwards.
   ][
-    *Antes de empezar.* Quien tenga la secuencia, o el QR que dibujes, tiene la semilla, incluso sin tu diccionario si conoce este método. Trabaja a solas y quema o tritura las hojas de trabajo al terminar.
+    *Antes de empezar.* Sin llave, quien tenga la secuencia, o el QR que dibujes, tiene la semilla, incluso sin tu diccionario si conoce este método. Trabaja a solas y quema o tritura las hojas de trabajo al terminar.
+  ]
+]
+
+#note[
+  #tr[
+    *Two ways to keep it.* Pages 1 to #context (counter(page).at(<chapter-key>).first() - 1) explain the plain way: one sequence, which *is* the seed. To keep it *with a key* — two sequences, or a sequence and a file, kept apart, each one useless alone — go to the chapter «With a key» on page #context counter(page).at(<chapter-key>).first(): how to make the key with dice, how to add and subtract it, the key file, and a worked example.
+  ][
+    *Dos formas de guardarla.* Las páginas 1 a #context (counter(page).at(<chapter-key>).first() - 1) explican la forma simple: una sola secuencia, que *es* la semilla. Para guardarla *con llave* —dos secuencias, o una secuencia y un archivo, guardadas aparte y sin valor por separado— ve al capítulo «Con llave», en la página #context counter(page).at(<chapter-key>).first(): cómo hacer la llave con dados, cómo sumarla y restarla, el archivo de la llave y un ejemplo resuelto.
   ]
 ]
 
@@ -308,7 +316,7 @@
 #let KC = KY.check
 
 #pagebreak()
-= #tr[With a key][Con llave]
+= #tr[With a key][Con llave] <chapter-key>
 
 #tr[
   Without a key, the sequence *is* the seed: whoever finds it and knows this method can read it. With a key it is not. The *key* is a second row of random numbers, one for each object (the specification calls it the _pad_, SPEC §10). What you make as a sequence is no longer the seed, but *the seed plus the key*, number by number, on the clock of N. The key is kept somewhere else: as a second string of objects, or written in a file.
