@@ -21,7 +21,7 @@ const donate = `// ---- donation images ----\nconst DONATE_IMAGES = { bitcoin: "
 
 const PAGES = [
 	{ out: "seedcraft.html", template: "src/seedcraft.html", styles: ["src/style.css"],
-		scripts: ["third_party/qrcodegen.js", "src/bip39-english.js", "src/seedcraft.js", "src/layouts.js", "src/journeys.js", "src/vocab.js", "src/slides.js", "src/i18n/core.js", "src/i18n/en.js", "src/i18n/es.js", "src/app.js"],
+		scripts: ["third_party/qrcodegen.js", "src/bip39-english.js", "src/seedcraft.js", "src/layouts.js", "src/journeys.js", "src/vocab.js", "src/slides.js", "src/i18n/core.js", "src/i18n/en.js", "src/i18n/es.js", "src/i18n/fr.js", "src/app.js"],
 		version: "src/seedcraft.js" },
 ];
 
