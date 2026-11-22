@@ -39,6 +39,7 @@ SEEDCRAFT_TEXT.it = {
 	repo: "Codice sorgente (GitHub)",
 	sibNds: "un firmatario air-gapped per il Nintendo DSi, che firma PSBT da codici QR o da toni",
 	sibUrTones: "PSBT e seed come toni telefonici, via cavo o nell'aria",
+	sibDtmf: "un firmatario isolato che si usa al telefono: un Raspberry Pi Pico e un vecchio telefono a toni, senza schermo (la versione più economica, la Phone Exchange (PEX))",
 	draft: "formato", netOn: "⚠ Online", netOff: "✓ Offline",
 	netOnTitle: "Questo computer è online", netOffTitle: "Questo computer è offline",
 	netOnWhy: "Questa pagina non può connettersi da nessuna parte (la sua stessa policy lo vieta), ma il resto del computer sì: malware, estensioni del browser, sincronizzazioni o backup possono vedere ciò che si digita qui. Prima di usare un seed reale, spegni la rete (Wi-Fi spento, modalità aereo, cavo staccato).",

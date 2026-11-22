@@ -38,6 +38,7 @@ SEEDCRAFT_TEXT.zh = {
 	repo: "源代码（GitHub）",
 	sibNds: "适用于任天堂 DSi 的气隙签名器，可通过二维码或音频为 PSBT 签名",
 	sibUrTones: "把 PSBT 和种子变成电话音，通过线缆或空气传输",
+	sibDtmf: "通过电话操作的物理隔离签名器：一块 Raspberry Pi Pico 加一部旧的音频拨号电话，没有屏幕（最便宜的方案是 Phone Exchange (PEX)）",
 	draft: "格式", netOn: "⚠ 在线", netOff: "✓ 离线",
 	netOnTitle: "这台电脑已联网", netOffTitle: "这台电脑处于离线状态",
 	netOnWhy: "本页面自身无法连接任何地方（它自己的策略禁止联网），但这台电脑的其他部分可以：恶意软件、浏览器扩展、同步或备份都可能看到这里输入的内容。处理真实种子之前，请先断开网络（关闭 Wi-Fi、开启飞行模式、拔掉网线）。",

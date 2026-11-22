@@ -38,6 +38,7 @@ SEEDCRAFT_TEXT.de = {
 	repo: "Quellcode (GitHub)",
 	sibNds: "ein Air-Gap-Signierer für den Nintendo DSi, der PSBTs aus QR-Codes oder Tönen signiert",
 	sibUrTones: "PSBTs und Seeds als Telefontöne, per Kabel oder durch die Luft",
+	sibDtmf: "ein Air-Gap-Signer, den man per Telefon bedient: ein Raspberry Pi Pico und ein altes Tonwahltelefon, ohne Bildschirm (die günstigste Ausführung, die Phone Exchange (PEX))",
 	draft: "Format", netOn: "⚠ Online", netOff: "✓ Offline",
 	netOnTitle: "Dieser Computer ist online", netOffTitle: "Dieser Computer ist offline",
 	netOnWhy: "Diese Seite kann sich nirgends verbinden (ihre eigene Richtlinie verbietet es), der Rest des Computers aber schon: Schadsoftware, Browser-Erweiterungen, Synchronisierung oder Backups können sehen, was hier getippt wird. Vor einer echten Seed das Netz abschalten (WLAN aus, Flugmodus, Kabel ab).",

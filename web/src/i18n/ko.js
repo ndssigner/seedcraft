@@ -38,6 +38,7 @@ SEEDCRAFT_TEXT.ko = {
 	repo: "소스 코드 (GitHub)",
 	sibNds: "닌텐도 DSi용 에어갭 서명기. QR 코드나 음향 신호로 PSBT에 서명해요",
 	sibUrTones: "PSBT와 시드를 전화 신호음으로, 케이블이나 공기를 통해 전달해요",
+	sibDtmf: "전화로 쓰는 에어갭 서명기예요. Raspberry Pi Pico와 오래된 톤 전화기를 쓰고 화면이 없어요(가장 저렴한 구성이 Phone Exchange (PEX)예요)",
 	draft: "형식", netOn: "⚠ 온라인", netOff: "✓ 오프라인",
 	netOnTitle: "이 컴퓨터는 온라인 상태예요", netOffTitle: "이 컴퓨터는 오프라인 상태예요",
 	netOnWhy: "이 페이지는 어디에도 연결할 수 없어요(자체 정책이 막아요). 하지만 컴퓨터의 나머지 부분은 연결할 수 있어서, 악성코드, 브라우저 확장 프로그램, 동기화나 백업이 여기에 입력한 내용을 볼 수 있어요. 실제 시드를 다루기 전에 네트워크를 끄세요(Wi-Fi 끄기, 비행기 모드, 케이블 뽑기).",

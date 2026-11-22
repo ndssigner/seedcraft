@@ -210,6 +210,9 @@ especificación (y, desde la próxima versión, la auditoría de riesgos), con u
   conexión para la Nintendo DSi, que firma PSBT por QR o por tonos.
 - [ur-tones](https://github.com/ndssigner/ur-tones): PSBT y semillas como
   tonos de teléfono, por cable o al aire.
+- [DTMF-Signer](https://ndssigner.github.io/dtmf-signer/en/pex/): un firmador sin
+  conexión que se usa por teléfono: una Raspberry Pi Pico y un viejo teléfono de
+  tonos, sin pantalla (su montaje más barato, la Phone Exchange (PEX)).
 
 ## Apoyar el proyecto
 

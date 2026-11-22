@@ -39,6 +39,7 @@ SEEDCRAFT_TEXT.en = {
 	repo: "Source code (GitHub)",
 	sibNds: "an air-gapped signer for the Nintendo DSi, signing PSBTs from QR codes or tones",
 	sibUrTones: "PSBTs and seeds as telephone tones, by cable or through the air",
+	sibDtmf: "an air-gapped signer you use by telephone: a Raspberry Pi Pico and an old tone phone, with no screen (its cheapest build, the Phone Exchange (PEX))",
 	draft: "format", netOn: "⚠ Online", netOff: "✓ Offline",
 	netOnTitle: "This computer is online", netOffTitle: "This computer is offline",
 	netOnWhy: "This page cannot connect anywhere (its own policy forbids it), but the rest of the computer can: malware, browser extensions, sync or backups can see what is typed here. Before a real seed, turn the network off (Wi-Fi off, flight mode, cable out).",

@@ -520,7 +520,7 @@
 	function goHome() { st.at.intro = "start"; go("intro"); }
 	// the repository, and the sister projects (plain links: the page itself still connects nowhere)
 	const REPO_URL = "https://github.com/ndssigner/seedcraft";
-	const SIBLINGS = [["NDS-Signer", "https://github.com/ndssigner/nds-signer", "sibNds"], ["ur-tones", "https://github.com/ndssigner/ur-tones", "sibUrTones"]];
+	const SIBLINGS = [["NDS-Signer", "https://github.com/ndssigner/nds-signer", "sibNds"], ["ur-tones", "https://github.com/ndssigner/ur-tones", "sibUrTones"], ["DTMF-Signer", "https://ndssigner.github.io/dtmf-signer/en/pex/", "sibDtmf"]];
 	const link = (href, text, tip) => h("a", { href, target: "_blank", rel: "noopener noreferrer", title: tip || null }, text);
 
 	// ---- the lectern -----------------------------------------------------

@@ -39,6 +39,7 @@ SEEDCRAFT_TEXT.es = {
 	repo: "Código fuente (GitHub)",
 	sibNds: "un firmador sin conexión para la Nintendo DSi, que firma PSBT por QR o por tonos",
 	sibUrTones: "PSBT y semillas como tonos de teléfono, por cable o al aire",
+	sibDtmf: "un firmador sin conexión que se usa por teléfono: una Raspberry Pi Pico y un viejo teléfono de tonos, sin pantalla (su montaje más barato, la Phone Exchange (PEX))",
 	draft: "formato", netOn: "⚠ Conectado", netOff: "✓ Sin conexión",
 	netOnTitle: "Este ordenador está conectado", netOffTitle: "Este ordenador está sin conexión",
 	netOnWhy: "Esta página no puede conectarse a nada (su propia política lo prohíbe), pero el resto del ordenador sí: malware, extensiones del navegador, la sincronización o las copias de seguridad pueden ver lo que se escribe aquí. Antes de una semilla real, desconecta la red (Wi-Fi apagado, modo avión, cable fuera).",

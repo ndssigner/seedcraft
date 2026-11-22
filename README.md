@@ -195,6 +195,9 @@ from the next release on, the risk audit), with a `SHA256SUMS`.
   signer for the Nintendo DSi, signing PSBTs from QR codes or tones.
 - [ur-tones](https://github.com/ndssigner/ur-tones): PSBTs and seeds as
   telephone tones, by cable or through the air.
+- [DTMF-Signer](https://ndssigner.github.io/dtmf-signer/en/pex/): an air-gapped
+  signer you use by telephone: a Raspberry Pi Pico and an old tone phone, with
+  no screen (its cheapest build, the Phone Exchange (PEX)).
 
 ## Donate
 
