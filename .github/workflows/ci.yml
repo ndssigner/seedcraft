@@ -63,7 +63,7 @@ jobs:
             dist/seedcraft-*.zip
             dist/SHA256SUMS
       - name: The site for GitHub Pages
-        run: mkdir site && cp dist/seedcraft.html site/index.html && cp docs/*.pdf site/
+        run: mkdir site && cp dist/seedcraft.html site/index.html && cp docs/*.pdf site/ && cp docs/images/og.png site/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
